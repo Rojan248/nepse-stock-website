@@ -1,19 +1,23 @@
 /**
- * Database Connection - Firebase Firestore
- * Deprecated: This file previously handled MongoDB connection.
- * Now uses Firebase Firestore (see firebase.js)
+ * Database Connection - Local Storage
+ * Uses local JSON file storage for data persistence
  */
 
-const { initializeFirebase, getDb, isConnected } = require('./firebase');
+const { initializeLocalStorage, saveAllData } = require('./localStorage');
 const logger = require('../utils/logger');
 
+let isInitialized = false;
+
 /**
- * Connect to database (initializes Firebase)
+ * Connect to database (initializes local storage)
  */
 const connectDB = async () => {
     try {
-        initializeFirebase();
-        logger.info('Database connected (Firebase Firestore)');
+        if (!isInitialized) {
+            initializeLocalStorage();
+            isInitialized = true;
+            logger.info('Database connected (Local JSON Storage)');
+        }
         return true;
     } catch (error) {
         logger.error(`Database connection failed: ${error.message}`);
@@ -22,16 +26,28 @@ const connectDB = async () => {
 };
 
 /**
- * Disconnect from database (no-op for Firestore)
+ * Disconnect from database (save all data)
  */
 const disconnectDB = async () => {
-    logger.info('Database disconnected');
-    return true;
+    try {
+        saveAllData();
+        logger.info('Database disconnected (data saved)');
+        return true;
+    } catch (error) {
+        logger.error(`Error during disconnect: ${error.message}`);
+        return false;
+    }
+};
+
+/**
+ * Check if database is connected
+ */
+const isConnected = () => {
+    return isInitialized;
 };
 
 module.exports = {
     connectDB,
     disconnectDB,
-    getDb,
     isConnected
 };

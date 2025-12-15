@@ -6,34 +6,26 @@ Technical architecture documentation for the NEPSE Stock Website.
 
 ```
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│   React App     │ ──── │  Express API    │ ──── │   Firestore     │
-│   (Frontend)    │      │   (Backend)     │      │   (Database)    │
+│   React App     │ ──── │  Express API    │ ──── │  Local JSON     │
+│   (Frontend)    │      │   (Backend)     │      │  Storage        │
 └─────────────────┘      └─────────────────┘      └─────────────────┘
-        │                        │
-        │ (optional)             │
-        └────────────────────────┴───────────────┐
-                                                 ↓
-                                          ┌─────────────┐
-                                          │   NEPSE     │
-                                          │   Data      │
-                                          └─────────────┘
+                                 │
+                                 ↓
+                          ┌─────────────┐
+                          │   NEPSE     │
+                          │   API       │
+                          └─────────────┘
 ```
 
 ---
 
-## Data Flow Paths
+## Data Flow
 
 ### Primary Path (REST API)
 ```
-NEPSE → Backend Scraper → Firestore → Express API → React App
+NEPSE API → Backend Scraper → Local JSON → Express API → React App
 ```
-This is the main data flow. The backend scrapes NEPSE data every 8 seconds during market hours, saves to Firestore, and the React frontend queries via REST API.
-
-### Optional Path (Direct Firestore)
-```
-React App → Firebase Client SDK → Firestore (read-only)
-```
-For experimental real-time subscriptions, the frontend can read directly from Firestore using the optional `firestoreClient.js` service.
+This is the main data flow. The backend fetches NEPSE data every 8 seconds during market hours, saves to local JSON files, and the React frontend queries via REST API.
 
 ---
 
@@ -51,11 +43,11 @@ backend/
 │   │   └── market.js
 │   ├── services/
 │   │   ├── scrapers/          # Data fetchers
-│   │   │   ├── libraryFetcher.js
+│   │   │   ├── libraryFetcher.js    # Primary NEPSE API
 │   │   │   ├── proxyFetcher.js
 │   │   │   └── customScraper.js
-│   │   ├── database/          # Firestore operations
-│   │   │   ├── firebase.js          # Firebase Admin SDK
+│   │   ├── database/          # Storage operations
+│   │   │   ├── localStorage.js      # JSON file storage
 │   │   │   ├── connection.js        # Connection wrapper
 │   │   │   ├── stockOperations.js
 │   │   │   ├── ipoOperations.js
@@ -63,12 +55,17 @@ backend/
 │   │   ├── scheduler/         # Update scheduler
 │   │   └── utils/             # Logging, errors
 │   └── middleware/            # CORS, error handlers
+├── data/                      # JSON data files
+│   ├── stocks.json
+│   ├── marketSummary.json
+│   ├── marketHistory.json
+│   └── ipos.json
 ```
 
 ### Data Fetching Strategy
 
 ```
-Primary: Library Fetcher
+Primary: Library Fetcher (nepse-api-helper)
     ↓ (on failure)
 Fallback: Proxy Fetcher
     ↓ (on failure)
@@ -107,11 +104,8 @@ frontend/
 │   ├── hooks/                # Custom hooks
 │   │   ├── useStocks.js
 │   │   └── useIPOs.js
-│   ├── firebase/             # Firebase client (optional)
-│   │   └── clientApp.js
 │   ├── services/
-│   │   ├── api.js            # REST API client (primary)
-│   │   └── firestoreClient.js # Direct Firestore (optional)
+│   │   └── api.js            # REST API client
 │   └── utils/                # Helpers
 ```
 
@@ -120,82 +114,99 @@ frontend/
 ```
 User Action → React Component → Custom Hook → API Service
                                     ↓
-Firestore ← Express Route ← API Request
+Local JSON ← Express Route ← API Request
                                     ↓
                               State Update → Re-render
 ```
 
-### Optional: Real-time Subscriptions
-
-```
-React Component → firestoreClient.js → Firestore (onSnapshot)
-                        ↓
-                  State Update → Re-render
-```
-
 ---
 
-## Database Schema (Firestore)
+## Data Schema
 
-### stocks (collection)
-Document ID: Stock symbol (e.g., "NABIL")
+### stocks.json
 ```javascript
 {
-  symbol: String,
-  companyName: String,
-  sector: String,
-  prices: { open, high, low, close, ltp },
-  change: Number,
-  changePercent: Number,
-  volume: Number,
-  timestamp: String (ISO)
+  "NABIL": {
+    symbol: String,
+    companyName: String,
+    sector: String,
+    prices: { open, high, low, close, ltp },
+    change: Number,
+    changePercent: Number,
+    volume: Number,
+    turnover: Number,
+    previousClose: Number,
+    timestamp: ISO Date String
+  }
 }
 ```
 
-### ipos (collection)
-Document ID: Company name (sanitized)
-```javascript
-{
-  companyName: String,
-  sector: String,
-  status: 'upcoming' | 'open' | 'closed' | 'completed',
-  priceRange: { min, max },
-  dates: { announcement, open, close, result },
-  subscriptionRatio: Number
-}
-```
-
-### marketSummary (collection)
-Document ID: "current"
+### marketSummary.json
 ```javascript
 {
   indexValue: Number,
   indexChange: Number,
-  totalTransactions: Number,
+  indexChangePercent: Number,
   totalTurnover: Number,
-  timestamp: String (ISO)
+  totalVolume: Number,
+  totalTransactions: Number,
+  advancedCompanies: Number,
+  declinedCompanies: Number,
+  unchangedCompanies: Number,
+  timestamp: ISO Date String
+}
+```
+
+### ipos.json
+```javascript
+{
+  "company_name_key": {
+    companyName: String,
+    sector: String,
+    shareManager: String,
+    status: "upcoming" | "open" | "closed",
+    dates: {
+      applicationOpen: ISO Date String,
+      applicationClose: ISO Date String
+    },
+    priceRange: { min, max },
+    timestamp: ISO Date String
+  }
 }
 ```
 
 ---
 
-## Deployment Architecture
+## API Endpoints
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Vercel    │     │   Render    │     │  Firebase   │
-│  (Frontend) │ ──► │  (Backend)  │ ──► │  Firestore  │
-└─────────────┘     └─────────────┘     └─────────────┘
-        │                                      ↑
-        └──────────────(optional)──────────────┘
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/stocks` | GET | All stocks with pagination |
+| `/api/stocks/:symbol` | GET | Single stock details |
+| `/api/stocks/search` | GET | Search by symbol/name |
+| `/api/ipos` | GET | IPO listings |
+| `/api/market-summary` | GET | Market index data |
+| `/api/health` | GET | Server status |
+| `/api/force-update` | POST | Force data refresh |
 
 ---
 
-## Performance Considerations
+## Data Persistence
 
-- **Database**: Firestore indexes on queried fields
-- **API**: Response compression, caching headers
-- **Frontend**: Code splitting, lazy loading routes
-- **Data**: Batch writes for bulk operations
-- **Real-time**: Optional Firestore subscriptions for instant updates
+### Write Strategy
+- **Debounced saves**: Changes trigger saves after 2s delay (batches rapid updates)
+- **Immediate saves**: Shutdown triggers immediate save
+- **Write locks**: Prevent race conditions during concurrent writes
+
+### File Format
+- JSON with trailing newline for git compatibility
+- Pretty-printed for readability
+
+---
+
+## Security Considerations
+
+1. **SSL Handling**: Custom HTTPS agent for NEPSE API (scoped, not global)
+2. **Input Validation**: Stock symbols sanitized before storage
+3. **Rate Limiting**: Update interval prevents API abuse
+4. **CORS**: Configurable origin whitelist

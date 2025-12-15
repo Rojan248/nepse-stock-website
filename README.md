@@ -21,15 +21,14 @@ Real-time Nepal Stock Exchange (NEPSE) data visualization platform with automati
 | Layer | Technologies |
 |-------|-------------|
 | **Frontend** | React 18, Vite, React Router, Axios |
-| **Backend** | Node.js, Express, Mongoose |
-| **Database** | MongoDB |
+| **Backend** | Node.js, Express |
+| **Storage** | Local JSON Files (no external database required) |
 | **Styling** | Vanilla CSS with custom design system |
 
 ## Quick Start
 
 ### Prerequisites
 - Node.js 18+
-- MongoDB (local or Atlas)
 
 ### Installation
 
@@ -42,7 +41,6 @@ cd nepse-stock-website
 cd backend
 npm install
 cp .env.example .env
-# Edit .env with your MongoDB URI
 npm run dev
 
 # Frontend setup (new terminal)
@@ -89,8 +87,9 @@ nepse-stock-website/
 ### Backend (.env)
 ```
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/nepse
 NODE_ENV=development
+NEPSE_UPDATE_INTERVAL=8000
+LOG_LEVEL=info
 ```
 
 ### Frontend (.env)
@@ -108,14 +107,23 @@ cd backend && npm test
 cd frontend && npm test
 ```
 
+## Data Storage
+
+Stock data is stored locally in `backend/data/`:
+- `stocks.json` - All stock prices and details
+- `marketSummary.json` - NEPSE index and market stats  
+- `marketHistory.json` - Historical index data
+- `ipos.json` - IPO listings
+
+Data persists automatically on graceful shutdown (Ctrl+C).
+
 ## Deployment
 
 See [SETUP_GUIDE.md](docs/SETUP_GUIDE.md) for detailed deployment instructions.
 
 **Recommended Platforms:**
-- Backend: Render.com, Railway.app
+- Backend: Render.com, Railway.app (single server, no database needed)
 - Frontend: Vercel, Netlify
-- Database: MongoDB Atlas
 
 ## Documentation
 
