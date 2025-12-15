@@ -14,7 +14,7 @@ const marketRouter = require('./routes/market');
 
 /**
  * NEPSE Backend Server
- * Express server with Firebase Firestore, scheduled updates, and REST API
+ * Express server with local JSON storage, scheduled updates, and REST API
  */
 
 const app = express();
@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
         success: true,
         message: 'NEPSE Stock API Server',
         version: '1.0.0',
-        database: 'Firebase Firestore',
+        database: 'Local JSON Storage',
         endpoints: {
             stocks: '/api/stocks',
             ipos: '/api/ipos',
@@ -72,8 +72,8 @@ app.use(errorHandler);
  */
 const startServer = async () => {
     try {
-        // Connect to Firebase Firestore
-        logger.info('Connecting to Firebase Firestore...');
+        // Connect to local JSON storage
+        logger.info('Initializing local JSON storage...');
         await connectDB();
 
         // Start Express server

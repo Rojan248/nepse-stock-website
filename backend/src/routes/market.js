@@ -6,6 +6,7 @@ const scheduler = require('../services/scheduler/updateScheduler');
 const dataFetcher = require('../services/dataFetcher');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../services/utils/logger');
+const { getTimeSyncStatus, getNepseTimeString } = require('../services/utils/marketTime');
 
 /**
  * Market API Routes
@@ -123,6 +124,29 @@ router.get('/scheduler-status', asyncHandler(async (req, res) => {
     res.json({
         success: true,
         data: status
+    });
+}));
+
+/**
+ * GET /api/time-sync-status
+ * Get time synchronization status for monitoring
+ */
+router.get('/time-sync-status', asyncHandler(async (req, res) => {
+    const syncStatus = getTimeSyncStatus();
+    const systemTime = new Date();
+    
+    res.json({
+        success: true,
+        data: {
+            ...syncStatus,
+            systemTime: systemTime.toISOString(),
+            systemTimeLocal: systemTime.toLocaleString(),
+            comparison: {
+                nepseTime: syncStatus.nepseTime,
+                systemTime: systemTime.toTimeString().split(' ')[0],
+                offsetApplied: `${syncStatus.offsetSeconds}s`
+            }
+        }
     });
 }));
 

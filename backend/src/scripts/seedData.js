@@ -1,21 +1,10 @@
 /**
- * Seed Data Script (Client SDK Version)
- * Populates Firestore with extensive dummy data using public config
+ * Seed Data Script (Local Storage Version)
+ * Populates local JSON storage with extensive dummy data
  * Usage: node src/scripts/seedData.js
  */
 
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, doc, setDoc, writeBatch, getDocs, deleteDoc } = require('firebase/firestore');
-
-// Public config for NEPSE Web App
-const firebaseConfig = {
-    apiKey: "AIzaSyD2ZKminh6ib5Rh8XF5B-PBzKZ8Dy22Hqc",
-    authDomain: "nepse-stock-website.firebaseapp.com",
-    projectId: "nepse-stock-website",
-    storageBucket: "nepse-stock-website.firebasestorage.app",
-    messagingSenderId: "952598694406",
-    appId: "1:952598694406:web:c78add95c57b844f1dd187"
-};
+const { initializeLocalStorage, stockOps, marketOps, ipoOps, saveAllData } = require('../services/database/localStorage');
 
 // Import Data
 const NEPSE_STOCKS = require('../data/nepseStocks');
@@ -26,30 +15,13 @@ const randomFloat = (min, max) => parseFloat((Math.random() * (max - min) + min)
 
 const seedData = async () => {
     try {
-        console.log('Initializing Firebase Client SDK...');
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        console.log('Initializing Local Storage...');
+        initializeLocalStorage();
 
         // 0. Clean up existing stocks (Delete all)
         console.log('Cleaning up existing stocks...');
-        const stocksRef = collection(db, 'stocks');
-        const snapshot = await getDocs(stocksRef);
-
-        // Delete in batches of 500 (Firestore limit)
-        const deleteBatch = writeBatch(db);
-        let deleteCount = 0;
-
-        snapshot.docs.forEach((doc) => {
-            deleteBatch.delete(doc.ref);
-            deleteCount++;
-        });
-
-        if (deleteCount > 0) {
-            await deleteBatch.commit();
-            console.log(`Deleted ${deleteCount} old stock records.`);
-        } else {
-            console.log('No existing stocks to delete.');
-        }
+        stockOps.clearAllStocks();
+        console.log('Deleted old stock records.');
 
         // 1. Seed Stocks
         console.log(`Seeding ${NEPSE_STOCKS.length} Real NEPSE Stocks...`);
@@ -89,7 +61,6 @@ const seedData = async () => {
         let totalVolume = 0;
         let active = 0, advanced = 0, declined = 0, unchanged = 0;
 
-        const batch = writeBatch(db);
         stocks.forEach(stock => {
             stock.turnover = Math.floor(stock.volume * stock.ltp);
             totalTurnover += stock.turnover;
@@ -99,19 +70,15 @@ const seedData = async () => {
             else if (stock.change < 0) declined++;
             else unchanged++;
             active++;
-
-            const ref = doc(db, 'stocks', stock.symbol);
-            batch.set(ref, {
-                ...stock,
-                updatedAt: new Date().toISOString(),
-                timestamp: new Date().toISOString()
-            });
         });
-        await batch.commit();
+        
+        // Save all stocks
+        stockOps.saveStocks(stocks);
+        console.log(`Saved ${stocks.length} stocks to local storage.`);
 
         // 2. Seed Market Summary
         console.log('Seeding Market Summary...');
-        await setDoc(doc(db, 'marketSummary', 'current'), {
+        marketOps.saveMarketSummary({
             indexValue: 2045.67,
             indexChange: 12.45,
             indexChangePercent: 0.61,
@@ -122,12 +89,11 @@ const seedData = async () => {
             advancedCompanies: advanced,
             declinedCompanies: declined,
             unchangedCompanies: unchanged,
-            status: 'OPEN',
-            updatedAt: new Date().toISOString(),
-            timestamp: new Date().toISOString()
+            status: 'OPEN'
         });
+        console.log('Saved market summary.');
 
-        // 3. Seed IPOs (Keep existing)
+        // 3. Seed IPOs
         console.log('Seeding IPOs...');
         const ipos = [
             {
@@ -159,19 +125,14 @@ const seedData = async () => {
             }
         ];
 
-        const ipoBatch = writeBatch(db);
-        ipos.forEach(ipo => {
-            const docId = ipo.companyName.replace(/[\/\.]/g, '_');
-            const ref = doc(db, 'ipos', docId);
-            ipoBatch.set(ref, {
-                ...ipo,
-                updatedAt: new Date().toISOString(),
-                timestamp: new Date().toISOString()
-            });
-        });
-        await ipoBatch.commit();
+        // Save all IPOs
+        ipoOps.saveIPOs(ipos);
+        console.log(`Saved ${ipos.length} IPOs.`);
 
-        console.log('Data seeding completed (60+ records)! ✅');
+        // Force immediate save to disk
+        saveAllData();
+
+        console.log('Data seeding completed! ✅');
         process.exit(0);
     } catch (error) {
         console.error(`Error seeding data: ${error.message}`);

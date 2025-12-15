@@ -30,10 +30,10 @@ function StockCard({ stock, onClick }) {
 
             <div className={`stock-card-change ${changeClass}`}>
                 <span className="change-amount">
-                    {change >= 0 ? '+' : ''}{change?.toFixed(2) || '0.00'}
+                    {change === 0 ? '—' : (change >= 0 ? '+' : '')}{change === 0 ? '' : change?.toFixed(2) || '0.00'}
                 </span>
                 <span className="change-percent">
-                    ({formatPercent(changePercent)})
+                    {change === 0 ? 'Unchanged' : `(${formatPercent(changePercent)})`}
                 </span>
             </div>
 

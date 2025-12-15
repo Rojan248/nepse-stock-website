@@ -1,3 +1,4 @@
+const https = require('https');
 const logger = require('../utils/logger');
 
 /**
@@ -15,6 +16,14 @@ let nepseAxios = null;
 let createHeaders = null;
 let BASE_URL = null;
 let isInitialized = false;
+
+// Custom HTTPS agent for NEPSE requests only
+// NOTE: NEPSE's SSL certificate sometimes has validation issues.
+// This agent disables SSL verification ONLY for NEPSE API calls, not globally.
+// TODO: Add NEPSE's certificate to trusted certs instead of disabling verification.
+const nepseHttpsAgent = new https.Agent({
+    rejectUnauthorized: false
+});
 
 // Sector ID mapping from NEPSE API
 const SECTOR_IDS = {
@@ -43,9 +52,6 @@ const ALL_SECTORS = [58];
  */
 const initializeLibrary = async () => {
     try {
-        // Disable SSL verification for NEPSE API (their certificate has issues)
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
         // Import the nepse-api-helper package
         const nepseModule = await import('nepse-api-helper');
         nepseClient = nepseModule.nepseClient;
@@ -125,14 +131,10 @@ const fetchData = async () => {
             return null;
         }
 
-        // Enhance stocks with gainer/loser info
-        const gainersSet = new Set(topGainers.map(g => g.symbol));
-        const losersSet = new Set(topLosers.map(l => l.symbol));
-
-        securities.forEach(stock => {
-            stock.isTopGainer = gainersSet.has(stock.symbol);
-            stock.isTopLoser = losersSet.has(stock.symbol);
-        });
+        // Note: isTopGainer/isTopLoser flags are NOT set here because:
+        // 1. The NEPSE API top-ten endpoints return stocks by turnover/trades, not by price change
+        // 2. These flags should be computed dynamically based on changePercent at query time
+        // 3. The stockOps.getTopGainers() and stockOps.getTopLosers() functions compute this correctly
 
         const result = {
             stocks: securities,
@@ -164,7 +166,8 @@ const fetchSecuritiesWithPrices = async (token) => {
 
         // Fetch from the securityDailyTradeStat endpoint (58 = NEPSE Index = all stocks)
         const response = await nepseAxios.get(`${BASE_URL}/api/nots/securityDailyTradeStat/58`, {
-            headers
+            headers,
+            httpsAgent: nepseHttpsAgent
         });
 
         if (!response.data || !Array.isArray(response.data)) {
@@ -184,7 +187,7 @@ const fetchSecuritiesWithPrices = async (token) => {
 };
 
 /**
- * Sanitize symbol for Firebase document ID
+ * Sanitize symbol for storage key (remove special characters)
  */
 const sanitizeSymbol = (symbol) => {
     if (!symbol) return '';
@@ -322,8 +325,8 @@ const fetchMarketSummary = async (token) => {
 
         // Fetch both index data and market summary in parallel
         const [indexResponse, summaryResponse] = await Promise.all([
-            nepseAxios.get(`${BASE_URL}/api/nots/nepse-index`, { headers }),
-            nepseAxios.get(`${BASE_URL}/api/nots/market-summary`, { headers }).catch(() => null)
+            nepseAxios.get(`${BASE_URL}/api/nots/nepse-index`, { headers, httpsAgent: nepseHttpsAgent }),
+            nepseAxios.get(`${BASE_URL}/api/nots/market-summary`, { headers, httpsAgent: nepseHttpsAgent }).catch(() => null)
         ]);
 
         if (!indexResponse.data || !Array.isArray(indexResponse.data)) {
@@ -413,7 +416,8 @@ const fetchTopMovers = async (token, type) => {
             : '/api/nots/top-ten/trade';     // Top by trades
 
         const response = await nepseAxios.get(`${BASE_URL}${endpoint}`, {
-            headers
+            headers,
+            httpsAgent: nepseHttpsAgent
         });
 
         if (!response.data || !Array.isArray(response.data)) {

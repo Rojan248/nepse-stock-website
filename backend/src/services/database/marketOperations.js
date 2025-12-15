@@ -1,43 +1,17 @@
 /**
- * Market Summary Database Operations - Firestore Implementation
- * Handles market summary data operations
+ * Market Summary Database Operations - Local Storage Implementation
+ * Handles market summary data operations using local JSON storage
  */
 
-const { getDb } = require('./firebase');
+const { marketOps } = require('./localStorage');
 const logger = require('../utils/logger');
-
-const COLLECTION = 'marketSummary';
-const CURRENT_DOC = 'current';
-const HISTORY_COLLECTION = 'marketHistory';
 
 /**
  * Save market summary (updates current document)
  */
 const saveMarketSummary = async (summary) => {
-    if (!summary) {
-        return { success: false };
-    }
-
     try {
-        const db = getDb();
-        const timestamp = new Date().toISOString();
-
-        const data = {
-            ...summary,
-            timestamp,
-            updatedAt: timestamp
-        };
-
-        // Save to current document
-        await db.collection(COLLECTION).doc(CURRENT_DOC).set(data);
-
-        // Also save to history (with timestamp as doc ID)
-        const historyId = timestamp.replace(/[:.]/g, '-');
-        await db.collection(HISTORY_COLLECTION).doc(historyId).set(data);
-
-        logger.debug('Saved market summary to Firestore');
-
-        return { success: true };
+        return marketOps.saveMarketSummary(summary);
     } catch (error) {
         logger.error(`Error saving market summary: ${error.message}`);
         throw error;
@@ -45,7 +19,7 @@ const saveMarketSummary = async (summary) => {
 };
 
 /**
- * Upsert market summary (same as save for Firestore)
+ * Upsert market summary (same as save)
  */
 const upsertMarketSummary = async (summary) => {
     return saveMarketSummary(summary);
@@ -56,14 +30,7 @@ const upsertMarketSummary = async (summary) => {
  */
 const getLatestMarketSummary = async () => {
     try {
-        const db = getDb();
-        const doc = await db.collection(COLLECTION).doc(CURRENT_DOC).get();
-
-        if (!doc.exists) {
-            return null;
-        }
-
-        return { id: doc.id, ...doc.data() };
+        return marketOps.getLatestMarketSummary();
     } catch (error) {
         logger.error(`Error getting market summary: ${error.message}`);
         return null;
@@ -75,16 +42,7 @@ const getLatestMarketSummary = async () => {
  */
 const getMarketSummaryHistory = async (hours = 24) => {
     try {
-        const db = getDb();
-        const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-
-        const snapshot = await db.collection(HISTORY_COLLECTION)
-            .where('timestamp', '>=', cutoff)
-            .orderBy('timestamp', 'desc')
-            .limit(100)
-            .get();
-
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return marketOps.getMarketSummaryHistory(hours);
     } catch (error) {
         logger.error(`Error getting market history: ${error.message}`);
         return [];
@@ -96,21 +54,7 @@ const getMarketSummaryHistory = async (hours = 24) => {
  */
 const getMarketSummaryByDate = async (startDate, endDate) => {
     try {
-        const db = getDb();
-
-        let query = db.collection(HISTORY_COLLECTION)
-            .orderBy('timestamp', 'desc');
-
-        if (startDate) {
-            query = query.where('timestamp', '>=', new Date(startDate).toISOString());
-        }
-        if (endDate) {
-            query = query.where('timestamp', '<=', new Date(endDate).toISOString());
-        }
-
-        const snapshot = await query.limit(100).get();
-
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return marketOps.getMarketSummaryByDate(startDate, endDate);
     } catch (error) {
         logger.error(`Error getting market summary by date: ${error.message}`);
         return [];
@@ -122,22 +66,9 @@ const getMarketSummaryByDate = async (startDate, endDate) => {
  */
 const cleanOldSummaries = async (daysToKeep = 7) => {
     try {
-        const db = getDb();
-        const cutoff = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000).toISOString();
-
-        const snapshot = await db.collection(HISTORY_COLLECTION)
-            .where('timestamp', '<', cutoff)
-            .get();
-
-        const batch = db.batch();
-        snapshot.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-
-        await batch.commit();
-
-        logger.info(`Cleaned ${snapshot.size} old market summaries`);
-        return snapshot.size;
+        const deleted = marketOps.cleanOldSummaries(daysToKeep);
+        logger.info(`Cleaned ${deleted} old market summaries`);
+        return deleted;
     } catch (error) {
         logger.error(`Error cleaning old summaries: ${error.message}`);
         return 0;
@@ -149,17 +80,7 @@ const cleanOldSummaries = async (daysToKeep = 7) => {
  */
 const getMarketStats = async () => {
     try {
-        const db = getDb();
-        const current = await getLatestMarketSummary();
-
-        // Client SDK (compat) fallback for count()
-        const historySnapshot = await db.collection(HISTORY_COLLECTION).get();
-
-        return {
-            latest: current,
-            totalRecords: historySnapshot.size,
-            hasData: current !== null
-        };
+        return marketOps.getMarketStats();
     } catch (error) {
         logger.error(`Error getting market stats: ${error.message}`);
         return { latest: null, totalRecords: 0, hasData: false };

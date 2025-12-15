@@ -62,3 +62,33 @@ Is Active: false
 [TimeSync] All external time sources failed. Using System Time.
 [TimeSync] Offset too large (-49479088ms). Ignoring TimeAPI data.
 [TimeSync] All external time sources failed. Using System Time.
+--- Checking Time ---
+Initializing sync...
+[TimeSync] Initializing...
+[TimeSync] Attempting to fetch from WorldTimeAPI...
+[TimeSync] Failed to fetch from WorldTimeAPI: read ECONNRESET
+[TimeSync] Attempting to fetch from TimeAPI...
+[TimeSync] Offset too large (-20694329.5ms). Ignoring TimeAPI data.
+[TimeSync] All external time sources failed. Using System Time.
+[TimeSync] Attempting to fetch from WorldTimeAPI...
+[TimeSync] Current Nepal Time: 5:51
+[TimeSync] Attempting to fetch from WorldTimeAPI...
+Components: Hour=5, Minute=51, Day=1
+[TimeSync] Attempting to fetch from WorldTimeAPI...
+Market State: PRE_OPEN
+[TimeSync] Attempting to fetch from WorldTimeAPI...
+Is Active: false
+[TimeSync] Failed to fetch from WorldTimeAPI: read ECONNRESET
+[TimeSync] Attempting to fetch from TimeAPI...
+[TimeSync] Failed to fetch from WorldTimeAPI: read ECONNRESET
+[TimeSync] Attempting to fetch from TimeAPI...
+[TimeSync] Offset too large (-20694528ms). Ignoring TimeAPI data.
+[TimeSync] All external time sources failed. Using System Time.
+[TimeSync] Synced with WorldTimeAPI. Offset: 5578.5ms.
+[TimeSync] System Time: 2025-12-15T05:51:06.962Z
+[TimeSync] Corrected UTC: 2025-12-15T05:51:12.540Z
+[TimeSync] Synced with WorldTimeAPI. Offset: 5586ms.
+[TimeSync] System Time: 2025-12-15T05:51:06.970Z
+[TimeSync] Corrected UTC: 2025-12-15T05:51:12.556Z
+[TimeSync] Offset too large (-20694346.5ms). Ignoring TimeAPI data.
+[TimeSync] All external time sources failed. Using System Time.

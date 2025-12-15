@@ -6,7 +6,7 @@ Scraper and API server for NEPSE (Nepal Stock Exchange) stock data.
 - Automatic stock data scraping every 8 seconds (market hours)
 - Dual fallback system (Library → Proxy → Custom)
 - REST API endpoints for stock and IPO data
-- MongoDB data persistence
+- Local JSON file persistence
 - Market hours awareness (10 AM - 3 PM NST)
 
 ## Setup
@@ -21,9 +21,7 @@ Scraper and API server for NEPSE (Nepal Stock Exchange) stock data.
    cp .env.example .env
    ```
 
-3. Update .env with your MongoDB URI and configuration
-
-4. Start the server:
+3. Start the server:
    ```
    npm run dev
    ```
@@ -42,3 +40,11 @@ Server will run on http://localhost:5000
 1. Library: surajrimal07/NepseAPI-Unofficial
 2. Proxy: nepalstock.onrender.com
 3. Custom: Direct NEPSE authentication (backup)
+
+## Data Storage
+
+Data is stored in `data/` directory:
+- `stocks.json` - Stock prices and details
+- `marketSummary.json` - Market index data
+- `marketHistory.json` - Historical data
+- `ipos.json` - IPO listings

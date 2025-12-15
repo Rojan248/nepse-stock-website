@@ -54,9 +54,5 @@ global.testUtils = {
 
 // Cleanup after all tests
 afterAll(async () => {
-    // Close any open connections
-    const mongoose = require('mongoose');
-    if (mongoose.connection.readyState !== 0) {
-        await mongoose.connection.close();
-    }
+    // Local storage cleanup handled automatically
 });

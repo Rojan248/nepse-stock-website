@@ -6,15 +6,15 @@ Common issues and their solutions for the NEPSE Stock Website.
 
 ## Backend Issues
 
-### MongoDB Connection Fails
+### Server Fails to Start
 
-**Symptoms:** Server doesn't start, "MongoNetworkError" in logs
+**Symptoms:** "Cannot find module" or startup errors
 
 **Solutions:**
-1. Verify MongoDB is running: `mongosh`
-2. Check `MONGODB_URI` in `.env`
-3. For Atlas: Verify IP whitelist and credentials
-4. Check network connectivity
+1. Delete `node_modules` and reinstall: `npm install`
+2. Check Node.js version: `node --version` (requires 18+)
+3. Verify all files exist in `src/` directory
+4. Check for syntax errors in logs
 
 ---
 
@@ -24,7 +24,7 @@ Common issues and their solutions for the NEPSE Stock Website.
 
 **Solutions:**
 1. Check server logs: `logs/error.log`
-2. Verify database connection
+2. Verify data files exist in `backend/data/`
 3. Check environment variables
 4. Restart server: `npm run dev`
 
@@ -39,6 +39,18 @@ Common issues and their solutions for the NEPSE Stock Website.
 2. Verify during NEPSE market hours (10 AM - 3 PM NST)
 3. Check console for fetch errors
 4. Force update: `POST /api/force-update`
+
+---
+
+### Data Not Persisting
+
+**Symptoms:** Data lost after restart
+
+**Solutions:**
+1. Use graceful shutdown (Ctrl+C), not force kill
+2. Check write permissions for `backend/data/` directory
+3. Look for error logs during shutdown
+4. Verify JSON files aren't corrupted
 
 ---
 
@@ -84,7 +96,7 @@ Common issues and their solutions for the NEPSE Stock Website.
 **Symptoms:** No results, errors when searching
 
 **Solutions:**
-1. Check if stocks exist in database
+1. Check if stocks exist in data files
 2. Verify search endpoint: `/api/stocks/search?q=test`
 3. Clear browser cache
 4. Check for JavaScript errors
@@ -103,28 +115,29 @@ Common issues and their solutions for the NEPSE Stock Website.
 
 ---
 
-## Database Issues
+## Data Issues
 
-### Duplicate Key Error
+### Corrupted JSON Files
 
-**Symptoms:** "E11000 duplicate key error"
+**Symptoms:** Server fails to start, JSON parse errors
 
 **Solutions:**
-1. Clear test data: `db.stocks.deleteMany({})`
-2. Check for duplicate symbols in data
-3. Verify unique indexes
+1. Check `backend/data/*.json` files for valid JSON
+2. Delete corrupted file (will be recreated on startup)
+3. Check disk space
+4. Review logs for write errors
 
 ---
 
-### Slow Queries
+### Missing Stock Data
 
-**Symptoms:** API responses take >1 second
+**Symptoms:** Some stocks not showing
 
 **Solutions:**
-1. Verify indexes exist on queried fields
-2. Use `.lean()` for read-only queries
-3. Add pagination to large result sets
-4. Profile queries with `.explain()`
+1. Force a data refresh: `POST /api/force-update`
+2. Check NEPSE API availability
+3. Verify stock exists on NEPSE website
+4. Check logs for fetch errors
 
 ---
 
@@ -133,7 +146,7 @@ Common issues and their solutions for the NEPSE Stock Website.
 | Problem | Command |
 |---------|---------|
 | Clear node_modules | `rm -rf node_modules && npm install` |
-| Reset database | `mongosh nepse --eval "db.dropDatabase()"` |
+| Reset data | `rm backend/data/*.json` (will be recreated) |
 | Force data update | `curl -X POST localhost:5000/api/force-update` |
 | View logs | `tail -f backend/logs/combined.log` |
 

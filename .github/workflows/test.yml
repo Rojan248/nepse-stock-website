@@ -9,12 +9,6 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
-    
-    services:
-      mongodb:
-        image: mongo:6
-        ports:
-          - 27017:27017
 
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +28,6 @@ jobs:
         working-directory: ./backend
         run: npm test
         env:
-          MONGODB_URI: mongodb://localhost:27017/nepse-test
           NODE_ENV: test
 
   frontend-tests:
@@ -56,4 +49,6 @@ jobs:
       
       - name: Run frontend tests
         working-directory: ./frontend
-        run: npm test -- --run
+        run: npm test
+        env:
+          CI: true

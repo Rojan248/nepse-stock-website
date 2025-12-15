@@ -5,9 +5,10 @@ Complete guide to set up the NEPSE Stock Website for development and production.
 ## Prerequisites
 
 - **Node.js** 18.x or higher
-- **MongoDB** 6.x or higher (local or Atlas)
 - **Git** for version control
 - **npm** or **yarn** package manager
+
+**Note:** No external database required! Data is stored locally in JSON files.
 
 ---
 
@@ -30,16 +31,12 @@ npm install
 
 # Create environment file
 cp .env.example .env
-
-# Edit .env with your configuration
-# Required: MONGODB_URI
 ```
 
 **Minimum .env configuration:**
 ```env
 PORT=5000
 NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/nepse
 ```
 
 **Start backend:**
@@ -65,63 +62,21 @@ Frontend runs on **http://localhost:3000**
 
 ---
 
-## Firebase Setup
+## Data Storage
 
-This project uses **Firebase Firestore** as the database.
+The application uses local JSON file storage (`backend/data/`):
 
-### Step 1: Install Firebase CLI
+| File | Description |
+|------|-------------|
+| `stocks.json` | All stock prices and details |
+| `marketSummary.json` | NEPSE index and market statistics |
+| `marketHistory.json` | Historical index data |
+| `ipos.json` | IPO listings |
 
-```bash
-npm install -g firebase-tools
-```
-
-### Step 2: Login to Firebase
-
-```bash
-firebase login
-```
-
-This will open your browser for Google account authentication. Follow the prompts to log in.
-
-### Step 3: Initialize Firestore (if not done)
-
-```bash
-firebase init firestore
-```
-
-- Select "Use an existing project" or create a new one
-- Accept default file names: `firestore.rules`, `firestore.indexes.json`
-
-### Current Project
-- **Project ID:** `nepse-stock-website`
-- **Database Location:** `asia-northeast1`
-- **Config files:** `firebase.json`, `.firebaserc`
-
-### Service Account (for backend)
-
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Project Settings → Service Accounts
-3. Generate new private key
-4. Save as `backend/serviceAccountKey.json`
-5. Add to `.gitignore`
-
----
-
-## MongoDB Setup (Deprecated)
-
-### Option A: Local MongoDB
-
-1. Install MongoDB Community Edition
-2. Start MongoDB service
-3. Use connection string: `mongodb://localhost:27017/nepse`
-
-### Option B: MongoDB Atlas (Cloud)
-
-1. Create account at [mongodb.com/atlas](https://mongodb.com/atlas)
-2. Create a free cluster
-3. Create database user
-4. Get connection string
-5. Update `.env`: `MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/nepse`
+**Data Persistence:**
+- Data auto-saves every 2 seconds when changes occur
+- All data saved on graceful shutdown (Ctrl+C)
+- Data files created automatically on first run
 
 ---
 
@@ -135,8 +90,18 @@ firebase init firestore
 4. Configure:
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
-5. Add environment variables
+5. Add environment variables:
+   - `NODE_ENV=production`
+   - `PORT=5000`
 6. Deploy
+
+**⚠️ Data Persistence Warning:** Render uses an **ephemeral filesystem** by default—data in `backend/data/` is lost on redeploys and restarts. For production persistence, choose one of:
+
+| Option | Notes |
+|--------|-------|
+| **Render Persistent Disk** | Single-instance only; specify `mount-path`; disables zero-downtime deploys |
+| **Render Managed Datastore** | PostgreSQL or Redis (requires code changes) |
+| **External Storage** | S3, external database, or other managed DB service |
 
 ### Frontend Deployment (Vercel)
 
@@ -164,9 +129,9 @@ cd frontend && npm test
 
 | Issue | Solution |
 |-------|----------|
-| MongoDB connection fails | Check MONGODB_URI in .env |
 | CORS errors | Verify CORS_ORIGIN in backend .env |
-| No data showing | Ensure backend is running |
+| No data showing | Ensure backend is running, check network tab |
 | Build fails | Delete node_modules and reinstall |
+| Data not persisting | Ensure graceful shutdown (Ctrl+C, not kill) |
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more solutions.
