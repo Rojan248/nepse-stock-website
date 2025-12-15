@@ -1,0 +1,285 @@
+.ipo-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+    padding-bottom: var(--spacing-2xl);
+}
+
+.ipo-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    text-align: left;
+}
+
+.ipo-header h1 {
+    font-size: var(--font-4xl);
+    margin-bottom: var(--spacing-sm);
+}
+
+.ipo-header p {
+    font-size: var(--font-lg);
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Statistics */
+.ipo-statistics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-2-5);
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+.stat-card.stat-open {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), var(--bg-card));
+    border-color: var(--color-success);
+}
+
+.stat-number {
+    display: block;
+    font-size: var(--font-3xl);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-card.stat-open .stat-number {
+    color: var(--color-success);
+}
+
+.stat-label {
+    font-size: var(--font-sm);
+    color: var(--text-muted);
+}
+
+/* ===== Status Tabs / Filter Pills ===== */
+.status-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    overflow-x: auto;
+    padding-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-full);
+    color: var(--color-text-secondary);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.18s ease-out;
+}
+
+.tab-btn:hover {
+    background: var(--color-bg-hover);
+    border-color: var(--color-border-medium);
+}
+
+.tab-btn.active {
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    color: white;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
+}
+
+.tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-xs);
+    font-weight: 600;
+}
+
+.tab-btn.active .tab-count {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== IPO Grid & Cards ===== */
+.ipo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-2-5);
+}
+
+/* IPO Card Styling - Flat elevated for most, glass for OPEN status */
+.ipo-grid [data-status="open"],
+.ipo-grid .ipo-card[status="open"] {
+    /* Glass effect for open IPOs */
+    background: var(--color-glass-bg) !important;
+    border: 1px solid var(--color-border-subtle) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+.ipo-grid [data-status="open"]:hover,
+.ipo-grid .ipo-card[status="open"]:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-border-medium) !important;
+    box-shadow: 
+        var(--shadow-soft),
+        0 0 16px rgba(34, 197, 94, 0.1) !important;
+}
+
+/* Flat elevated for other statuses */
+.ipo-grid > div {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    transition: all 0.18s ease-out;
+}
+
+.ipo-grid > div:hover {
+    border-color: var(--color-border-medium);
+}
+
+/* No IPOs State */
+.no-ipos {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--spacing-xl);
+    background: var(--color-bg-elevated);
+    border: 1px dashed var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+}
+
+.no-ipos-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: var(--spacing-md);
+}
+
+.no-ipos h3 {
+    color: var(--color-text-main);
+    margin-bottom: var(--spacing-sm);
+}
+
+.no-ipos p {
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+/* Error Message */
+.error-message {
+    background: rgba(249, 115, 115, 0.1);
+    border: 1px solid rgba(249, 115, 115, 0.3);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.error-message p {
+    color: var(--color-danger);
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .ipo-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Tablet: 2-column grid */
+@media (max-width: 1024px) {
+    .ipo-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ipo-statistics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .status-tabs {
+        gap: var(--spacing-sm);
+    }
+
+    .status-tab {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-sm);
+    }
+}
+
+/* Mobile: Single column, stacked layout */
+@media (max-width: 768px) {
+    .ipo-header h1 {
+        font-size: var(--font-3xl);
+    }
+
+    .ipo-statistics {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+
+    .ipo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .status-tabs {
+        flex-wrap: wrap;
+        gap: var(--spacing-xs);
+    }
+
+    .status-tab {
+        flex: 1 1 calc(50% - var(--spacing-xs));
+        min-width: 120px;
+        text-align: center;
+    }
+}
+
+/* Small mobile: Further adjustments */
+@media (max-width: 480px) {
+    .ipo-header {
+        padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .ipo-header h1 {
+        font-size: var(--font-2xl);
+    }
+
+    .ipo-statistics {
+        grid-template-columns: 1fr;
+    }
+
+    .status-tabs {
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+
+    .status-tab {
+        flex: 1;
+        width: 100%;
+        padding: var(--spacing-md);
+    }
+
+    .ipo-card {
+        padding: var(--spacing-md);
+    }
+
+    .ipo-title {
+        font-size: var(--font-md);
+    }
+}

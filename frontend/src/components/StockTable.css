@@ -1,0 +1,220 @@
+.stock-table-wrapper {
+    width: 100%;
+}
+
+.stock-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.stock-table th {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-md);
+    text-align: left;
+    font-size: var(--font-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.stock-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.stock-table th.sortable:hover {
+    color: var(--color-primary-light);
+}
+
+.stock-table th.sortable:active {
+    transform: scale(0.98);
+}
+
+.stock-table td {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    font-size: var(--font-sm);
+}
+
+.stock-table tr.clickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+    border-left: 3px solid transparent;
+}
+
+.stock-table tr.clickable:hover {
+    background: var(--bg-card-hover);
+    border-left-color: var(--color-primary);
+}
+
+.stock-table tr.clickable:active {
+    background: var(--bg-card);
+}
+
+.stock-symbol-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    font-size: var(--font-xs);
+    color: white;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stock-table tr.clickable:hover .stock-symbol-badge {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.company-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+.sector-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.font-bold {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: var(--font-xs);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+}
+
+.pagination-info {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* No Data */
+.no-data {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-muted);
+}
+
+/* ===== Live Update Animations ===== */
+
+/* Polling state for table body */
+.stock-table tbody.polling {
+    /* Subtle indication that data is being fetched */
+}
+
+/* Stock value base styles */
+.stock-value {
+    display: inline-block;
+    transition: all 0.3s ease;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
+
+/* Value Updated Animation */
+.stock-value.value-updated {
+    animation: cellFlash 0.5s ease-out;
+}
+
+@keyframes cellFlash {
+    0% {
+        background-color: rgba(59, 130, 246, 0.3);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Value Up Animation */
+.stock-value.value-up {
+    animation: cellUp 0.5s ease-out;
+}
+
+@keyframes cellUp {
+    0% {
+        background-color: rgba(34, 197, 94, 0.4);
+        color: #22c55e;
+        transform: scale(1.05);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+}
+
+/* Value Down Animation */
+.stock-value.value-down {
+    animation: cellDown 0.5s ease-out;
+}
+
+@keyframes cellDown {
+    0% {
+        background-color: rgba(239, 68, 68, 0.4);
+        color: #ef4444;
+        transform: scale(1.05);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+
+    .stock-table th,
+    .stock-table td {
+        padding: var(--spacing-sm);
+        font-size: var(--font-xs);
+    }
+
+    .company-cell {
+        max-width: 120px;
+    }
+
+    /* Hide some columns on mobile */
+    .stock-table th:nth-child(3),
+    .stock-table td:nth-child(3),
+    .stock-table th:nth-child(7),
+    .stock-table td:nth-child(7) {
+        display: none;
+    }
+}

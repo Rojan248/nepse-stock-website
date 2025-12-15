@@ -1,0 +1,250 @@
+/* ===== Animated Value Component Styles ===== */
+
+.animated-value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.125rem;
+    position: relative;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.value-prefix,
+.value-suffix {
+    opacity: 0.9;
+}
+
+.value-content {
+    position: relative;
+    display: inline-block;
+}
+
+/* ===== Loading State - Subtle Pulse ===== */
+.animated-value.value-loading .value-content {
+    animation: valuePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes valuePulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ===== Updated State - Flash Effect ===== */
+.animated-value.value-updated .value-content {
+    animation: valueFlash 0.5s ease-out;
+}
+
+@keyframes valueFlash {
+    0% {
+        background-color: rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+        transform: scale(1.05);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+}
+
+/* ===== Value Up - Green Highlight ===== */
+.animated-value.value-up .value-content {
+    animation: valueUp 0.5s ease-out;
+    color: var(--color-success, #22c55e);
+}
+
+@keyframes valueUp {
+    0% {
+        background-color: rgba(34, 197, 94, 0.3);
+        border-radius: 4px;
+        transform: translateY(2px) scale(1.05);
+    }
+    50% {
+        transform: translateY(-2px);
+    }
+    100% {
+        background-color: transparent;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===== Value Down - Red Highlight ===== */
+.animated-value.value-down .value-content {
+    animation: valueDown 0.5s ease-out;
+    color: var(--color-danger, #ef4444);
+}
+
+@keyframes valueDown {
+    0% {
+        background-color: rgba(239, 68, 68, 0.3);
+        border-radius: 4px;
+        transform: translateY(-2px) scale(1.05);
+    }
+    50% {
+        transform: translateY(2px);
+    }
+    100% {
+        background-color: transparent;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===== Stock Table Cell Animations ===== */
+.stock-value {
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.stock-value.value-loading {
+    animation: valuePulse 1.5s ease-in-out infinite;
+}
+
+.stock-value.value-updated {
+    animation: cellUpdate 0.5s ease-out;
+}
+
+.stock-value.value-up {
+    animation: cellUp 0.5s ease-out;
+}
+
+.stock-value.value-down {
+    animation: cellDown 0.5s ease-out;
+}
+
+@keyframes cellUpdate {
+    0% {
+        background-color: rgba(59, 130, 246, 0.3);
+        border-radius: 4px;
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+@keyframes cellUp {
+    0% {
+        background-color: rgba(34, 197, 94, 0.4);
+        border-radius: 4px;
+        text-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+    }
+    100% {
+        background-color: transparent;
+        text-shadow: none;
+    }
+}
+
+@keyframes cellDown {
+    0% {
+        background-color: rgba(239, 68, 68, 0.4);
+        border-radius: 4px;
+        text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    }
+    100% {
+        background-color: transparent;
+        text-shadow: none;
+    }
+}
+
+/* ===== Summary Card Value Animations ===== */
+.summary-value.value-loading {
+    animation: valuePulse 1.5s ease-in-out infinite;
+}
+
+.summary-value.value-updated {
+    animation: summaryUpdate 0.5s ease-out;
+}
+
+@keyframes summaryUpdate {
+    0% {
+        transform: scale(1.02);
+        text-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+    }
+    100% {
+        transform: scale(1);
+        text-shadow: none;
+    }
+}
+
+/* ===== Polling Indicator ===== */
+.polling-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #64748b);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.polling-indicator.active {
+    opacity: 1;
+}
+
+.polling-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--color-primary, #3b82f6);
+    border-radius: 50%;
+    animation: pollingPulse 1s ease-in-out infinite;
+}
+
+@keyframes pollingPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 0.5;
+    }
+}
+
+/* ===== Live Badge ===== */
+.live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-radius: 9999px;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.live-badge .live-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #22c55e;
+    border-radius: 50%;
+    animation: livePulse 2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+    }
+}
+
+/* ===== Last Updated Text ===== */
+.last-updated {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #64748b);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.last-updated-time {
+    font-weight: 500;
+}
