@@ -1,0 +1,115 @@
+.stock-card {
+    display: block;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    overflow: hidden;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stock-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.stock-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.stock-card:hover::before {
+    opacity: 1;
+}
+
+.stock-card:active {
+    transform: translateY(-2px);
+}
+
+.stock-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.stock-symbol {
+    font-size: var(--font-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stock-sector {
+    font-size: var(--font-xs);
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+}
+
+.stock-card-name {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stock-card-price {
+    margin-bottom: var(--spacing-sm);
+}
+
+.stock-ltp {
+    font-size: var(--font-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stock-card-change {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-sm);
+    font-weight: 600;
+}
+
+.stock-card-change.price-up {
+    color: var(--color-success);
+}
+
+.stock-card-change.price-down {
+    color: var(--color-danger);
+}
+
+.stock-card-change.price-unchanged {
+    color: var(--text-muted);
+}
+
+.stock-card-arrow {
+    position: absolute;
+    top: 50%;
+    right: var(--spacing-md);
+    transform: translateY(-50%);
+    font-size: var(--font-xl);
+    color: var(--text-muted);
+    opacity: 0;
+    transition: all var(--transition-fast);
+}
+
+.stock-card:hover .stock-card-arrow {
+    opacity: 1;
+    right: var(--spacing-lg);
+    color: var(--color-primary);
+}
