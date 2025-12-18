@@ -4,6 +4,8 @@ import { getMarketSummary, getStocks, getSectors } from '../services/api';
 import StockTable from '../components/StockTable';
 import SummaryCard from '../components/SummaryCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Button from '../components/ui/Button';
+import Select from '../components/ui/Select';
 import { formatNumber, formatPercent, formatTurnover, getChangeClass } from '../utils/formatting';
 import { ITEMS_PER_PAGE } from '../utils/constants';
 import './HomePage.css';
@@ -179,17 +181,12 @@ function HomePage() {
                 <div className="section-header">
                     <h3 className="section-title">All Stocks</h3>
                     <div className="filters">
-                        <select
+                        <Select
                             value={selectedSector}
                             onChange={(e) => setSelectedSector(e.target.value)}
+                            options={sectors.map(s => ({ value: s, label: s === 'all' ? 'All Sectors' : s }))}
                             className="sector-filter"
-                        >
-                            {sectors.map((sector) => (
-                                <option key={sector} value={sector}>
-                                    {sector === 'all' ? 'All Sectors' : sector}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </div>
                 </div>
                 <StockTable
@@ -207,7 +204,15 @@ function HomePage() {
             {error && (
                 <div className="error-toast">
                     <span>{error}</span>
-                    <button onClick={() => setError(null)}>×</button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        buttonClass="circle"
+                        onClick={() => setError(null)}
+                        aria-label="Close error"
+                    >
+                        ×
+                    </Button>
                 </div>
             )}
         </div>
