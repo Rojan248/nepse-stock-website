@@ -21,8 +21,8 @@ const SYNC_INTERVAL = 5 * 60 * 1000; // Sync every 5 minutes (reduced from 10s t
 // Nepal Standard Time offset: UTC+5:45
 const NST_OFFSET_MS = (5 * 60 + 45) * 60 * 1000;
 
-// Market hours configuration (Default 11:00 - 15:00)
-const MARKET_OPEN_HOUR = parseInt(process.env.MARKET_OPEN_HOUR) || 11;
+// Market hours configuration (Default 10:00 - 15:00)
+const MARKET_OPEN_HOUR = parseInt(process.env.MARKET_OPEN_HOUR) || 10;
 const MARKET_OPEN_MINUTE = parseInt(process.env.MARKET_OPEN_MINUTE) || 0;
 const MARKET_CLOSE_HOUR = parseInt(process.env.MARKET_CLOSE_HOUR) || 15;
 const MARKET_CLOSE_MINUTE = parseInt(process.env.MARKET_CLOSE_MINUTE) || 0;
@@ -183,11 +183,9 @@ const getNepseTimeComponents = () => {
 const getNepseNow = async () => {
     // Ensure sync before returning time
     await ensureTimeSync();
-    
-    const { hour, minute, second } = getNepseTimeComponents();
-    const now = new Date();
-    now.setHours(hour, minute, second);
-    return now;
+    const comps = getNepseTimeComponents();
+    // Use the calculated Nepal timestamp directly to create a Date in UTC
+    return new Date(comps.timestamp);
 };
 
 /**
@@ -195,10 +193,8 @@ const getNepseNow = async () => {
  * @returns {Date} Date with Nepal time
  */
 const getNepseNowSync = () => {
-    const { hour, minute, second } = getNepseTimeComponents();
-    const now = new Date();
-    now.setHours(hour, minute, second);
-    return now;
+    const comps = getNepseTimeComponents();
+    return new Date(comps.timestamp);
 };
 
 /**
