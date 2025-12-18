@@ -7,31 +7,6 @@
 }
 
 
-.back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: var(--font-sm);
-    color: var(--color-text-muted);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    margin-bottom: var(--spacing-lg);
-    transition: color 0.15s ease;
-}
-
-.back-link:hover {
-    color: var(--color-primary);
-    text-decoration: underline;
-}
-
-.back-link:focus {
-    outline: none;
-    color: var(--color-primary);
-    text-decoration: underline;
-}
-
 /* ===== Stock Hero ===== */
 .stock-hero {
     position: relative;
