@@ -57,7 +57,8 @@ function StockTable({
     currentPage = 1,
     totalPages = 1,
     onPageChange,
-    isPolling = false
+    isPolling = false,
+    loading = false
 }) {
     const [sortConfig, setSortConfig] = useState({ key: 'symbol', direction: 'asc' });
 
@@ -113,6 +114,14 @@ function StockTable({
         if (sortConfig.key !== key) return '↕';
         return sortConfig.direction === 'asc' ? '↑' : '↓';
     };
+
+    if (loading) {
+        return (
+            <div className="no-data">
+                <p>Loading stocks...</p>
+            </div>
+        );
+    }
 
     if (!stocks || stocks.length === 0) {
         return (

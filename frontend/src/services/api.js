@@ -40,10 +40,15 @@ export const getStocks = async (page = 1, limit = 50, sortBy = 'symbol', sortOrd
         const response = await api.get('/stocks', {
             params: { skip, limit, sortBy, sortOrder }
         });
+
+        if (!response) return { stocks: [], total: 0 };
+
+        // Support both axios-with-interceptor (response is data) and raw axios response
+        const payload = response.data !== undefined ? response.data : response;
         return {
-            stocks: response.data || [],
-            total: response.count || 0,
-            pagination: response.pagination
+            stocks: payload.data || payload.stocks || [],
+            total: payload.count || payload.total || 0,
+            pagination: payload.pagination || payload.pagination
         };
     } catch (error) {
         console.error('Failed to fetch stocks:', error);
@@ -57,7 +62,9 @@ export const getStocks = async (page = 1, limit = 50, sortBy = 'symbol', sortOrd
 export const getStockBySymbol = async (symbol) => {
     try {
         const response = await api.get(`/stocks/${symbol}`);
-        return response.data || null;
+        if (!response) return null;
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || null;
     } catch (error) {
         console.error(`Failed to fetch stock ${symbol}:`, error);
         return null;
@@ -73,9 +80,11 @@ export const searchStocks = async (query) => {
         const response = await api.get('/stocks/search', {
             params: { q: query }
         });
+        if (!response) return { stocks: [] };
+        const payload = response.data !== undefined ? response.data : response;
         return {
-            stocks: response.data || [],
-            count: response.count || 0
+            stocks: payload.data || payload.stocks || [],
+            count: payload.count || payload.total || 0
         };
     } catch (error) {
         console.error('Failed to search stocks:', error);
@@ -89,9 +98,11 @@ export const searchStocks = async (query) => {
 export const getStocksBySector = async (sector) => {
     try {
         const response = await api.get(`/stocks/sector/${encodeURIComponent(sector)}`);
+        if (!response) return { stocks: [] };
+        const payload = response.data !== undefined ? response.data : response;
         return {
-            stocks: response.data || [],
-            count: response.count || 0
+            stocks: payload.data || payload.stocks || [],
+            count: payload.count || payload.total || 0
         };
     } catch (error) {
         console.error(`Failed to fetch stocks for sector ${sector}:`, error);
@@ -107,7 +118,9 @@ export const getTopGainers = async (limit = 10) => {
         const response = await api.get('/stocks/top-gainers', {
             params: { limit }
         });
-        return response.data || [];
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || [];
     } catch (error) {
         console.error('Failed to fetch top gainers:', error);
         return [];
@@ -122,7 +135,9 @@ export const getTopLosers = async (limit = 10) => {
         const response = await api.get('/stocks/top-losers', {
             params: { limit }
         });
-        return response.data || [];
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || [];
     } catch (error) {
         console.error('Failed to fetch top losers:', error);
         return [];
@@ -135,7 +150,9 @@ export const getTopLosers = async (limit = 10) => {
 export const getSectors = async () => {
     try {
         const response = await api.get('/stocks/sectors');
-        return response.data || [];
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || [];
     } catch (error) {
         console.error('Failed to fetch sectors:', error);
         return [];
@@ -151,10 +168,12 @@ export const getIPOs = async (status = null) => {
     try {
         const params = status ? { status } : {};
         const response = await api.get('/ipos', { params });
+        if (!response) return { ipos: [], total: 0, statistics: {} };
+        const payload = response.data !== undefined ? response.data : response;
         return {
-            ipos: response.data || [],
-            total: response.count || 0,
-            statistics: response.statistics || {}
+            ipos: payload.data || payload.ipos || [],
+            total: payload.count || payload.total || 0,
+            statistics: payload.statistics || payload.stats || {}
         };
     } catch (error) {
         console.error('Failed to fetch IPOs:', error);
@@ -168,7 +187,9 @@ export const getIPOs = async (status = null) => {
 export const getActiveIPOs = async () => {
     try {
         const response = await api.get('/ipos/active');
-        return response.data || [];
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || [];
     } catch (error) {
         console.error('Failed to fetch active IPOs:', error);
         return [];
@@ -181,7 +202,9 @@ export const getActiveIPOs = async () => {
 export const getIPOByCompanyName = async (companyName) => {
     try {
         const response = await api.get(`/ipos/${encodeURIComponent(companyName)}`);
-        return response.data || null;
+        if (!response) return null;
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || null;
     } catch (error) {
         console.error(`Failed to fetch IPO ${companyName}:`, error);
         return null;
@@ -194,9 +217,11 @@ export const getIPOByCompanyName = async (companyName) => {
 export const getIPOsByStatus = async (status) => {
     try {
         const response = await api.get(`/ipos/status/${status}`);
+        if (!response) return { ipos: [] };
+        const payload = response.data !== undefined ? response.data : response;
         return {
-            ipos: response.data || [],
-            count: response.count || 0
+            ipos: payload.data || payload.ipos || [],
+            count: payload.count || payload.total || 0
         };
     } catch (error) {
         console.error(`Failed to fetch IPOs with status ${status}:`, error);
@@ -212,7 +237,9 @@ export const getIPOsByStatus = async (status) => {
 export const getMarketSummary = async () => {
     try {
         const response = await api.get('/market-summary');
-        return response.data || null;
+        if (!response) return null;
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || null;
     } catch (error) {
         console.error('Failed to fetch market summary:', error);
         return null;
@@ -227,7 +254,9 @@ export const getMarketHistory = async (hours = 24) => {
         const response = await api.get('/market-history', {
             params: { hours }
         });
-        return response.data || [];
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || [];
     } catch (error) {
         console.error('Failed to fetch market history:', error);
         return [];

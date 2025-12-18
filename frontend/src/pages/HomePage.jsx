@@ -69,8 +69,18 @@ function HomePage() {
 
             if (!mountedRef.current) return;
 
-            setStocks(result.stocks || []);
-            setTotalStocks(result.total || 0);
+            const stocksData = result?.stocks || result?.data || [];
+            const totalCount = result?.total || result?.count || stocksData.length;
+
+            console.log('[HomePage] Stocks fetch result', {
+                page: currentPage,
+                receivedStocks: stocksData.length,
+                totalCount,
+                rawResult: result
+            });
+
+            setStocks(stocksData);
+            setTotalStocks(totalCount);
             setLastUpdated(new Date());
         } catch (err) {
             console.error('Failed to fetch stocks:', err);
@@ -189,6 +199,7 @@ function HomePage() {
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={setCurrentPage}
+                    loading={loading}
                 />
             </section>
 

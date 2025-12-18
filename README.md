@@ -145,3 +145,38 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - Data sourced from Nepal Stock Exchange (NEPSE)
 - Built for the Nepali investment community
+
+## Production Deployment
+
+For deploying this application to a production server, see:
+
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Build and run in production
+- [PM2 Process Management](./docs/DEPLOYMENT.md#running-with-pm2) - Keep the app running
+- [Cloudflare Tunnel Setup](./docs/CLOUDFLARE_TUNNEL.md) - Expose to internet
+- [Security Best Practices](./docs/SECURITY.md) - Secure your deployment
+- [Deployment Checklist](./docs/DEPLOYMENT_CHECKLIST.md) - Pre-launch verification
+
+### Quick Start (Production)
+
+```bash
+# Install dependencies and build
+npm run deploy
+
+# Start with PM2
+cd backend
+npm run pm2:start
+
+# Check status
+npm run pm2:status
+
+# View logs
+npm run pm2:logs
+```
+
+### Accessing Your Deployed Site
+
+After deployment:
+- **Local access:** `http://localhost:5000`
+- **Network access:** `http://<your-server-ip>:5000`
+- **Public access (with Cloudflare Tunnel):** See [Finding Your Tunnel URL](./docs/CLOUDFLARE_TUNNEL.md#finding-your-tunnel-url)
+
