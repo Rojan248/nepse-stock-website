@@ -5,6 +5,8 @@ import { useStockDetail } from '../hooks/useStocks';
 import { useStocks } from '../hooks/useStocks';
 import StockCard from '../components/StockCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
 import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass } from '../utils/formatting';
 import './StockDetailPage.css';
 
@@ -41,9 +43,9 @@ function StockDetailPage() {
                 <div className="error-state">
                     <h2>Stock Not Found</h2>
                     <p>Could not find stock with symbol: {symbol}</p>
-                    <button className="btn btn-primary" onClick={() => navigate('/')}>
+                    <Button variant="primary" onClick={() => navigate('/')}>
                         Back to Home
-                    </button>
+                    </Button>
                 </div>
             </div>
         );
@@ -76,21 +78,21 @@ function StockDetailPage() {
     return (
         <div className="stock-detail-page layout-container">
             {/* Back Link */}
-            <button
-                type="button"
-                className="back-link"
+            <Button
+                variant="ghost"
+                className="back-button-elevated"
                 onClick={() => navigate('/')}
+                icon={<span>←</span>}
             >
-                <span aria-hidden="true">←</span>
-                <span>Back to All Stocks</span>
-            </button>
+                Back to All Stocks
+            </Button>
 
             {/* Stock Hero */}
             <section className="stock-hero">
                 <div className="hero-left">
                     <div className="hero-heading">
                         <h1 className="stock-symbol-large">{stock.symbol}</h1>
-                        <span className="sector-badge">{stock.sector || 'Others'}</span>
+                        <Badge variant="primary" className="sector-badge">{stock.sector || 'Others'}</Badge>
                     </div>
                     <h2 className="stock-company-name">{stock.companyName}</h2>
                 </div>

@@ -46,7 +46,7 @@ function SearchResultsPage() {
     return (
         <div className="search-results-page container">
             <header className="search-header">
-                <button className="back-btn" onClick={() => navigate(-1)}>
+                <button className="btn btn-ghost back-button-elevated" onClick={() => navigate(-1)}>
                     ← Back
                 </button>
                 <h1>Search Results</h1>
