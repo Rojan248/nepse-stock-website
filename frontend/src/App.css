@@ -233,11 +233,7 @@ a:focus {
     line-height: 1.25;
 }
 
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-}
+/* Disabled button state consolidated further down in the file */
 
 .btn-primary {
     background-color: var(--color-primary);
