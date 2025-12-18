@@ -20,7 +20,8 @@
 
 /* Variants */
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary), transparent, var(--color-primary-lighter));
+  /* Use a semi-transparent primary color as middle stop to avoid rendering as black-transparent */
+  background: linear-gradient(135deg, var(--color-primary), rgba(179,127,235,0.12), var(--color-primary-lighter));
   background-color: var(--color-bg-elevated);
   border-color: var(--color-primary);
   color: rgba(255, 255, 255, 0.8);
