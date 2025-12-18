@@ -6,11 +6,17 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "dev": "nodemon --ignore data/ --ignore logs/ src/server.js",
     "test": "jest --config jest.config.js",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:integration": "jest tests/integration/"
+    "test:integration": "jest tests/integration/",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop nepse-backend",
+    "pm2:restart": "pm2 restart nepse-backend",
+    "pm2:delete": "pm2 delete nepse-backend",
+    "pm2:logs": "pm2 logs nepse-backend",
+    "pm2:status": "pm2 status"
   },
   "keywords": [
     "nepse",
@@ -32,6 +38,7 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
+    "pm2": "^6.0.14",
     "supertest": "^6.3.4"
   }
 }

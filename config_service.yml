@@ -1,0 +1,8 @@
+tunnel: dab14126-a444-40a8-b622-11e94f0fe2a1
+credentials-file: C:\Cloudflared\dab14126-a444-40a8-b622-11e94f0fe2a1.json
+logfile: C:\Cloudflared\cloudflared.log
+
+ingress:
+  - hostname: nepse.me
+    service: http://localhost:5000
+  - service: http_status:404

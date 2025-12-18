@@ -1,6 +1,8 @@
 require('dotenv').config();
 
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
@@ -45,22 +47,35 @@ app.use('/api/stocks', stocksRouter);
 app.use('/api/ipos', iposRouter);
 app.use('/api', marketRouter);
 
-// Root endpoint
-app.get('/', (req, res) => {
-    res.json({
-        success: true,
-        message: 'NEPSE Stock API Server',
-        version: '1.0.0',
-        database: 'Local JSON Storage',
-        endpoints: {
-            stocks: '/api/stocks',
-            ipos: '/api/ipos',
-            marketSummary: '/api/market-summary',
-            health: '/api/health'
-        },
-        documentation: '/api/docs'
+// Root endpoint (handled by static files in production)
+if (process.env.NODE_ENV !== 'production') {
+    app.get('/', (req, res) => {
+        res.json({
+            success: true,
+            message: 'NEPSE Stock API Server',
+            version: '1.0.0',
+            database: 'Local JSON Storage',
+            endpoints: {
+                stocks: '/api/stocks',
+                ipos: '/api/ipos',
+                marketSummary: '/api/market-summary',
+                health: '/api/health'
+            },
+            documentation: '/api/docs'
+        });
     });
-});
+} else {
+    // Production: Serve frontend static files
+    const frontendPath = path.join(__dirname, '../../frontend/dist');
+    app.use(express.static(frontendPath));
+
+    // Catch-all: serve index.html for client-side routing
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(frontendPath, 'index.html'));
+        }
+    });
+}
 
 // Error handling
 app.use(notFoundHandler);
@@ -72,13 +87,19 @@ app.use(errorHandler);
  */
 const startServer = async () => {
     try {
+        // Ensure logs directory exists
+        const logsDir = path.join(__dirname, '../logs');
+        if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
+        }
+
         // Connect to local JSON storage
         logger.info('Initializing local JSON storage...');
         await connectDB();
 
         // Start Express server
-        const server = app.listen(PORT, () => {
-            logger.info(`Server running on http://localhost:${PORT}`);
+        const server = app.listen(PORT, '0.0.0.0', () => {
+            logger.info(`Server running on http://0.0.0.0:${PORT}`);
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
         });
 
