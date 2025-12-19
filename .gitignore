@@ -32,3 +32,6 @@ yarn-debug.log*
 credentials/
 config.yml
 cert.pem
+
+# Cloudflared credentials/config (do not commit)
+cloudflared/

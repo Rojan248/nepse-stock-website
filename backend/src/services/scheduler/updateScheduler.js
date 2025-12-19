@@ -57,6 +57,13 @@ const performUpdate = async () => {
     const startTime = Date.now();
     logger.info('Starting data update cycle...');
 
+    // Scheduler Shield: Skip updates on weekends
+    const currentState = getMarketState();
+    if (currentState === MARKET_STATES.WEEKEND) {
+        logger.info('Skipping update: Market is closed (WEEKEND)');
+        return false;
+    }
+
     try {
         // Fetch latest data
         const data = await dataFetcher.fetchLatestData();

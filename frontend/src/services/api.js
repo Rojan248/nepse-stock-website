@@ -43,12 +43,12 @@ export const getStocks = async (page = 1, limit = 50, sortBy = 'symbol', sortOrd
 
         if (!response) return { stocks: [], total: 0 };
 
-        // Support both axios-with-interceptor (response is data) and raw axios response
-        const payload = response.data !== undefined ? response.data : response;
+        // The interceptor already unwraps response.data, so 'response' IS the data
+        // Check for 'data' array in the response (API returns { success, data, count, pagination })
         return {
-            stocks: payload.data || payload.stocks || [],
-            total: payload.count || payload.total || 0,
-            pagination: payload.pagination || payload.pagination
+            stocks: response.data || [],
+            total: response.count || response.total || 0,
+            pagination: response.pagination
         };
     } catch (error) {
         console.error('Failed to fetch stocks:', error);

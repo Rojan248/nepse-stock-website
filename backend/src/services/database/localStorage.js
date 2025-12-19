@@ -52,34 +52,34 @@ const generateSafeKey = (companyName, fallbackId = null, existingKeys = null) =>
 
     // Normalize unicode (NFKD decomposes characters)
     let key = companyName.normalize('NFKD');
-    
+
     // Remove diacritical marks (combining characters)
     key = key.replace(/[\u0300-\u036f]/g, '');
-    
+
     // Replace all non-alphanumeric ASCII characters with underscores
     key = key.replace(/[^A-Za-z0-9]/g, '_');
-    
+
     // Convert to lowercase
     key = key.toLowerCase();
-    
+
     // Collapse consecutive underscores
     key = key.replace(/_+/g, '_');
-    
+
     // Trim leading/trailing underscores
     key = key.replace(/^_+|_+$/g, '');
-    
+
     // If key is empty after processing, use fallback
     if (!key) {
         return fallbackId || `ipo_${Date.now()}`;
     }
-    
+
     // Check for collisions if existingKeys map is provided
     if (existingKeys && existingKeys.has(key)) {
         // Append fallbackId or timestamp to make unique
         const suffix = fallbackId || Date.now().toString(36);
         key = `${key}_${suffix}`;
     }
-    
+
     return key;
 };
 
@@ -173,13 +173,13 @@ const saveFile = (key, data) => {
             logger.debug(`Skipping debounced write for ${key} - immediate write in progress`);
             return;
         }
-        
+
         // Acquire lock for debounced write
         if (!acquireWriteLock(key)) {
             logger.debug(`Could not acquire lock for debounced write of ${key}`);
             return;
         }
-        
+
         try {
             performWrite(key, data, false);
         } finally {
@@ -195,10 +195,10 @@ const saveFile = (key, data) => {
 const saveFileImmediate = (key, data) => {
     // Clear any pending debounced timer to prevent stale writes
     clearPendingTimer(key);
-    
+
     // Acquire write lock
     acquireWriteLock(key);
-    
+
     try {
         performWrite(key, data, true);
     } finally {
@@ -278,12 +278,42 @@ const stockOps = {
             const { isTopGainer, isTopLoser, ...cleanStock } = stock;
 
             const existing = store.stocks.get(stock.symbol) || {};
-            store.stocks.set(stock.symbol, {
-                ...existing,
-                ...cleanStock,
-                updatedAt: timestamp,
-                timestamp: cleanStock.timestamp || timestamp
-            });
+
+            // Validation Gate: Check for valid LTP
+            const newLtp = cleanStock.ltp || (cleanStock.prices && cleanStock.prices.ltp) || 0;
+            const hasValidLtp = newLtp > 0;
+
+            if (hasValidLtp) {
+                // If we have valid price, update everything
+                store.stocks.set(stock.symbol, {
+                    ...existing,
+                    ...cleanStock,
+                    updatedAt: timestamp,
+                    timestamp: cleanStock.timestamp || timestamp
+                });
+            } else {
+                // Database Shield: New data has invalid/zero price.
+                // Preserve existing price data but update other fields if available
+                const preservedStock = {
+                    ...cleanStock, // New data (might have volume adjustments even if price is 0?)
+                    // Overwrite with existing price data if present
+                    ltp: existing.ltp || cleanStock.ltp,
+                    change: existing.change || cleanStock.change,
+                    changePercent: existing.changePercent || cleanStock.changePercent,
+                    prices: existing.prices || cleanStock.prices
+                };
+
+                // If existing record had valid data, ensure we don't zero it out
+                if (existing.ltp > 0) {
+                    logger.debug(`Preserving LTP for ${stock.symbol}: New=${newLtp}, Old=${existing.ltp}`);
+                }
+
+                store.stocks.set(stock.symbol, {
+                    ...existing,
+                    ...preservedStock,
+                    updatedAt: timestamp
+                });
+            }
             count++;
         }
 
@@ -644,7 +674,7 @@ const ipoOps = {
                 return { id: k, ...v };
             }
         }
-        
+
         // Search by normalized key match (partial)
         const keyLower = key.toLowerCase();
         for (const [k, v] of store.ipos) {

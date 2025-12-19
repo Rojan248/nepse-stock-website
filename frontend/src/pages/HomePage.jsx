@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMarketSummary, getStocks, getSectors } from '../services/api';
 import StockTable from '../components/StockTable';
@@ -12,6 +12,50 @@ import './HomePage.css';
 
 // Live update interval - 15 seconds
 const LIVE_UPDATE_INTERVAL = 15000;
+// Page size for fetching from server (larger batches)
+const FETCH_PAGE_SIZE = 100;
+
+/**
+ * Fetch ALL stocks from the server by looping through pages.
+ * Returns a single array containing all stocks.
+ */
+async function fetchAllStocks() {
+    let page = 1;
+    let allStocks = [];
+    let hasMore = true;
+
+    while (hasMore) {
+        const response = await getStocks(page, FETCH_PAGE_SIZE);
+
+        // response is already unwrapped by axios interceptor
+        // API returns { data: [...], count, pagination }
+        const items = response?.stocks || response?.data || [];
+
+        if (!items || items.length === 0) {
+            hasMore = false;
+        } else {
+            allStocks = allStocks.concat(items);
+            page += 1;
+
+            // Stop if returned fewer items than requested
+            if (items.length < FETCH_PAGE_SIZE) {
+                hasMore = false;
+            }
+        }
+    }
+
+    console.log('Loaded total stocks:', allStocks.length);
+
+    if (allStocks.length < 200) {
+        console.warn(
+            'Suspiciously low total stock count (expected ~270 for NEPSE):',
+            allStocks.length
+        );
+        console.warn('Sample response:', allStocks.slice(0, 5));
+    }
+
+    return allStocks;
+}
 
 function HomePage() {
     const navigate = useNavigate();
@@ -20,7 +64,6 @@ function HomePage() {
     const [sectors, setSectors] = useState([]);
     const [selectedSector, setSelectedSector] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalStocks, setTotalStocks] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [lastUpdated, setLastUpdated] = useState(null);
@@ -58,8 +101,8 @@ function HomePage() {
         }
     }, []);
 
-    // Fetch stocks with pagination
-    const fetchStocks = useCallback(async (isInitial = false) => {
+    // Fetch ALL stocks (loops through pages)
+    const loadAllStocks = useCallback(async (isInitial = false) => {
         if (!mountedRef.current) return;
 
         try {
@@ -67,23 +110,16 @@ function HomePage() {
                 setLoading(true);
             }
 
-            const result = await getStocks(currentPage, ITEMS_PER_PAGE);
+            const allStocks = await fetchAllStocks();
 
             if (!mountedRef.current) return;
 
-            const stocksData = result?.stocks || result?.data || [];
-            const totalCount = result?.total || result?.count || stocksData.length;
-
-            console.log('[HomePage] Stocks fetch result', {
-                page: currentPage,
-                receivedStocks: stocksData.length,
-                totalCount,
-                rawResult: result
-            });
-
-            setStocks(stocksData);
-            setTotalStocks(totalCount);
+            setStocks(allStocks);
             setLastUpdated(new Date());
+            // Reset to page 1 when reloading all stocks
+            if (isInitial) {
+                setCurrentPage(1);
+            }
         } catch (err) {
             console.error('Failed to fetch stocks:', err);
             // Keep existing stocks on error - don't clear them
@@ -92,7 +128,7 @@ function HomePage() {
                 setLoading(false);
             }
         }
-    }, [currentPage]);
+    }, []);
 
     // Initial data fetch
     useEffect(() => {
@@ -100,7 +136,7 @@ function HomePage() {
 
         // Initial fetch
         fetchMarketData(true);
-        fetchStocks(true);
+        loadAllStocks(true);
 
         // Setup polling intervals
         marketIntervalRef.current = setInterval(() => {
@@ -108,7 +144,7 @@ function HomePage() {
         }, LIVE_UPDATE_INTERVAL);
 
         stocksIntervalRef.current = setInterval(() => {
-            fetchStocks(false);
+            loadAllStocks(false);
         }, LIVE_UPDATE_INTERVAL);
 
         // Cleanup on unmount
@@ -121,24 +157,63 @@ function HomePage() {
                 clearInterval(stocksIntervalRef.current);
             }
         };
-    }, [fetchMarketData, fetchStocks]);
+    }, [fetchMarketData, loadAllStocks]);
 
-    // Re-fetch stocks when page changes
+    // Reset page to 1 when sector filter changes
     useEffect(() => {
-        if (!loading) {
-            fetchStocks(false);
-        }
-    }, [currentPage]);
+        setCurrentPage(1);
+    }, [selectedSector]);
 
     const handleStockClick = (stock) => {
         navigate(`/stock/${stock.symbol}`);
     };
 
-    const filteredStocks = selectedSector === 'all'
-        ? stocks
-        : stocks.filter(s => s.sector?.toLowerCase().includes(selectedSector.toLowerCase()));
+    // Client-side filtering by sector
+    const filteredStocks = useMemo(() => {
+        if (selectedSector === 'all') {
+            return stocks;
+        }
 
-    const totalPages = Math.ceil(totalStocks / ITEMS_PER_PAGE);
+        return stocks.filter(stock => {
+            if (!stock.sector) return false;
+
+            // Robust comparison
+            const stockSector = stock.sector.toLowerCase().trim();
+            const filterSector = selectedSector.toLowerCase().trim();
+
+            // Direct match
+            if (stockSector === filterSector) return true;
+
+            // Partial match (e.g. "Commercial Bank" in "Commercial Banks")
+            if (stockSector.includes(filterSector) || filterSector.includes(stockSector)) return true;
+
+            // Pluralization check (remove trailing 's')
+            const s1 = stockSector.endsWith('s') ? stockSector.slice(0, -1) : stockSector;
+            const s2 = filterSector.endsWith('s') ? filterSector.slice(0, -1) : filterSector;
+
+            return s1 === s2;
+        });
+    }, [stocks, selectedSector]);
+
+    // Client-side pagination
+    const totalPages = Math.max(1, Math.ceil(filteredStocks.length / ITEMS_PER_PAGE));
+
+    const displayStocks = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filteredStocks.slice(start, end);
+    }, [filteredStocks, currentPage]);
+
+    // DEBUG: Log stocks state changes
+    useEffect(() => {
+        if (stocks.length > 0) {
+            console.log(`[HomePage] Total stocks in state: ${stocks.length}`);
+            console.log(`[HomePage] Filtered stocks: ${filteredStocks.length}`);
+            console.log(`[HomePage] Displaying page ${currentPage}: ${displayStocks.length} items`);
+        } else if (!loading) {
+            console.warn('[HomePage] Stocks array is empty!');
+        }
+    }, [stocks, filteredStocks, displayStocks, currentPage, loading]);
 
     if (loading && !stocks.length) {
         return <LoadingSpinner fullPage text="Loading market data..." />;
@@ -179,7 +254,7 @@ function HomePage() {
             {/* All Stocks */}
             <section className="stocks-section">
                 <div className="section-header">
-                    <h3 className="section-title">All Stocks</h3>
+                    <h3 className="section-title">All Stocks ({filteredStocks.length})</h3>
                     <div className="filters">
                         <Select
                             value={selectedSector}
@@ -190,7 +265,7 @@ function HomePage() {
                     </div>
                 </div>
                 <StockTable
-                    stocks={filteredStocks}
+                    stocks={displayStocks}
                     onRowClick={handleStockClick}
                     showPagination={true}
                     currentPage={currentPage}

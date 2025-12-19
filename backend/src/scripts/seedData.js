@@ -33,12 +33,30 @@ const seedData = async () => {
         });
 
         function generateStock(base) {
-            const changePercent = randomFloat(-5, 5);
-            const change = parseFloat((base.base * (changePercent / 100)).toFixed(1));
-            const ltp = base.base + change;
-            const open = Math.floor(base.base * (1 + randomFloat(-0.01, 0.01)));
-            const high = Math.max(open, ltp, Math.floor(base.base * (1 + randomFloat(0, 0.03))));
-            const low = Math.min(open, ltp, Math.floor(base.base * (1 - randomFloat(0, 0.03))));
+            // Generate a random target percentage first
+            const targetPercent = randomFloat(-5, 5);
+
+            // Calculate change value and round to 1 decimal place (standard tick)
+            // Note: LTP = Base + Change
+            const change = parseFloat((base.base * (targetPercent / 100)).toFixed(1));
+
+            // Recalculate the exact percentage based on the rounded change
+            // This ensures displayed % matches the math: (Change / Base) * 100
+            const changePercent = base.base === 0 ? 0 : parseFloat(((change / base.base) * 100).toFixed(2));
+
+            const ltp = parseFloat((base.base + change).toFixed(1));
+
+            // Generate valid OHLC data consistent with LTP
+            // Open: usually close to base/prevClose
+            const open = parseFloat((base.base * (1 + randomFloat(-0.02, 0.02))).toFixed(1));
+
+            // High/Low must bound the Open and LTP
+            const price1 = open;
+            const price2 = ltp;
+            const fluctuation = base.base * randomFloat(0.01, 0.04);
+
+            const high = parseFloat((Math.max(price1, price2) + Math.abs(fluctuation)).toFixed(1));
+            const low = parseFloat((Math.min(price1, price2) - Math.abs(fluctuation / 2)).toFixed(1));
 
             return {
                 symbol: base.symbol,
@@ -48,8 +66,8 @@ const seedData = async () => {
                 change: change,
                 changePercent: changePercent,
                 open: open,
-                high: high,
-                low: low,
+                high: Math.max(high, ltp, open), // Safety check
+                low: Math.min(low, ltp, open),   // Safety check
                 close: base.base,
                 volume: random(1000, 100000),
                 turnover: 0 // Calculated later
@@ -71,7 +89,7 @@ const seedData = async () => {
             else unchanged++;
             active++;
         });
-        
+
         // Save all stocks
         stockOps.saveStocks(stocks);
         console.log(`Saved ${stocks.length} stocks to local storage.`);

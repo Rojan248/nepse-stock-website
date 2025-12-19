@@ -1,5 +1,5 @@
-tunnel: 8a08bc8c-175e-4a84-934e-6e1b2bf754d7
-credentials-file: ./credentials/tunnel-credentials.json
+﻿tunnel: db5ad1f2-402c-4910-9ce6-eb8527e7299d
+credentials-file: C:\Users\Administrator\Documents\nepse-stock-website-master\credentials\tunnel-credentials.json
 
 ingress:
   - hostname: nepse.me
