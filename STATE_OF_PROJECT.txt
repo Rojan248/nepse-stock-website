@@ -1,0 +1,120 @@
+State of the Project Report
+
+1. Project File Structure
+
+nepse-stock-website-master/
+├── .config/
+├── .github/
+├── .vscode/
+├── auth.log
+├── backend/
+│   ├── analyze_stocks.js
+│   ├── check_akpl.js
+│   ├── check_time.js
+│   ├── ecosystem.config.js
+│   ├── jest.config.js
+│   ├── package.json
+│   ├── README.md
+│   ├── src/
+│   │   ├── server.js
+│   │   ├── data/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── scripts/
+│   │   └── services/
+│   │       ├── dataFetcher.js
+│   │       └── database/
+│   │           └── connection.js
+│   ├── tests/
+│   └── logs/
+├── cloudflared.exe
+├── config.yml
+├── config_fixed.yml
+├── config_service.yml
+├── credentials/
+├── delete
+├── docs/
+├── frontend/
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── public/
+│   └── src/
+│       ├── App.jsx
+│       ├── main.jsx
+│       ├── assets/
+│       ├── components/
+│       ├── hooks/
+│       ├── pages/
+│       ├── services/
+│       └── utils/
+│   └── tests/
+├── logs/
+├── manual_debug.log
+├── package.json
+├── query
+├── README.md
+├── scripts/
+├── start
+├── start_backend.bat
+├── start_tunnel.bat
+├── stop
+├── tunnel.log
+├── tunnel_list.txt
+├── tunnel_new.log
+├── tunnel_prod.log
+├── tunnel_temp.txt
+├── url_check.txt
+
+Note: `node_modules`, `.git`, `.next`, `dist`, and `build` folders are excluded for clarity.
+
+
+2. Git Status & Branches
+
+- Current active branch: next-huge-change
+- All local branches:
+  - master
+  - next-huge-change
+- Remote branches:
+  - origin/master
+  - origin/next-huge-change
+
+Last 3 commit messages (on `next-huge-change`):
+1. b3e166b docs: explain data persistence and market-hours behavior
+2. b8505fb fix: ensure stocks remain visible when market closed - display last trading session data
+3. 74dd179 refactor(ui): replace navigation buttons with new icon-enhanced Button component and improve accessibility
+
+
+3. Key File Locations
+
+Config:
+- frontend/vite.config.js
+- frontend/.env.production
+- backend/.env.test
+- backend/.env.example
+
+Entry Points:
+- Backend: backend/src/server.js
+- Frontend:
+  - frontend/src/main.jsx
+  - frontend/src/App.jsx
+
+Database:
+- backend/src/services/database/connection.js
+
+
+4. Architecture Summary
+
+- Tech Stack:
+  - Frontend: React (JSX), Vite (build tool), JavaScript/JSX, CSS
+  - Backend: Node.js, Express (implied by structure), JavaScript
+  - Database: Custom connection script (`backend/src/services/database/connection.js`), likely using a Node.js database adapter (details in code)
+  - Testing: Jest (backend), possible frontend tests in `frontend/tests/`
+  - Other: Uses environment variables for config, `ecosystem.config.js` for process management
+
+- Build Tool/Runner:
+  - Frontend: Vite (`vite.config.js`)
+  - Backend: Node.js scripts, possibly managed with `ecosystem.config.js` (PM2 or similar)
+  - Testing: Jest for backend
+
+This report provides a high-level overview of the current state of the project including structure, git status, key file locations, and architecture.

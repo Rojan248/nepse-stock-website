@@ -1,0 +1,9 @@
+A browser window should have opened at the following URL:
+
+https://dash.cloudflare.com/argotunnel?aud=&callback=https%3A%2F%2Flogin.cloudflareaccess.org%2Fhi0Bprogdp-gAF5WVaefs96vJd0Q_quP-BQXp49TYiI%3D
+
+If the browser failed to open, please visit the URL above directly in your browser.
+2025-12-19T12:58:24Z INF You have successfully logged in.
+If you wish to copy your credentials to a server, they have been saved to:
+C:\Users\Administrator\.cloudflared\cert.pem
+

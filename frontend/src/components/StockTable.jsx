@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatPrice, formatPercent, formatNumber, getChangeClass } from '../utils/formatting';
 import './StockTable.css';
 import './AnimatedValue.css';
@@ -230,23 +231,25 @@ function StockTable({
             </div>
 
             {showPagination && totalPages > 1 && (
-                <div className="pagination">
+                <div className="flex items-center justify-center gap-4 my-8 pagination">
                     <button
-                        className="btn btn-secondary"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed btn btn-secondary"
                         onClick={() => onPageChange && onPageChange(currentPage - 1)}
                         disabled={currentPage <= 1}
                     >
-                        ← Previous
+                        <ChevronLeft className="w-4 h-4" />
+                        Previous
                     </button>
-                    <span className="pagination-info">
+                    <span className="text-sm text-gray-300 pagination-info">
                         Page {currentPage} of {totalPages}
                     </span>
                     <button
-                        className="btn btn-secondary"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed btn btn-secondary"
                         onClick={() => onPageChange && onPageChange(currentPage + 1)}
                         disabled={currentPage >= totalPages}
                     >
-                        Next →
+                        Next
+                        <ChevronRight className="w-4 h-4" />
                     </button>
                 </div>
             )}
