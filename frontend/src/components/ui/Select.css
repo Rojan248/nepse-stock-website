@@ -1,34 +1,66 @@
-.select-container {
+/* Single-surface minimalist select */
+.ui-select-wrapper {
     position: relative;
     width: 100%;
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
 }
 
-.select-base {
+.ui-select-wrapper:hover {
+    border-color: var(--color-border-medium);
+    background-color: var(--color-bg-hover);
+}
+
+.ui-select-wrapper:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(179, 127, 235, 0.15);
+    /* using primary color RGB roughly */
+}
+
+.ui-select-input {
     width: 100%;
-    padding: 0.5rem 2rem 0.5rem 1rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: #3c4043;
-    background-color: #fff;
-    background-image: none;
-    border: 1px solid #dadce0;
-    border-radius: 4px;
     appearance: none;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    padding-right: var(--spacing-xl);
+    /* Space for icon */
+    font-family: inherit;
+    font-size: var(--font-base);
+    color: var(--color-text-main);
+    cursor: pointer;
+    line-height: 1.5;
+    border-radius: var(--radius-md);
+    /* Match wrapper radius */
 }
 
-.select-base:focus {
-    border-color: #1a73e8;
-    outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
+/* Fix for options in some browsers mostly showing white bg */
+.ui-select-input option {
+    background-color: var(--color-bg-elevated);
+    color: var(--color-text-main);
+    padding: 8px;
 }
 
-.select-icon {
+.ui-select-icon {
     position: absolute;
-    right: 1rem;
+    right: var(--spacing-sm);
     top: 50%;
     transform: translateY(-50%);
+    color: var(--color-text-secondary);
     pointer-events: none;
-    font-size: 0.8rem;
-    color: #5f6368;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast);
+}
+
+.ui-select-wrapper:hover .ui-select-icon {
+    color: var(--color-text-main);
 }

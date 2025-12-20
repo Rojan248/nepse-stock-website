@@ -14,7 +14,7 @@ const Select = ({
       <select
         value={value}
         onChange={onChange}
-        className="ui-select"
+        className="ui-select-input"
         {...props}
       >
         {placeholder && <option value="" disabled>{placeholder}</option>}
@@ -25,8 +25,8 @@ const Select = ({
         ))}
       </select>
       <div className="ui-select-icon">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </div>
     </div>
