@@ -16,7 +16,6 @@ function StockDetailPage() {
     const { stocks } = useStocks(1, 100);
     const [healthStatus, setHealthStatus] = useState(null);
 
-    // Fetch server health status
     useEffect(() => {
         const checkHealth = async () => {
             const health = await getServerHealth();
@@ -27,7 +26,6 @@ function StockDetailPage() {
         return () => clearInterval(interval);
     }, []);
 
-    // Get related stocks (same sector)
     const relatedStocks = stocks
         .filter(s => s.sector === stock?.sector && s.symbol !== stock?.symbol)
         .slice(0, 5);
@@ -64,36 +62,28 @@ function StockDetailPage() {
 
     const volume = stock.volume || trading.volume || 0;
     const turnover = stock.turnover || trading.turnover || 0;
-    const transactions = stock.noOfTransactions || trading.totalTrades || 0;
-    const marketCap = stock.marketCap || 0;
 
     const changeVal = stock.change !== undefined ? stock.change : (prices.change || 0);
     const changePercentVal = stock.changePercent !== undefined ? stock.changePercent : (prices.changePercent || 0);
     const changeClass = getChangeClass(changeVal);
     const changeSymbol = changeVal >= 0 ? '▲' : '▼';
 
-    // Calculate slider position
     const rangePercent = high !== low ? ((displayLtp - low) / (high - low)) * 100 : 50;
 
     return (
         <div className="sdp">
             <div className="sdp__container">
                 {/* Back Button */}
-                <Button
-                    variant="ghost"
-                    className="sdp__back"
-                    onClick={() => navigate('/')}
-                    icon={<span>←</span>}
-                >
-                    Back to All Stocks
-                </Button>
+                <button className="sdp__back" onClick={() => navigate('/')}>
+                    ← Back to All Stocks
+                </button>
 
-                {/* Stock Header Card */}
+                {/* Stock Info Card */}
                 <section className="sdp__header">
                     <div className="sdp__header-left">
                         <div className="sdp__symbol-row">
                             <h1 className="sdp__symbol">{stock.symbol}</h1>
-                            <Badge variant="primary" className="sdp__sector">{stock.sector || 'Others'}</Badge>
+                            <span className="sdp__sector">{stock.sector || 'Others'}</span>
                         </div>
                         <h2 className="sdp__company">{stock.companyName}</h2>
                     </div>
@@ -102,78 +92,66 @@ function StockDetailPage() {
                         <span className={`sdp__change ${changeClass}`}>
                             {changeSymbol} {changeVal >= 0 ? '+' : ''}{changeVal.toFixed(2)} ({formatPercent(changePercentVal)})
                         </span>
-                        <div className="sdp__updated">
-                            <span className={`sdp__status-dot ${healthStatus || 'degraded'}`}></span>
+                        <span className="sdp__updated">
                             Updated {formatTimestamp(stock.timestamp || stock.updatedAt)}
+                        </span>
+                    </div>
+                </section>
+
+                {/* Key Metrics - 3 columns × 2 rows */}
+                <section className="sdp__metrics">
+                    <h3 className="sdp__section-title">Key Metrics</h3>
+                    <div className="sdp__metrics-grid">
+                        <div className="sdp__metric">
+                            <span className="sdp__metric-label">Open</span>
+                            <span className="sdp__metric-value">{formatPrice(open)}</span>
+                        </div>
+                        <div className="sdp__metric">
+                            <span className="sdp__metric-label">High</span>
+                            <span className="sdp__metric-value sdp__metric-value--up">{formatPrice(high)}</span>
+                        </div>
+                        <div className="sdp__metric">
+                            <span className="sdp__metric-label">Low</span>
+                            <span className="sdp__metric-value sdp__metric-value--down">{formatPrice(low)}</span>
+                        </div>
+                        <div className="sdp__metric">
+                            <span className="sdp__metric-label">Prev Close</span>
+                            <span className="sdp__metric-value">{formatPrice(previousClose)}</span>
+                        </div>
+                        <div className="sdp__metric">
+                            <span className="sdp__metric-label">Volume</span>
+                            <span className="sdp__metric-value">{formatNumber(volume)}</span>
+                        </div>
+                        <div className="sdp__metric">
+                            <span className="sdp__metric-label">Turnover</span>
+                            <span className="sdp__metric-value">{formatTurnover(turnover)}</span>
                         </div>
                     </div>
                 </section>
 
-                {/* Two-Column Layout */}
-                <div className="sdp__main">
-                    {/* Left: Key Metrics */}
-                    <section className="sdp__metrics">
-                        <h3 className="sdp__section-title">Key Metrics</h3>
-                        <div className="sdp__metrics-grid">
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">Open</span>
-                                <span className="sdp__metric-value">{formatPrice(open)}</span>
-                            </div>
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">High</span>
-                                <span className="sdp__metric-value sdp__metric-value--up">{formatPrice(high)}</span>
-                            </div>
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">Low</span>
-                                <span className="sdp__metric-value sdp__metric-value--down">{formatPrice(low)}</span>
-                            </div>
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">Prev Close</span>
-                                <span className="sdp__metric-value">{formatPrice(previousClose)}</span>
-                            </div>
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">Volume</span>
-                                <span className="sdp__metric-value">{formatNumber(volume)}</span>
-                            </div>
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">Turnover</span>
-                                <span className="sdp__metric-value">{formatTurnover(turnover)}</span>
-                            </div>
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">Transactions</span>
-                                <span className="sdp__metric-value">{formatNumber(transactions)}</span>
-                            </div>
-                            <div className="sdp__metric">
-                                <span className="sdp__metric-label">Market Cap</span>
-                                <span className="sdp__metric-value">{formatTurnover(marketCap)}</span>
-                            </div>
+                {/* Price Summary - Vertical Stack Layout */}
+                <section className="sdp__summary">
+                    <h3 className="sdp__section-title">Price Summary</h3>
+                    <div className="sdp__range-stack">
+                        <span className="sdp__range-label">Day Range</span>
+                        <div className="sdp__range-values">
+                            <span className="sdp__range-min">{formatPrice(low)}</span>
+                            <span className="sdp__range-max">{formatPrice(high)}</span>
                         </div>
-                    </section>
-
-                    {/* Right: Price Summary */}
-                    <section className="sdp__summary">
-                        <h3 className="sdp__section-title">Price Summary</h3>
-                        <div className="sdp__range">
-                            <span className="sdp__range-label">Day Range</span>
-                            <div className="sdp__range-bar">
-                                <span className="sdp__range-value">{formatPrice(low)}</span>
-                                <div className="sdp__range-track">
-                                    <div className="sdp__range-fill" style={{ width: `${rangePercent}%` }}></div>
-                                    <div className="sdp__range-indicator" style={{ left: `${rangePercent}%` }}>
-                                        <span className="sdp__range-current">{formatPrice(displayLtp)}</span>
-                                    </div>
-                                </div>
-                                <span className="sdp__range-value">{formatPrice(high)}</span>
-                            </div>
+                        <div className="sdp__range-track">
+                            <div className="sdp__range-indicator" style={{ left: `${rangePercent}%` }}></div>
                         </div>
-                    </section>
-                </div>
+                        <div className="sdp__range-current">
+                            Current: <strong>{formatPrice(displayLtp)}</strong>
+                        </div>
+                    </div>
+                </section>
 
-                {/* Related Stocks - Vertical List */}
+                {/* Related Stocks */}
                 {relatedStocks.length > 0 && (
                     <section className="sdp__related">
                         <h3 className="sdp__section-title">Related in {stock.sector}</h3>
-                        <div className="sdp__related-list">
+                        <div className="sdp__related-table">
                             {relatedStocks.map((s) => {
                                 const sChangeVal = s.change !== undefined ? s.change : 0;
                                 const sChangePercent = s.changePercent !== undefined ? s.changePercent : 0;
@@ -187,16 +165,12 @@ function StockDetailPage() {
                                         className="sdp__related-row"
                                         onClick={() => navigate(`/stock/${s.symbol}`)}
                                     >
-                                        <div className="sdp__related-info">
-                                            <span className="sdp__related-symbol">{s.symbol}</span>
-                                            <span className="sdp__related-name">{s.companyName}</span>
-                                        </div>
-                                        <div className="sdp__related-price">
-                                            <span className="sdp__related-ltp">{formatPrice(sLtp)}</span>
-                                            <span className={`sdp__related-change ${sChangeClass}`}>
-                                                {sChangeSymbol} {sChangeVal >= 0 ? '+' : ''}{sChangeVal.toFixed(2)} ({formatPercent(sChangePercent)})
-                                            </span>
-                                        </div>
+                                        <span className="sdp__related-symbol">{s.symbol}</span>
+                                        <span className="sdp__related-name">{s.companyName}</span>
+                                        <span className="sdp__related-ltp">{formatPrice(sLtp)}</span>
+                                        <span className={`sdp__related-change ${sChangeClass}`}>
+                                            {sChangeSymbol} {sChangeVal >= 0 ? '+' : ''}{sChangeVal.toFixed(2)} ({formatPercent(sChangePercent)})
+                                        </span>
                                     </div>
                                 );
                             })}
