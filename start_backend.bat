@@ -1,3 +1,3 @@
 @echo off
-cd C:\Users\Rojan\Downloads\nepse-stock-website-master\backend
-call npx pm2 resurrect
+cd /d "%~dp0backend"
+npx pm2 start ecosystem.config.js

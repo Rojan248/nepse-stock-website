@@ -1,10 +1,9 @@
-/* Stock Detail Page - Financial Dashboard Design */
+/* Stock Detail Page - Sketch Layout Implementation */
 
-/* Page Container */
 .sdp {
     background: #ffffff;
     min-height: 100vh;
-    padding-bottom: 3rem;
+    padding: 0 0 3rem 0;
 }
 
 .sdp__container {
@@ -20,11 +19,11 @@
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.625rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: #666;
-    background: transparent;
+    background: #fff;
     border: 1px solid #e5e5e5;
     border-radius: 6px;
     cursor: pointer;
@@ -34,10 +33,11 @@
 .sdp__back:hover {
     background: #f5f5f5;
     color: #000;
-    transform: translateX(-2px);
 }
 
-/* Stock Header Card */
+/* ========================================
+   STOCK INFO CARD (Header)
+   ======================================== */
 .sdp__header {
     display: flex;
     justify-content: space-between;
@@ -46,14 +46,14 @@
     background: #f9f9f9;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    padding: 1.75rem 2rem;
+    padding: 2rem;
     margin-bottom: 2rem;
 }
 
 .sdp__header-left {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.375rem;
 }
 
 .sdp__symbol-row {
@@ -63,7 +63,7 @@
 }
 
 .sdp__symbol {
-    font-size: 2.25rem;
+    font-size: 2.5rem;
     font-weight: 700;
     color: #000;
     margin: 0;
@@ -93,7 +93,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0.25rem;
+    gap: 0.375rem;
 }
 
 .sdp__price {
@@ -104,308 +104,237 @@
 }
 
 .sdp__change {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 600;
-    padding: 0.375rem 0.875rem;
-    border-radius: 4px;
 }
 
 .sdp__change.price-up {
-    color: #16a34a;
-    background: rgba(22, 163, 74, 0.1);
+    color: #22c55e;
 }
 
 .sdp__change.price-down {
-    color: #dc2626;
-    background: rgba(220, 38, 38, 0.1);
+    color: #ef4444;
 }
 
 .sdp__change.price-unchanged {
     color: #666;
-    background: #f0f0f0;
 }
 
 .sdp__updated {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
     font-size: 0.875rem;
     color: #999;
     margin-top: 0.25rem;
 }
 
-.sdp__status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #999;
-}
-
-.sdp__status-dot.healthy {
-    background: #22c55e;
-}
-
-.sdp__status-dot.degraded {
-    background: #f59e0b;
-}
-
-/* Two-Column Main Layout */
-.sdp__main {
-    display: grid;
-    grid-template-columns: 420px 1fr;
-    gap: 2rem;
-    width: 100%;
-    margin-bottom: 2rem;
-    align-items: stretch;
-    /* Make both cards same height */
-}
-
-/* Section Title */
+/* ========================================
+   SECTION TITLES
+   ======================================== */
 .sdp__section-title {
-    font-size: 0.9375rem;
-    font-weight: 600;
+    font-size: 1.125rem;
+    font-weight: 700;
     color: #000;
     margin: 0 0 1rem 0;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
 }
 
-/* Key Metrics Card */
+/* ========================================
+   KEY METRICS SECTION (3 columns × 2 rows)
+   ======================================== */
 .sdp__metrics {
-    background: #fff;
+    margin-bottom: 2rem;
+}
+
+.sdp__metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.sdp__metric {
+    background: #ffffff;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
+    gap: 0.5rem;
+    transition: all 0.15s ease;
 }
 
-.sdp__metrics-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-}
-
-.sdp__metric {
-    display: flex;
-    flex-direction: column;
-    padding: 0.875rem;
-    border-bottom: 1px solid #f0f0f0;
-    border-right: 1px solid #f0f0f0;
-}
-
-.sdp__metric:nth-child(2n) {
-    border-right: none;
-}
-
-.sdp__metric:nth-last-child(-n+2) {
-    border-bottom: none;
+.sdp__metric:hover {
+    border-color: #d0d0d0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .sdp__metric-label {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: #999;
+    color: #666;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 0.25rem;
+    letter-spacing: 0.03em;
 }
 
 .sdp__metric-value {
-    font-size: 1.0625rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: #000;
 }
 
 .sdp__metric-value--up {
-    color: #16a34a;
+    color: #22c55e;
 }
 
 .sdp__metric-value--down {
-    color: #dc2626;
+    color: #ef4444;
 }
 
-/* Price Summary Card */
+/* ========================================
+   PRICE SUMMARY (Compact Horizontal)
+   ======================================== */
 .sdp__summary {
-    background: #fff;
+    background: #ffffff;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    /* Center content vertically */
+    padding: 1.5rem;
+    margin-bottom: 2rem;
 }
 
-.sdp__range {
-    margin-top: 0.5rem;
+/* Vertical Stack Layout */
+.sdp__range-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .sdp__range-label {
-    display: block;
     font-size: 0.875rem;
     font-weight: 500;
     color: #666;
-    margin-bottom: 1.25rem;
 }
 
-.sdp__range-bar {
+.sdp__range-values {
     display: flex;
-    align-items: center;
-    gap: 1.25rem;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
 }
 
-.sdp__range-value {
+.sdp__range-min,
+.sdp__range-max {
     font-size: 0.9375rem;
     font-weight: 600;
     color: #000;
-    min-width: 90px;
-}
-
-.sdp__range-value:last-child {
-    text-align: right;
 }
 
 .sdp__range-track {
-    flex: 1;
-    height: 10px;
+    width: 100%;
+    height: 8px;
     background: #e5e5e5;
-    border-radius: 5px;
+    border-radius: 4px;
     position: relative;
-}
-
-.sdp__range-fill {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    background: linear-gradient(90deg, #dc2626 0%, #f59e0b 50%, #16a34a 100%);
-    border-radius: 5px 0 0 5px;
-    opacity: 0.25;
+    margin: 0.5rem 0;
 }
 
 .sdp__range-indicator {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     background: #000;
     border-radius: 50%;
     border: 3px solid #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    cursor: default;
-    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .sdp__range-current {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #000;
-    background: #fff;
-    padding: 0.375rem 0.625rem;
-    border-radius: 4px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    white-space: nowrap;
+    text-align: center;
+    font-size: 0.9375rem;
+    color: #666;
+    margin-top: 0.5rem;
 }
 
-/* Related Stocks Section */
+.sdp__range-current strong {
+    color: #000;
+    font-weight: 600;
+}
+
+/* ========================================
+   RELATED STOCKS SECTION
+   ======================================== */
 .sdp__related {
     background: #fff;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    padding: 1.25rem;
-    width: 100%;
+    padding: 1.5rem;
 }
 
-.sdp__related-list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
+.sdp__related-table {
+    display: flex;
+    flex-direction: column;
 }
 
 .sdp__related-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 100px 1fr 120px 160px;
     align-items: center;
-    padding: 1rem;
+    gap: 1rem;
+    padding: 1rem 0.5rem;
     border-bottom: 1px solid #f0f0f0;
     cursor: pointer;
     transition: background 0.15s ease;
+    border-radius: 4px;
+    margin: 0 -0.5rem;
 }
 
-.sdp__related-row:nth-child(odd) {
-    border-right: 1px solid #f0f0f0;
-}
-
-.sdp__related-row:nth-last-child(-n+2) {
+.sdp__related-row:last-child {
     border-bottom: none;
 }
 
 .sdp__related-row:hover {
-    background: #f9f9f9;
-}
-
-.sdp__related-info {
-    display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    min-width: 0;
-    flex: 1;
+    background: #f5f5f5;
 }
 
 .sdp__related-symbol {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #000;
-    flex-shrink: 0;
 }
 
 .sdp__related-name {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: #666;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.sdp__related-price {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.125rem;
-    flex-shrink: 0;
-    margin-left: 1rem;
-}
-
 .sdp__related-ltp {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #000;
+    text-align: right;
 }
 
 .sdp__related-change {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 600;
+    text-align: right;
 }
 
 .sdp__related-change.price-up {
-    color: #16a34a;
+    color: #22c55e;
 }
 
 .sdp__related-change.price-down {
-    color: #dc2626;
+    color: #ef4444;
 }
 
 .sdp__related-change.price-unchanged {
     color: #666;
 }
 
-/* Error State */
+/* ========================================
+   ERROR STATE
+   ======================================== */
 .sdp__error {
     text-align: center;
     padding: 4rem 2rem;
@@ -414,6 +343,7 @@
 .sdp__error h2 {
     font-size: 1.5rem;
     margin-bottom: 0.5rem;
+    color: #000;
 }
 
 .sdp__error p {
@@ -421,26 +351,32 @@
     margin-bottom: 1.5rem;
 }
 
-/* Responsive: Tablet */
+/* ========================================
+   RESPONSIVE: Tablet (768-1024px)
+   ======================================== */
 @media (max-width: 1024px) {
-    .sdp__main {
-        grid-template-columns: 1fr 1fr;
+    .sdp__metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 
-    .sdp__related-list {
-        grid-template-columns: 1fr;
+    .sdp__range-row {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .sdp__range-slider {
+        order: 3;
+        width: 100%;
     }
 
     .sdp__related-row {
-        border-right: none !important;
-    }
-
-    .sdp__related-row:last-child {
-        border-bottom: none;
+        grid-template-columns: 80px 1fr 100px 140px;
     }
 }
 
-/* Responsive: Mobile */
+/* ========================================
+   RESPONSIVE: Mobile (<768px)
+   ======================================== */
 @media (max-width: 768px) {
     .sdp__container {
         padding: 0 1rem;
@@ -449,7 +385,7 @@
     .sdp__header {
         flex-direction: column;
         gap: 1.5rem;
-        padding: 1.25rem;
+        padding: 1.5rem;
     }
 
     .sdp__header-right {
@@ -457,13 +393,8 @@
         text-align: left;
     }
 
-    .sdp__main {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-
     .sdp__symbol {
-        font-size: 1.75rem;
+        font-size: 2rem;
     }
 
     .sdp__price {
@@ -471,54 +402,67 @@
     }
 
     .sdp__change {
-        font-size: 1rem;
+        font-size: 1.125rem;
+    }
+
+    .sdp__metrics-grid {
+        grid-template-columns: 1fr;
     }
 
     .sdp__metrics,
     .sdp__summary,
     .sdp__related {
-        padding: 1rem;
+        padding: 1.25rem;
     }
 
     .sdp__metric {
-        padding: 0.75rem;
+        padding: 1rem;
     }
 
-    .sdp__metric-value {
-        font-size: 1rem;
-    }
-
-    .sdp__range-bar {
+    .sdp__range-row {
         flex-direction: column;
         align-items: stretch;
         gap: 0.75rem;
     }
 
-    .sdp__range-value {
-        min-width: auto;
+    .sdp__range-label {
+        text-align: center;
     }
 
-    .sdp__range-value:first-child {
-        order: 2;
-    }
-
-    .sdp__range-value:last-child {
-        order: 3;
-        text-align: left;
-    }
-
-    .sdp__range-track {
-        order: 1;
+    .sdp__range-slider {
         width: 100%;
     }
 
-    .sdp__related-info {
-        flex-direction: column;
-        gap: 0.125rem;
-        align-items: flex-start;
+    .sdp__range-current {
+        text-align: center;
+    }
+
+    .sdp__related-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+        gap: 0.25rem 1rem;
+        padding: 1rem 0.5rem;
+    }
+
+    .sdp__related-symbol {
+        grid-column: 1;
+        grid-row: 1;
     }
 
     .sdp__related-name {
+        grid-column: 1;
+        grid-row: 2;
+        font-size: 0.75rem;
+    }
+
+    .sdp__related-ltp {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .sdp__related-change {
+        grid-column: 2;
+        grid-row: 2;
         font-size: 0.75rem;
     }
 }
