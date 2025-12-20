@@ -1,4 +1,4 @@
-/* ===== Animated Value Component Styles ===== */
+/* ===== Animated Value Component - Pure B&W ===== */
 
 .animated-value {
     display: inline-flex;
@@ -18,73 +18,81 @@
     display: inline-block;
 }
 
-/* ===== Loading State - Subtle Pulse ===== */
+/* ===== Loading State ===== */
 .animated-value.value-loading .value-content {
     animation: valuePulse 1.5s ease-in-out infinite;
 }
 
 @keyframes valuePulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.5;
     }
 }
 
-/* ===== Updated State - Flash Effect ===== */
+/* ===== Updated State ===== */
 .animated-value.value-updated .value-content {
     animation: valueFlash 0.5s ease-out;
 }
 
 @keyframes valueFlash {
     0% {
-        background-color: rgba(255, 255, 255, 0.3);
+        background-color: rgba(0, 0, 0, 0.1);
         border-radius: 4px;
         transform: scale(1.05);
     }
+
     100% {
         background-color: transparent;
         transform: scale(1);
     }
 }
 
-/* ===== Value Up - Green Highlight ===== */
+/* ===== Value Up ===== */
 .animated-value.value-up .value-content {
     animation: valueUp 0.5s ease-out;
-    color: var(--color-success, #22c55e);
+    color: var(--positive);
 }
 
 @keyframes valueUp {
     0% {
-        background-color: rgba(34, 197, 94, 0.3);
+        background-color: rgba(0, 0, 0, 0.15);
         border-radius: 4px;
         transform: translateY(2px) scale(1.05);
     }
+
     50% {
         transform: translateY(-2px);
     }
+
     100% {
         background-color: transparent;
         transform: translateY(0) scale(1);
     }
 }
 
-/* ===== Value Down - Red Highlight ===== */
+/* ===== Value Down ===== */
 .animated-value.value-down .value-content {
     animation: valueDown 0.5s ease-out;
-    color: var(--color-danger, #ef4444);
+    color: var(--negative);
 }
 
 @keyframes valueDown {
     0% {
-        background-color: rgba(239, 68, 68, 0.3);
+        background-color: rgba(0, 0, 0, 0.08);
         border-radius: 4px;
         transform: translateY(-2px) scale(1.05);
     }
+
     50% {
         transform: translateY(2px);
     }
+
     100% {
         background-color: transparent;
         transform: translateY(0) scale(1);
@@ -115,9 +123,10 @@
 
 @keyframes cellUpdate {
     0% {
-        background-color: rgba(59, 130, 246, 0.3);
+        background-color: rgba(0, 0, 0, 0.12);
         border-radius: 4px;
     }
+
     100% {
         background-color: transparent;
     }
@@ -125,10 +134,11 @@
 
 @keyframes cellUp {
     0% {
-        background-color: rgba(34, 197, 94, 0.4);
+        background-color: rgba(0, 0, 0, 0.15);
         border-radius: 4px;
-        text-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+        text-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
     }
+
     100% {
         background-color: transparent;
         text-shadow: none;
@@ -137,10 +147,11 @@
 
 @keyframes cellDown {
     0% {
-        background-color: rgba(239, 68, 68, 0.4);
+        background-color: rgba(0, 0, 0, 0.08);
         border-radius: 4px;
-        text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        text-shadow: 0 0 8px rgba(0, 0, 0, 0.15);
     }
+
     100% {
         background-color: transparent;
         text-shadow: none;
@@ -159,8 +170,9 @@
 @keyframes summaryUpdate {
     0% {
         transform: scale(1.02);
-        text-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+        text-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
     }
+
     100% {
         transform: scale(1);
         text-shadow: none;
@@ -173,7 +185,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.75rem;
-    color: var(--color-text-muted, #64748b);
+    color: var(--text-tertiary);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -185,16 +197,19 @@
 .polling-dot {
     width: 6px;
     height: 6px;
-    background-color: var(--color-primary, #3b82f6);
+    background-color: var(--c-black);
     border-radius: 50%;
     animation: pollingPulse 1s ease-in-out infinite;
 }
 
 @keyframes pollingPulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         opacity: 1;
     }
+
     50% {
         transform: scale(1.5);
         opacity: 0.5;
@@ -211,35 +226,38 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--text-primary);
     border-radius: 9999px;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .live-badge .live-dot {
     width: 6px;
     height: 6px;
-    background-color: #22c55e;
+    background-color: var(--c-black);
     border-radius: 50%;
     animation: livePulse 2s ease-in-out infinite;
 }
 
 @keyframes livePulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+        box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.3);
     }
+
     50% {
         opacity: 0.8;
-        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+        box-shadow: 0 0 0 4px rgba(0, 0, 0, 0);
     }
 }
 
 /* ===== Last Updated Text ===== */
 .last-updated {
     font-size: 0.75rem;
-    color: var(--color-text-muted, #64748b);
+    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     gap: 0.5rem;

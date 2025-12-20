@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { formatPrice, formatPercent, formatNumber, getChangeClass } from '../utils/formatting';
 import './StockTable.css';
 import './AnimatedValue.css';
@@ -111,10 +111,7 @@ function StockTable({
         return 0;
     });
 
-    const getSortIcon = (key) => {
-        if (sortConfig.key !== key) return '↕';
-        return sortConfig.direction === 'asc' ? '↑' : '↓';
-    };
+
 
     if (loading) {
         return (
@@ -138,33 +135,78 @@ function StockTable({
                 <table className="stock-table">
                     <thead>
                         <tr>
-                            <th onClick={() => handleSort('symbol')} className="sortable">
-                                Symbol {getSortIcon('symbol')}
+                            <th
+                                onClick={() => handleSort('symbol')}
+                                className="sortable group"
+                                aria-sort={sortConfig.key === 'symbol' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                            >
+                                <div className="flex items-center gap-2">
+                                    Symbol
+                                    <ChevronDown className={`sort-icon ${sortConfig.key === 'symbol' ? `active ${sortConfig.direction}` : ''}`} />
+                                </div>
                             </th>
-                            <th onClick={() => handleSort('companyName')} className="sortable">
-                                Company {getSortIcon('companyName')}
+                            <th
+                                onClick={() => handleSort('companyName')}
+                                className="sortable group"
+                                aria-sort={sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                            >
+                                <div className="flex items-center gap-2">
+                                    Company
+                                    <ChevronDown className={`sort-icon ${sortConfig.key === 'companyName' ? `active ${sortConfig.direction}` : ''}`} />
+                                </div>
                             </th>
                             <th>Sector</th>
-                            <th onClick={() => handleSort('ltp')} className="sortable text-right">
-                                LTP {getSortIcon('ltp')}
+                            <th
+                                onClick={() => handleSort('ltp')}
+                                className="sortable text-right group"
+                                aria-sort={sortConfig.key === 'ltp' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                            >
+                                <div className="flex items-center justify-end gap-2">
+                                    LTP
+                                    <ChevronDown className={`sort-icon ${sortConfig.key === 'ltp' ? `active ${sortConfig.direction}` : ''}`} />
+                                </div>
                             </th>
-                            <th onClick={() => handleSort('change')} className="sortable text-right">
-                                Change {getSortIcon('change')}
+                            <th
+                                onClick={() => handleSort('change')}
+                                className="sortable text-right group"
+                                aria-sort={sortConfig.key === 'change' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                            >
+                                <div className="flex items-center justify-end gap-2">
+                                    Change
+                                    <ChevronDown className={`sort-icon ${sortConfig.key === 'change' ? `active ${sortConfig.direction}` : ''}`} />
+                                </div>
                             </th>
-                            <th onClick={() => handleSort('changePercent')} className="sortable text-right">
-                                Change % {getSortIcon('changePercent')}
+                            <th
+                                onClick={() => handleSort('changePercent')}
+                                className="sortable text-right group"
+                                aria-sort={sortConfig.key === 'changePercent' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                            >
+                                <div className="flex items-center justify-end gap-2">
+                                    Change %
+                                    <ChevronDown className={`sort-icon ${sortConfig.key === 'changePercent' ? `active ${sortConfig.direction}` : ''}`} />
+                                </div>
                             </th>
-                            <th onClick={() => handleSort('volume')} className="sortable text-right">
-                                Volume {getSortIcon('volume')}
+                            <th
+                                onClick={() => handleSort('volume')}
+                                className="sortable text-right group"
+                                aria-sort={sortConfig.key === 'volume' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                            >
+                                <div className="flex items-center justify-end gap-2">
+                                    Volume
+                                    <ChevronDown className={`sort-icon ${sortConfig.key === 'volume' ? `active ${sortConfig.direction}` : ''}`} />
+                                </div>
                             </th>
                             <th className="text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody className={isPolling ? 'polling' : ''}>
                         {sortedStocks.map((stock) => {
-                            // Use change value for color determination (more precise than percent)
+                            // Use change value for color determination
                             const changeVal = stock.change !== undefined ? stock.change : (stock.prices?.change || 0);
-                            const changeClass = getChangeClass(changeVal);
+                            const percentVal = stock.changePercent !== undefined ? stock.changePercent : (stock.prices?.changePercent || 0);
+                            const isPositive = changeVal > 0;
+                            const isNegative = changeVal < 0;
+
                             const symbol = stock.symbol || stock._id;
 
                             return (
@@ -174,39 +216,42 @@ function StockTable({
                                     className="clickable"
                                 >
                                     <td className="symbol-cell">
-                                        <span className="stock-symbol-badge">{stock.symbol}</span>
+                                        {stock.symbol}
                                     </td>
                                     <td className="company-cell">
                                         {stock.companyName || stock.symbol}
                                     </td>
                                     <td>
-                                        <span className="sector-tag">{stock.sector || 'Others'}</span>
+                                        {stock.sector || 'Others'}
                                     </td>
-                                    <td className="text-right font-bold">
+                                    <td className="text-right">
                                         <AnimatedCell
                                             value={stock.ltp || stock.prices?.ltp || stock.close || 0}
                                             previousValue={getPreviousValue(symbol, 'ltp')}
                                             formatter={formatPrice}
                                             showDirection={true}
-                                        />
-                                    </td>
-                                    <td className={`text-right ${changeClass}`}>
-                                        <AnimatedCell
-                                            value={stock.change || stock.prices?.change || 0}
-                                            previousValue={getPreviousValue(symbol, 'change')}
-                                            formatter={(v) => `${v >= 0 ? '+' : ''}${v?.toFixed(2) || '0.00'}`}
-                                            showDirection={true}
-                                        />
-                                    </td>
-                                    <td className={`text-right ${changeClass}`}>
-                                        <AnimatedCell
-                                            value={stock.changePercent || stock.prices?.changePercent || 0}
-                                            previousValue={getPreviousValue(symbol, 'changePercent')}
-                                            formatter={formatPercent}
-                                            showDirection={true}
+                                            className="font-bold"
                                         />
                                     </td>
                                     <td className="text-right">
+                                        <div className={`change-pill ${isPositive ? 'positive' : isNegative ? 'negative' : ''}`}>
+                                            <AnimatedCell
+                                                value={Math.abs(changeVal)}
+                                                previousValue={Math.abs(getPreviousValue(symbol, 'change') || 0)}
+                                                formatter={(v) => v?.toFixed(2) || '0.00'}
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="text-right">
+                                        <div className={`change-percent ${isPositive ? 'change-percent--positive' : isNegative ? 'change-percent--negative' : ''}`}>
+                                            <AnimatedCell
+                                                value={Math.abs(percentVal)}
+                                                previousValue={Math.abs(getPreviousValue(symbol, 'changePercent') || 0)}
+                                                formatter={(v) => `${isPositive ? '+' : ''}${v?.toFixed(2)}%`}
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="text-right text-muted">
                                         <AnimatedCell
                                             value={stock.volume || stock.trading?.volume || 0}
                                             previousValue={getPreviousValue(symbol, 'volume')}
@@ -217,7 +262,7 @@ function StockTable({
                                     <td className="text-center">
                                         <Link
                                             to={`/stock/${stock.symbol}`}
-                                            className="btn btn-secondary btn-sm"
+                                            className="action-button"
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             View
