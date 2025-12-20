@@ -139,12 +139,25 @@ Contributions welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](./LICENSE) for details.
 
 ## Acknowledgments
 
 - Data sourced from Nepal Stock Exchange (NEPSE)
 - Built for the Nepali investment community
+
+## Known Issues
+
+- **Mobile & Tablet Optimization:** The UI is currently being optimized for mobile and tablet devices. You may experience layout shifts or overlapping elements on smaller screens. We are actively working on a responsive redesign.
+
+## Roadmap & Upcoming Features
+
+We are constantly working to improve NEPSE Stock Website. Here's what's coming next:
+
+- **AI Integration:** Smart insights and market analysis powered by AI.
+- **Stock Suggestions:** Personalized stock recommendations based on market trends.
+- **Real-time Graphing:** Enhanced interactive charts with second-by-second updates.
+
 
 ## Production Deployment
 
