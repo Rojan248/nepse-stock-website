@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getServerHealth, getMarketSummary } from '../services/api';
+import { getServerHealth } from '../services/api';
 import SearchBar from './SearchBar';
 import logoPrimary from '../assets/img/logo-primary.jpg';
 import './Header.css';
@@ -8,7 +8,6 @@ import './Header.css';
 function Header() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [marketStatus, setMarketStatus] = useState(null);
-    const [lastUpdate, setLastUpdate] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -21,7 +20,6 @@ function Header() {
         const health = await getServerHealth();
         if (health) {
             setMarketStatus(health.market?.isOpen ? 'Open' : 'Closed');
-            setLastUpdate(health.scheduler?.lastUpdate);
         }
     };
 
@@ -32,75 +30,52 @@ function Header() {
         }
     };
 
-    const formatTime = (isoDate) => {
-        if (!isoDate) return '--:--';
-        const date = new Date(isoDate);
-        return date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
-    };
-
     return (
         <header className="header">
-            <div className="header-container">
-                {/* Left: Logo Section */}
-                <Link to="/" className="logo-section">
-                    <div className="logo-icon">
-                        <img src={logoPrimary} alt="NEPSE Logo" className="logo-img" />
-                    </div>
-                    <div className="logo-text-wrapper">
-                        <span className="logo-text">NEPSE</span>
-                        <span className="logo-subtitle">Market</span>
-                    </div>
-                </Link>
+            <div className="header__container">
+                {/* Left Side: Logo + Search */}
+                <div className="header__left">
+                    <Link to="/" className="logo">
+                        <img src={logoPrimary} alt="NEPSE" />
+                        <span>NEPSE</span>
+                        <span className="logo__subtitle">MARKET</span>
+                    </Link>
 
-                {/* Center: Search Bar */}
-                <div className="header-center">
-                    <div className="header-search">
+                    <div className="search-bar">
                         <SearchBar onSearch={handleSearch} placeholder="Search stocks..." />
                     </div>
                 </div>
 
-                {/* Right: Navigation & Status */}
-                <div className="header-right">
-                    {/* Desktop Navigation */}
-                    <nav className={`nav ${isMenuOpen ? 'nav-open' : ''}`}>
-                        <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>
-                            Home
-                        </Link>
-                        <Link to="/top-movers" className="nav-link" onClick={() => setIsMenuOpen(false)}>
-                            Top Movers
-                        </Link>
-                        <Link to="/ipos" className="nav-link" onClick={() => setIsMenuOpen(false)}>
-                            IPOs
-                        </Link>
-                    </nav>
+                {/* Right Side: Navigation */}
+                <nav className={`header__nav ${isMenuOpen ? 'header__nav--open' : ''}`}>
+                    <Link to="/" className="nav-link nav-link--active" onClick={() => setIsMenuOpen(false)}>
+                        Home
+                    </Link>
+                    <Link to="/top-movers" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                        Top Movers
+                    </Link>
+                    <Link to="/ipos" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                        IPOs
+                    </Link>
 
-                    {/* Market Status Pill */}
-                    <div className="market-status-pill">
-                        <div className={`status-indicator ${marketStatus === 'Open' ? 'status-open' : 'status-closed'}`}>
-                            <span className="status-dot"></span>
-                            <span className="status-text">{marketStatus || '--'}</span>
-                        </div>
+                    <div className={`market-status ${marketStatus === 'Open' ? 'market-status--open' : 'market-status--closed'}`}>
+                        <span className="market-status__dot"></span>
+                        <span className="market-status__text">{marketStatus || 'Closed'}</span>
                     </div>
-                </div>
+                </nav>
 
-                {/* Mobile Menu Button */}
+                {/* Mobile Menu Toggle */}
                 <button
                     className="menu-toggle"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     aria-label="Toggle menu"
                 >
-                    <span className={`hamburger ${isMenuOpen ? 'hamburger-open' : ''}`}></span>
+                    <span className={`hamburger ${isMenuOpen ? 'open' : ''}`}></span>
                 </button>
             </div>
 
-            {/* Mobile Menu Overlay */}
-            {isMenuOpen && (
-                <div className="mobile-overlay" onClick={() => setIsMenuOpen(false)}></div>
-            )}
+            {/* Mobile Overlay */}
+            {isMenuOpen && <div className="mobile-overlay" onClick={() => setIsMenuOpen(false)}></div>}
         </header>
     );
 }

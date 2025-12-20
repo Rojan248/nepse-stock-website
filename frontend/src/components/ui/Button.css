@@ -1,3 +1,4 @@
+/* Button Component - Pure B&W */
 .ui-btn {
   display: inline-flex;
   align-items: center;
@@ -5,7 +6,7 @@
   gap: 0.5rem;
   font-weight: 600;
   white-space: nowrap;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 200ms ease;
   cursor: pointer;
   border: 1px solid transparent;
   outline: none;
@@ -20,83 +21,79 @@
 
 /* Variants */
 .btn-primary {
-  /* Use a semi-transparent primary color as middle stop to avoid rendering as black-transparent */
-  background: linear-gradient(135deg, var(--color-primary), rgba(179,127,235,0.12), var(--color-primary-lighter));
-  background-color: var(--color-bg-elevated);
-  border-color: var(--color-primary);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--c-black);
+  border-color: var(--c-black);
+  color: var(--c-white);
 }
 
 .btn-primary:hover:not(:disabled) {
-  color: #ffffff;
-  box-shadow: 0 0 15px rgba(179, 127, 235, 0.4);
+  background: rgba(0, 0, 0, 0.85);
   transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.01);
-  backdrop-filter: blur(4px);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.08);
+  border-color: var(--border-heavy);
 }
 
 .btn-outline {
   background: transparent;
-  border-color: var(--color-border-medium);
-  color: var(--color-text-secondary);
+  border-color: var(--border-medium);
+  color: var(--text-secondary);
 }
 
 .btn-outline:hover:not(:disabled) {
-  background: var(--color-bg-hover);
-  border-color: var(--color-primary-soft);
-  color: var(--color-primary-soft);
+  background: var(--hover-light);
+  border-color: var(--border-heavy);
+  color: var(--text-primary);
 }
 
 .btn-ghost {
   background: transparent;
   border-color: transparent;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--color-bg-hover);
-  color: var(--color-text-main);
+  background: var(--hover-light);
+  color: var(--text-primary);
 }
 
 .btn-danger {
-  background: rgba(249, 115, 115, 0.1);
-  border-color: rgba(249, 115, 115, 0.3);
-  color: var(--color-danger);
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--border-light);
+  color: var(--text-secondary);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: var(--color-danger);
-  color: #ffffff;
+  background: var(--c-black);
+  color: var(--c-white);
 }
 
 /* Sizes */
 .btn-sm {
   height: 2.25rem;
   padding: 0 0.75rem;
-  font-size: var(--font-xs);
+  font-size: var(--text-xs);
 }
 
 .btn-md {
   height: 2.75rem;
   padding: 0 1.25rem;
-  font-size: var(--font-sm);
+  font-size: var(--text-sm);
 }
 
 .btn-lg {
   height: 3.25rem;
   padding: 0 2rem;
-  font-size: var(--font-base);
+  font-size: var(--text-base);
 }
 
 .btn-icon {
@@ -128,11 +125,13 @@
   width: 1rem;
   height: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #ffffff;
+  border-top-color: var(--c-white);
   border-radius: 50%;
   animation: btn-spin 0.6s linear infinite;
 }
 
 @keyframes btn-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

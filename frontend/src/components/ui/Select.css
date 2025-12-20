@@ -1,66 +1,45 @@
-/* Single-surface minimalist select */
-.ui-select-wrapper {
+/* Select Component - Pure B&W */
+.select-wrapper {
     position: relative;
     width: 100%;
-    background-color: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border-light);
-    border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
-    display: flex;
-    align-items: center;
 }
 
-.ui-select-wrapper:hover {
-    border-color: var(--color-border-medium);
-    background-color: var(--color-bg-hover);
-}
-
-.ui-select-wrapper:focus-within {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(179, 127, 235, 0.15);
-    /* using primary color RGB roughly */
-}
-
-.ui-select-input {
-    width: 100%;
+.select-field {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
-    background: transparent;
-    border: none;
-    outline: none;
-    padding: var(--spacing-sm) var(--spacing-md);
-    padding-right: var(--spacing-xl);
-    /* Space for icon */
-    font-family: inherit;
-    font-size: var(--font-base);
-    color: var(--color-text-main);
+    width: 100%;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    color: var(--text-primary);
     cursor: pointer;
-    line-height: 1.5;
-    border-radius: var(--radius-md);
-    /* Match wrapper radius */
+    transition: all 0.15s ease;
 }
 
-/* Fix for options in some browsers mostly showing white bg */
-.ui-select-input option {
-    background-color: var(--color-bg-elevated);
-    color: var(--color-text-main);
-    padding: 8px;
+.select-field:hover {
+    border-color: var(--border-medium);
 }
 
-.ui-select-icon {
+.select-field:focus {
+    outline: none;
+    border-color: var(--border-heavy);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.select-icon {
     position: absolute;
-    right: var(--spacing-sm);
+    right: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--color-text-secondary);
     pointer-events: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color var(--transition-fast);
+    color: var(--text-tertiary);
+    transition: color 0.15s ease;
 }
 
-.ui-select-wrapper:hover .ui-select-icon {
-    color: var(--color-text-main);
+.select-wrapper:hover .select-icon {
+    color: var(--text-secondary);
 }

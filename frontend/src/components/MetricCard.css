@@ -1,0 +1,103 @@
+/* Metric Card Design - Light Gray + White */
+.metric-card {
+    min-height: 140px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 1.75rem;
+    /* Increased padding */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 200ms ease;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    /* Subtle default shadow */
+}
+
+.metric-card:hover {
+    border-color: var(--border-medium);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    /* Stronger hover shadow */
+    transform: translateY(-3px);
+    /* More noticeable lift */
+}
+
+/* Typography */
+.metric-card__label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 0.5rem;
+}
+
+.metric-card__value {
+    font-size: 2.75rem;
+    /* Increased size */
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: var(--leading-tight);
+    margin: 0.5rem 0;
+    /* Vertical spacing */
+    letter-spacing: -0.02em;
+}
+
+.metric-card__change {
+    margin-top: 0.25rem;
+    /* Slight adjust due to value margin */
+    font-size: 0.9375rem;
+    /* Slightly larger */
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 14px;
+    /* Increased padding */
+    border-radius: 12px;
+    width: fit-content;
+}
+
+.metric-card__change--positive {
+    background: var(--color-positive-bg);
+    color: var(--color-positive-text);
+}
+
+.metric-card__change--positive::before {
+    content: "▲";
+    font-size: 0.7em;
+    margin-right: 2px;
+}
+
+.metric-card__change--negative {
+    background: var(--color-negative-bg);
+    color: var(--color-negative-text);
+}
+
+.metric-card__change--negative::before {
+    content: "▼";
+    font-size: 0.7em;
+    margin-right: 2px;
+}
+
+/* Skeleton Loading */
+.metric-card.loading {
+    pointer-events: none;
+}
+
+.skeleton-label {
+    height: 12px;
+    width: 40%;
+    background: var(--c-gray-100);
+    border-radius: 4px;
+    margin-bottom: 2rem;
+}
+
+.skeleton-value {
+    height: 32px;
+    width: 70%;
+    background: var(--c-gray-100);
+    border-radius: 4px;
+}

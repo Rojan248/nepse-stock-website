@@ -1,5 +1,11 @@
+/* StockTable.css - Light Gray + White Design */
 .stock-table-wrapper {
     width: 100%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
 }
 
 .stock-table {
@@ -7,87 +13,251 @@
     border-collapse: collapse;
 }
 
+/* Header Styling */
+.stock-table thead {
+    border-bottom: 1px solid var(--border-light);
+}
+
 .stock-table th {
-    background: var(--bg-tertiary);
-    padding: var(--spacing-md);
+    padding: 1rem 1.5rem;
     text-align: left;
-    font-size: var(--font-xs);
-    font-weight: 600;
+    font-size: var(--text-xs);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.5px;
     color: var(--text-secondary);
-    border-bottom: 2px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.03);
     white-space: nowrap;
+}
+
+/* Numeric columns right-align */
+.stock-table th.numeric,
+.stock-table th:nth-child(4),
+.stock-table th:nth-child(5),
+.stock-table th:nth-child(6),
+.stock-table th:nth-child(7) {
+    text-align: right;
 }
 
 .stock-table th.sortable {
     cursor: pointer;
-    user-select: none;
-    transition: color 0.15s ease, transform 0.15s ease;
+    transition: color 150ms ease;
 }
 
 .stock-table th.sortable:hover {
-    color: var(--color-primary-light);
+    color: var(--text-primary);
 }
 
-.stock-table th.sortable:active {
-    transform: scale(0.98);
+/* Sort Icon */
+.sort-icon {
+    width: 14px;
+    height: 14px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
+.stock-table th.sortable:hover .sort-icon {
+    opacity: 0.5;
+}
+
+.stock-table th.sortable .sort-icon.active {
+    opacity: 1;
+    color: var(--text-primary);
+}
+
+.sort-icon.active.asc {
+    transform: rotate(180deg);
+}
+
+/* Row Styling */
+.stock-table tbody tr {
+    border-bottom: 1px solid var(--border-light);
+    transition: background 150ms ease;
+}
+
+.stock-table tbody tr:hover {
+    background: var(--hover-bg);
+}
+
+.stock-table tbody tr:last-child {
+    border-bottom: none;
 }
 
 .stock-table td {
-    padding: var(--spacing-md);
-    border-bottom: 1px solid var(--border-color);
-    font-size: var(--font-sm);
+    padding: 1.125rem 1.5rem;
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
-.stock-table tr.clickable {
-    cursor: pointer;
-    transition: background-color 0.15s ease, transform 0.15s ease;
-    border-left: 3px solid transparent;
+/* Numeric columns right-align */
+.stock-table td:nth-child(4),
+.stock-table td:nth-child(5),
+.stock-table td:nth-child(6),
+.stock-table td:nth-child(7) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
-.stock-table tr.clickable:hover {
-    background: var(--bg-card-hover);
-    border-left-color: var(--color-primary);
-}
-
-.stock-table tr.clickable:active {
-    background: var(--bg-card);
-}
-
-.stock-symbol-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-    border-radius: var(--radius-sm);
+/* Symbol Column */
+.stock-table td:first-child {
     font-weight: 700;
-    font-size: var(--font-xs);
-    color: white;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    font-size: 1rem;
+    color: var(--text-primary);
 }
 
-.stock-table tr.clickable:hover .stock-symbol-badge {
-    transform: scale(1.05);
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-}
-
+/* Company Column */
 .company-cell {
-    max-width: 200px;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Clickable Row */
+.stock-table tr.clickable {
+    cursor: pointer;
+}
+
+/* Change Pills (Value Change) */
+.change-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    /* Right-align content inside pill */
+    gap: 4px;
+    padding: 6px 12px;
+    min-width: 72px;
+    /* Minimum width for consistency */
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    /* Monospace numbers */
     white-space: nowrap;
+    text-align: right;
+    /* Align text to right */
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.change-pill.positive {
+    background: var(--color-positive-bg);
+    color: var(--color-positive-text);
+}
+
+.change-pill.positive::before {
+    content: "▲";
+    font-size: 0.7em;
+    opacity: 0.7;
+    margin-right: auto;
+    /* Push arrow to left, number to right */
+}
+
+.change-pill.negative {
+    background: var(--color-negative-bg);
+    color: var(--color-negative-text);
+}
+
+.change-pill.negative::before {
+    content: "▼";
+    font-size: 0.7em;
+    opacity: 0.7;
+    margin-right: auto;
+    /* Push arrow to left, number to right */
+}
+
+/* Change Percent (Text Color Only) */
+.change-percent {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.change-percent--positive {
+    color: var(--color-positive);
+}
+
+.change-percent--negative {
+    color: var(--color-negative);
+}
+
+/* Action Button */
+.action-button {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1.5px solid var(--border-medium);
+    border-radius: 6px;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 150ms ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+}
+
+.action-button:hover {
+    background: var(--c-black);
+    color: var(--c-white);
+    border-color: var(--c-black);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.action-button:active {
+    transform: translateY(0);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem 0;
+    background: var(--bg-surface);
+}
+
+.pagination button {
+    background: transparent;
+    border: 1px solid var(--border-medium);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-heavy);
+}
+
+.pagination button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    font-size: var(--text-sm);
     color: var(--text-secondary);
+    display: flex;
+    align-items: center;
 }
 
-.sector-tag {
-    display: inline-block;
-    padding: 2px 8px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-full);
-    font-size: var(--font-xs);
-    color: var(--text-muted);
+/* No Data */
+.no-data {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-tertiary);
 }
 
+/* Utility Classes */
 .text-right {
     text-align: right;
 }
@@ -97,104 +267,12 @@
 }
 
 .font-bold {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
 }
 
-.btn-sm {
-    padding: 4px 12px;
-    font-size: var(--font-xs);
-}
-
-/* Pagination */
-.pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
-    padding: var(--spacing-md);
-}
-
-.pagination-info {
-    font-size: var(--font-sm);
+.text-muted {
     color: var(--text-secondary);
-}
-
-.pagination button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* No Data */
-.no-data {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    color: var(--text-muted);
-}
-
-/* ===== Live Update Animations ===== */
-
-/* Polling state for table body */
-.stock-table tbody.polling {
-    /* Subtle indication that data is being fetched */
-}
-
-/* Stock value base styles */
-.stock-value {
-    display: inline-block;
-    transition: all 0.3s ease;
-    border-radius: 4px;
-    padding: 2px 4px;
-    margin: -2px -4px;
-}
-
-/* Value Updated Animation */
-.stock-value.value-updated {
-    animation: cellFlash 0.5s ease-out;
-}
-
-@keyframes cellFlash {
-    0% {
-        background-color: rgba(59, 130, 246, 0.3);
-    }
-    100% {
-        background-color: transparent;
-    }
-}
-
-/* Value Up Animation */
-.stock-value.value-up {
-    animation: cellUp 0.5s ease-out;
-}
-
-@keyframes cellUp {
-    0% {
-        background-color: rgba(34, 197, 94, 0.4);
-        color: #22c55e;
-        transform: scale(1.05);
-    }
-    100% {
-        background-color: transparent;
-        transform: scale(1);
-    }
-}
-
-/* Value Down Animation */
-.stock-value.value-down {
-    animation: cellDown 0.5s ease-out;
-}
-
-@keyframes cellDown {
-    0% {
-        background-color: rgba(239, 68, 68, 0.4);
-        color: #ef4444;
-        transform: scale(1.05);
-    }
-    100% {
-        background-color: transparent;
-        transform: scale(1);
-    }
 }
 
 /* Responsive */
@@ -202,8 +280,8 @@
 
     .stock-table th,
     .stock-table td {
-        padding: var(--spacing-sm);
-        font-size: var(--font-xs);
+        padding: 0.75rem 1rem;
+        font-size: var(--text-xs);
     }
 
     .company-cell {
@@ -216,5 +294,10 @@
     .stock-table th:nth-child(7),
     .stock-table td:nth-child(7) {
         display: none;
+    }
+
+    .action-button {
+        padding: 0.4rem 0.8rem;
+        font-size: var(--text-xs);
     }
 }
