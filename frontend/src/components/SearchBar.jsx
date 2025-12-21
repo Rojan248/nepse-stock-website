@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Search, X } from 'lucide-react';
 import { searchStocks } from '../services/api';
 import './SearchBar.css';
 
@@ -80,6 +81,7 @@ function SearchBar({ onSearch, placeholder = "Search stocks..." }) {
     return (
         <div className="search-bar" ref={wrapperRef}>
             <div className="search-input-wrapper">
+                <Search className="search-icon" size={16} />
                 <input
                     type="text"
                     value={query}
@@ -91,7 +93,9 @@ function SearchBar({ onSearch, placeholder = "Search stocks..." }) {
                 />
                 {loading && <span className="search-loader"></span>}
                 {query && !loading && (
-                    <button className="search-clear" onClick={handleClear}>×</button>
+                    <button className="search-clear" onClick={handleClear} aria-label="Clear search">
+                        <X size={14} />
+                    </button>
                 )}
             </div>
 

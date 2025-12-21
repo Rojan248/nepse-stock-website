@@ -129,6 +129,30 @@ const getTopLosers = async (limit = 10) => {
 };
 
 /**
+ * Get stocks with no change
+ */
+const getUnchangedStocks = async (limit = 10) => {
+    try {
+        return stockOps.getUnchangedStocks(limit);
+    } catch (error) {
+        logger.error(`Error getting unchanged stocks: ${error.message}`);
+        return [];
+    }
+};
+
+/**
+ * Get top traded stocks
+ */
+const getTopTraded = async (limit = 10) => {
+    try {
+        return stockOps.getTopTraded(limit);
+    } catch (error) {
+        logger.error(`Error getting top traded stocks: ${error.message}`);
+        return [];
+    }
+};
+
+/**
  * Clear all stocks from database (use with caution)
  */
 const clearAllStocks = async () => {
@@ -197,6 +221,8 @@ module.exports = {
     getAllSectors,
     getTopGainers,
     getTopLosers,
+    getUnchangedStocks,
+    getTopTraded,
     clearAllStocks,
     deleteInactiveStocks,
     cleanupInactiveStocks,

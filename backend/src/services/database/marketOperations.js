@@ -87,6 +87,30 @@ const getMarketStats = async () => {
     }
 };
 
+/**
+ * Save top movers
+ */
+const saveTopMovers = async (turnover, trade, volume, gainers, losers) => {
+    try {
+        return marketOps.saveTopMovers(turnover, trade, volume, gainers, losers);
+    } catch (error) {
+        logger.error(`Error saving top movers: ${error.message}`);
+        return { success: false };
+    }
+};
+
+/**
+ * Get top movers
+ */
+const getTopMovers = async () => {
+    try {
+        return marketOps.getTopMovers();
+    } catch (error) {
+        logger.error(`Error getting top movers: ${error.message}`);
+        return null;
+    }
+};
+
 module.exports = {
     saveMarketSummary,
     upsertMarketSummary,
@@ -94,5 +118,7 @@ module.exports = {
     getMarketSummaryHistory,
     getMarketSummaryByDate,
     cleanOldSummaries,
-    getMarketStats
+    getMarketStats,
+    saveTopMovers,
+    getTopMovers
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getServerHealth } from '../services/api';
 import SearchBar from './SearchBar';
 import logoPrimary from '../assets/img/logo-primary.jpg';
@@ -9,6 +9,7 @@ function Header() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [marketStatus, setMarketStatus] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         fetchStatus();
@@ -17,9 +18,13 @@ function Header() {
     }, []);
 
     const fetchStatus = async () => {
-        const health = await getServerHealth();
-        if (health) {
-            setMarketStatus(health.market?.isOpen ? 'Open' : 'Closed');
+        try {
+            const health = await getServerHealth();
+            if (health) {
+                setMarketStatus(health.market?.isOpen ? 'Open' : 'Closed');
+            }
+        } catch (err) {
+            console.error('Market status fetch failed');
         }
     };
 
@@ -30,6 +35,8 @@ function Header() {
         }
     };
 
+    const isActive = (path) => location.pathname === path;
+
     return (
         <header className="header">
             <div className="header__container">
@@ -37,8 +44,7 @@ function Header() {
                 <div className="header__left">
                     <Link to="/" className="logo">
                         <img src={logoPrimary} alt="NEPSE" />
-                        <span>NEPSE</span>
-                        <span className="logo__subtitle">MARKET</span>
+                        <span>NEPSE MARKET</span>
                     </Link>
 
                     <div className="search-bar">
@@ -48,18 +54,30 @@ function Header() {
 
                 {/* Right Side: Navigation */}
                 <nav className={`header__nav ${isMenuOpen ? 'header__nav--open' : ''}`}>
-                    <Link to="/" className="nav-link nav-link--active" onClick={() => setIsMenuOpen(false)}>
+                    <Link
+                        to="/"
+                        className={`nav-link ${isActive('/') ? 'nav-link--active' : ''}`}
+                        onClick={() => setIsMenuOpen(false)}
+                    >
                         Home
                     </Link>
-                    <Link to="/top-movers" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                    <Link
+                        to="/top-movers"
+                        className={`nav-link ${isActive('/top-movers') ? 'nav-link--active' : ''}`}
+                        onClick={() => setIsMenuOpen(false)}
+                    >
                         Top Movers
                     </Link>
-                    <Link to="/ipos" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                    <Link
+                        to="/ipos"
+                        className={`nav-link ${isActive('/ipos') ? 'nav-link--active' : ''}`}
+                        onClick={() => setIsMenuOpen(false)}
+                    >
                         IPOs
                     </Link>
 
                     <div className={`market-status ${marketStatus === 'Open' ? 'market-status--open' : 'market-status--closed'}`}>
-                        <span className="market-status__dot"></span>
+                        <span className="status-dot"></span>
                         <span className="market-status__text">{marketStatus || 'Closed'}</span>
                     </div>
                 </nav>

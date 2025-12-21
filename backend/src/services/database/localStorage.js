@@ -16,7 +16,14 @@ const store = {
     stocks: new Map(),
     marketSummary: null,
     marketHistory: [],
-    ipos: new Map()
+    ipos: new Map(),
+    topMovers: {
+        turnover: [],
+        trade: [],
+        volume: [],
+        gainers: [],
+        losers: []
+    }
 };
 
 // File paths
@@ -24,7 +31,8 @@ const FILES = {
     stocks: path.join(DATA_DIR, 'stocks.json'),
     marketSummary: path.join(DATA_DIR, 'marketSummary.json'),
     marketHistory: path.join(DATA_DIR, 'marketHistory.json'),
-    ipos: path.join(DATA_DIR, 'ipos.json')
+    ipos: path.join(DATA_DIR, 'ipos.json'),
+    topMovers: path.join(DATA_DIR, 'topMovers.json')
 };
 
 // Debounce timers for saving
@@ -241,10 +249,16 @@ const initializeLocalStorage = () => {
             }
         });
     }
-    logger.info(`Loaded ${store.ipos.size} IPOs from local storage`);
+    // Load Top Movers
+    store.topMovers = loadFile(FILES.topMovers, {
+        turnover: [],
+        trade: [],
+        volume: []
+    });
+    logger.info(`Loaded top movers: ${store.topMovers.updatedAt ? 'yes' : 'no'}`);
 
     return true;
-};
+}
 
 /**
  * Save all data to disk immediately
@@ -254,6 +268,7 @@ const saveAllData = () => {
     saveFileImmediate('marketSummary', store.marketSummary);
     saveFileImmediate('marketHistory', store.marketHistory);
     saveFileImmediate('ipos', Array.from(store.ipos.values()));
+    saveFileImmediate('topMovers', store.topMovers);
     logger.info('All data saved to local storage');
 };
 
@@ -326,7 +341,7 @@ const stockOps = {
     /**
      * Get all stocks with pagination
      */
-    getAllStocks: ({ skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 1, includeZeroLtp = false } = {}) => {
+    getAllStocks: ({ skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 1, includeZeroLtp = true } = {}) => {
         let stocks = Array.from(store.stocks.values());
 
         // Filter out zero LTP stocks unless requested
@@ -369,9 +384,6 @@ const stockOps = {
 
         return Array.from(store.stocks.values())
             .filter(stock => {
-                const ltp = stock.ltp || (stock.prices && stock.prices.ltp) || 0;
-                if (ltp <= 0) return false;
-
                 const symbol = (stock.symbol || '').toUpperCase();
                 const name = (stock.companyName || '').toLowerCase();
                 return symbol.includes(queryUpper) || name.includes(queryLower);
@@ -438,6 +450,35 @@ const stockOps = {
         return Array.from(store.stocks.values())
             .filter(stock => (stock.changePercent || 0) < 0)
             .sort((a, b) => (a.changePercent || 0) - (b.changePercent || 0))
+            .slice(0, limit);
+    },
+
+    /**
+     * Get stocks with no change
+     */
+    getUnchangedStocks: (limit = 10) => {
+        return Array.from(store.stocks.values())
+            .filter(stock => {
+                const ltp = stock.ltp || (stock.prices && stock.prices.ltp) || 0;
+                return ltp > 0 && (stock.changePercent === 0 || stock.change === 0);
+            })
+            .slice(0, limit);
+    },
+
+    /**
+     * Get top traded stocks (by volume/turnover)
+     */
+    getTopTraded: (limit = 10) => {
+        return Array.from(store.stocks.values())
+            .filter(stock => {
+                const ltp = stock.ltp || (stock.prices && stock.prices.ltp) || 0;
+                return ltp > 0;
+            })
+            .sort((a, b) => {
+                const aVol = a.volume || a.totalTradedQuantity || 0;
+                const bVol = b.volume || b.totalTradedQuantity || 0;
+                return bVol - aVol;
+            })
             .slice(0, limit);
     },
 
@@ -588,6 +629,29 @@ const marketOps = {
             saveFile('marketHistory', store.marketHistory);
         }
         return deleted;
+    },
+
+    /**
+     * Save top movers lists
+     */
+    saveTopMovers: (turnover, trade, volume, gainers, losers) => {
+        store.topMovers = {
+            turnover: turnover || [],
+            trade: trade || [],
+            volume: volume || [],
+            gainers: gainers || [],
+            losers: losers || [],
+            updatedAt: new Date().toISOString()
+        };
+        saveFile('topMovers', store.topMovers);
+        return { success: true };
+    },
+
+    /**
+     * Get top movers
+     */
+    getTopMovers: () => {
+        return store.topMovers;
     },
 
     /**
@@ -779,7 +843,8 @@ module.exports = {
             stocks: Array.from(store.stocks.values()),
             marketSummary: store.marketSummary,
             marketHistory: store.marketHistory,
-            ipos: Array.from(store.ipos.values())
+            ipos: Array.from(store.ipos.values()),
+            topMovers: store.topMovers
         };
         // Deep clone to prevent mutation
         return JSON.parse(JSON.stringify(snapshot));

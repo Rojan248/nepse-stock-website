@@ -145,6 +145,40 @@ export const getTopLosers = async (limit = 10) => {
 };
 
 /**
+ * Get top traded stocks
+ */
+export const getTopTraded = async (limit = 10) => {
+    try {
+        const response = await api.get('/stocks/top-traded', {
+            params: { limit }
+        });
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || [];
+    } catch (error) {
+        console.error('Failed to fetch top traded stocks:', error);
+        return [];
+    }
+};
+
+/**
+ * Get stocks with no change
+ */
+export const getUnchangedStocks = async (limit = 10) => {
+    try {
+        const response = await api.get('/stocks/unchanged', {
+            params: { limit }
+        });
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || [];
+    } catch (error) {
+        console.error('Failed to fetch unchanged stocks:', error);
+        return [];
+    }
+};
+
+/**
  * Get all sectors
  */
 export const getSectors = async () => {

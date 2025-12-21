@@ -89,6 +89,17 @@ const performUpdate = async () => {
             await marketOperations.upsertMarketSummary(data.marketSummary);
         }
 
+        // Save Top Movers
+        if (data.topTurnover || data.topTrades || data.topVolume || data.topGainers || data.topLosers) {
+            await marketOperations.saveTopMovers(
+                data.topTurnover,
+                data.topTrades,
+                data.topVolume,
+                data.topGainers,
+                data.topLosers
+            );
+        }
+
         // Update state
         lastUpdateTime = new Date();
         updateCount++;
