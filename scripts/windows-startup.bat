@@ -62,20 +62,7 @@ if errorlevel 1 (
     call "%PM2_CMD%" start ecosystem.config.js >> "%LOG_FILE%" 2>> "%ERR_FILE%"
 )
 
-:: -- Start Tunnel --
-cd ..
-if exist "config.yml" (
-    where cloudflared >nul 2>nul
-    if errorlevel 1 (
-        echo [ERROR] cloudflared not found on PATH! >> "%ERR_FILE%"
-        echo [ERROR] cloudflared not found on PATH!
-        pause
-        exit /b 1
-    )
-    echo Starting Cloudflare Tunnel... >> "%LOG_FILE%"
-    set "TUNNEL_CRED_FILE=%PROJECT_ROOT%\credentials\tunnel-credentials.json"
-    start "" /B cmd /c "cloudflared --config config.yml --credentials-file \"%TUNNEL_CRED_FILE%\" tunnel run >> \"%LOG_DIR%\tunnel.log\" 2>&1"
-)
+
 
 :: -- Save State --
 cd backend

@@ -1,9 +1,0 @@
-tunnel: 8a08bc8c-175e-4a84-934e-6e1b2bf754d7
-credentials-file: ./credentials/tunnel-credentials.json
-
-ingress:
-  - hostname: nepse.me
-    service: http://localhost:5000
-  - hostname: test.nepse.me
-    service: http://localhost:5000
-  - service: http_status:404
