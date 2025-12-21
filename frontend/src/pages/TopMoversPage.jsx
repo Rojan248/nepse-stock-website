@@ -34,44 +34,36 @@ function TopMoversPage() {
             {/* Top Metrics Bar */}
             <section className="top-metrics-bar">
                 <div className="top-metric-card">
-                    <img src={metricGainers} alt="Gainers" className="top-metric-icon" />
-                    <span className="top-metric-value gainers">{marketSummary?.advancedCompanies || 0}</span>
                     <span className="top-metric-label">Gainers</span>
+                    <span className="top-metric-value gainers">{marketSummary?.advancedCompanies || 0}</span>
                 </div>
                 <div className="top-metric-card">
-                    <img src={metricLosers} alt="Losers" className="top-metric-icon" />
-                    <span className="top-metric-value losers">{marketSummary?.declinedCompanies || 0}</span>
                     <span className="top-metric-label">Losers</span>
+                    <span className="top-metric-value losers">{marketSummary?.declinedCompanies || 0}</span>
                 </div>
                 <div className="top-metric-card">
-                    <img src={metricUnchanged} alt="Unchanged" className="top-metric-icon" />
-                    <span className="top-metric-value unchanged">{marketSummary?.unchangedCompanies || 0}</span>
                     <span className="top-metric-label">Unchanged</span>
+                    <span className="top-metric-value unchanged">{marketSummary?.unchangedCompanies || 0}</span>
                 </div>
                 <div className="top-metric-card">
-                    <img src={metricTraded} alt="Traded" className="top-metric-icon" />
-                    <span className="top-metric-value traded">{marketSummary?.activeCompanies || 0}</span>
                     <span className="top-metric-label">Traded</span>
+                    <span className="top-metric-value traded">{marketSummary?.activeCompanies || 0}</span>
                 </div>
             </section>
 
             {/* Tabs */}
-            <div className="tabs">
+            <div className="tab-switcher">
                 <button
-                    className={`tab ${activeTab === 'gainers' ? 'tab-active' : ''}`}
+                    className={activeTab === 'gainers' ? 'active' : ''}
                     onClick={() => setActiveTab('gainers')}
                 >
-                    <span className="tab-icon">▲</span>
                     Top Gainers
-                    {!loading && <span className="tab-count">{gainers.length}</span>}
                 </button>
                 <button
-                    className={`tab ${activeTab === 'losers' ? 'tab-active' : ''}`}
+                    className={activeTab === 'losers' ? 'active' : ''}
                     onClick={() => setActiveTab('losers')}
                 >
-                    <span className="tab-icon">▼</span>
                     Top Losers
-                    {!loading && <span className="tab-count">{losers.length}</span>}
                 </button>
             </div>
 
@@ -80,43 +72,48 @@ function TopMoversPage() {
                 {loading ? (
                     <LoadingSpinner text="Loading stocks..." />
                 ) : (
-                    <>
-                        {activeTab === 'gainers' && (
-                            <div className="stocks-grid">
-                                {gainers.length > 0 ? (
-                                    gainers.map((stock) => (
-                                        <StockCard
-                                            key={stock.symbol}
-                                            stock={stock}
-                                            onClick={handleStockClick}
-                                        />
-                                    ))
-                                ) : (
-                                    <div className="empty-state">
-                                        <p>No gainers available at the moment</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                    <div className="movers-table-wrapper">
+                        {((activeTab === 'gainers' && gainers.length > 0) || (activeTab === 'losers' && losers.length > 0)) ? (
+                            <table className="movers-table">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Company</th>
+                                        <th>Sector</th>
+                                        <th className="text-right">LTP</th>
+                                        <th className="text-right">Change</th>
+                                        <th className="text-right">Change %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(activeTab === 'gainers' ? gainers : losers).map((stock) => {
+                                        const isPositive = stock.change > 0;
+                                        const isNegative = stock.change < 0;
+                                        const changeClass = isPositive ? 'positive' : isNegative ? 'negative' : '';
 
-                        {activeTab === 'losers' && (
-                            <div className="stocks-grid">
-                                {losers.length > 0 ? (
-                                    losers.map((stock) => (
-                                        <StockCard
-                                            key={stock.symbol}
-                                            stock={stock}
-                                            onClick={handleStockClick}
-                                        />
-                                    ))
-                                ) : (
-                                    <div className="empty-state">
-                                        <p>No losers available at the moment</p>
-                                    </div>
-                                )}
+                                        return (
+                                            <tr key={stock.symbol} onClick={() => handleStockClick(stock)} className="clickable-row">
+                                                <td className="symbol">{stock.symbol}</td>
+                                                <td className="company">{stock.companyName}</td>
+                                                <td><span className="sector-badge">{stock.sector || 'Others'}</span></td>
+                                                <td className="price text-right">{formatPrice(stock.ltp)}</td>
+                                                <td className={`change text-right ${changeClass}`}>
+                                                    {isPositive ? '+' : ''}{formatNumber(stock.change)}
+                                                </td>
+                                                <td className={`change-pct text-right ${changeClass}`}>
+                                                    {isPositive ? '+' : ''}{formatPercent(stock.changePercent)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <div className="empty-state">
+                                <p>No {activeTab} available at the moment</p>
                             </div>
                         )}
-                    </>
+                    </div>
                 )}
             </div>
         </div>
