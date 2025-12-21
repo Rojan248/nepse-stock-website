@@ -43,11 +43,11 @@
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
-    background: #f9f9f9;
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    padding: 2rem;
-    margin-bottom: 2rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-main);
+    border-radius: var(--radius-md);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
 }
 
 .sdp__header-left {
@@ -63,9 +63,9 @@
 }
 
 .sdp__symbol {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: #000;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--c-black);
     margin: 0;
     line-height: 1;
 }
@@ -97,9 +97,9 @@
 }
 
 .sdp__price {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: #000;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--c-black);
     line-height: 1;
 }
 
@@ -109,15 +109,15 @@
 }
 
 .sdp__change.price-up {
-    color: #22c55e;
+    color: var(--color-positive);
 }
 
 .sdp__change.price-down {
-    color: #ef4444;
+    color: var(--color-negative);
 }
 
 .sdp__change.price-unchanged {
-    color: #666;
+    color: var(--color-unchanged);
 }
 
 .sdp__updated {
@@ -150,13 +150,13 @@
 }
 
 .sdp__metric {
-    background: #ffffff;
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    padding: 1.25rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-main);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-2);
     transition: all 0.15s ease;
 }
 
@@ -174,17 +174,17 @@
 }
 
 .sdp__metric-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #000;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary);
 }
 
 .sdp__metric-value--up {
-    color: #22c55e;
+    color: var(--color-positive);
 }
 
 .sdp__metric-value--down {
-    color: #ef4444;
+    color: var(--color-negative);
 }
 
 /* ========================================
@@ -321,15 +321,15 @@
 }
 
 .sdp__related-change.price-up {
-    color: #22c55e;
+    color: var(--color-positive);
 }
 
 .sdp__related-change.price-down {
-    color: #ef4444;
+    color: var(--color-negative);
 }
 
 .sdp__related-change.price-unchanged {
-    color: #666;
+    color: var(--color-unchanged);
 }
 
 /* ========================================

@@ -2,11 +2,11 @@
 .stock-card {
     display: block;
     background: var(--c-white);
-    border: 1px solid var(--border-1);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
+    border: 1px solid var(--border-main);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
     text-decoration: none;
-    color: var(--text-main);
+    color: var(--text-primary);
     position: relative;
     overflow: hidden;
     transition: all 0.2s ease;
@@ -27,7 +27,7 @@
 
 .stock-card:hover {
     transform: translateY(-4px);
-    border-color: var(--c-gray-400);
+    border-color: var(--c-black);
     background: var(--c-white);
     box-shadow: var(--shadow-md);
 }
@@ -44,70 +44,70 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--space-2);
 }
 
 .stock-symbol {
-    font-size: var(--font-lg);
-    font-weight: 700;
-    color: var(--text-main);
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary);
 }
 
 .stock-sector {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     padding: 2px 8px;
-    background: var(--c-gray-50);
-    border: 1px solid var(--border-1);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-full);
     color: var(--text-secondary);
 }
 
 .stock-card-name {
-    font-size: var(--font-sm);
+    font-size: 0.8rem;
     color: var(--text-muted);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--space-4);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .stock-card-price {
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--space-2);
 }
 
 .stock-ltp {
-    font-size: var(--font-2xl);
-    font-weight: 700;
-    color: var(--text-main);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
 }
 
 .stock-card-change {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    font-size: var(--font-sm);
+    gap: var(--space-2);
+    font-size: 0.8rem;
     font-weight: 600;
 }
 
-/* Green/Red allowed for price changes */
+/* Price Change Colors */
 .stock-card-change.price-up {
-    color: var(--c-green-dark);
+    color: var(--color-positive);
 }
 
 .stock-card-change.price-down {
-    color: var(--c-red-dark);
+    color: var(--color-negative);
 }
 
 .stock-card-change.price-unchanged {
-    color: var(--text-muted);
+    color: var(--color-unchanged);
 }
 
 .stock-card-arrow {
     position: absolute;
     top: 50%;
-    right: var(--spacing-md);
+    right: var(--space-4);
     transform: translateY(-50%);
-    font-size: var(--font-xl);
+    font-size: var(--text-xl);
     color: var(--c-gray-300);
     opacity: 0;
     transition: all var(--transition-fast);
@@ -115,6 +115,6 @@
 
 .stock-card:hover .stock-card-arrow {
     opacity: 1;
-    right: var(--spacing-lg);
-    color: var(--text-main);
+    right: var(--space-6);
+    color: var(--text-primary);
 }

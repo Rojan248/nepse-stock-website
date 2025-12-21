@@ -1,40 +1,34 @@
-/* Dashboard Layout - Light Gray + White */
 .home-page {
-    /* Main Layout - No white wrapper, just a transparent container */
-    max-width: 1400px;
+    max-width: var(--container-max);
     margin: 0 auto;
-    padding: 2rem;
-    background: transparent;
-    box-shadow: none;
-    border-radius: 0;
-    min-height: calc(100vh - 4rem);
+    background: var(--bg-primary);
+    min-height: 100vh;
 }
 
 /* Market Summary Section */
 .market-overview {
-    margin-bottom: 3rem;
-    /* Extra spacing for clear separation */
+    margin-bottom: var(--space-12);
 }
 
 .section-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
 }
 
 .section-title {
-    font-size: var(--text-xl);
-    font-weight: 700;
+    font-size: var(--text-3xl);
+    font-weight: var(--font-black);
     color: var(--text-primary);
+    letter-spacing: -0.04em;
     margin: 0;
-    letter-spacing: -0.01em;
 }
 
 .market-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
 }
 
 /* Stocks Section */
@@ -47,50 +41,46 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-8);
 }
 
 .filters {
-    width: 250px;
+    width: 280px;
 }
 
-/* Error Toast */
+/* Error Toast (Strict Black/White) */
 .error-toast {
     position: fixed;
-    bottom: 2rem;
-    right: 2rem;
+    bottom: var(--space-8);
+    right: var(--space-8);
     background: var(--c-black);
     color: var(--c-white);
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
+    padding: var(--space-4) var(--space-6);
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
-    gap: 1rem;
-    box-shadow: var(--shadow-xl);
+    gap: var(--space-4);
+    box-shadow: var(--shadow-lg);
     z-index: 1000;
+    font-weight: 600;
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
-    .home-page {
-        padding: 1.5rem;
+@media (max-width: 1200px) {
+    .market-cards {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
 @media (max-width: 768px) {
-    .home-page {
-        padding: 1rem;
-    }
-
     .market-cards {
         grid-template-columns: 1fr;
-        gap: 1rem;
     }
 
     .section-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1rem;
+        gap: var(--space-4);
     }
 
     .filters {

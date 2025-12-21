@@ -108,6 +108,38 @@ router.get('/top-losers', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/stocks/top-traded
+ * Get top traded stocks
+ */
+router.get('/top-traded', asyncHandler(async (req, res) => {
+    const { limit = 10 } = req.query;
+
+    const stocks = await stockOperations.getTopTraded(parseInt(limit));
+
+    res.json({
+        success: true,
+        data: stocks,
+        count: stocks.length
+    });
+}));
+
+/**
+ * GET /api/stocks/unchanged
+ * Get stocks with no change
+ */
+router.get('/unchanged', asyncHandler(async (req, res) => {
+    const { limit = 10 } = req.query;
+
+    const stocks = await stockOperations.getUnchangedStocks(parseInt(limit));
+
+    res.json({
+        success: true,
+        data: stocks,
+        count: stocks.length
+    });
+}));
+
+/**
  * GET /api/stocks/sector/:sector
  * Get stocks by sector
  */
@@ -171,9 +203,9 @@ router.get('/:symbol', asyncHandler(async (req, res) => {
 router.post('/admin/cleanup', async (req, res) => {
     try {
         logger.info('Running cleanup to delete inactive stocks...');
-        
+
         const { removed, remaining } = await stockOperations.cleanupInactiveStocks();
-        
+
         return res.status(200).json({
             success: true,
             message: 'Inactive stocks cleanup completed',
@@ -198,23 +230,23 @@ router.post('/admin/cleanup', async (req, res) => {
 router.post('/admin/validate', async (req, res) => {
     try {
         logger.info('Validating stocks against official NEPSE data...');
-        
+
         // Fetch valid symbols from NEPSE API
         const { nepseClient, nepseAxios, createHeaders, BASE_URL } = require('nepse-api-helper');
-        
+
         await nepseClient.initialize();
         const token = await nepseClient.getToken();
-        
+
         const response = await nepseAxios.get(BASE_URL + '/api/nots/securityDailyTradeStat/58', {
             headers: createHeaders(token)
         });
-        
+
         const validSymbols = new Set(response.data.map(s => s.symbol));
         logger.info(`Found ${validSymbols.size} valid stocks from NEPSE`);
-        
+
         // Clean up invalid stocks
         const result = await stockOperations.cleanupInvalidStocks(validSymbols);
-        
+
         return res.status(200).json({
             success: true,
             message: 'Stock validation completed',

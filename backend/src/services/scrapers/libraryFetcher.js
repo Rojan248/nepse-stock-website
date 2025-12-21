@@ -115,15 +115,12 @@ const fetchData = async () => {
 
         logger.info('Fetching data using NEPSE API Helper library...');
 
-        // Get authentication token
         const token = await nepseClient.getToken();
 
-        // Fetch securities with price data and market status in parallel
-        const [securities, marketSummary, topGainers, topLosers] = await Promise.all([
+        // Fetch all base data in parallel
+        const [securities, marketSummary] = await Promise.all([
             fetchSecuritiesWithPrices(token),
-            fetchMarketSummary(token),
-            fetchTopMovers(token, 'gainer'),
-            fetchTopMovers(token, 'loser')
+            fetchMarketSummary(token)
         ]);
 
         if (!securities || securities.length === 0) {
@@ -131,17 +128,28 @@ const fetchData = async () => {
             return null;
         }
 
-        // Note: isTopGainer/isTopLoser flags are NOT set here because:
-        // 1. The NEPSE API top-ten endpoints return stocks by turnover/trades, not by price change
-        // 2. These flags should be computed dynamically based on changePercent at query time
-        // 3. The stockOps.getTopGainers() and stockOps.getTopLosers() functions compute this correctly
+        // Compute rankings from the full securities list (more robust than individual endpoints)
+        const sortedByTurnover = [...securities].sort((a, b) => b.turnover - a.turnover).slice(0, 50);
+        const sortedByTrades = [...securities].sort((a, b) => b.totalTrades - a.totalTrades).slice(0, 50);
+        const sortedByVolume = [...securities].sort((a, b) => b.volume - a.volume).slice(0, 50);
+        const sortedByGains = [...securities]
+            .filter(s => s.volume > 0) // Only include traded stocks for gainers/losers
+            .sort((a, b) => b.changePercent - a.changePercent)
+            .slice(0, 50);
+        const sortedByLoss = [...securities]
+            .filter(s => s.volume > 0)
+            .sort((a, b) => a.changePercent - b.changePercent)
+            .slice(0, 50);
 
         const result = {
             stocks: securities,
             ipos: [],
             marketSummary,
-            topGainers,
-            topLosers,
+            topTurnover: sortedByTurnover,
+            topTrades: sortedByTrades,
+            topVolume: sortedByVolume,
+            topGainers: sortedByGains,
+            topLosers: sortedByLoss,
             source: 'nepse-api-helper',
             timestamp: new Date().toISOString()
         };
@@ -163,22 +171,41 @@ const fetchData = async () => {
 const fetchSecuritiesWithPrices = async (token) => {
     try {
         const headers = createHeaders(token);
+        const sectorIds = Object.keys(SECTOR_IDS).map(id => parseInt(id));
 
-        // Fetch from the securityDailyTradeStat endpoint (58 = NEPSE Index = all stocks)
-        const response = await nepseAxios.get(`${BASE_URL}/api/nots/securityDailyTradeStat/58`, {
-            headers,
-            httpsAgent: nepseHttpsAgent
+        // Fetch from multiple index endpoints to ensure full coverage
+        // Index 58 is usually enough, but others can contain different securities
+        const fetchPromises = sectorIds.map(id =>
+            nepseAxios.get(`${BASE_URL}/api/nots/securityDailyTradeStat/${id}`, {
+                headers,
+                httpsAgent: nepseHttpsAgent
+            }).catch(err => {
+                logger.debug(`Error fetching index ${id}: ${err.message}`);
+                return { data: [] };
+            })
+        );
+
+        const responses = await Promise.all(fetchPromises);
+
+        // Merge all securities, removing duplicates by symbol
+        const allSecuritiesMap = new Map();
+
+        responses.forEach(response => {
+            if (response.data && Array.isArray(response.data)) {
+                response.data.forEach(security => {
+                    const symbol = security.symbol;
+                    if (symbol && !allSecuritiesMap.has(symbol)) {
+                        allSecuritiesMap.set(symbol, security);
+                    }
+                });
+            }
         });
 
-        if (!response.data || !Array.isArray(response.data)) {
-            logger.warn('No price data from securityDailyTradeStat');
-            return null;
-        }
-
-        logger.debug(`Fetched ${response.data.length} securities with prices`);
+        const mergedSecurities = Array.from(allSecuritiesMap.values());
+        logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${sectorIds.length} indices`);
 
         // Transform to our standard format
-        return response.data.map(security => transformSecurity(security)).filter(s => s !== null);
+        return mergedSecurities.map(security => transformSecurity(security)).filter(s => s !== null);
 
     } catch (error) {
         logger.error(`Error fetching securities with prices: ${error.message}`);
@@ -260,8 +287,13 @@ const transformSecurity = (security, marketOpen = null) => {
         turnover = ltp * volume;
     }
 
-    // Get total trades - use noOfTrades if available
+    // Get total trades
     const totalTrades = parseInt(security.noOfTrades) || parseInt(security.totalTrades) || 0;
+
+    // Extended Metrics: Supply/Demand
+    const buyVolume = parseInt(security.totalBuyQuantity) || 0;
+    const sellVolume = parseInt(security.totalSellQuantity) || 0;
+    const buySellRatio = sellVolume > 0 ? buyVolume / sellVolume : 0;
 
     return {
         symbol,
@@ -269,18 +301,14 @@ const transformSecurity = (security, marketOpen = null) => {
         companyName: security.securityName || security.name || rawSymbol,
         sector,
         sectorId,
-        // Flat price fields for easy access
         ltp,
         open,
         high: parseFloat(security.highPrice) || ltp,
         low: parseFloat(security.lowPrice) || ltp,
         close: parseFloat(security.closePrice) || ltp,
         previousClose: prevClose,
-        // PRIMARY: Display change based on market status
-        // Market OPEN = intraday (from open), Market CLOSED = overnight (from prev close)
         change: Math.round(displayChange * 100) / 100,
         changePercent: Math.round(displayChangePercent * 100) / 100,
-        // Keep both for reference
         intradayChange: Math.round(intradayChange * 100) / 100,
         intradayChangePercent: Math.round(intradayChangePercent * 100) / 100,
         overnightChange: Math.round(overnightChange * 100) / 100,
@@ -289,24 +317,11 @@ const transformSecurity = (security, marketOpen = null) => {
         volume,
         turnover: Math.round(turnover * 100) / 100,
         totalTrades,
-        // Nested for compatibility
-        prices: {
-            ltp,
-            open,
-            high: parseFloat(security.highPrice) || ltp,
-            low: parseFloat(security.lowPrice) || ltp,
-            previousClose: prevClose,
-            change: Math.round(displayChange * 100) / 100,
-            changePercent: Math.round(displayChangePercent * 100) / 100,
-            intradayChange: Math.round(intradayChange * 100) / 100,
-            intradayChangePercent: Math.round(intradayChangePercent * 100) / 100,
-            overnightChange: Math.round(overnightChange * 100) / 100,
-            overnightChangePercent: Math.round(overnightChangePercent * 100) / 100
-        },
-        trading: {
-            volume,
-            turnover: Math.round(turnover * 100) / 100,
-            totalTrades
+        // Extended Metrics
+        supplyDemand: {
+            buyVolume,
+            sellVolume,
+            ratio: Math.round(buySellRatio * 100) / 100
         },
         fiftyTwoWeek: {
             high: parseFloat(security.fiftyTwoWeekHigh) || 0,
@@ -317,7 +332,7 @@ const transformSecurity = (security, marketOpen = null) => {
 };
 
 /**
- * Fetch market summary/index data from NEPSE
+ * Fetch market summary and all indices from NEPSE
  */
 const fetchMarketSummary = async (token) => {
     try {
@@ -333,14 +348,22 @@ const fetchMarketSummary = async (token) => {
             return null;
         }
 
-        // Find the main NEPSE index (id: 58)
-        const nepseIndex = indexResponse.data.find(idx => idx.id === 58);
+        // Map all indices to our standard format
+        const indices = indexResponse.data.map(idx => ({
+            id: idx.id,
+            name: idx.index,
+            value: parseFloat(idx.currentValue) || 0,
+            change: parseFloat(idx.change) || 0,
+            changePercent: parseFloat(idx.perChange) || 0,
+            high: parseFloat(idx.high) || 0,
+            low: parseFloat(idx.low) || 0,
+            previousClose: parseFloat(idx.previousClose) || 0
+        }));
 
-        if (!nepseIndex) {
-            return null;
-        }
+        // Find main NEPSE index for the root summary
+        const nepseIndex = indices.find(idx => idx.id === 58) || indices[0];
 
-        // Parse market summary data (turnover, transactions, volume)
+        // Parse market summary data
         let totalTurnover = 0;
         let totalTransactions = 0;
         let totalVolume = 0;
@@ -352,50 +375,29 @@ const fetchMarketSummary = async (token) => {
                 const detail = (item.detail || '').toLowerCase();
                 const value = parseFloat(item.value) || 0;
 
-                if (detail.includes('turnover')) {
-                    totalTurnover = value;
-                } else if (detail.includes('transaction')) {
-                    totalTransactions = Math.round(value);
-                } else if (detail.includes('traded shares')) {
-                    totalVolume = Math.round(value);
-                } else if (detail.includes('scrips traded')) {
-                    totalScripsTraded = Math.round(value);
-                } else if (detail.includes('market capitalization') && !detail.includes('float')) {
-                    totalMarketCap = value;
-                }
+                if (detail.includes('turnover')) totalTurnover = value;
+                else if (detail.includes('transaction')) totalTransactions = Math.round(value);
+                else if (detail.includes('traded shares')) totalVolume = Math.round(value);
+                else if (detail.includes('scrips traded')) totalScripsTraded = Math.round(value);
+                else if (detail.includes('market capitalization') && !detail.includes('float')) totalMarketCap = value;
             });
         }
 
-        // Use reliable local calculation for market status
         const isOpen = isMarketActive();
         const state = require('../utils/marketTime').getMarketState();
-
-        // Count gainers/losers from all indices
-        const allIndices = indexResponse.data;
-        const advancedCompanies = allIndices.filter(i => i.change > 0).length;
-        const declinedCompanies = allIndices.filter(i => i.change < 0).length;
-        const unchangedCompanies = allIndices.filter(i => i.change === 0).length;
 
         return {
             isOpen,
             state,
-            indexValue: parseFloat(nepseIndex.currentValue) || parseFloat(nepseIndex.close) || 0,
-            indexChange: parseFloat(nepseIndex.change) || 0,
-            indexChangePercent: parseFloat(nepseIndex.perChange) || 0,
-            high: parseFloat(nepseIndex.high) || 0,
-            low: parseFloat(nepseIndex.low) || 0,
-            previousClose: parseFloat(nepseIndex.previousClose) || 0,
-            fiftyTwoWeekHigh: parseFloat(nepseIndex.fiftyTwoWeekHigh) || 0,
-            fiftyTwoWeekLow: parseFloat(nepseIndex.fiftyTwoWeekLow) || 0,
-            // Real values from market summary
+            indexValue: nepseIndex.value,
+            indexChange: nepseIndex.change,
+            indexChangePercent: nepseIndex.changePercent,
+            indices, // ALL indices included here
             totalTransactions,
             totalTurnover,
             totalVolume,
             totalMarketCap,
             activeCompanies: totalScripsTraded,
-            advancedCompanies,
-            declinedCompanies,
-            unchangedCompanies,
             timestamp: new Date().toISOString()
         };
 
@@ -411,9 +413,11 @@ const fetchMarketSummary = async (token) => {
 const fetchTopMovers = async (token, type) => {
     try {
         const headers = createHeaders(token);
-        const endpoint = type === 'gainer'
-            ? '/api/nots/top-ten/turnover'  // Top by turnover as gainer/loser endpoints 404
-            : '/api/nots/top-ten/trade';     // Top by trades
+        const endpoint = type === 'turnover'
+            ? '/api/nots/top-ten/turnover'
+            : type === 'trade'
+                ? '/api/nots/top-ten/trade'
+                : '/api/nots/top-ten/volume';
 
         const response = await nepseAxios.get(`${BASE_URL}${endpoint}`, {
             headers,
@@ -426,10 +430,11 @@ const fetchTopMovers = async (token, type) => {
 
         return response.data.map(item => ({
             symbol: item.symbol,
-            companyName: item.securityName,
+            companyName: item.securityName || item.name,
             ltp: parseFloat(item.closingPrice) || parseFloat(item.lastTradedPrice) || 0,
             turnover: parseFloat(item.turnover) || 0,
-            volume: parseInt(item.shareTraded) || 0
+            volume: parseInt(item.shareTraded) || parseInt(item.totalTradedQuantity) || 0,
+            trades: parseInt(item.noOfTransactions) || 0
         }));
 
     } catch (error) {

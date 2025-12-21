@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTopStocks } from '../hooks/useStocks';
 import { getMarketSummary } from '../services/api';
-import StockCard from '../components/StockCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatPrice, formatNumber, formatPercent, formatTurnover, getChangeClass } from '../utils/formatting';
 import metricGainers from '../assets/img/metric-gainers.jpg';
@@ -15,7 +14,7 @@ function TopMoversPage() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('gainers');
     const [marketSummary, setMarketSummary] = useState(null);
-    const { gainers, losers, loading } = useTopStocks(20);
+    const { gainers, losers, unchanged, traded, loading } = useTopStocks(20);
 
     useEffect(() => {
         const fetchMarketData = async () => {
@@ -29,24 +28,36 @@ function TopMoversPage() {
         navigate(`/stock/${stock.symbol}`);
     };
 
+    const getActiveStocks = () => {
+        switch (activeTab) {
+            case 'gainers': return gainers;
+            case 'losers': return losers;
+            case 'unchanged': return unchanged;
+            case 'traded': return traded;
+            default: return [];
+        }
+    };
+
+    const activeStocks = getActiveStocks();
+
     return (
         <div className="top-movers-page layout-container">
             {/* Top Metrics Bar */}
             <section className="top-metrics-bar">
                 <div className="top-metric-card">
-                    <span className="top-metric-label">Gainers</span>
+                    <span className="top-metric-label">GAINERS</span>
                     <span className="top-metric-value gainers">{marketSummary?.advancedCompanies || 0}</span>
                 </div>
                 <div className="top-metric-card">
-                    <span className="top-metric-label">Losers</span>
+                    <span className="top-metric-label">LOSERS</span>
                     <span className="top-metric-value losers">{marketSummary?.declinedCompanies || 0}</span>
                 </div>
                 <div className="top-metric-card">
-                    <span className="top-metric-label">Unchanged</span>
+                    <span className="top-metric-label">UNCHANGED</span>
                     <span className="top-metric-value unchanged">{marketSummary?.unchangedCompanies || 0}</span>
                 </div>
                 <div className="top-metric-card">
-                    <span className="top-metric-label">Traded</span>
+                    <span className="top-metric-label">TRADED</span>
                     <span className="top-metric-value traded">{marketSummary?.activeCompanies || 0}</span>
                 </div>
             </section>
@@ -57,13 +68,25 @@ function TopMoversPage() {
                     className={activeTab === 'gainers' ? 'active' : ''}
                     onClick={() => setActiveTab('gainers')}
                 >
-                    Top Gainers
+                    Gainers
                 </button>
                 <button
                     className={activeTab === 'losers' ? 'active' : ''}
                     onClick={() => setActiveTab('losers')}
                 >
-                    Top Losers
+                    Losers
+                </button>
+                <button
+                    className={activeTab === 'unchanged' ? 'active' : ''}
+                    onClick={() => setActiveTab('unchanged')}
+                >
+                    Unchanged
+                </button>
+                <button
+                    className={activeTab === 'traded' ? 'active' : ''}
+                    onClick={() => setActiveTab('traded')}
+                >
+                    Traded
                 </button>
             </div>
 
@@ -72,42 +95,33 @@ function TopMoversPage() {
                 {loading ? (
                     <LoadingSpinner text="Loading stocks..." />
                 ) : (
-                    <div className="movers-table-wrapper">
-                        {((activeTab === 'gainers' && gainers.length > 0) || (activeTab === 'losers' && losers.length > 0)) ? (
-                            <table className="movers-table">
-                                <thead>
-                                    <tr>
-                                        <th>Symbol</th>
-                                        <th>Company</th>
-                                        <th>Sector</th>
-                                        <th className="text-right">LTP</th>
-                                        <th className="text-right">Change</th>
-                                        <th className="text-right">Change %</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(activeTab === 'gainers' ? gainers : losers).map((stock) => {
-                                        const isPositive = stock.change > 0;
-                                        const isNegative = stock.change < 0;
-                                        const changeClass = isPositive ? 'positive' : isNegative ? 'negative' : '';
+                    <div className="top-movers-grid">
+                        {activeStocks.length > 0 ? (
+                            activeStocks.map((stock) => {
+                                const isPositive = stock.change > 0;
+                                const isNegative = stock.change < 0;
+                                const changeClass = isPositive ? 'positive' : isNegative ? 'negative' : '';
+                                const changeIcon = isPositive ? '▲' : isNegative ? '▼' : '';
+                                const changePrefix = isPositive ? '+' : isNegative ? '−' : '';
 
-                                        return (
-                                            <tr key={stock.symbol} onClick={() => handleStockClick(stock)} className="clickable-row">
-                                                <td className="symbol">{stock.symbol}</td>
-                                                <td className="company">{stock.companyName}</td>
-                                                <td><span className="sector-badge">{stock.sector || 'Others'}</span></td>
-                                                <td className="price text-right">{formatPrice(stock.ltp)}</td>
-                                                <td className={`change text-right ${changeClass}`}>
-                                                    {isPositive ? '+' : ''}{formatNumber(stock.change)}
-                                                </td>
-                                                <td className={`change-pct text-right ${changeClass}`}>
-                                                    {isPositive ? '+' : ''}{formatPercent(stock.changePercent)}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                return (
+                                    <div key={stock.symbol} className="mover-card" onClick={() => handleStockClick(stock)}>
+                                        <div className="card-header">
+                                            <span className="symbol">{stock.symbol}</span>
+                                            <span className="sector-badge">{stock.sector || 'Others'}</span>
+                                        </div>
+                                        <div className="company-name">{stock.companyName}</div>
+                                        <div className="ltp"><span className="currency">Rs</span> {formatNumber(stock.ltp)}</div>
+                                        <div className="change-row">
+                                            <span className={changeClass}>
+                                                {changeIcon} {changePrefix}{Math.abs(stock.change).toFixed(2)} ({changePrefix}{Math.abs(stock.changePercent).toFixed(2)}%)
+                                            </span>
+                                        </div>
+                                        <div className="volume">Vol: {(stock.volume || stock.totalTradedQuantity || 0).toLocaleString()}</div>
+                                        <button className="view-btn">View</button>
+                                    </div>
+                                );
+                            })
                         ) : (
                             <div className="empty-state">
                                 <p>No {activeTab} available at the moment</p>

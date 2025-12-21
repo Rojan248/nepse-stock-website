@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getStocks, getStockBySymbol, searchStocks, getTopGainers, getTopLosers } from '../services/api';
+import { getStocks, getStockBySymbol, searchStocks, getTopGainers, getTopLosers, getTopTraded, getUnchangedStocks } from '../services/api';
 import { REFRESH_INTERVAL } from '../utils/constants';
 
 /**
@@ -103,17 +103,23 @@ export function useSearchStocks(query) {
 export function useTopStocks(limit = 5) {
     const [gainers, setGainers] = useState([]);
     const [losers, setLosers] = useState([]);
+    const [unchanged, setUnchanged] = useState([]);
+    const [traded, setTraded] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const fetchData = useCallback(async () => {
         try {
-            const [gainersData, losersData] = await Promise.all([
+            const [gainersData, losersData, unchangedData, tradedData] = await Promise.all([
                 getTopGainers(limit),
-                getTopLosers(limit)
+                getTopLosers(limit),
+                getUnchangedStocks(limit),
+                getTopTraded(limit)
             ]);
             setGainers(gainersData || []);
             setLosers(losersData || []);
+            setUnchanged(unchangedData || []);
+            setTraded(tradedData || []);
             setError(null);
         } catch (err) {
             setError(err.message);
@@ -128,5 +134,5 @@ export function useTopStocks(limit = 5) {
         return () => clearInterval(interval);
     }, [fetchData]);
 
-    return { gainers, losers, loading, error, refetch: fetchData };
+    return { gainers, losers, unchanged, traded, loading, error, refetch: fetchData };
 }
