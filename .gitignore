@@ -26,3 +26,9 @@ build/
 # Logs
 npm-debug.log*
 yarn-debug.log*
+
+# Credentials
+credentials/
+cloudflared/*.json
+cloudflared/config.yml
+cloudflared/cert.pem
