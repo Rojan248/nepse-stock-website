@@ -72,12 +72,7 @@ npm run pm2:start
 - **On your local network**: `http://<server-local-ip>:5000`
   - Find server IP: `ipconfig` (Windows) or `ip addr` (Linux)
 
-### Public Access (via Cloudflare Tunnel)
-If you set up Cloudflare Tunnel:
-1. Find your tunnel URL using the methods in [CLOUDFLARE_TUNNEL.md](./CLOUDFLARE_TUNNEL.md#finding-your-tunnel-url)
-2. Ensure your `config.yml` and `credentials/` folder are in the project root.
-3. Share this URL to access your site from anywhere
-4. Example: `https://nepse.yourdomain.com` or `https://random-name.trycloudflare.com`
+
 
 ### Verifying Deployment
 Open your public URL and check:
@@ -91,8 +86,7 @@ Open your public URL and check:
 
 ## 4. Exposing to the Internet
 
-To make your application accessible from anywhere securely without port forwarding:
-👉 **[Cloudflare Tunnel Setup Guide](./CLOUDFLARE_TUNNEL.md)**
+
 
 Alternative methods:
 - **Port Forwarding**: Open port 5000 on your router (less secure).
@@ -150,7 +144,7 @@ Ensure the application starts automatically when the server reboots.
     - Validation: Run `scripts/windows-startup.bat` manually to see if it errors.
 - **Linux**: Check service status and logs.
     - Status: `systemctl status nepse-backend`
-    - Logs: `journalctl -u nepse-backend -f` or `journalctl -u cloudflared-nepse -f`
+    - Logs: `journalctl -u nepse-backend -f`
     - Verify Service: `ls -l /etc/systemd/system/nepse-backend.service`
 
 **Common Problems**
@@ -164,5 +158,4 @@ Ensure the application starts automatically when the server reboots.
 - **Linux**:
     ```bash
     sudo systemctl disable nepse-backend
-    sudo systemctl disable cloudflared-nepse
     ```

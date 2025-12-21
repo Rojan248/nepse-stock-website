@@ -8,7 +8,7 @@ set -e
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 USER_NAME=$(whoami)
 PM2_PATH=$(which pm2 || echo "/usr/local/bin/pm2")
-CLOUDFLARED_PATH=$(which cloudflared || echo "/usr/local/bin/cloudflared")
+
 
 # Verify PM2 installation
 if ! command -v pm2 &> /dev/null && [ ! -x "$PM2_PATH" ]; then
@@ -48,41 +48,7 @@ EOF"
 
 sudo chmod 644 /etc/systemd/system/nepse-backend.service
 
-# 2. Create Cloudflare Tunnel Service (if config exists)
-if [ -f "$APP_DIR/config.yml" ]; then
-    echo "Config detected. Checking for cloudflared..."
-    
-    # Detect cloudflared path
-    if command -v cloudflared &> /dev/null; then
-        CLOUDFLARED_PATH=$(which cloudflared)
-    elif [ ! -x "$CLOUDFLARED_PATH" ]; then
-        echo "ERROR: cloudflared binary not found. Please install cloudflared."
-        exit 1
-    fi
 
-    echo "Creating /etc/systemd/system/cloudflared-nepse.service..."
-    sudo bash -c "cat > /etc/systemd/system/cloudflared-nepse.service <<EOF
-[Unit]
-Description=Cloudflare Tunnel for NEPSE
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=$USER_NAME
-WorkingDirectory=$APP_DIR
-Environment=TUNNEL_CRED_FILE=$APP_DIR/credentials/tunnel-credentials.json
-ExecStart=$CLOUDFLARED_PATH --config $APP_DIR/config.yml tunnel run
-Restart=always
-RestartSec=5s
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-    sudo chmod 644 /etc/systemd/system/cloudflared-nepse.service
-else
-    echo "No config.yml found. Skipping Cloudflare Tunnel service."
-fi
 
 # 3. Enable and Start Services
 echo "Reloading systemd..."
@@ -92,11 +58,7 @@ echo "Enabling nepse-backend.service..."
 sudo systemctl enable nepse-backend.service
 sudo systemctl start nepse-backend.service
 
-if [ -f "$APP_DIR/config.yml" ]; then
-    echo "Enabling cloudflared-nepse.service..."
-    sudo systemctl enable cloudflared-nepse.service
-    sudo systemctl start cloudflared-nepse.service
-fi
+
 
 # 4. PM2 Startup Hook Verification
 echo ""

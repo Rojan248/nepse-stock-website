@@ -1,9 +1,0 @@
-﻿tunnel: db5ad1f2-402c-4910-9ce6-eb8527e7299d
-credentials-file: C:\Users\Administrator\Documents\nepse-stock-website-master\credentials\tunnel-credentials.json
-
-ingress:
-  - hostname: nepse.me
-    service: http://localhost:5000
-  - hostname: test.nepse.me
-    service: http://localhost:5000
-  - service: http_status:404
