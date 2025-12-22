@@ -338,27 +338,66 @@ const fetchMarketSummary = async (token) => {
     try {
         const headers = createHeaders(token);
 
-        // Fetch both index data and market summary in parallel
-        const [indexResponse, summaryResponse] = await Promise.all([
-            nepseAxios.get(`${BASE_URL}/api/nots/nepse-index`, { headers, httpsAgent: nepseHttpsAgent }),
+        // All known Index IDs from NEPSE
+        const allIndexIds = [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67];
+        const today = new Date().toISOString().split('T')[0];
+
+        // Fetch index data and market summary
+        // We fetch indices in broad groups/individually if needed to ensure all 17 are covered
+        // Most sub-indices are available via /api/nots/datewise-indices
+        const [bulkIndicesRes, summaryResponse] = await Promise.all([
+            nepseAxios.get(`${BASE_URL}/api/nots/nepse-index`, { headers, httpsAgent: nepseHttpsAgent }).catch(() => ({ data: [] })),
             nepseAxios.get(`${BASE_URL}/api/nots/market-summary`, { headers, httpsAgent: nepseHttpsAgent }).catch(() => null)
         ]);
 
-        if (!indexResponse.data || !Array.isArray(indexResponse.data)) {
-            return null;
+        // Create a map to store unique indices
+        const indicesMap = new Map();
+
+        // Process bulk indices (usually returns 4)
+        if (bulkIndicesRes.data && Array.isArray(bulkIndicesRes.data)) {
+            bulkIndicesRes.data.forEach(idx => {
+                indicesMap.set(idx.id, {
+                    id: idx.id,
+                    name: idx.index,
+                    value: parseFloat(idx.currentValue) || 0,
+                    change: parseFloat(idx.change) || 0,
+                    changePercent: parseFloat(idx.perChange) || 0,
+                    high: parseFloat(idx.high) || 0,
+                    low: parseFloat(idx.low) || 0,
+                    previousClose: parseFloat(idx.previousClose) || 0
+                });
+            });
         }
 
-        // Map all indices to our standard format
-        const indices = indexResponse.data.map(idx => ({
-            id: idx.id,
-            name: idx.index,
-            value: parseFloat(idx.currentValue) || 0,
-            change: parseFloat(idx.change) || 0,
-            changePercent: parseFloat(idx.perChange) || 0,
-            high: parseFloat(idx.high) || 0,
-            low: parseFloat(idx.low) || 0,
-            previousClose: parseFloat(idx.previousClose) || 0
-        }));
+        // Identify missing IDs
+        const missingIds = allIndexIds.filter(id => !indicesMap.has(id));
+
+        // Fetch missing indices in parallel
+        if (missingIds.length > 0) {
+            const missingPromises = missingIds.map(id =>
+                nepseAxios.get(`${BASE_URL}/api/nots/datewise-indices?indexId=${id}&startDate=${today}&endDate=${today}`, { headers, httpsAgent: nepseHttpsAgent })
+                    .catch(() => ({ data: [] }))
+            );
+
+            const missingResponses = await Promise.all(missingPromises);
+            missingResponses.forEach(res => {
+                if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+                    const idx = res.data[0];
+                    indicesMap.set(idx.indexId, {
+                        id: idx.indexId,
+                        name: idx.index,
+                        value: parseFloat(idx.indexValue) || parseFloat(idx.closeValue) || 0,
+                        change: parseFloat(idx.change) || 0,
+                        changePercent: parseFloat(idx.perChange) || 0,
+                        high: parseFloat(idx.highValue) || 0,
+                        low: parseFloat(idx.lowValue) || 0,
+                        previousClose: parseFloat(idx.previousClose) || 0
+                    });
+                }
+            });
+        }
+
+        const indices = Array.from(indicesMap.values());
 
         // Find main NEPSE index for the root summary
         const nepseIndex = indices.find(idx => idx.id === 58) || indices[0];

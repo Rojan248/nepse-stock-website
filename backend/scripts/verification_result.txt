@@ -1,0 +1,10 @@
+Connecting to database...
+Forcing update cycle...
+Inspecting data snapshot...
+Indices count: 4
+Indices found:
+- 57: Sensitive Index (446.01)
+- 58: NEPSE Index (2581.21)
+- 62: Float Index (176.72)
+- 63: Sensitive Float Index (151.31)
+VERIFICATION FAILED: Expected 17 indices, found 4.

@@ -1,0 +1,386 @@
+[
+  {
+    "symbol": "AVYAN",
+    "name": "Aviyan Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 954
+  },
+  {
+    "symbol": "BANDIPUR",
+    "name": "Bandipur Cablecar and Tourism Limited",
+    "sector": "NEPSE Index",
+    "base": 762.1
+  },
+  {
+    "symbol": "BHCL",
+    "name": "Bikash Hydropower Company Limited",
+    "sector": "NEPSE Index",
+    "base": 485
+  },
+  {
+    "symbol": "BUNGAL",
+    "name": "Bungal Hydro Limited",
+    "sector": "NEPSE Index",
+    "base": 620.9
+  },
+  {
+    "symbol": "CITY",
+    "name": "City Hotel Limited",
+    "sector": "NEPSE Index",
+    "base": 485.2
+  },
+  {
+    "symbol": "CREST",
+    "name": "Crest Micro Life Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 1228
+  },
+  {
+    "symbol": "DHEL",
+    "name": "Daramkhola Hydro Energy Limited",
+    "sector": "NEPSE Index",
+    "base": 572.5
+  },
+  {
+    "symbol": "EHPL",
+    "name": "Eastern Hydropower Limited",
+    "sector": "NEPSE Index",
+    "base": 407
+  },
+  {
+    "symbol": "ENL",
+    "name": "Emerging Nepal Limited",
+    "sector": "NEPSE Index",
+    "base": 896
+  },
+  {
+    "symbol": "GCIL",
+    "name": "Ghorahi Cement Industry Limited",
+    "sector": "NEPSE Index",
+    "base": 407
+  },
+  {
+    "symbol": "GMLI",
+    "name": "Guardian Micro Life Insurance Limited ",
+    "sector": "NEPSE Index",
+    "base": 1758
+  },
+  {
+    "symbol": "HATHY",
+    "name": "Hathway Investment Nepal Limited",
+    "sector": "NEPSE Index",
+    "base": 902
+  },
+  {
+    "symbol": "HEI",
+    "name": "Himalayan Everest Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 498
+  },
+  {
+    "symbol": "HIMSTAR",
+    "name": "Him Star Urja Company Limited",
+    "sector": "NEPSE Index",
+    "base": 848
+  },
+  {
+    "symbol": "HLI",
+    "name": "Himalayan Life Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 374
+  },
+  {
+    "symbol": "HRL",
+    "name": "Himalayan Reinsurance Limited",
+    "sector": "NEPSE Index",
+    "base": 831
+  },
+  {
+    "symbol": "JHAPA",
+    "name": "Jhapa Energy Limited",
+    "sector": "NEPSE Index",
+    "base": 1255
+  },
+  {
+    "symbol": "KDL",
+    "name": "Kalinchowk Darshan Limited",
+    "sector": "NEPSE Index",
+    "base": 869.6
+  },
+  {
+    "symbol": "MABEL",
+    "name": "Mabilung Energy Limited",
+    "sector": "NEPSE Index",
+    "base": 697.9
+  },
+  {
+    "symbol": "MAKAR",
+    "name": "Makar Jitumaya Suri Hydropower Limited",
+    "sector": "NEPSE Index",
+    "base": 563
+  },
+  {
+    "symbol": "MANDU",
+    "name": "Mandu Hydropower Limited",
+    "sector": "NEPSE Index",
+    "base": 800
+  },
+  {
+    "symbol": "MCHL",
+    "name": "Menchhiyam Hydropower Limited",
+    "sector": "NEPSE Index",
+    "base": 478
+  },
+  {
+    "symbol": "MEL",
+    "name": "Modi Energy Limited",
+    "sector": "NEPSE Index",
+    "base": 270.1
+  },
+  {
+    "symbol": "MEN",
+    "name": "Mountain Energy Nepal Limited",
+    "sector": "NEPSE Index",
+    "base": 560
+  },
+  {
+    "symbol": "MKHC",
+    "name": "Maya Khola Hydropower Company Limited",
+    "sector": "NEPSE Index",
+    "base": 369.9
+  },
+  {
+    "symbol": "NESDO",
+    "name": "NESDO Sambridha Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 1480.1
+  },
+  {
+    "symbol": "NICL",
+    "name": "Nepal Insurance Co. Ltd.",
+    "sector": "NEPSE Index",
+    "base": 514.9
+  },
+  {
+    "symbol": "NICLBSL",
+    "name": "NIC ASIA Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 546
+  },
+  {
+    "symbol": "NMIC",
+    "name": "Nepal Micro Insurance Company Limited",
+    "sector": "NEPSE Index",
+    "base": 1230
+  },
+  {
+    "symbol": "NMLBBL",
+    "name": "Nerude Mirmire Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 655.6
+  },
+  {
+    "symbol": "NRM",
+    "name": "Nepal Republic Media Limited",
+    "sector": "NEPSE Index",
+    "base": 422
+  },
+  {
+    "symbol": "NWCL",
+    "name": "Nepal Warehousing Company Limited ",
+    "sector": "NEPSE Index",
+    "base": 792.1
+  },
+  {
+    "symbol": "OMPL",
+    "name": "Om Megashree Pharmaceuticals Limited",
+    "sector": "NEPSE Index",
+    "base": 1243
+  },
+  {
+    "symbol": "PMLI",
+    "name": "Prabhu Mahalaxmi Life Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 493.1
+  },
+  {
+    "symbol": "PURE",
+    "name": "Pure Energy Limited",
+    "sector": "NEPSE Index",
+    "base": 918.1
+  },
+  {
+    "symbol": "RAWA",
+    "name": "Rawa Energy Development Limited",
+    "sector": "NEPSE Index",
+    "base": 714
+  },
+  {
+    "symbol": "RFPL",
+    "name": "River Falls Power Limited",
+    "sector": "NEPSE Index",
+    "base": 367
+  },
+  {
+    "symbol": "SAGAR",
+    "name": "Sagar Distillery Limited",
+    "sector": "NEPSE Index",
+    "base": 1740.3
+  },
+  {
+    "symbol": "SAIL",
+    "name": "Shreenagar Agritech Industries Limited",
+    "sector": "NEPSE Index",
+    "base": 814
+  },
+  {
+    "symbol": "SALICO",
+    "name": "Sagarmatha Lumbini Insurance Co. Limited",
+    "sector": "NEPSE Index",
+    "base": 597
+  },
+  {
+    "symbol": "SANVI",
+    "name": "Sanvi Energy Limited",
+    "sector": "NEPSE Index",
+    "base": 642
+  },
+  {
+    "symbol": "SARBTM",
+    "name": "Sarbottam Cement Limited",
+    "sector": "NEPSE Index",
+    "base": 887.4
+  },
+  {
+    "symbol": "SGHC",
+    "name": "Swet-Ganga Hydropower & Construction Limited ",
+    "sector": "NEPSE Index",
+    "base": 406
+  },
+  {
+    "symbol": "SGIC",
+    "name": "Sanima GIC Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 472
+  },
+  {
+    "symbol": "SHLB",
+    "name": "Shrijanshil Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 1675.2
+  },
+  {
+    "symbol": "SMH",
+    "name": "Super Mai Hydropower Limited",
+    "sector": "NEPSE Index",
+    "base": 753
+  },
+  {
+    "symbol": "SMJC",
+    "name": "Sagarmatha Jalabidhyut Company Limited",
+    "sector": "NEPSE Index",
+    "base": 496
+  },
+  {
+    "symbol": "SONA",
+    "name": "Sonapur Minerals And Oil Limited",
+    "sector": "NEPSE Index",
+    "base": 420.1
+  },
+  {
+    "symbol": "SPC",
+    "name": "Samling Power Company Limited",
+    "sector": "NEPSE Index",
+    "base": 511.9
+  },
+  {
+    "symbol": "SPIL",
+    "name": "Siddhartha Premier Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 733
+  },
+  {
+    "symbol": "SPL",
+    "name": "Shuvam Power Limited",
+    "sector": "NEPSE Index",
+    "base": 835.1
+  },
+  {
+    "symbol": "SRLI",
+    "name": "Sanima Reliance Life Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 403.5
+  },
+  {
+    "symbol": "SWASTIK",
+    "name": "Swastik Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 3097.1
+  },
+  {
+    "symbol": "SWMF",
+    "name": "Suryodaya Womi Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 692.9
+  },
+  {
+    "symbol": "SYPNL",
+    "name": "SY Panel Nepal Limited",
+    "sector": "NEPSE Index",
+    "base": 622.6
+  },
+  {
+    "symbol": "TTL",
+    "name": "Trade Tower Limited",
+    "sector": "NEPSE Index",
+    "base": 767
+  },
+  {
+    "symbol": "TVCL",
+    "name": "Trishuli Jal Vidhyut Company Limited ",
+    "sector": "NEPSE Index",
+    "base": 410
+  },
+  {
+    "symbol": "UAIL",
+    "name": "United Ajod Insurance Limited",
+    "sector": "NEPSE Index",
+    "base": 451
+  },
+  {
+    "symbol": "UHEWA",
+    "name": "Upper Hewakhola Hydropower Company Limited",
+    "sector": "NEPSE Index",
+    "base": 594
+  },
+  {
+    "symbol": "ULHC",
+    "name": "Upper Lohore Khola Hydropower Company Limited",
+    "sector": "NEPSE Index",
+    "base": 469.4
+  },
+  {
+    "symbol": "UMRH",
+    "name": "United IDI Mardi RB Hydropower Limited.",
+    "sector": "NEPSE Index",
+    "base": 555
+  },
+  {
+    "symbol": "UNLB",
+    "name": "Unique Nepal Laghubitta Bittiya Sanstha Limited",
+    "sector": "NEPSE Index",
+    "base": 1922
+  },
+  {
+    "symbol": "USHL",
+    "name": "Upper Syange Hydropower Limited",
+    "sector": "NEPSE Index",
+    "base": 891.4
+  },
+  {
+    "symbol": "VLUCL",
+    "name": "Vision Lumbini Urja Company Limited ",
+    "sector": "NEPSE Index",
+    "base": 579
+  }
+]
