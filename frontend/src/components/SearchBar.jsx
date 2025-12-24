@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { searchStocks } from '../services/api';
 import './SearchBar.css';
 
-function SearchBar({ onSearch, placeholder = "Search stocks..." }) {
+function SearchBar({ onSearch, onInputChange, placeholder = "Search stocks..." }) {
     const [query, setQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +52,12 @@ function SearchBar({ onSearch, placeholder = "Search stocks..." }) {
     }, [query]);
 
     const handleInputChange = (e) => {
-        setQuery(e.target.value);
+        const value = e.target.value;
+        setQuery(value);
+        // Notify parent of every keystroke for real-time filtering
+        if (onInputChange) {
+            onInputChange(value);
+        }
     };
 
     const handleKeyDown = (e) => {
@@ -92,11 +97,6 @@ function SearchBar({ onSearch, placeholder = "Search stocks..." }) {
                     className="search-input"
                 />
                 {loading && <span className="search-loader"></span>}
-                {query && !loading && (
-                    <button className="search-clear" onClick={handleClear} aria-label="Clear search">
-                        <X size={14} />
-                    </button>
-                )}
             </div>
 
             {isOpen && suggestions.length > 0 && (
