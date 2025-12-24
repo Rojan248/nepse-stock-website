@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Star } from 'lucide-react';
 import { formatPrice, formatPercent, formatNumber, getChangeClass } from '../utils/formatting';
 import './StockTable.css';
 import './AnimatedValue.css';
@@ -59,7 +59,9 @@ function StockTable({
     totalPages = 1,
     onPageChange,
     isPolling = false,
-    loading = false
+    loading = false,
+    favorites = [],
+    onToggleFavorite
 }) {
     const [sortConfig, setSortConfig] = useState({ key: 'symbol', direction: 'asc' });
 
@@ -162,6 +164,7 @@ function StockTable({
                 <table className="stock-table">
                     <thead>
                         <tr>
+                            <th className="star-column-header" style={{ width: '40px' }}></th>
                             <th
                                 onClick={() => handleSort('symbol')}
                                 className="sortable group"
@@ -241,6 +244,21 @@ function StockTable({
                                     onClick={() => onRowClick && onRowClick(stock)}
                                     className="clickable-row"
                                 >
+                                    <td
+                                        className="star-cell"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleFavorite && onToggleFavorite(symbol);
+                                        }}
+                                        style={{ width: '40px', cursor: 'pointer' }}
+                                    >
+                                        <Star
+                                            size={18}
+                                            className={`star-icon ${favorites.includes(symbol) ? 'active' : ''}`}
+                                            fill={favorites.includes(symbol) ? 'var(--primary-accent)' : 'none'}
+                                            stroke={favorites.includes(symbol) ? 'var(--primary-accent)' : '#D1D5DB'}
+                                        />
+                                    </td>
                                     <td className="symbol-cell">
                                         {stock.symbol}
                                     </td>

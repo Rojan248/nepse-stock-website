@@ -10,14 +10,15 @@ import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
     const [globalSearch, setGlobalSearch] = useState('');
+    const [lastUpdated, setLastUpdated] = useState(null);
 
     return (
         <ErrorBoundary>
             <div className="app">
-                <Header searchTerm={globalSearch} onSearchChange={setGlobalSearch} />
+                <Header searchTerm={globalSearch} onSearchChange={setGlobalSearch} lastUpdated={lastUpdated} />
                 <main className="main-content">
                     <Routes>
-                        <Route path="/" element={<HomePage globalSearch={globalSearch} />} />
+                        <Route path="/" element={<HomePage globalSearch={globalSearch} setGlobalLastUpdated={setLastUpdated} />} />
                         <Route path="/stock/:symbol" element={<StockDetailPage />} />
                         <Route path="/ipos" element={<IPOPage />} />
                         <Route path="/top-movers" element={<TopMoversPage />} />
