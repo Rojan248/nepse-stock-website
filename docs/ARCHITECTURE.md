@@ -2,6 +2,10 @@
 
 Technical architecture documentation for the NEPSE Stock Website.
 
+## Project Overview
+
+The system is designed as a lightweight, high-performance financial terminal. It uses a Node.js backend to scrape and serve NEPSE data and a React frontend to provide a Stark Minimalism user interface.
+
 ## Overview
 
 ```
@@ -78,7 +82,7 @@ Retry with exponential backoff
 
 | Condition | Update Interval |
 |-----------|-----------------|
-| Market Open (10 AM - 3 PM NST) | 8 seconds |
+| Market Open (10 AM - 3 PM NST) | 10 seconds |
 | Market Closed | 1 hour |
 
 ---
@@ -157,38 +161,6 @@ Local JSON ← Express Route ← API Request
 }
 ```
 
-### ipos.json
-```javascript
-{
-  "company_name_key": {
-    companyName: String,
-    sector: String,
-    shareManager: String,
-    status: "upcoming" | "open" | "closed",
-    dates: {
-      applicationOpen: ISO Date String,
-      applicationClose: ISO Date String
-    },
-    priceRange: { min, max },
-    timestamp: ISO Date String
-  }
-}
-```
-
----
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/stocks` | GET | All stocks with pagination |
-| `/api/stocks/:symbol` | GET | Single stock details |
-| `/api/stocks/search` | GET | Search by symbol/name |
-| `/api/ipos` | GET | IPO listings |
-| `/api/market-summary` | GET | Market index data |
-| `/api/health` | GET | Server status |
-| `/api/force-update` | POST | Force data refresh |
-
 ---
 
 ## Data Persistence
@@ -197,10 +169,6 @@ Local JSON ← Express Route ← API Request
 - **Debounced saves**: Changes trigger saves after 2s delay (batches rapid updates)
 - **Immediate saves**: Shutdown triggers immediate save
 - **Write locks**: Prevent race conditions during concurrent writes
-
-### File Format
-- JSON with trailing newline for git compatibility
-- Pretty-printed for readability
 
 ---
 
