@@ -11,7 +11,7 @@ import SearchBar from '../components/SearchBar';
 import { formatNumber, formatPercent, formatTurnover, getChangeClass } from '../utils/formatting';
 import { ITEMS_PER_PAGE } from '../utils/constants';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { Star } from 'lucide-react';
+import { Star, ChevronDown } from 'lucide-react';
 import './HomePage.css';
 
 // Live update interval - 15 seconds
@@ -339,25 +339,45 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
             {/* All Stocks */}
             <section className="stocks-section">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 section-header">
-                    <h2 className="text-xl font-bold tracking-tight text-primary section-title">All Stocks ({filteredStocks.length})</h2>
+                    <h2 className="text-xl font-bold tracking-tight text-primary section-title">
+                        All Stocks <span className="text-stone-400 font-normal ml-1" style={{ fontSize: '0.9em', color: 'var(--text-muted)' }}>({stocks.length})</span>
+                    </h2>
 
-                    <div className="flex items-center gap-3 w-full md:w-auto filters">
-                        {/* Styled Watchlist Button */}
+                    <div className="filter-toolbar">
+                        {/* Watchlist Toggle */}
                         <button
                             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            className={`btn-premium ${showFavoritesOnly ? 'active' : ''}`}
+                            className={`control-base btn-watchlist ${showFavoritesOnly ? 'active' : ''}`}
                         >
-                            <Star size={16} fill={showFavoritesOnly ? "currentColor" : "none"} />
+                            <Star
+                                size={16}
+                                fill={showFavoritesOnly ? "currentColor" : "none"}
+                                className={showFavoritesOnly ? "text-white" : "text-stone-400"}
+                            />
                             <span>Watchlist</span>
-                            {favorites.length > 0 && <span className="bg-stone-200 text-xs px-1.5 py-0.5 rounded-full" style={{ marginLeft: '4px' }}>{favorites.length}</span>}
+                            {favorites.length > 0 && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${showFavoritesOnly ? 'bg-stone-700 text-stone-200' : 'bg-stone-100 text-stone-600'}`} style={{ marginLeft: 'auto' }}>
+                                    {favorites.length}
+                                </span>
+                            )}
                         </button>
 
-                        <Select
-                            value={selectedSector}
-                            onChange={(e) => setSelectedSector(e.target.value)}
-                            options={sectors.map(s => ({ value: s, label: s === 'all' ? 'All Sectors' : s }))}
-                            className="sector-filter"
-                        />
+                        {/* Sector Dropdown (Hidden Native Arrow) */}
+                        <div className="sector-wrapper">
+                            <select
+                                value={selectedSector}
+                                onChange={(e) => setSelectedSector(e.target.value)}
+                                className="control-base sector-select"
+                            >
+                                <option value="all">All Sectors</option>
+                                {sectors.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <ChevronDown
+                                size={16}
+                                className="absolute right-3 text-stone-400 pointer-events-none"
+                                style={{ position: 'absolute', right: '12px', pointerEvents: 'none', color: '#9ca3af' }}
+                            />
+                        </div>
                     </div>
                 </div>
                 <StockTable

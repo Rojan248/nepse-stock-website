@@ -69,6 +69,9 @@
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
 
     --container-max: 1400px;
+
+    /* Carafe System */
+    --color-carafe: #1C1917;
 }
 
 /* Reset & Base Styles */
@@ -92,11 +95,89 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* App Layout */
-.app {
+/* ... existing styles ... */
+
+/* =========================================
+   CARAFE CONTROLS SYSTEM
+   ========================================= */
+
+/* The Control Container */
+.filter-toolbar {
     display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Shared Base Styles for Buttons & Selects */
+.control-base {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-family: var(--font-main);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Watchlist Toggle - Inactive (Ghost) */
+.btn-watchlist {
+    background: #FFFFFF;
+    border: 1px solid #E7E5E4;
+    color: var(--text-secondary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-watchlist:hover {
+    background: #FAFAF9;
+    border-color: #D6D3D1;
+}
+
+/* Watchlist Toggle - Active (Solid Carafe) */
+.btn-watchlist.active {
+    background: var(--color-carafe);
+    border-color: var(--color-carafe);
+    color: #FAFAFA;
+    box-shadow: 0 4px 6px -1px rgba(28, 25, 23, 0.2);
+}
+
+/* Sector Select - Matching Style */
+.sector-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.sector-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: #FFFFFF;
+    border: 1px solid #E7E5E4;
+    color: var(--text-primary);
+    padding-right: 36px !important;
+    /* Space for Chevron */
+    min-width: 180px;
+}
+
+.sector-select:hover {
+    border-color: #D6D3D1;
+}
+
+.sector-select:focus {
+    border-color: var(--color-carafe);
+    outline: none;
+    ring: 2px solid rgba(28, 25, 23, 0.1);
+}
+
+/* Clean up old styles if necessary, or keep for other buttons */
+.btn-secondary {
+    background-color: var(--bg-card);
+    border-color: var(--border-main);
+    color: var(--text-primary);
 }
 
 .main-content {
