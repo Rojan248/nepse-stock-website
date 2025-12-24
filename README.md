@@ -6,6 +6,17 @@ Real-time Nepal Stock Exchange (NEPSE) data visualization platform with automati
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 
+## Project Overview
+
+The NEPSE Stock Website is a high-performance financial dashboard designed to provide real-time stock market data from the Nepal Stock Exchange. 
+
+### Design System: Stark Minimalism
+The application utilizes a **Stark Minimalism** design philosophy to ensure clarity and focus on financial data:
+- **Core Palette**: Pure White (`#FFFFFF`) backgrounds and Pure Black (`#000000`) text.
+- **Financial Indicators**: High-contrast Green (`#22c55e`) for gains/advanced stocks and Red (`#ef4444`) for losses/declined stocks.
+- **Typography**: Inter for general UI and JetBrains Mono for tabular financial figures to ensure alignment and readability.
+- **UX**: Unified global search and real-time market breadth indicators (Advanced/Declined/Unchanged).
+
 ## Features
 
 - 📊 **Real-time Stock Data** - Live prices, changes, and volumes
@@ -24,7 +35,7 @@ Real-time Nepal Stock Exchange (NEPSE) data visualization platform with automati
 | **Frontend** | React 18, Vite, React Router, Axios |
 | **Backend** | Node.js, Express |
 | **Storage** | Local JSON Files (no external database required) |
-| **Styling** | Vanilla CSS with custom design system |
+| **Styling** | Vanilla CSS with Stark Minimalism design system |
 
 ## Quick Start
 
@@ -89,23 +100,13 @@ nepse-stock-website/
 ```
 PORT=5000
 NODE_ENV=development
-NEPSE_UPDATE_INTERVAL=8000
+NEPSE_UPDATE_INTERVAL=10000
 LOG_LEVEL=info
 ```
 
 ### Frontend (.env)
 ```
 VITE_API_URL=/api
-```
-
-## Testing
-
-```bash
-# Backend tests
-cd backend && npm test
-
-# Frontend tests
-cd frontend && npm test
 ```
 
 ## Data Storage
@@ -122,81 +123,13 @@ Data persists automatically on graceful shutdown (Ctrl+C).
 
 See [SETUP_GUIDE.md](docs/SETUP_GUIDE.md) for detailed deployment instructions.
 
-**Recommended Platforms:**
-- Backend: Render.com, Railway.app (single server, no database needed)
-- Frontend: Vercel, Netlify
-
-## Documentation
-
-- [API Documentation](docs/API_DOCUMENTATION.md)
-- [Setup Guide](docs/SETUP_GUIDE.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Contributing](docs/CONTRIBUTING.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-
-## Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md).
-
-## License
-
-MIT License - see [LICENSE](./LICENSE) for details.
-
-## Acknowledgments
-
-- Data sourced from Nepal Stock Exchange (NEPSE)
-- Built for the Nepali investment community
-
 ## Recent Updates (Dec 2025)
 
 - **Architecture Redesign**: Migrated search state to root components for a unified header search experience.
 - **Data Integrity**: Fixed data mapping for the NEPSE Index and added Market Breadth indicators.
-- **UI Polish**: Resolved currency symbol rendering issues (switched to 'Rs') and fixed various layout overlaps. Updated design system to **Stark Minimalism** (Pure Black, Pure White, Green, and Red).
+- **UI Polish**: Switched to **Stark Minimalism** color palette (Pure Black/White). Resolved currency symbol rendering issues (switched to 'Rs').
 - **Infrastructure**: Stabilized production deployment on `nepse.me` via PM2 and Cloudflare Tunnels.
 
-## Known Issues
+## License
 
-- **Historical Charts**: Some historical data points may have gaps due to upstream API maintenance. This does not affect live trading data.
-
-## Roadmap & Upcoming Features
-
-We are constantly working to improve NEPSE Stock Website. Here's what's coming next:
-
-- **AI Integration:** Smart insights and market analysis powered by AI.
-- **Stock Suggestions:** Personalized stock recommendations based on market trends.
-- **Real-time Graphing:** Enhanced interactive charts with second-by-second updates.
-
-
-## Production Deployment
-
-For deploying this application to a production server, see:
-
-- [Deployment Guide](./docs/DEPLOYMENT.md) - Build and run in production
-- [PM2 Process Management](./docs/DEPLOYMENT.md#running-with-pm2) - Keep the app running
-- [Security Best Practices](./docs/SECURITY.md) - Secure your deployment
-- [Deployment Checklist](./docs/DEPLOYMENT_CHECKLIST.md) - Pre-launch verification
-
-### Quick Start (Production)
-
-```bash
-# Install dependencies and build
-npm run deploy
-
-# Start with PM2
-cd backend
-npm run pm2:start
-
-# Check status
-npm run pm2:status
-
-# View logs
-npm run pm2:logs
-```
-
-### Accessing Your Deployed Site
-
-After deployment:
-- **Local access:** `http://localhost:5000`
-- **Network access:** `http://<your-server-ip>:5000`
-
-
+MIT License - see [LICENSE](./LICENSE) for details.

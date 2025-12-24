@@ -1,5 +1,13 @@
 State of the Project Report
 
+0. Project Overview
+
+The NEPSE Stock Website is a real-time financial data platform.
+Architecture: Node.js (Express) backend + React (Vite) frontend.
+Aesthetic: Stark Minimalism (Pure Black & White with standard Green/Red financial indicators).
+Storage: Local JSON file persistence for stocks, market stats, and IPOs.
+Search: Unified global search synced across the application.
+
 1. Project File Structure
 
 nepse-stock-website-master/
