@@ -236,6 +236,16 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         return filteredStocks.slice(start, end);
     }, [filteredStocks, currentPage]);
 
+    // Calculate Market Breadth logic (client-side)
+    const marketStats = useMemo(() => {
+        if (!stocks || stocks.length === 0) return { advanced: 0, declined: 0, unchanged: 0 };
+        return {
+            advanced: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) > 0).length,
+            declined: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) < 0).length,
+            unchanged: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) === 0).length
+        };
+    }, [stocks]);
+
     // DEBUG: Log stocks state changes
     useEffect(() => {
         if (stocks.length > 0) {
@@ -303,17 +313,17 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                 <div className="market-breadth" style={{ marginTop: '2rem', display: 'flex', gap: '2rem', alignItems: 'center', background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                     <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Advanced</div>
-                        <div style={{ color: 'var(--price-up)', fontSize: '1.5rem', fontWeight: '700' }}>{marketSummary?.advancedCompanies || 0}</div>
+                        <div style={{ color: 'var(--price-up)', fontSize: '1.5rem', fontWeight: '700' }}>{marketStats.advanced}</div>
                     </div>
                     <div style={{ width: '1px', height: '2rem', background: 'var(--border-subtle)' }}></div>
                     <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Declined</div>
-                        <div style={{ color: 'var(--price-down)', fontSize: '1.5rem', fontWeight: '700' }}>{marketSummary?.declinedCompanies || 0}</div>
+                        <div style={{ color: 'var(--price-down)', fontSize: '1.5rem', fontWeight: '700' }}>{marketStats.declined}</div>
                     </div>
                     <div style={{ width: '1px', height: '2rem', background: 'var(--border-subtle)' }}></div>
                     <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Unchanged</div>
-                        <div style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '700' }}>{marketSummary?.unchangedCompanies || 0}</div>
+                        <div style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '700' }}>{marketStats.unchanged}</div>
                     </div>
                 </div>
             </section>
@@ -323,19 +333,23 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
 
             {/* All Stocks */}
             <section className="stocks-section">
-                <div className="section-header">
-                    <h3 className="section-title">All Stocks ({filteredStocks.length})</h3>
-                    <div className="filters" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <Button
-                            variant={showFavoritesOnly ? 'primary' : 'secondary'}
-                            size="sm"
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 section-header">
+                    <h2 className="text-xl font-bold tracking-tight text-primary section-title">All Stocks ({filteredStocks.length})</h2>
+
+                    <div className="flex items-center gap-3 w-full md:w-auto filters">
+                        {/* Styled Watchlist Button */}
+                        <button
                             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            buttonClass="watchlist-toggle"
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all text-sm font-medium watchlist-toggle ${showFavoritesOnly
+                                ? 'bg-amber-50 border-amber-200 text-amber-800 active'
+                                : 'bg-white border-subtle text-secondary hover:bg-gray-50'}`}
                             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                         >
-                            <Star size={16} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
-                            Watchlist {favorites.length > 0 && `(${favorites.length})`}
-                        </Button>
+                            <Star size={16} fill={showFavoritesOnly ? "currentColor" : "none"} />
+                            <span>Watchlist</span>
+                            {favorites.length > 0 && <span className="bg-stone-200 text-xs px-1.5 py-0.5 rounded-full" style={{ marginLeft: '4px' }}>{favorites.length}</span>}
+                        </button>
+
                         <Select
                             value={selectedSector}
                             onChange={(e) => setSelectedSector(e.target.value)}
