@@ -67,7 +67,7 @@ const SectorChart = ({ stocks }) => {
                             width={100}
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                            tick={{ fill: '#78716C', fontSize: 12, fontWeight: 500 }}
                         />
                         <Tooltip
                             cursor={{ fill: 'var(--bg-secondary)', opacity: 0.4 }}
@@ -83,12 +83,12 @@ const SectorChart = ({ stocks }) => {
                         />
                         <Bar
                             dataKey="count"
-                            fill="var(--primary-accent)"
+                            fill="#44403C"
                             radius={[0, 4, 4, 0]}
-                            barSize={20}
+                            barSize={24}
                         >
                             {data.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={'var(--primary-accent)'} />
+                                <Cell key={`cell-${index}`} fill="#44403C" />
                             ))}
                         </Bar>
                     </BarChart>
