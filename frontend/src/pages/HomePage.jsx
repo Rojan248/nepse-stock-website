@@ -343,39 +343,34 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                         All Stocks <span className="text-stone-400 font-normal ml-1" style={{ fontSize: '0.9em', color: 'var(--text-muted)' }}>({stocks.length})</span>
                     </h2>
 
-                    <div className="filter-toolbar">
-                        {/* Watchlist Toggle */}
+                    <div className="flex items-center gap-3 w-full md:w-auto filters">
+                        {/* Rigorous Watchlist Button */}
                         <button
                             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            className={`control-base btn-watchlist ${showFavoritesOnly ? 'active' : ''}`}
+                            className={`h-10 px-4 rounded-lg flex items-center gap-2 border font-medium text-sm transition-all shadow-sm ${showFavoritesOnly ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'}`}
                         >
-                            <Star
-                                size={16}
-                                fill={showFavoritesOnly ? "currentColor" : "none"}
-                                className={showFavoritesOnly ? "text-white" : "text-stone-400"}
-                            />
-                            <span>Watchlist</span>
+                            <Star size={14} fill={showFavoritesOnly ? "currentColor" : "none"} />
+                            <span className="uppercase tracking-wide text-xs font-bold">Watchlist</span>
                             {favorites.length > 0 && (
-                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${showFavoritesOnly ? 'bg-stone-700 text-stone-200' : 'bg-stone-100 text-stone-600'}`} style={{ marginLeft: 'auto' }}>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${showFavoritesOnly ? 'bg-amber-200 text-amber-900' : 'bg-stone-100 text-stone-500'}`}>
                                     {favorites.length}
                                 </span>
                             )}
                         </button>
 
-                        {/* Sector Dropdown (Hidden Native Arrow) */}
-                        <div className="sector-wrapper">
+                        {/* Rigorous Sector Select */}
+                        <div className="relative flex items-center">
                             <select
                                 value={selectedSector}
                                 onChange={(e) => setSelectedSector(e.target.value)}
-                                className="control-base sector-select"
+                                className="h-10 pl-4 pr-10 rounded-lg border border-stone-200 bg-white text-stone-700 text-xs font-bold uppercase tracking-wide appearance-none hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-stone-400 min-w-[180px]"
                             >
                                 <option value="all">All Sectors</option>
                                 {sectors.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                             <ChevronDown
-                                size={16}
+                                size={14}
                                 className="absolute right-3 text-stone-400 pointer-events-none"
-                                style={{ position: 'absolute', right: '12px', pointerEvents: 'none', color: '#9ca3af' }}
                             />
                         </div>
                     </div>
