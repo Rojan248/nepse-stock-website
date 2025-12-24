@@ -52,6 +52,20 @@
   color: var(--text-primary);
 }
 
+.btn-secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--text-secondary);
+}
+
 /* Sizes */
 .btn-sm {
   height: 36px;

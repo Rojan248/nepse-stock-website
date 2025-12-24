@@ -80,6 +80,30 @@
     font-size: 0.75rem;
 }
 
+/* LTP Cell - prevent Rs wrapping */
+.ltp-cell {
+    white-space: nowrap;
+}
+
+/* Star Cell - for Watchlist */
+.star-cell {
+    width: 40px;
+    text-align: center;
+    padding: 0.75rem !important;
+}
+
+.star-icon {
+    transition: all 0.15s ease;
+}
+
+.star-icon:hover {
+    transform: scale(1.15);
+}
+
+.star-icon.active {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
 /* Change Badges - Transparent Style */
 .change-pill,
 .change-percent-badge {
@@ -103,46 +127,46 @@
     color: #b91c1c;
 }
 
-/* Specific Column Widths */
+/* Specific Column Widths (with Star column) */
 .stock-table th:nth-child(1),
 .stock-table td:nth-child(1) {
-    width: 12%;
+    width: 48px;
+    text-align: center;
 }
 
-/* Symbol */
 .stock-table th:nth-child(2),
 .stock-table td:nth-child(2) {
-    width: 30%;
+    width: 100px;
 }
 
-/* Company */
 .stock-table th:nth-child(3),
 .stock-table td:nth-child(3) {
-    width: 15%;
+    width: auto;
 }
 
-/* Sector */
 .stock-table th:nth-child(4),
 .stock-table td:nth-child(4) {
-    width: 12%;
+    width: 140px;
 }
 
-/* LTP */
 .stock-table th:nth-child(5),
 .stock-table td:nth-child(5) {
-    width: 10%;
+    width: 110px;
 }
 
-/* Change */
 .stock-table th:nth-child(6),
 .stock-table td:nth-child(6) {
-    width: 10%;
+    width: 90px;
 }
 
-/* % Change */
 .stock-table th:nth-child(7),
 .stock-table td:nth-child(7) {
-    width: 11%;
+    width: 100px;
+}
+
+.stock-table th:nth-child(8),
+.stock-table td:nth-child(8) {
+    width: 110px;
 }
 
 /* Volume */
