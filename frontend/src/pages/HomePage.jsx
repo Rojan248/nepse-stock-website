@@ -6,6 +6,7 @@ import SummaryCard from '../components/SummaryCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
+import SearchBar from '../components/SearchBar';
 import { formatNumber, formatPercent, formatTurnover, getChangeClass } from '../utils/formatting';
 import { ITEMS_PER_PAGE } from '../utils/constants';
 import './HomePage.css';
@@ -63,6 +64,7 @@ function HomePage() {
     const [stocks, setStocks] = useState([]);
     const [sectors, setSectors] = useState([]);
     const [selectedSector, setSelectedSector] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -159,41 +161,49 @@ function HomePage() {
         };
     }, [fetchMarketData, loadAllStocks]);
 
-    // Reset page to 1 when sector filter changes
+    // Reset page to 1 when sector filter or search query changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [selectedSector]);
+    }, [selectedSector, searchQuery]);
 
     const handleStockClick = (stock) => {
         navigate(`/stock/${stock.symbol}`);
     };
 
-    // Client-side filtering by sector
+    // Client-side filtering by sector AND search query
     const filteredStocks = useMemo(() => {
-        if (selectedSector === 'all') {
-            return stocks;
+        let result = stocks;
+
+        // Filter by sector
+        if (selectedSector !== 'all') {
+            result = result.filter(stock => {
+                if (!stock.sector) return false;
+
+                const stockSector = stock.sector.toLowerCase().trim();
+                const filterSector = selectedSector.toLowerCase().trim();
+
+                if (stockSector === filterSector) return true;
+                if (stockSector.includes(filterSector) || filterSector.includes(stockSector)) return true;
+
+                const s1 = stockSector.endsWith('s') ? stockSector.slice(0, -1) : stockSector;
+                const s2 = filterSector.endsWith('s') ? filterSector.slice(0, -1) : filterSector;
+
+                return s1 === s2;
+            });
         }
 
-        return stocks.filter(stock => {
-            if (!stock.sector) return false;
+        // Filter by search query (symbol or company name)
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase().trim();
+            result = result.filter(stock => {
+                const symbol = (stock.symbol || '').toLowerCase();
+                const name = (stock.companyName || '').toLowerCase();
+                return symbol.includes(query) || name.includes(query);
+            });
+        }
 
-            // Robust comparison
-            const stockSector = stock.sector.toLowerCase().trim();
-            const filterSector = selectedSector.toLowerCase().trim();
-
-            // Direct match
-            if (stockSector === filterSector) return true;
-
-            // Partial match (e.g. "Commercial Bank" in "Commercial Banks")
-            if (stockSector.includes(filterSector) || filterSector.includes(stockSector)) return true;
-
-            // Pluralization check (remove trailing 's')
-            const s1 = stockSector.endsWith('s') ? stockSector.slice(0, -1) : stockSector;
-            const s2 = filterSector.endsWith('s') ? filterSector.slice(0, -1) : filterSector;
-
-            return s1 === s2;
-        });
-    }, [stocks, selectedSector]);
+        return result;
+    }, [stocks, selectedSector, searchQuery]);
 
     // Client-side pagination
     const totalPages = Math.max(1, Math.ceil(filteredStocks.length / ITEMS_PER_PAGE));
@@ -256,6 +266,10 @@ function HomePage() {
                 <div className="section-header">
                     <h3 className="section-title">All Stocks ({filteredStocks.length})</h3>
                     <div className="filters">
+                        <SearchBar
+                            onInputChange={setSearchQuery}
+                            placeholder="Search by symbol or company..."
+                        />
                         <Select
                             value={selectedSector}
                             onChange={(e) => setSelectedSector(e.target.value)}
@@ -273,24 +287,26 @@ function HomePage() {
                     onPageChange={setCurrentPage}
                     loading={loading}
                 />
-            </section>
+            </section >
 
             {/* Error toast (non-blocking) */}
-            {error && (
-                <div className="error-toast">
-                    <span>{error}</span>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        buttonClass="circle"
-                        onClick={() => setError(null)}
-                        aria-label="Close error"
-                    >
-                        ×
-                    </Button>
-                </div>
-            )}
-        </div>
+            {
+                error && (
+                    <div className="error-toast">
+                        <span>{error}</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            buttonClass="circle"
+                            onClick={() => setError(null)}
+                            aria-label="Close error"
+                        >
+                            ×
+                        </Button>
+                    </div>
+                )
+            }
+        </div >
     );
 }
 
