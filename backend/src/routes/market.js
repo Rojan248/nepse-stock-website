@@ -115,6 +115,43 @@ router.get('/health', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/health/extended
+ * Extended health metrics for monitoring system resilience
+ */
+router.get('/health/extended', asyncHandler(async (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const stocksPath = path.join(__dirname, '../../data/stocks.json');
+
+    let lastSyncSecondsAgo = -1;
+    try {
+        const stats = fs.statSync(stocksPath);
+        lastSyncSecondsAgo = Math.floor((Date.now() - stats.mtimeMs) / 1000);
+    } catch (e) {
+        logger.error(`Failed to get stocks.json stats: ${e.message}`);
+    }
+
+    const memoryUsage = process.memoryUsage();
+    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
+
+    const status = (lastSyncSecondsAgo > 120 || lastSyncSecondsAgo === -1) ? 'warning' : 'ok';
+
+    res.json({
+        success: true,
+        status,
+        lastSyncSecondsAgo,
+        memoryUsage: {
+            rss: `${Math.round(memoryUsage.rss / 1024 / 1024 * 100) / 100} MB`,
+            heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024 * 100) / 100} MB`,
+            heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024 * 100) / 100} MB`,
+            external: `${Math.round(memoryUsage.external / 1024 / 1024 * 100) / 100} MB`
+        },
+        uptime: uptimeSeconds,
+        timestamp: new Date().toISOString()
+    });
+}));
+
+/**
  * GET /api/scheduler-status
  * Get detailed scheduler status
  */
@@ -134,7 +171,7 @@ router.get('/scheduler-status', asyncHandler(async (req, res) => {
 router.get('/time-sync-status', asyncHandler(async (req, res) => {
     const syncStatus = getTimeSyncStatus();
     const systemTime = new Date();
-    
+
     res.json({
         success: true,
         data: {

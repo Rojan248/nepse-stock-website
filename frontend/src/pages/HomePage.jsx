@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getMarketSummary, getStocks, getSectors } from '../services/api';
 import StockTable from '../components/StockTable';
 import SummaryCard from '../components/SummaryCard';
+import SectorChart from '../components/SectorChart';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
@@ -316,6 +317,9 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                     </div>
                 </div>
             </section>
+
+            {/* Sector Analysis Chart */}
+            <SectorChart stocks={stocks} />
 
             {/* All Stocks */}
             <section className="stocks-section">
