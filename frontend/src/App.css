@@ -1,33 +1,33 @@
 /* =========================================
-   NEPSE Stock Website - Premium Financial Dashboard
-   Palette: Ivory & Carafe (Warm, Dense, Minimalism)
+   NEPSE Stock Website - Pure Stark Financial Dashboard
+   Palette: Stark Minimalism (Black, White, Green, Red)
    ========================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-    /* ===== PREMIUM FINANCIAL PALETTE ===== */
-    --bg-app: #F9F8F6;
-    /* Warm Ivory */
+    /* ===== STARK FINANCIAL PALETTE ===== */
+    --bg-app: #FFFFFF;
+    /* Pure White */
     --bg-card: #FFFFFF;
 
-    --text-primary: #1C1917;
-    /* Warm Black (Carafe Dark) */
-    --text-secondary: #57534E;
-    /* Taupe/Stone */
-    --text-muted: #A8A29E;
+    --text-primary: #000000;
+    /* Pure Black */
+    --text-secondary: #404040;
+    /* Neutral Grey */
+    --text-muted: #737373;
 
-    --border-subtle: #E7E5E4;
-    --border-main: #D6D3D1;
+    --border-subtle: #E5E5E5;
+    --border-main: #262626;
 
-    --primary-accent: #292524;
-    /* Deep Brown/Black */
+    --primary-accent: #000000;
+    /* Pure Black */
 
-    --success: #15803d;
-    /* Financial Emerald */
-    --danger: #b91c1c;
-    /* Deep Crimson */
-    --color-unchanged: #57534E;
+    --success: #22c55e;
+    /* Pure Green (Standard Financial) */
+    --danger: #ef4444;
+    /* Pure Red (Standard Financial) */
+    --color-unchanged: #404040;
 
     --bg-positive-subtle: #f0fdf4;
     --bg-negative-subtle: #fef2f2;
