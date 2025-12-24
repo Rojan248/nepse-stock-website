@@ -52,6 +52,124 @@
     "totalVolume": 7224917,
     "totalMarketCap": 4341739255698.6,
     "activeCompanies": 334,
+    "timestamp": "2025-12-24T12:55:16.688Z",
+    "advancedCompanies": 49,
+    "declinedCompanies": 74,
+    "unchangedCompanies": 2,
+    "updatedAt": "2025-12-24T12:55:16.688Z"
+  },
+  {
+    "isOpen": false,
+    "state": "POST_CLOSE",
+    "indexValue": 2585.87,
+    "indexChange": 1.37,
+    "indexChangePercent": 0.05,
+    "indices": [
+      {
+        "id": 57,
+        "name": "Sensitive Index",
+        "value": 448.53,
+        "change": 0.94,
+        "changePercent": 0.21,
+        "high": 448.6947,
+        "low": 445.9441,
+        "previousClose": 448.5307
+      },
+      {
+        "id": 58,
+        "name": "NEPSE Index",
+        "value": 2585.87,
+        "change": 1.37,
+        "changePercent": 0.05,
+        "high": 2593.576,
+        "low": 2577.6343,
+        "previousClose": 2585.8718
+      },
+      {
+        "id": 62,
+        "name": "Float Index",
+        "value": 177.03,
+        "change": 0.17,
+        "changePercent": 0.1,
+        "high": 177.4264,
+        "low": 176.3276,
+        "previousClose": 177.0359
+      },
+      {
+        "id": 63,
+        "name": "Sensitive Float Index",
+        "value": 152.09,
+        "change": 0.46,
+        "changePercent": 0.3,
+        "high": 152.0979,
+        "low": 151.1262,
+        "previousClose": 152.0923
+      }
+    ],
+    "totalTransactions": 62768,
+    "totalTurnover": 3224664663.45,
+    "totalVolume": 7224917,
+    "totalMarketCap": 4341739255698.6,
+    "activeCompanies": 334,
+    "timestamp": "2025-12-24T12:50:44.218Z",
+    "advancedCompanies": 25,
+    "declinedCompanies": 13,
+    "unchangedCompanies": 3,
+    "updatedAt": "2025-12-24T12:50:44.218Z"
+  },
+  {
+    "isOpen": false,
+    "state": "POST_CLOSE",
+    "indexValue": 2585.87,
+    "indexChange": 1.37,
+    "indexChangePercent": 0.05,
+    "indices": [
+      {
+        "id": 57,
+        "name": "Sensitive Index",
+        "value": 448.53,
+        "change": 0.94,
+        "changePercent": 0.21,
+        "high": 448.6947,
+        "low": 445.9441,
+        "previousClose": 448.5307
+      },
+      {
+        "id": 58,
+        "name": "NEPSE Index",
+        "value": 2585.87,
+        "change": 1.37,
+        "changePercent": 0.05,
+        "high": 2593.576,
+        "low": 2577.6343,
+        "previousClose": 2585.8718
+      },
+      {
+        "id": 62,
+        "name": "Float Index",
+        "value": 177.03,
+        "change": 0.17,
+        "changePercent": 0.1,
+        "high": 177.4264,
+        "low": 176.3276,
+        "previousClose": 177.0359
+      },
+      {
+        "id": 63,
+        "name": "Sensitive Float Index",
+        "value": 152.09,
+        "change": 0.46,
+        "changePercent": 0.3,
+        "high": 152.0979,
+        "low": 151.1262,
+        "previousClose": 152.0923
+      }
+    ],
+    "totalTransactions": 62768,
+    "totalTurnover": 3224664663.45,
+    "totalVolume": 7224917,
+    "totalMarketCap": 4341739255698.6,
+    "activeCompanies": 334,
     "timestamp": "2025-12-24T12:42:23.077Z",
     "advancedCompanies": 66,
     "declinedCompanies": 51,
