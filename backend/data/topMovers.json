@@ -31,7 +31,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
+      "lastUpdated": "2025-12-24T13:43:55.088Z"
     },
     {
       "symbol": "TPC",
@@ -64,7 +64,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.611Z"
+      "lastUpdated": "2025-12-24T13:43:55.058Z"
     },
     {
       "symbol": "NGPL",
@@ -97,29 +97,29 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.598Z"
+      "lastUpdated": "2025-12-24T13:43:55.039Z"
     },
     {
-      "symbol": "HRL",
-      "originalSymbol": "HRL",
-      "companyName": "Himalayan Reinsurance Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 817,
-      "open": 817,
-      "high": 817,
-      "low": 817,
-      "close": 817,
-      "previousClose": 816.1,
-      "change": 0.9,
-      "changePercent": 0.11,
+      "symbol": "ALBSL",
+      "originalSymbol": "ALBSL",
+      "companyName": "Asha Laghubitta Bittiya Sanstha Ltd",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1176,
+      "open": 1176,
+      "high": 1176,
+      "low": 1176,
+      "close": 1176,
+      "previousClose": 1134,
+      "change": 42,
+      "changePercent": 3.7,
       "intradayChange": 0,
       "intradayChangePercent": 0,
-      "overnightChange": 0.9,
-      "overnightChangePercent": 0.11,
+      "overnightChange": 42,
+      "overnightChangePercent": 3.7,
       "isMarketOpen": false,
-      "volume": 66894,
-      "turnover": 54652398,
+      "volume": 51536,
+      "turnover": 60606336,
       "totalTrades": 0,
       "supplyDemand": {
         "buyVolume": 0,
@@ -130,7 +130,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
+      "lastUpdated": "2025-12-24T13:43:55.089Z"
     },
     {
       "symbol": "RADHI",
@@ -163,7 +163,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.603Z"
+      "lastUpdated": "2025-12-24T13:43:55.044Z"
     },
     {
       "symbol": "SHIVM",
@@ -196,7 +196,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
+      "lastUpdated": "2025-12-24T13:43:55.087Z"
     },
     {
       "symbol": "HIMSTAR",
@@ -229,7 +229,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.023Z"
     },
     {
       "symbol": "RFPL",
@@ -262,7 +262,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.604Z"
+      "lastUpdated": "2025-12-24T13:43:55.045Z"
+    },
+    {
+      "symbol": "LBBL",
+      "originalSymbol": "LBBL",
+      "companyName": "Lumbini Bikas Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 461.9,
+      "open": 461.9,
+      "high": 461.9,
+      "low": 461.9,
+      "close": 461.9,
+      "previousClose": 479,
+      "change": -17.1,
+      "changePercent": -3.57,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -17.1,
+      "overnightChangePercent": -3.57,
+      "isMarketOpen": false,
+      "volume": 84716,
+      "turnover": 39130320.4,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.070Z"
     },
     {
       "symbol": "BPCL",
@@ -295,7 +328,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "SPDL",
@@ -328,29 +361,29 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.055Z"
     },
     {
-      "symbol": "NTC",
-      "originalSymbol": "NTC",
-      "companyName": "Nepal Doorsanchar Company Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 895.4,
-      "open": 895.4,
-      "high": 895.4,
-      "low": 895.4,
-      "close": 895.4,
-      "previousClose": 899,
-      "change": -3.6,
-      "changePercent": -0.4,
+      "symbol": "NABBC",
+      "originalSymbol": "NABBC",
+      "companyName": "Narayani Development Bank Limited",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 1145,
+      "open": 1145,
+      "high": 1145,
+      "low": 1145,
+      "close": 1145,
+      "previousClose": 1161,
+      "change": -16,
+      "changePercent": -1.38,
       "intradayChange": 0,
       "intradayChangePercent": 0,
-      "overnightChange": -3.6,
-      "overnightChangePercent": -0.4,
+      "overnightChange": -16,
+      "overnightChangePercent": -1.38,
       "isMarketOpen": false,
-      "volume": 39968,
-      "turnover": 35787347.2,
+      "volume": 32078,
+      "turnover": 36729310,
       "totalTrades": 0,
       "supplyDemand": {
         "buyVolume": 0,
@@ -361,40 +394,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.579Z"
-    },
-    {
-      "symbol": "BANDIPUR",
-      "originalSymbol": "BANDIPUR",
-      "companyName": "Bandipur Cablecar and Tourism Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 733,
-      "open": 733,
-      "high": 733,
-      "low": 733,
-      "close": 733,
-      "previousClose": 733,
-      "change": 0,
-      "changePercent": 0,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0,
-      "overnightChangePercent": 0,
-      "isMarketOpen": false,
-      "volume": 48568,
-      "turnover": 35600344,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.574Z"
+      "lastUpdated": "2025-12-24T13:43:55.073Z"
     },
     {
       "symbol": "SHPC",
@@ -427,7 +427,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.607Z"
+      "lastUpdated": "2025-12-24T13:43:55.051Z"
     },
     {
       "symbol": "CHCL",
@@ -460,7 +460,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.016Z"
     },
     {
       "symbol": "BUNGAL",
@@ -493,7 +493,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "SAIL",
@@ -526,7 +526,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.617Z"
+      "lastUpdated": "2025-12-24T13:43:55.086Z"
     },
     {
       "symbol": "UPCL",
@@ -559,7 +559,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
+      "lastUpdated": "2025-12-24T13:43:55.062Z"
     },
     {
       "symbol": "HPPL",
@@ -592,7 +592,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.024Z"
     },
     {
       "symbol": "UNHPL",
@@ -625,7 +625,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
+      "lastUpdated": "2025-12-24T13:43:55.062Z"
     },
     {
       "symbol": "SAGAR",
@@ -658,7 +658,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.617Z"
+      "lastUpdated": "2025-12-24T13:43:55.086Z"
     },
     {
       "symbol": "GVL",
@@ -691,7 +691,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.589Z"
+      "lastUpdated": "2025-12-24T13:43:55.022Z"
     },
     {
       "symbol": "UMHL",
@@ -724,7 +724,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.612Z"
+      "lastUpdated": "2025-12-24T13:43:55.060Z"
+    },
+    {
+      "symbol": "SKBBL",
+      "originalSymbol": "SKBBL",
+      "companyName": "Sana Kisan Bikas Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 762,
+      "open": 762,
+      "high": 762,
+      "low": 762,
+      "close": 762,
+      "previousClose": 771.99,
+      "change": -9.99,
+      "changePercent": -1.29,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -9.99,
+      "overnightChangePercent": -1.29,
+      "isMarketOpen": false,
+      "volume": 34858,
+      "turnover": 26561796,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.100Z"
     },
     {
       "symbol": "AHPC",
@@ -757,7 +790,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.581Z"
+      "lastUpdated": "2025-12-24T13:43:55.005Z"
     },
     {
       "symbol": "SAHAS",
@@ -790,7 +823,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.606Z"
+      "lastUpdated": "2025-12-24T13:43:55.048Z"
     },
     {
       "symbol": "BARUN",
@@ -823,7 +856,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.583Z"
+      "lastUpdated": "2025-12-24T13:43:55.009Z"
     },
     {
       "symbol": "SPC",
@@ -856,7 +889,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.054Z"
     },
     {
       "symbol": "PHCL",
@@ -889,7 +922,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.602Z"
+      "lastUpdated": "2025-12-24T13:43:55.041Z"
     },
     {
       "symbol": "BHCL",
@@ -922,7 +955,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.010Z"
     },
     {
       "symbol": "MEN",
@@ -955,40 +988,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.594Z"
-    },
-    {
-      "symbol": "NRIC",
-      "originalSymbol": "NRIC",
-      "companyName": "Nepal Reinsurance Company Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 1231,
-      "open": 1231,
-      "high": 1231,
-      "low": 1231,
-      "close": 1231,
-      "previousClose": 1234.4,
-      "change": -3.4,
-      "changePercent": -0.28,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -3.4,
-      "overnightChangePercent": -0.28,
-      "isMarketOpen": false,
-      "volume": 18419,
-      "turnover": 22673789,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.578Z"
+      "lastUpdated": "2025-12-24T13:43:55.031Z"
     },
     {
       "symbol": "BHPL",
@@ -1021,7 +1021,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.013Z"
     },
     {
       "symbol": "HDL",
@@ -1054,7 +1054,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.616Z"
+      "lastUpdated": "2025-12-24T13:43:55.079Z"
+    },
+    {
+      "symbol": "GRDBL",
+      "originalSymbol": "GRDBL",
+      "companyName": "Green Development Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 1100,
+      "open": 1100,
+      "high": 1100,
+      "low": 1100,
+      "close": 1100,
+      "previousClose": 1101,
+      "change": -1,
+      "changePercent": -0.09,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -1,
+      "overnightChangePercent": -0.09,
+      "isMarketOpen": false,
+      "volume": 18349,
+      "turnover": 20183900,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.068Z"
     },
     {
       "symbol": "PPL",
@@ -1087,7 +1120,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.603Z"
+      "lastUpdated": "2025-12-24T13:43:55.043Z"
+    },
+    {
+      "symbol": "GBLBS",
+      "originalSymbol": "GBLBS",
+      "companyName": "Grameen Bikas Laghubitta Bittiya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 816,
+      "open": 816,
+      "high": 816,
+      "low": 816,
+      "close": 816,
+      "previousClose": 852,
+      "change": -36,
+      "changePercent": -4.23,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -36,
+      "overnightChangePercent": -4.23,
+      "isMarketOpen": false,
+      "volume": 23436,
+      "turnover": 19123776,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.092Z"
     },
     {
       "symbol": "UMRH",
@@ -1120,7 +1186,73 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
+      "lastUpdated": "2025-12-24T13:43:55.061Z"
+    },
+    {
+      "symbol": "SAPDBL",
+      "originalSymbol": "SAPDBL",
+      "companyName": "Saptakoshi Development Bank Ltd",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 793.1,
+      "open": 793.1,
+      "high": 793.1,
+      "low": 793.1,
+      "close": 793.1,
+      "previousClose": 808,
+      "change": -14.9,
+      "changePercent": -1.84,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -14.9,
+      "overnightChangePercent": -1.84,
+      "isMarketOpen": false,
+      "volume": 23627,
+      "turnover": 18738573.7,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.075Z"
+    },
+    {
+      "symbol": "CBBL",
+      "originalSymbol": "CBBL",
+      "companyName": "Chhimek Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1027.9,
+      "open": 1027.9,
+      "high": 1027.9,
+      "low": 1027.9,
+      "close": 1027.9,
+      "previousClose": 1021,
+      "change": 6.9,
+      "changePercent": 0.68,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 6.9,
+      "overnightChangePercent": 0.68,
+      "isMarketOpen": false,
+      "volume": 17968,
+      "turnover": 18469307.2,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.090Z"
     },
     {
       "symbol": "API",
@@ -1153,7 +1285,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
+      "lastUpdated": "2025-12-24T13:43:55.008Z"
     },
     {
       "symbol": "UHEWA",
@@ -1186,7 +1318,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.612Z"
+      "lastUpdated": "2025-12-24T13:43:55.060Z"
+    },
+    {
+      "symbol": "CORBL",
+      "originalSymbol": "CORBL",
+      "companyName": "Corporate Development Bank Limited",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 1450,
+      "open": 1450,
+      "high": 1450,
+      "low": 1450,
+      "close": 1450,
+      "previousClose": 1511,
+      "change": -61,
+      "changePercent": -4.04,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -61,
+      "overnightChangePercent": -4.04,
+      "isMarketOpen": false,
+      "volume": 10914,
+      "turnover": 15825300,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.066Z"
     },
     {
       "symbol": "SMHL",
@@ -1219,7 +1384,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.053Z"
     },
     {
       "symbol": "SANVI",
@@ -1252,7 +1417,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.606Z"
+      "lastUpdated": "2025-12-24T13:43:55.049Z"
     },
     {
       "symbol": "NHPC",
@@ -1285,7 +1450,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.601Z"
+      "lastUpdated": "2025-12-24T13:43:55.040Z"
+    },
+    {
+      "symbol": "SINDU",
+      "originalSymbol": "SINDU",
+      "companyName": "Sindhu Bikash Bank Ltd",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 702,
+      "open": 702,
+      "high": 702,
+      "low": 702,
+      "close": 702,
+      "previousClose": 706.3,
+      "change": -4.3,
+      "changePercent": -0.61,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -4.3,
+      "overnightChangePercent": -0.61,
+      "isMarketOpen": false,
+      "volume": 20541,
+      "turnover": 14419782,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.076Z"
     },
     {
       "symbol": "LEC",
@@ -1318,7 +1516,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.592Z"
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
+    },
+    {
+      "symbol": "MNBBL",
+      "originalSymbol": "MNBBL",
+      "companyName": "Muktinath Bikas Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 342.6,
+      "open": 342.6,
+      "high": 342.6,
+      "low": 342.6,
+      "close": 342.6,
+      "previousClose": 343.6,
+      "change": -1,
+      "changePercent": -0.29,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -1,
+      "overnightChangePercent": -0.29,
+      "isMarketOpen": false,
+      "volume": 40508,
+      "turnover": 13878040.8,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.073Z"
     },
     {
       "symbol": "SSHL",
@@ -1351,7 +1582,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.610Z"
+      "lastUpdated": "2025-12-24T13:43:55.057Z"
     },
     {
       "symbol": "RURU",
@@ -1384,286 +1615,20 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.606Z"
+      "lastUpdated": "2025-12-24T13:43:55.048Z"
     },
     {
-      "symbol": "PURE",
-      "originalSymbol": "PURE",
-      "companyName": "Pure Energy Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 915,
-      "open": 915,
-      "high": 915,
-      "low": 915,
-      "close": 915,
-      "previousClose": 917,
-      "change": -2,
-      "changePercent": -0.22,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2,
-      "overnightChangePercent": -0.22,
-      "isMarketOpen": false,
-      "volume": 13611,
-      "turnover": 12454065,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.580Z"
-    },
-    {
-      "symbol": "AKPL",
-      "originalSymbol": "AKPL",
-      "companyName": "Arun Kabeli Power Ltd.",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 244,
-      "open": 244,
-      "high": 244,
-      "low": 244,
-      "close": 244,
-      "previousClose": 245.6,
-      "change": -1.6,
-      "changePercent": -0.65,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -1.6,
-      "overnightChangePercent": -0.65,
-      "isMarketOpen": false,
-      "volume": 49807,
-      "turnover": 12152908,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
-    },
-    {
-      "symbol": "MMKJL",
-      "originalSymbol": "MMKJL",
-      "companyName": "Mathillo Mailun Khola Jalvidhyut Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 606.9,
-      "open": 606.9,
-      "high": 606.9,
-      "low": 606.9,
-      "close": 606.9,
-      "previousClose": 605,
-      "change": 1.9,
-      "changePercent": 0.31,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1.9,
-      "overnightChangePercent": 0.31,
-      "isMarketOpen": false,
-      "volume": 18668,
-      "turnover": 11329609.2,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.598Z"
-    },
-    {
-      "symbol": "BHDC",
-      "originalSymbol": "BHDC",
-      "companyName": "Bindhyabasini Hydropower Development Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 472,
-      "open": 472,
-      "high": 472,
-      "low": 472,
-      "close": 472,
-      "previousClose": 474,
-      "change": -2,
-      "changePercent": -0.42,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2,
-      "overnightChangePercent": -0.42,
-      "isMarketOpen": false,
-      "volume": 23945,
-      "turnover": 11302040,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
-    },
-    {
-      "symbol": "DHEL",
-      "originalSymbol": "DHEL",
-      "companyName": "Daramkhola Hydro Energy Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 554,
-      "open": 554,
-      "high": 554,
-      "low": 554,
-      "close": 554,
-      "previousClose": 555,
-      "change": -1,
-      "changePercent": -0.18,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -1,
-      "overnightChangePercent": -0.18,
-      "isMarketOpen": false,
-      "volume": 20131,
-      "turnover": 11152574,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.587Z"
-    },
-    {
-      "symbol": "TTL",
-      "originalSymbol": "TTL",
-      "companyName": "Trade Tower Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 732,
-      "open": 732,
-      "high": 732,
-      "low": 732,
-      "close": 732,
-      "previousClose": 738.3,
-      "change": -6.3,
-      "changePercent": -0.85,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -6.3,
-      "overnightChangePercent": -0.85,
-      "isMarketOpen": false,
-      "volume": 14815,
-      "turnover": 10844580,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.580Z"
-    },
-    {
-      "symbol": "CGH",
-      "originalSymbol": "CGH",
-      "companyName": "Chandragiri Hills Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 886,
-      "open": 886,
-      "high": 886,
-      "low": 886,
-      "close": 886,
-      "previousClose": 885,
-      "change": 1,
-      "changePercent": 0.11,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.11,
-      "isMarketOpen": false,
-      "volume": 11897,
-      "turnover": 10540742,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.574Z"
-    },
-    {
-      "symbol": "SONA",
-      "originalSymbol": "SONA",
-      "companyName": "Sonapur Minerals And Oil Limited",
-      "sector": "Manufacturing And Processing",
-      "sectorId": 56,
-      "ltp": 414.8,
-      "open": 414.8,
-      "high": 414.8,
-      "low": 414.8,
-      "close": 414.8,
-      "previousClose": 412.5,
-      "change": 2.3,
-      "changePercent": 0.56,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 2.3,
-      "overnightChangePercent": 0.56,
-      "isMarketOpen": false,
-      "volume": 25341,
-      "turnover": 10511446.8,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
-    }
-  ],
-  "trade": [
-    {
-      "symbol": "BANDIPUR",
-      "originalSymbol": "BANDIPUR",
-      "companyName": "Bandipur Cablecar and Tourism Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 733,
-      "open": 733,
-      "high": 733,
-      "low": 733,
-      "close": 733,
-      "previousClose": 733,
+      "symbol": "SLBBL",
+      "originalSymbol": "SLBBL",
+      "companyName": "Swarojgar Laghubitta Bittiya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 920,
+      "open": 920,
+      "high": 920,
+      "low": 920,
+      "close": 920,
+      "previousClose": 920,
       "change": 0,
       "changePercent": 0,
       "intradayChange": 0,
@@ -1671,8 +1636,8 @@
       "overnightChange": 0,
       "overnightChangePercent": 0,
       "isMarketOpen": false,
-      "volume": 48568,
-      "turnover": 35600344,
+      "volume": 13668,
+      "turnover": 12574560,
       "totalTrades": 0,
       "supplyDemand": {
         "buyVolume": 0,
@@ -1683,503 +1648,10 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.574Z"
-    },
-    {
-      "symbol": "CGH",
-      "originalSymbol": "CGH",
-      "companyName": "Chandragiri Hills Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 886,
-      "open": 886,
-      "high": 886,
-      "low": 886,
-      "close": 886,
-      "previousClose": 885,
-      "change": 1,
-      "changePercent": 0.11,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.11,
-      "isMarketOpen": false,
-      "volume": 11897,
-      "turnover": 10540742,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.574Z"
-    },
-    {
-      "symbol": "CITY",
-      "originalSymbol": "CITY",
-      "companyName": "City Hotel Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 476,
-      "open": 476,
-      "high": 476,
-      "low": 476,
-      "close": 476,
-      "previousClose": 464,
-      "change": 12,
-      "changePercent": 2.59,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 12,
-      "overnightChangePercent": 2.59,
-      "isMarketOpen": false,
-      "volume": 11467,
-      "turnover": 5458292,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.575Z"
-    },
-    {
-      "symbol": "KDL",
-      "originalSymbol": "KDL",
-      "companyName": "Kalinchowk Darshan Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 840,
-      "open": 840,
-      "high": 840,
-      "low": 840,
-      "close": 840,
-      "previousClose": 841,
-      "change": -1,
-      "changePercent": -0.12,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -1,
-      "overnightChangePercent": -0.12,
-      "isMarketOpen": false,
-      "volume": 1400,
-      "turnover": 1176000,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.575Z"
-    },
-    {
-      "symbol": "OHL",
-      "originalSymbol": "OHL",
-      "companyName": "Oriental Hotels Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 691.1,
-      "open": 691.1,
-      "high": 691.1,
-      "low": 691.1,
-      "close": 691.1,
-      "previousClose": 694,
-      "change": -2.9,
-      "changePercent": -0.42,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2.9,
-      "overnightChangePercent": -0.42,
-      "isMarketOpen": false,
-      "volume": 3066,
-      "turnover": 2118912.6,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.576Z"
-    },
-    {
-      "symbol": "SHL",
-      "originalSymbol": "SHL",
-      "companyName": "Soaltee Hotel Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 480.5,
-      "open": 480.5,
-      "high": 480.5,
-      "low": 480.5,
-      "close": 480.5,
-      "previousClose": 479.5,
-      "change": 1,
-      "changePercent": 0.21,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.21,
-      "isMarketOpen": false,
-      "volume": 11182,
-      "turnover": 5372951,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.576Z"
-    },
-    {
-      "symbol": "TRH",
-      "originalSymbol": "TRH",
-      "companyName": "Taragaon Regency Hotel Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 708,
-      "open": 708,
-      "high": 708,
-      "low": 708,
-      "close": 708,
-      "previousClose": 706,
-      "change": 2,
-      "changePercent": 0.28,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 2,
-      "overnightChangePercent": 0.28,
-      "isMarketOpen": false,
-      "volume": 1080,
-      "turnover": 764640,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
-    },
-    {
-      "symbol": "HRL",
-      "originalSymbol": "HRL",
-      "companyName": "Himalayan Reinsurance Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 817,
-      "open": 817,
-      "high": 817,
-      "low": 817,
-      "close": 817,
-      "previousClose": 816.1,
-      "change": 0.9,
-      "changePercent": 0.11,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.9,
-      "overnightChangePercent": 0.11,
-      "isMarketOpen": false,
-      "volume": 66894,
-      "turnover": 54652398,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
-    },
-    {
-      "symbol": "JHAPA",
-      "originalSymbol": "JHAPA",
-      "companyName": "Jhapa Energy Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 1230,
-      "open": 1230,
-      "high": 1230,
-      "low": 1230,
-      "close": 1230,
-      "previousClose": 1236,
-      "change": -6,
-      "changePercent": -0.49,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -6,
-      "overnightChangePercent": -0.49,
-      "isMarketOpen": false,
-      "volume": 4601,
-      "turnover": 5659230,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
-    },
-    {
-      "symbol": "MKCL",
-      "originalSymbol": "MKCL",
-      "companyName": "Muktinath Krishi Company Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 1361.3,
-      "open": 1361.3,
-      "high": 1361.3,
-      "low": 1361.3,
-      "close": 1361.3,
-      "previousClose": 1366.3,
-      "change": -5,
-      "changePercent": -0.37,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -5,
-      "overnightChangePercent": -0.37,
-      "isMarketOpen": false,
-      "volume": 2038,
-      "turnover": 2774329.4,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.578Z"
-    },
-    {
-      "symbol": "NRIC",
-      "originalSymbol": "NRIC",
-      "companyName": "Nepal Reinsurance Company Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 1231,
-      "open": 1231,
-      "high": 1231,
-      "low": 1231,
-      "close": 1231,
-      "previousClose": 1234.4,
-      "change": -3.4,
-      "changePercent": -0.28,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -3.4,
-      "overnightChangePercent": -0.28,
-      "isMarketOpen": false,
-      "volume": 18419,
-      "turnover": 22673789,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.578Z"
-    },
-    {
-      "symbol": "NRM",
-      "originalSymbol": "NRM",
-      "companyName": "Nepal Republic Media Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 417,
-      "open": 417,
-      "high": 417,
-      "low": 417,
-      "close": 417,
-      "previousClose": 423.9,
-      "change": -6.9,
-      "changePercent": -1.63,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -6.9,
-      "overnightChangePercent": -1.63,
-      "isMarketOpen": false,
-      "volume": 22502,
-      "turnover": 9383334,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.578Z"
-    },
-    {
-      "symbol": "NTC",
-      "originalSymbol": "NTC",
-      "companyName": "Nepal Doorsanchar Company Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 895.4,
-      "open": 895.4,
-      "high": 895.4,
-      "low": 895.4,
-      "close": 895.4,
-      "previousClose": 899,
-      "change": -3.6,
-      "changePercent": -0.4,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -3.6,
-      "overnightChangePercent": -0.4,
-      "isMarketOpen": false,
-      "volume": 39968,
-      "turnover": 35787347.2,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.579Z"
-    },
-    {
-      "symbol": "NWCL",
-      "originalSymbol": "NWCL",
-      "companyName": "Nepal Warehousing Company Limited ",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 776,
-      "open": 776,
-      "high": 776,
-      "low": 776,
-      "close": 776,
-      "previousClose": 787,
-      "change": -11,
-      "changePercent": -1.4,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -11,
-      "overnightChangePercent": -1.4,
-      "isMarketOpen": false,
-      "volume": 1206,
-      "turnover": 935856,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.579Z"
-    },
-    {
-      "symbol": "PURE",
-      "originalSymbol": "PURE",
-      "companyName": "Pure Energy Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 915,
-      "open": 915,
-      "high": 915,
-      "low": 915,
-      "close": 915,
-      "previousClose": 917,
-      "change": -2,
-      "changePercent": -0.22,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2,
-      "overnightChangePercent": -0.22,
-      "isMarketOpen": false,
-      "volume": 13611,
-      "turnover": 12454065,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.580Z"
-    },
-    {
-      "symbol": "TTL",
-      "originalSymbol": "TTL",
-      "companyName": "Trade Tower Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 732,
-      "open": 732,
-      "high": 732,
-      "low": 732,
-      "close": 732,
-      "previousClose": 738.3,
-      "change": -6.3,
-      "changePercent": -0.85,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -6.3,
-      "overnightChangePercent": -0.85,
-      "isMarketOpen": false,
-      "volume": 14815,
-      "turnover": 10844580,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.580Z"
-    },
+      "lastUpdated": "2025-12-24T13:43:55.101Z"
+    }
+  ],
+  "trade": [
     {
       "symbol": "AHL",
       "originalSymbol": "AHL",
@@ -2211,7 +1683,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.580Z"
+      "lastUpdated": "2025-12-24T13:43:55.005Z"
     },
     {
       "symbol": "AHPC",
@@ -2244,7 +1716,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.581Z"
+      "lastUpdated": "2025-12-24T13:43:55.005Z"
     },
     {
       "symbol": "AKJCL",
@@ -2277,7 +1749,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.581Z"
+      "lastUpdated": "2025-12-24T13:43:55.006Z"
     },
     {
       "symbol": "AKPL",
@@ -2310,7 +1782,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
+      "lastUpdated": "2025-12-24T13:43:55.007Z"
     },
     {
       "symbol": "API",
@@ -2343,7 +1815,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
+      "lastUpdated": "2025-12-24T13:43:55.008Z"
     },
     {
       "symbol": "BARUN",
@@ -2376,7 +1848,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.583Z"
+      "lastUpdated": "2025-12-24T13:43:55.009Z"
     },
     {
       "symbol": "BEDC",
@@ -2409,7 +1881,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.583Z"
+      "lastUpdated": "2025-12-24T13:43:55.009Z"
     },
     {
       "symbol": "BGWT",
@@ -2442,7 +1914,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.583Z"
+      "lastUpdated": "2025-12-24T13:43:55.010Z"
     },
     {
       "symbol": "BHCL",
@@ -2475,7 +1947,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.010Z"
     },
     {
       "symbol": "BHDC",
@@ -2508,7 +1980,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.011Z"
     },
     {
       "symbol": "BHL",
@@ -2541,7 +2013,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.012Z"
     },
     {
       "symbol": "BHPL",
@@ -2574,7 +2046,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.013Z"
     },
     {
       "symbol": "BNHC",
@@ -2607,7 +2079,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.013Z"
     },
     {
       "symbol": "BPCL",
@@ -2640,7 +2112,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "BUNGAL",
@@ -2673,7 +2145,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "CHCL",
@@ -2706,7 +2178,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.016Z"
     },
     {
       "symbol": "CHL",
@@ -2739,7 +2211,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.016Z"
     },
     {
       "symbol": "CKHL",
@@ -2772,7 +2244,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.017Z"
     },
     {
       "symbol": "DHEL",
@@ -2805,7 +2277,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.587Z"
+      "lastUpdated": "2025-12-24T13:43:55.019Z"
     },
     {
       "symbol": "DHPL",
@@ -2838,7 +2310,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.587Z"
+      "lastUpdated": "2025-12-24T13:43:55.019Z"
     },
     {
       "symbol": "DOLTI",
@@ -2871,7 +2343,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.587Z"
+      "lastUpdated": "2025-12-24T13:43:55.020Z"
     },
     {
       "symbol": "DORDI",
@@ -2904,7 +2376,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
+      "lastUpdated": "2025-12-24T13:43:55.020Z"
     },
     {
       "symbol": "EHPL",
@@ -2937,7 +2409,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
+      "lastUpdated": "2025-12-24T13:43:55.021Z"
     },
     {
       "symbol": "GHL",
@@ -2970,7 +2442,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
+      "lastUpdated": "2025-12-24T13:43:55.021Z"
     },
     {
       "symbol": "GLH",
@@ -3003,7 +2475,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
+      "lastUpdated": "2025-12-24T13:43:55.022Z"
     },
     {
       "symbol": "GVL",
@@ -3036,7 +2508,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.589Z"
+      "lastUpdated": "2025-12-24T13:43:55.022Z"
     },
     {
       "symbol": "HDHPC",
@@ -3069,7 +2541,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.589Z"
+      "lastUpdated": "2025-12-24T13:43:55.022Z"
     },
     {
       "symbol": "HHL",
@@ -3102,7 +2574,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.023Z"
     },
     {
       "symbol": "HIMSTAR",
@@ -3135,7 +2607,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.023Z"
     },
     {
       "symbol": "HPPL",
@@ -3168,7 +2640,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.024Z"
     },
     {
       "symbol": "HURJA",
@@ -3201,7 +2673,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.024Z"
     },
     {
       "symbol": "IHL",
@@ -3234,7 +2706,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.591Z"
+      "lastUpdated": "2025-12-24T13:43:55.024Z"
     },
     {
       "symbol": "JOSHI",
@@ -3267,7 +2739,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.591Z"
+      "lastUpdated": "2025-12-24T13:43:55.025Z"
     },
     {
       "symbol": "KBSH",
@@ -3300,7 +2772,535 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.591Z"
+      "lastUpdated": "2025-12-24T13:43:55.025Z"
+    },
+    {
+      "symbol": "KKHC",
+      "originalSymbol": "KKHC",
+      "companyName": "Khanikhola Hydropower Co. Ltd.",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 214.7,
+      "open": 214.7,
+      "high": 214.7,
+      "low": 214.7,
+      "close": 214.7,
+      "previousClose": 214.9,
+      "change": -0.2,
+      "changePercent": -0.09,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -0.2,
+      "overnightChangePercent": -0.09,
+      "isMarketOpen": false,
+      "volume": 43772,
+      "turnover": 9397848.4,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
+    },
+    {
+      "symbol": "KPCL",
+      "originalSymbol": "KPCL",
+      "companyName": "Kalika power Company Ltd",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 531.6,
+      "open": 531.6,
+      "high": 531.6,
+      "low": 531.6,
+      "close": 531.6,
+      "previousClose": 538.9,
+      "change": -7.3,
+      "changePercent": -1.35,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -7.3,
+      "overnightChangePercent": -1.35,
+      "isMarketOpen": false,
+      "volume": 12428,
+      "turnover": 6606724.8,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
+    },
+    {
+      "symbol": "LEC",
+      "originalSymbol": "LEC",
+      "companyName": "Liberty Energy Company Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 194.5,
+      "open": 194.5,
+      "high": 194.5,
+      "low": 194.5,
+      "close": 194.5,
+      "previousClose": 195.4,
+      "change": -0.9,
+      "changePercent": -0.46,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -0.9,
+      "overnightChangePercent": -0.46,
+      "isMarketOpen": false,
+      "volume": 73296,
+      "turnover": 14256072,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
+    },
+    {
+      "symbol": "MABEL",
+      "originalSymbol": "MABEL",
+      "companyName": "Mabilung Energy Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 690,
+      "open": 690,
+      "high": 690,
+      "low": 690,
+      "close": 690,
+      "previousClose": 693.7,
+      "change": -3.7,
+      "changePercent": -0.53,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -3.7,
+      "overnightChangePercent": -0.53,
+      "isMarketOpen": false,
+      "volume": 14037,
+      "turnover": 9685530,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
+    },
+    {
+      "symbol": "MAKAR",
+      "originalSymbol": "MAKAR",
+      "companyName": "Makar Jitumaya Suri Hydropower Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 552.2,
+      "open": 552.2,
+      "high": 552.2,
+      "low": 552.2,
+      "close": 552.2,
+      "previousClose": 549.7,
+      "change": 2.5,
+      "changePercent": 0.45,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 2.5,
+      "overnightChangePercent": 0.45,
+      "isMarketOpen": false,
+      "volume": 6137,
+      "turnover": 3388851.4,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.027Z"
+    },
+    {
+      "symbol": "MANDU",
+      "originalSymbol": "MANDU",
+      "companyName": "Mandu Hydropower Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 793.5,
+      "open": 793.5,
+      "high": 793.5,
+      "low": 793.5,
+      "close": 793.5,
+      "previousClose": 791,
+      "change": 2.5,
+      "changePercent": 0.32,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 2.5,
+      "overnightChangePercent": 0.32,
+      "isMarketOpen": false,
+      "volume": 1067,
+      "turnover": 846664.5,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.027Z"
+    },
+    {
+      "symbol": "MBJC",
+      "originalSymbol": "MBJC",
+      "companyName": "Madhya Bhotekoshi Jalavidyut Company Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 280.3,
+      "open": 280.3,
+      "high": 280.3,
+      "low": 280.3,
+      "close": 280.3,
+      "previousClose": 280.1,
+      "change": 0.2,
+      "changePercent": 0.07,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 0.2,
+      "overnightChangePercent": 0.07,
+      "isMarketOpen": false,
+      "volume": 25039,
+      "turnover": 7018431.7,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.027Z"
+    },
+    {
+      "symbol": "MCHL",
+      "originalSymbol": "MCHL",
+      "companyName": "Menchhiyam Hydropower Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 456.1,
+      "open": 456.1,
+      "high": 456.1,
+      "low": 456.1,
+      "close": 456.1,
+      "previousClose": 454,
+      "change": 2.1,
+      "changePercent": 0.46,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 2.1,
+      "overnightChangePercent": 0.46,
+      "isMarketOpen": false,
+      "volume": 4585,
+      "turnover": 2091218.5,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.028Z"
+    },
+    {
+      "symbol": "MEHL",
+      "originalSymbol": "MEHL",
+      "companyName": "Manakamana Engineering Hydropower Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 425,
+      "open": 425,
+      "high": 425,
+      "low": 425,
+      "close": 425,
+      "previousClose": 430,
+      "change": -5,
+      "changePercent": -1.16,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -5,
+      "overnightChangePercent": -1.16,
+      "isMarketOpen": false,
+      "volume": 19844,
+      "turnover": 8433700,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.030Z"
+    },
+    {
+      "symbol": "MEL",
+      "originalSymbol": "MEL",
+      "companyName": "Modi Energy Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 265,
+      "open": 265,
+      "high": 265,
+      "low": 265,
+      "close": 265,
+      "previousClose": 266,
+      "change": -1,
+      "changePercent": -0.38,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -1,
+      "overnightChangePercent": -0.38,
+      "isMarketOpen": false,
+      "volume": 8983,
+      "turnover": 2380495,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.031Z"
+    },
+    {
+      "symbol": "MEN",
+      "originalSymbol": "MEN",
+      "companyName": "Mountain Energy Nepal Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 560,
+      "open": 560,
+      "high": 560,
+      "low": 560,
+      "close": 560,
+      "previousClose": 565,
+      "change": -5,
+      "changePercent": -0.88,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -5,
+      "overnightChangePercent": -0.88,
+      "isMarketOpen": false,
+      "volume": 40504,
+      "turnover": 22682240,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.031Z"
+    },
+    {
+      "symbol": "MHCL",
+      "originalSymbol": "MHCL",
+      "companyName": "Molung Hydropower Company Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 382,
+      "open": 382,
+      "high": 382,
+      "low": 382,
+      "close": 382,
+      "previousClose": 384,
+      "change": -2,
+      "changePercent": -0.52,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -2,
+      "overnightChangePercent": -0.52,
+      "isMarketOpen": false,
+      "volume": 5675,
+      "turnover": 2167850,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.032Z"
+    },
+    {
+      "symbol": "MHL",
+      "originalSymbol": "MHL",
+      "companyName": "Mandakini Hydropower Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 475,
+      "open": 475,
+      "high": 475,
+      "low": 475,
+      "close": 475,
+      "previousClose": 479.8,
+      "change": -4.8,
+      "changePercent": -1,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -4.8,
+      "overnightChangePercent": -1,
+      "isMarketOpen": false,
+      "volume": 6260,
+      "turnover": 2973500,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.033Z"
+    },
+    {
+      "symbol": "MHNL",
+      "originalSymbol": "MHNL",
+      "companyName": "Mountain Hydro Nepal Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 241.6,
+      "open": 241.6,
+      "high": 241.6,
+      "low": 241.6,
+      "close": 241.6,
+      "previousClose": 244.9,
+      "change": -3.3,
+      "changePercent": -1.35,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -3.3,
+      "overnightChangePercent": -1.35,
+      "isMarketOpen": false,
+      "volume": 6887,
+      "turnover": 1663899.2,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.033Z"
+    },
+    {
+      "symbol": "MKHC",
+      "originalSymbol": "MKHC",
+      "companyName": "Maya Khola Hydropower Company Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 357,
+      "open": 357,
+      "high": 357,
+      "low": 357,
+      "close": 357,
+      "previousClose": 364,
+      "change": -7,
+      "changePercent": -1.92,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -7,
+      "overnightChangePercent": -1.92,
+      "isMarketOpen": false,
+      "volume": 5569,
+      "turnover": 1988133,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.034Z"
+    },
+    {
+      "symbol": "MKHL",
+      "originalSymbol": "MKHL",
+      "companyName": "Mai Khola Hydropower Limited",
+      "sector": "Hydro Power",
+      "sectorId": 54,
+      "ltp": 788.9,
+      "open": 788.9,
+      "high": 788.9,
+      "low": 788.9,
+      "close": 788.9,
+      "previousClose": 798,
+      "change": -9.1,
+      "changePercent": -1.14,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -9.1,
+      "overnightChangePercent": -1.14,
+      "isMarketOpen": false,
+      "volume": 5880,
+      "turnover": 4638732,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.035Z"
     }
   ],
   "volume": [
@@ -3335,7 +3335,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.611Z"
+      "lastUpdated": "2025-12-24T13:43:55.058Z"
     },
     {
       "symbol": "NGPL",
@@ -3368,7 +3368,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.598Z"
+      "lastUpdated": "2025-12-24T13:43:55.039Z"
     },
     {
       "symbol": "SYPNL",
@@ -3401,7 +3401,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
+      "lastUpdated": "2025-12-24T13:43:55.088Z"
     },
     {
       "symbol": "RFPL",
@@ -3434,7 +3434,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.604Z"
+      "lastUpdated": "2025-12-24T13:43:55.045Z"
     },
     {
       "symbol": "AHPC",
@@ -3467,7 +3467,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.581Z"
+      "lastUpdated": "2025-12-24T13:43:55.005Z"
     },
     {
       "symbol": "SSHL",
@@ -3500,7 +3500,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.610Z"
+      "lastUpdated": "2025-12-24T13:43:55.057Z"
     },
     {
       "symbol": "SPDL",
@@ -3533,7 +3533,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.055Z"
     },
     {
       "symbol": "PHCL",
@@ -3566,7 +3566,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.602Z"
+      "lastUpdated": "2025-12-24T13:43:55.041Z"
     },
     {
       "symbol": "UPCL",
@@ -3599,7 +3599,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
+      "lastUpdated": "2025-12-24T13:43:55.062Z"
+    },
+    {
+      "symbol": "LBBL",
+      "originalSymbol": "LBBL",
+      "companyName": "Lumbini Bikas Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 461.9,
+      "open": 461.9,
+      "high": 461.9,
+      "low": 461.9,
+      "close": 461.9,
+      "previousClose": 479,
+      "change": -17.1,
+      "changePercent": -3.57,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -17.1,
+      "overnightChangePercent": -3.57,
+      "isMarketOpen": false,
+      "volume": 84716,
+      "turnover": 39130320.4,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.070Z"
     },
     {
       "symbol": "SHIVM",
@@ -3632,7 +3665,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
+      "lastUpdated": "2025-12-24T13:43:55.087Z"
     },
     {
       "symbol": "BARUN",
@@ -3665,7 +3698,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.583Z"
+      "lastUpdated": "2025-12-24T13:43:55.009Z"
     },
     {
       "symbol": "NHPC",
@@ -3698,7 +3731,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.601Z"
+      "lastUpdated": "2025-12-24T13:43:55.040Z"
     },
     {
       "symbol": "LEC",
@@ -3731,40 +3764,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.592Z"
-    },
-    {
-      "symbol": "HRL",
-      "originalSymbol": "HRL",
-      "companyName": "Himalayan Reinsurance Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 817,
-      "open": 817,
-      "high": 817,
-      "low": 817,
-      "close": 817,
-      "previousClose": 816.1,
-      "change": 0.9,
-      "changePercent": 0.11,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.9,
-      "overnightChangePercent": 0.11,
-      "isMarketOpen": false,
-      "volume": 66894,
-      "turnover": 54652398,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
     },
     {
       "symbol": "CHCL",
@@ -3797,7 +3797,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.016Z"
     },
     {
       "symbol": "SHPC",
@@ -3830,7 +3830,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.607Z"
+      "lastUpdated": "2025-12-24T13:43:55.051Z"
     },
     {
       "symbol": "RADHI",
@@ -3863,7 +3863,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.603Z"
+      "lastUpdated": "2025-12-24T13:43:55.044Z"
     },
     {
       "symbol": "HPPL",
@@ -3896,7 +3896,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.024Z"
     },
     {
       "symbol": "API",
@@ -3929,7 +3929,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
+      "lastUpdated": "2025-12-24T13:43:55.008Z"
     },
     {
       "symbol": "PPL",
@@ -3962,7 +3962,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.603Z"
+      "lastUpdated": "2025-12-24T13:43:55.043Z"
     },
     {
       "symbol": "UNHPL",
@@ -3995,7 +3995,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
+      "lastUpdated": "2025-12-24T13:43:55.062Z"
     },
     {
       "symbol": "GVL",
@@ -4028,7 +4028,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.589Z"
+      "lastUpdated": "2025-12-24T13:43:55.022Z"
     },
     {
       "symbol": "BUNGAL",
@@ -4061,7 +4061,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "BPCL",
@@ -4094,7 +4094,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "AKJCL",
@@ -4127,7 +4127,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.581Z"
+      "lastUpdated": "2025-12-24T13:43:55.006Z"
+    },
+    {
+      "symbol": "ALBSL",
+      "originalSymbol": "ALBSL",
+      "companyName": "Asha Laghubitta Bittiya Sanstha Ltd",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1176,
+      "open": 1176,
+      "high": 1176,
+      "low": 1176,
+      "close": 1176,
+      "previousClose": 1134,
+      "change": 42,
+      "changePercent": 3.7,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 42,
+      "overnightChangePercent": 3.7,
+      "isMarketOpen": false,
+      "volume": 51536,
+      "turnover": 60606336,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.089Z"
     },
     {
       "symbol": "HIMSTAR",
@@ -4160,7 +4193,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.023Z"
     },
     {
       "symbol": "AKPL",
@@ -4193,7 +4226,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
+      "lastUpdated": "2025-12-24T13:43:55.007Z"
     },
     {
       "symbol": "BHCL",
@@ -4226,40 +4259,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
-    },
-    {
-      "symbol": "BANDIPUR",
-      "originalSymbol": "BANDIPUR",
-      "companyName": "Bandipur Cablecar and Tourism Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 733,
-      "open": 733,
-      "high": 733,
-      "low": 733,
-      "close": 733,
-      "previousClose": 733,
-      "change": 0,
-      "changePercent": 0,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0,
-      "overnightChangePercent": 0,
-      "isMarketOpen": false,
-      "volume": 48568,
-      "turnover": 35600344,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.574Z"
+      "lastUpdated": "2025-12-24T13:43:55.010Z"
     },
     {
       "symbol": "UMHL",
@@ -4292,7 +4292,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.612Z"
+      "lastUpdated": "2025-12-24T13:43:55.060Z"
     },
     {
       "symbol": "SAHAS",
@@ -4325,7 +4325,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.606Z"
+      "lastUpdated": "2025-12-24T13:43:55.048Z"
     },
     {
       "symbol": "SPC",
@@ -4358,7 +4358,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.054Z"
     },
     {
       "symbol": "KKHC",
@@ -4391,7 +4391,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.592Z"
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
     },
     {
       "symbol": "BHPL",
@@ -4424,7 +4424,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.013Z"
     },
     {
       "symbol": "RIDI",
@@ -4457,7 +4457,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.605Z"
+      "lastUpdated": "2025-12-24T13:43:55.047Z"
+    },
+    {
+      "symbol": "MNBBL",
+      "originalSymbol": "MNBBL",
+      "companyName": "Muktinath Bikas Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 342.6,
+      "open": 342.6,
+      "high": 342.6,
+      "low": 342.6,
+      "close": 342.6,
+      "previousClose": 343.6,
+      "change": -1,
+      "changePercent": -0.29,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -1,
+      "overnightChangePercent": -0.29,
+      "isMarketOpen": false,
+      "volume": 40508,
+      "turnover": 13878040.8,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.073Z"
     },
     {
       "symbol": "MEN",
@@ -4490,7 +4523,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.594Z"
+      "lastUpdated": "2025-12-24T13:43:55.031Z"
     },
     {
       "symbol": "SAIL",
@@ -4523,7 +4556,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.617Z"
+      "lastUpdated": "2025-12-24T13:43:55.086Z"
     },
     {
       "symbol": "UPPER",
@@ -4556,40 +4589,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
-    },
-    {
-      "symbol": "NTC",
-      "originalSymbol": "NTC",
-      "companyName": "Nepal Doorsanchar Company Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 895.4,
-      "open": 895.4,
-      "high": 895.4,
-      "low": 895.4,
-      "close": 895.4,
-      "previousClose": 899,
-      "change": -3.6,
-      "changePercent": -0.4,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -3.6,
-      "overnightChangePercent": -0.4,
-      "isMarketOpen": false,
-      "volume": 39968,
-      "turnover": 35787347.2,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.579Z"
+      "lastUpdated": "2025-12-24T13:43:55.063Z"
     },
     {
       "symbol": "BHL",
@@ -4622,7 +4622,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.012Z"
     },
     {
       "symbol": "SHEL",
@@ -4655,7 +4655,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.607Z"
+      "lastUpdated": "2025-12-24T13:43:55.050Z"
+    },
+    {
+      "symbol": "SKBBL",
+      "originalSymbol": "SKBBL",
+      "companyName": "Sana Kisan Bikas Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 762,
+      "open": 762,
+      "high": 762,
+      "low": 762,
+      "close": 762,
+      "previousClose": 771.99,
+      "change": -9.99,
+      "changePercent": -1.29,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -9.99,
+      "overnightChangePercent": -1.29,
+      "isMarketOpen": false,
+      "volume": 34858,
+      "turnover": 26561796,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.100Z"
     },
     {
       "symbol": "UMRH",
@@ -4688,7 +4721,73 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
+      "lastUpdated": "2025-12-24T13:43:55.061Z"
+    },
+    {
+      "symbol": "MLBL",
+      "originalSymbol": "MLBL",
+      "companyName": "Mahalaxmi Bikas Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 354.5,
+      "open": 354.5,
+      "high": 354.5,
+      "low": 354.5,
+      "close": 354.5,
+      "previousClose": 355,
+      "change": -0.5,
+      "changePercent": -0.14,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -0.5,
+      "overnightChangePercent": -0.14,
+      "isMarketOpen": false,
+      "volume": 33102,
+      "turnover": 11734659,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.072Z"
+    },
+    {
+      "symbol": "NABBC",
+      "originalSymbol": "NABBC",
+      "companyName": "Narayani Development Bank Limited",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 1145,
+      "open": 1145,
+      "high": 1145,
+      "low": 1145,
+      "close": 1145,
+      "previousClose": 1161,
+      "change": -16,
+      "changePercent": -1.38,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -16,
+      "overnightChangePercent": -1.38,
+      "isMarketOpen": false,
+      "volume": 32078,
+      "turnover": 36729310,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.073Z"
     },
     {
       "symbol": "JOSHI",
@@ -4721,7 +4820,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.591Z"
+      "lastUpdated": "2025-12-24T13:43:55.025Z"
     },
     {
       "symbol": "HHL",
@@ -4754,7 +4853,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.023Z"
     },
     {
       "symbol": "RHGCL",
@@ -4787,7 +4886,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.604Z"
+      "lastUpdated": "2025-12-24T13:43:55.046Z"
     },
     {
       "symbol": "UHEWA",
@@ -4820,7 +4919,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.612Z"
+      "lastUpdated": "2025-12-24T13:43:55.060Z"
     },
     {
       "symbol": "HDHPC",
@@ -4853,109 +4952,43 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.589Z"
-    },
-    {
-      "symbol": "DORDI",
-      "originalSymbol": "DORDI",
-      "companyName": "Dordi Khola Jal Bidyut Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 248.1,
-      "open": 248.1,
-      "high": 248.1,
-      "low": 248.1,
-      "close": 248.1,
-      "previousClose": 248,
-      "change": 0.1,
-      "changePercent": 0.04,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.1,
-      "overnightChangePercent": 0.04,
-      "isMarketOpen": false,
-      "volume": 25540,
-      "turnover": 6336474,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
-    },
-    {
-      "symbol": "SONA",
-      "originalSymbol": "SONA",
-      "companyName": "Sonapur Minerals And Oil Limited",
-      "sector": "Manufacturing And Processing",
-      "sectorId": 56,
-      "ltp": 414.8,
-      "open": 414.8,
-      "high": 414.8,
-      "low": 414.8,
-      "close": 414.8,
-      "previousClose": 412.5,
-      "change": 2.3,
-      "changePercent": 0.56,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 2.3,
-      "overnightChangePercent": 0.56,
-      "isMarketOpen": false,
-      "volume": 25341,
-      "turnover": 10511446.8,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
-    },
-    {
-      "symbol": "MBJC",
-      "originalSymbol": "MBJC",
-      "companyName": "Madhya Bhotekoshi Jalavidyut Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 280.3,
-      "open": 280.3,
-      "high": 280.3,
-      "low": 280.3,
-      "close": 280.3,
-      "previousClose": 280.1,
-      "change": 0.2,
-      "changePercent": 0.07,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.2,
-      "overnightChangePercent": 0.07,
-      "isMarketOpen": false,
-      "volume": 25039,
-      "turnover": 7018431.7,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.593Z"
+      "lastUpdated": "2025-12-24T13:43:55.022Z"
     }
   ],
   "gainers": [
+    {
+      "symbol": "ILBS",
+      "originalSymbol": "ILBS",
+      "companyName": "Infinity Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 989,
+      "open": 989,
+      "high": 989,
+      "low": 989,
+      "close": 989,
+      "previousClose": 939,
+      "change": 50,
+      "changePercent": 5.32,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 50,
+      "overnightChangePercent": 5.32,
+      "isMarketOpen": false,
+      "volume": 10624,
+      "turnover": 10507136,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.094Z"
+    },
     {
       "symbol": "NHPC",
       "originalSymbol": "NHPC",
@@ -4987,7 +5020,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.601Z"
+      "lastUpdated": "2025-12-24T13:43:55.040Z"
     },
     {
       "symbol": "HIMSTAR",
@@ -5020,7 +5053,73 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.023Z"
+    },
+    {
+      "symbol": "ALBSL",
+      "originalSymbol": "ALBSL",
+      "companyName": "Asha Laghubitta Bittiya Sanstha Ltd",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1176,
+      "open": 1176,
+      "high": 1176,
+      "low": 1176,
+      "close": 1176,
+      "previousClose": 1134,
+      "change": 42,
+      "changePercent": 3.7,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 42,
+      "overnightChangePercent": 3.7,
+      "isMarketOpen": false,
+      "volume": 51536,
+      "turnover": 60606336,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.089Z"
+    },
+    {
+      "symbol": "LLBS",
+      "originalSymbol": "LLBS",
+      "companyName": "Laxmi Laghubitta Bittiya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 961.8,
+      "open": 961.8,
+      "high": 961.8,
+      "low": 961.8,
+      "close": 961.8,
+      "previousClose": 928,
+      "change": 33.8,
+      "changePercent": 3.64,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 33.8,
+      "overnightChangePercent": 3.64,
+      "isMarketOpen": false,
+      "volume": 1345,
+      "turnover": 1293621,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.095Z"
     },
     {
       "symbol": "TPC",
@@ -5053,40 +5152,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.611Z"
-    },
-    {
-      "symbol": "CITY",
-      "originalSymbol": "CITY",
-      "companyName": "City Hotel Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 476,
-      "open": 476,
-      "high": 476,
-      "low": 476,
-      "close": 476,
-      "previousClose": 464,
-      "change": 12,
-      "changePercent": 2.59,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 12,
-      "overnightChangePercent": 2.59,
-      "isMarketOpen": false,
-      "volume": 11467,
-      "turnover": 5458292,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.575Z"
+      "lastUpdated": "2025-12-24T13:43:55.058Z"
     },
     {
       "symbol": "CHL",
@@ -5119,7 +5185,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.016Z"
+    },
+    {
+      "symbol": "KMCDB",
+      "originalSymbol": "KMCDB",
+      "companyName": "Kalika Laghubitta Bittiya Sanstha Ltd",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1036.9,
+      "open": 1036.9,
+      "high": 1036.9,
+      "low": 1036.9,
+      "close": 1036.9,
+      "previousClose": 1015,
+      "change": 21.9,
+      "changePercent": 2.16,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 21.9,
+      "overnightChangePercent": 2.16,
+      "isMarketOpen": false,
+      "volume": 4804,
+      "turnover": 4981267.6,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.095Z"
     },
     {
       "symbol": "BNL",
@@ -5152,7 +5251,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.615Z"
+      "lastUpdated": "2025-12-24T13:43:55.077Z"
+    },
+    {
+      "symbol": "NESDO",
+      "originalSymbol": "NESDO",
+      "companyName": "NESDO Sambridha Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1477,
+      "open": 1477,
+      "high": 1477,
+      "low": 1477,
+      "close": 1477,
+      "previousClose": 1450,
+      "change": 27,
+      "changePercent": 1.86,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 27,
+      "overnightChangePercent": 1.86,
+      "isMarketOpen": false,
+      "volume": 1040,
+      "turnover": 1536080,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.097Z"
     },
     {
       "symbol": "AHL",
@@ -5185,7 +5317,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.580Z"
+      "lastUpdated": "2025-12-24T13:43:55.005Z"
+    },
+    {
+      "symbol": "SHLB",
+      "originalSymbol": "SHLB",
+      "companyName": "Shrijanshil Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1658,
+      "open": 1658,
+      "high": 1658,
+      "low": 1658,
+      "close": 1658,
+      "previousClose": 1630,
+      "change": 28,
+      "changePercent": 1.72,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 28,
+      "overnightChangePercent": 1.72,
+      "isMarketOpen": false,
+      "volume": 282,
+      "turnover": 467556,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.100Z"
     },
     {
       "symbol": "SPC",
@@ -5218,7 +5383,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.054Z"
     },
     {
       "symbol": "NHDL",
@@ -5251,7 +5416,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.600Z"
+      "lastUpdated": "2025-12-24T13:43:55.040Z"
     },
     {
       "symbol": "MSHL",
@@ -5284,7 +5449,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.598Z"
+      "lastUpdated": "2025-12-24T13:43:55.038Z"
+    },
+    {
+      "symbol": "MLBS",
+      "originalSymbol": "MLBS",
+      "companyName": "Manushi Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1485,
+      "open": 1485,
+      "high": 1485,
+      "low": 1485,
+      "close": 1485,
+      "previousClose": 1466.3,
+      "change": 18.7,
+      "changePercent": 1.28,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 18.7,
+      "overnightChangePercent": 1.28,
+      "isMarketOpen": false,
+      "volume": 297,
+      "turnover": 441045,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.096Z"
     },
     {
       "symbol": "BARUN",
@@ -5317,7 +5515,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.583Z"
+      "lastUpdated": "2025-12-24T13:43:55.009Z"
     },
     {
       "symbol": "MKJC",
@@ -5350,7 +5548,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.597Z"
+      "lastUpdated": "2025-12-24T13:43:55.036Z"
     },
     {
       "symbol": "BPCL",
@@ -5383,7 +5581,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "SYPNL",
@@ -5416,7 +5614,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
+      "lastUpdated": "2025-12-24T13:43:55.088Z"
     },
     {
       "symbol": "UMHL",
@@ -5449,7 +5647,73 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.612Z"
+      "lastUpdated": "2025-12-24T13:43:55.060Z"
+    },
+    {
+      "symbol": "FMDBL",
+      "originalSymbol": "FMDBL",
+      "companyName": "First Micro Finance Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 778,
+      "open": 778,
+      "high": 778,
+      "low": 778,
+      "close": 778,
+      "previousClose": 770,
+      "change": 8,
+      "changePercent": 1.04,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 8,
+      "overnightChangePercent": 1.04,
+      "isMarketOpen": false,
+      "volume": 9293,
+      "turnover": 7229954,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.091Z"
+    },
+    {
+      "symbol": "RSDC",
+      "originalSymbol": "RSDC",
+      "companyName": "RSDC Laghubitta Bittiya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 634,
+      "open": 634,
+      "high": 634,
+      "low": 634,
+      "close": 634,
+      "previousClose": 627.7,
+      "change": 6.3,
+      "changePercent": 1,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 6.3,
+      "overnightChangePercent": 1,
+      "isMarketOpen": false,
+      "volume": 7238,
+      "turnover": 4588892,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.099Z"
     },
     {
       "symbol": "SMJC",
@@ -5482,7 +5746,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.054Z"
+    },
+    {
+      "symbol": "MATRI",
+      "originalSymbol": "MATRI",
+      "companyName": "Matribhumi Lagubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 988,
+      "open": 988,
+      "high": 988,
+      "low": 988,
+      "close": 988,
+      "previousClose": 979.9,
+      "change": 8.1,
+      "changePercent": 0.83,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 8.1,
+      "overnightChangePercent": 0.83,
+      "isMarketOpen": false,
+      "volume": 1313,
+      "turnover": 1297244,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.095Z"
     },
     {
       "symbol": "CHCL",
@@ -5515,7 +5812,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.016Z"
     },
     {
       "symbol": "HURJA",
@@ -5548,7 +5845,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.024Z"
+    },
+    {
+      "symbol": "JBLB",
+      "originalSymbol": "JBLB",
+      "companyName": "Jeevan Bikas Laghubitta  Bittya Sanstha Ltd",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1430,
+      "open": 1430,
+      "high": 1430,
+      "low": 1430,
+      "close": 1430,
+      "previousClose": 1420,
+      "change": 10,
+      "changePercent": 0.7,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 10,
+      "overnightChangePercent": 0.7,
+      "isMarketOpen": false,
+      "volume": 6390,
+      "turnover": 9137700,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.094Z"
     },
     {
       "symbol": "RADHI",
@@ -5581,7 +5911,73 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.603Z"
+      "lastUpdated": "2025-12-24T13:43:55.044Z"
+    },
+    {
+      "symbol": "CBBL",
+      "originalSymbol": "CBBL",
+      "companyName": "Chhimek Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1027.9,
+      "open": 1027.9,
+      "high": 1027.9,
+      "low": 1027.9,
+      "close": 1027.9,
+      "previousClose": 1021,
+      "change": 6.9,
+      "changePercent": 0.68,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 6.9,
+      "overnightChangePercent": 0.68,
+      "isMarketOpen": false,
+      "volume": 17968,
+      "turnover": 18469307.2,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.090Z"
+    },
+    {
+      "symbol": "USLB",
+      "originalSymbol": "USLB",
+      "companyName": "Unnati Sahakarya Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1464,
+      "open": 1464,
+      "high": 1464,
+      "low": 1464,
+      "close": 1464,
+      "previousClose": 1455,
+      "change": 9,
+      "changePercent": 0.62,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 9,
+      "overnightChangePercent": 0.62,
+      "isMarketOpen": false,
+      "volume": 2849,
+      "turnover": 4170936,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.105Z"
     },
     {
       "symbol": "BHL",
@@ -5614,7 +6010,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.012Z"
     },
     {
       "symbol": "SONA",
@@ -5647,7 +6043,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.618Z"
+      "lastUpdated": "2025-12-24T13:43:55.087Z"
     },
     {
       "symbol": "RFPL",
@@ -5680,7 +6076,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.604Z"
+      "lastUpdated": "2025-12-24T13:43:55.045Z"
+    },
+    {
+      "symbol": "MLBBL",
+      "originalSymbol": "MLBBL",
+      "companyName": "Mithila LaghuBitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1498,
+      "open": 1498,
+      "high": 1498,
+      "low": 1498,
+      "close": 1498,
+      "previousClose": 1490,
+      "change": 8,
+      "changePercent": 0.54,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 8,
+      "overnightChangePercent": 0.54,
+      "isMarketOpen": false,
+      "volume": 2736,
+      "turnover": 4098528,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.096Z"
     },
     {
       "symbol": "EHPL",
@@ -5713,7 +6142,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
+      "lastUpdated": "2025-12-24T13:43:55.021Z"
+    },
+    {
+      "symbol": "SMATA",
+      "originalSymbol": "SMATA",
+      "companyName": "Samata Gharelu Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 794.4,
+      "open": 794.4,
+      "high": 794.4,
+      "low": 794.4,
+      "close": 794.4,
+      "previousClose": 790.5,
+      "change": 3.9,
+      "changePercent": 0.49,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 3.9,
+      "overnightChangePercent": 0.49,
+      "isMarketOpen": false,
+      "volume": 5395,
+      "turnover": 4285788,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.102Z"
     },
     {
       "symbol": "MCHL",
@@ -5746,7 +6208,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.594Z"
+      "lastUpdated": "2025-12-24T13:43:55.028Z"
     },
     {
       "symbol": "ULHC",
@@ -5779,7 +6241,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.612Z"
+      "lastUpdated": "2025-12-24T13:43:55.060Z"
     },
     {
       "symbol": "MAKAR",
@@ -5812,7 +6274,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.593Z"
+      "lastUpdated": "2025-12-24T13:43:55.027Z"
     },
     {
       "symbol": "BNT",
@@ -5845,7 +6307,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.615Z"
+      "lastUpdated": "2025-12-24T13:43:55.078Z"
     },
     {
       "symbol": "UNL",
@@ -5878,7 +6340,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.619Z"
+      "lastUpdated": "2025-12-24T13:43:55.088Z"
+    },
+    {
+      "symbol": "SLBSL",
+      "originalSymbol": "SLBSL",
+      "companyName": "Samudayik Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1303.2,
+      "open": 1303.2,
+      "high": 1303.2,
+      "low": 1303.2,
+      "close": 1303.2,
+      "previousClose": 1298,
+      "change": 5.2,
+      "changePercent": 0.4,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 5.2,
+      "overnightChangePercent": 0.4,
+      "isMarketOpen": false,
+      "volume": 1700,
+      "turnover": 2215440,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.101Z"
     },
     {
       "symbol": "API",
@@ -5911,7 +6406,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
+      "lastUpdated": "2025-12-24T13:43:55.008Z"
     },
     {
       "symbol": "DHPL",
@@ -5944,7 +6439,106 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.587Z"
+      "lastUpdated": "2025-12-24T13:43:55.019Z"
+    },
+    {
+      "symbol": "GLBSL",
+      "originalSymbol": "GLBSL",
+      "companyName": "Gurans Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 2000,
+      "open": 2000,
+      "high": 2000,
+      "low": 2000,
+      "close": 2000,
+      "previousClose": 1993,
+      "change": 7,
+      "changePercent": 0.35,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 7,
+      "overnightChangePercent": 0.35,
+      "isMarketOpen": false,
+      "volume": 1619,
+      "turnover": 3238000,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.093Z"
+    },
+    {
+      "symbol": "MDB",
+      "originalSymbol": "MDB",
+      "companyName": "Miteri Development Bank Limited",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 562,
+      "open": 562,
+      "high": 562,
+      "low": 562,
+      "close": 562,
+      "previousClose": 560.1,
+      "change": 1.9,
+      "changePercent": 0.34,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 1.9,
+      "overnightChangePercent": 0.34,
+      "isMarketOpen": false,
+      "volume": 5336,
+      "turnover": 2998832,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.071Z"
+    },
+    {
+      "symbol": "ANLB",
+      "originalSymbol": "ANLB",
+      "companyName": "Aatmanirbhar Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 6150,
+      "open": 6150,
+      "high": 6150,
+      "low": 6150,
+      "close": 6150,
+      "previousClose": 6128.9,
+      "change": 21.1,
+      "changePercent": 0.34,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": 21.1,
+      "overnightChangePercent": 0.34,
+      "isMarketOpen": false,
+      "volume": 515,
+      "turnover": 3167250,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.089Z"
     },
     {
       "symbol": "MANDU",
@@ -5977,7 +6571,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.593Z"
+      "lastUpdated": "2025-12-24T13:43:55.027Z"
     },
     {
       "symbol": "MMKJL",
@@ -6010,604 +6604,76 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.598Z"
-    },
-    {
-      "symbol": "TRH",
-      "originalSymbol": "TRH",
-      "companyName": "Taragaon Regency Hotel Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 708,
-      "open": 708,
-      "high": 708,
-      "low": 708,
-      "close": 708,
-      "previousClose": 706,
-      "change": 2,
-      "changePercent": 0.28,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 2,
-      "overnightChangePercent": 0.28,
-      "isMarketOpen": false,
-      "volume": 1080,
-      "turnover": 764640,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
-    },
-    {
-      "symbol": "SAHAS",
-      "originalSymbol": "SAHAS",
-      "companyName": "Sahas Urja Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 543,
-      "open": 543,
-      "high": 543,
-      "low": 543,
-      "close": 543,
-      "previousClose": 541.5,
-      "change": 1.5,
-      "changePercent": 0.28,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1.5,
-      "overnightChangePercent": 0.28,
-      "isMarketOpen": false,
-      "volume": 46386,
-      "turnover": 25187598,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.606Z"
-    },
-    {
-      "symbol": "BNHC",
-      "originalSymbol": "BNHC",
-      "companyName": "Buddha Bhumi Nepal Hydropower Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 436.8,
-      "open": 436.8,
-      "high": 436.8,
-      "low": 436.8,
-      "close": 436.8,
-      "previousClose": 435.8,
-      "change": 1,
-      "changePercent": 0.23,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.23,
-      "isMarketOpen": false,
-      "volume": 2812,
-      "turnover": 1228281.6,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
-    },
-    {
-      "symbol": "SPDL",
-      "originalSymbol": "SPDL",
-      "companyName": "Synergy Power Development Ltd.",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 416.9,
-      "open": 416.9,
-      "high": 416.9,
-      "low": 416.9,
-      "close": 416.9,
-      "previousClose": 416,
-      "change": 0.9,
-      "changePercent": 0.22,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.9,
-      "overnightChangePercent": 0.22,
-      "isMarketOpen": false,
-      "volume": 89560,
-      "turnover": 37337564,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
-    },
-    {
-      "symbol": "SHL",
-      "originalSymbol": "SHL",
-      "companyName": "Soaltee Hotel Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 480.5,
-      "open": 480.5,
-      "high": 480.5,
-      "low": 480.5,
-      "close": 480.5,
-      "previousClose": 479.5,
-      "change": 1,
-      "changePercent": 0.21,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.21,
-      "isMarketOpen": false,
-      "volume": 11182,
-      "turnover": 5372951,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.576Z"
-    },
-    {
-      "symbol": "UMRH",
-      "originalSymbol": "UMRH",
-      "companyName": "United IDI Mardi RB Hydropower Limited.",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 541,
-      "open": 541,
-      "high": 541,
-      "low": 541,
-      "close": 541,
-      "previousClose": 539.9,
-      "change": 1.1,
-      "changePercent": 0.2,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1.1,
-      "overnightChangePercent": 0.2,
-      "isMarketOpen": false,
-      "volume": 34687,
-      "turnover": 18765667,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
-    },
-    {
-      "symbol": "BHPL",
-      "originalSymbol": "BHPL",
-      "companyName": "Barahi Hydropower Public Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 519,
-      "open": 519,
-      "high": 519,
-      "low": 519,
-      "close": 519,
-      "previousClose": 518,
-      "change": 1,
-      "changePercent": 0.19,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.19,
-      "isMarketOpen": false,
-      "volume": 43247,
-      "turnover": 22445193,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
-    },
-    {
-      "symbol": "RAWA",
-      "originalSymbol": "RAWA",
-      "companyName": "Rawa Energy Development Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 713,
-      "open": 713,
-      "high": 713,
-      "low": 713,
-      "close": 713,
-      "previousClose": 712,
-      "change": 1,
-      "changePercent": 0.14,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.14,
-      "isMarketOpen": false,
-      "volume": 2311,
-      "turnover": 1647743,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.604Z"
-    },
-    {
-      "symbol": "CGH",
-      "originalSymbol": "CGH",
-      "companyName": "Chandragiri Hills Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 886,
-      "open": 886,
-      "high": 886,
-      "low": 886,
-      "close": 886,
-      "previousClose": 885,
-      "change": 1,
-      "changePercent": 0.11,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 1,
-      "overnightChangePercent": 0.11,
-      "isMarketOpen": false,
-      "volume": 11897,
-      "turnover": 10540742,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.574Z"
-    },
-    {
-      "symbol": "HRL",
-      "originalSymbol": "HRL",
-      "companyName": "Himalayan Reinsurance Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 817,
-      "open": 817,
-      "high": 817,
-      "low": 817,
-      "close": 817,
-      "previousClose": 816.1,
-      "change": 0.9,
-      "changePercent": 0.11,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.9,
-      "overnightChangePercent": 0.11,
-      "isMarketOpen": false,
-      "volume": 66894,
-      "turnover": 54652398,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
-    },
-    {
-      "symbol": "SPL",
-      "originalSymbol": "SPL",
-      "companyName": "Shuvam Power Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 821.2,
-      "open": 821.2,
-      "high": 821.2,
-      "low": 821.2,
-      "close": 821.2,
-      "previousClose": 820.3,
-      "change": 0.9,
-      "changePercent": 0.11,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.9,
-      "overnightChangePercent": 0.11,
-      "isMarketOpen": false,
-      "volume": 1090,
-      "turnover": 895108,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.610Z"
-    },
-    {
-      "symbol": "MBJC",
-      "originalSymbol": "MBJC",
-      "companyName": "Madhya Bhotekoshi Jalavidyut Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 280.3,
-      "open": 280.3,
-      "high": 280.3,
-      "low": 280.3,
-      "close": 280.3,
-      "previousClose": 280.1,
-      "change": 0.2,
-      "changePercent": 0.07,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.2,
-      "overnightChangePercent": 0.07,
-      "isMarketOpen": false,
-      "volume": 25039,
-      "turnover": 7018431.7,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.593Z"
-    },
-    {
-      "symbol": "GCIL",
-      "originalSymbol": "GCIL",
-      "companyName": "Ghorahi Cement Industry Limited",
-      "sector": "Manufacturing And Processing",
-      "sectorId": 56,
-      "ltp": 405.3,
-      "open": 405.3,
-      "high": 405.3,
-      "low": 405.3,
-      "close": 405.3,
-      "previousClose": 405,
-      "change": 0.3,
-      "changePercent": 0.07,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.3,
-      "overnightChangePercent": 0.07,
-      "isMarketOpen": false,
-      "volume": 8817,
-      "turnover": 3573530.1,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.616Z"
-    },
-    {
-      "symbol": "RIDI",
-      "originalSymbol": "RIDI",
-      "companyName": "Ridi Power Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 219.5,
-      "open": 219.5,
-      "high": 219.5,
-      "low": 219.5,
-      "close": 219.5,
-      "previousClose": 219.4,
-      "change": 0.1,
-      "changePercent": 0.05,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.1,
-      "overnightChangePercent": 0.05,
-      "isMarketOpen": false,
-      "volume": 42320,
-      "turnover": 9289240,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.605Z"
-    },
-    {
-      "symbol": "DORDI",
-      "originalSymbol": "DORDI",
-      "companyName": "Dordi Khola Jal Bidyut Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 248.1,
-      "open": 248.1,
-      "high": 248.1,
-      "low": 248.1,
-      "close": 248.1,
-      "previousClose": 248,
-      "change": 0.1,
-      "changePercent": 0.04,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.1,
-      "overnightChangePercent": 0.04,
-      "isMarketOpen": false,
-      "volume": 25540,
-      "turnover": 6336474,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
-    },
-    {
-      "symbol": "PPL",
-      "originalSymbol": "PPL",
-      "companyName": "People's Power Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 319.1,
-      "open": 319.1,
-      "high": 319.1,
-      "low": 319.1,
-      "close": 319.1,
-      "previousClose": 319,
-      "change": 0.1,
-      "changePercent": 0.03,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.1,
-      "overnightChangePercent": 0.03,
-      "isMarketOpen": false,
-      "volume": 62363,
-      "turnover": 19900033.3,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.603Z"
-    },
-    {
-      "symbol": "HDL",
-      "originalSymbol": "HDL",
-      "companyName": "Himalayan Distillery Limited",
-      "sector": "Manufacturing And Processing",
-      "sectorId": 56,
-      "ltp": 1132.2,
-      "open": 1132.2,
-      "high": 1132.2,
-      "low": 1132.2,
-      "close": 1132.2,
-      "previousClose": 1132.1,
-      "change": 0.1,
-      "changePercent": 0.01,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0.1,
-      "overnightChangePercent": 0.01,
-      "isMarketOpen": false,
-      "volume": 18381,
-      "turnover": 20810968.2,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.616Z"
-    },
-    {
-      "symbol": "BANDIPUR",
-      "originalSymbol": "BANDIPUR",
-      "companyName": "Bandipur Cablecar and Tourism Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 733,
-      "open": 733,
-      "high": 733,
-      "low": 733,
-      "close": 733,
-      "previousClose": 733,
-      "change": 0,
-      "changePercent": 0,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": 0,
-      "overnightChangePercent": 0,
-      "isMarketOpen": false,
-      "volume": 48568,
-      "turnover": 35600344,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.574Z"
+      "lastUpdated": "2025-12-24T13:43:55.037Z"
     }
   ],
   "losers": [
+    {
+      "symbol": "GBLBS",
+      "originalSymbol": "GBLBS",
+      "companyName": "Grameen Bikas Laghubitta Bittiya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 816,
+      "open": 816,
+      "high": 816,
+      "low": 816,
+      "close": 816,
+      "previousClose": 852,
+      "change": -36,
+      "changePercent": -4.23,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -36,
+      "overnightChangePercent": -4.23,
+      "isMarketOpen": false,
+      "volume": 23436,
+      "turnover": 19123776,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.092Z"
+    },
+    {
+      "symbol": "CORBL",
+      "originalSymbol": "CORBL",
+      "companyName": "Corporate Development Bank Limited",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 1450,
+      "open": 1450,
+      "high": 1450,
+      "low": 1450,
+      "close": 1450,
+      "previousClose": 1511,
+      "change": -61,
+      "changePercent": -4.04,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -61,
+      "overnightChangePercent": -4.04,
+      "isMarketOpen": false,
+      "volume": 10914,
+      "turnover": 15825300,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.066Z"
+    },
     {
       "symbol": "SMHL",
       "originalSymbol": "SMHL",
@@ -6639,7 +6705,73 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.609Z"
+      "lastUpdated": "2025-12-24T13:43:55.053Z"
+    },
+    {
+      "symbol": "LBBL",
+      "originalSymbol": "LBBL",
+      "companyName": "Lumbini Bikas Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 461.9,
+      "open": 461.9,
+      "high": 461.9,
+      "low": 461.9,
+      "close": 461.9,
+      "previousClose": 479,
+      "change": -17.1,
+      "changePercent": -3.57,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -17.1,
+      "overnightChangePercent": -3.57,
+      "isMarketOpen": false,
+      "volume": 84716,
+      "turnover": 39130320.4,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.070Z"
+    },
+    {
+      "symbol": "CYCL",
+      "originalSymbol": "CYCL",
+      "companyName": "CYC Nepal Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1528.5,
+      "open": 1528.5,
+      "high": 1528.5,
+      "low": 1528.5,
+      "close": 1528.5,
+      "previousClose": 1565,
+      "change": -36.5,
+      "changePercent": -2.33,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -36.5,
+      "overnightChangePercent": -2.33,
+      "isMarketOpen": false,
+      "volume": 1819,
+      "turnover": 2780341.5,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.090Z"
     },
     {
       "symbol": "SGHC",
@@ -6672,7 +6804,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.607Z"
+      "lastUpdated": "2025-12-24T13:43:55.049Z"
     },
     {
       "symbol": "TAMOR",
@@ -6705,7 +6837,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.611Z"
+      "lastUpdated": "2025-12-24T13:43:55.057Z"
     },
     {
       "symbol": "USHL",
@@ -6738,7 +6870,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.614Z"
+      "lastUpdated": "2025-12-24T13:43:55.064Z"
     },
     {
       "symbol": "SPHL",
@@ -6771,7 +6903,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.610Z"
+      "lastUpdated": "2025-12-24T13:43:55.056Z"
     },
     {
       "symbol": "VLUCL",
@@ -6804,7 +6936,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.615Z"
+      "lastUpdated": "2025-12-24T13:43:55.065Z"
     },
     {
       "symbol": "MKHC",
@@ -6837,7 +6969,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.596Z"
+      "lastUpdated": "2025-12-24T13:43:55.034Z"
     },
     {
       "symbol": "BHCL",
@@ -6870,7 +7002,106 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.010Z"
+    },
+    {
+      "symbol": "SAPDBL",
+      "originalSymbol": "SAPDBL",
+      "companyName": "Saptakoshi Development Bank Ltd",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 793.1,
+      "open": 793.1,
+      "high": 793.1,
+      "low": 793.1,
+      "close": 793.1,
+      "previousClose": 808,
+      "change": -14.9,
+      "changePercent": -1.84,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -14.9,
+      "overnightChangePercent": -1.84,
+      "isMarketOpen": false,
+      "volume": 23627,
+      "turnover": 18738573.7,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.075Z"
+    },
+    {
+      "symbol": "SWASTIK",
+      "originalSymbol": "SWASTIK",
+      "companyName": "Swastik Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 2828.9,
+      "open": 2828.9,
+      "high": 2828.9,
+      "low": 2828.9,
+      "close": 2828.9,
+      "previousClose": 2882,
+      "change": -53.1,
+      "changePercent": -1.84,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -53.1,
+      "overnightChangePercent": -1.84,
+      "isMarketOpen": false,
+      "volume": 4400,
+      "turnover": 12447160,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.103Z"
+    },
+    {
+      "symbol": "SMB",
+      "originalSymbol": "SMB",
+      "companyName": "Support Microfinance Bittiya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1900,
+      "open": 1900,
+      "high": 1900,
+      "low": 1900,
+      "close": 1900,
+      "previousClose": 1935,
+      "change": -35,
+      "changePercent": -1.81,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -35,
+      "overnightChangePercent": -1.81,
+      "isMarketOpen": false,
+      "volume": 2036,
+      "turnover": 3868400,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.102Z"
     },
     {
       "symbol": "BUNGAL",
@@ -6903,7 +7134,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.585Z"
+      "lastUpdated": "2025-12-24T13:43:55.014Z"
     },
     {
       "symbol": "SAGAR",
@@ -6936,7 +7167,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.617Z"
+      "lastUpdated": "2025-12-24T13:43:55.086Z"
     },
     {
       "symbol": "TSHL",
@@ -6969,7 +7200,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.611Z"
+      "lastUpdated": "2025-12-24T13:43:55.058Z"
     },
     {
       "symbol": "HPPL",
@@ -7002,7 +7233,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
+      "lastUpdated": "2025-12-24T13:43:55.024Z"
     },
     {
       "symbol": "SMH",
@@ -7035,29 +7266,29 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.608Z"
+      "lastUpdated": "2025-12-24T13:43:55.053Z"
     },
     {
-      "symbol": "NRM",
-      "originalSymbol": "NRM",
-      "companyName": "Nepal Republic Media Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 417,
-      "open": 417,
-      "high": 417,
-      "low": 417,
-      "close": 417,
-      "previousClose": 423.9,
-      "change": -6.9,
-      "changePercent": -1.63,
+      "symbol": "SMPDA",
+      "originalSymbol": "SMPDA",
+      "companyName": "Sampada Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 873.1,
+      "open": 873.1,
+      "high": 873.1,
+      "low": 873.1,
+      "close": 873.1,
+      "previousClose": 887,
+      "change": -13.9,
+      "changePercent": -1.57,
       "intradayChange": 0,
       "intradayChangePercent": 0,
-      "overnightChange": -6.9,
-      "overnightChangePercent": -1.63,
+      "overnightChange": -13.9,
+      "overnightChangePercent": -1.57,
       "isMarketOpen": false,
-      "volume": 22502,
-      "turnover": 9383334,
+      "volume": 2787,
+      "turnover": 2433329.7,
       "totalTrades": 0,
       "supplyDemand": {
         "buyVolume": 0,
@@ -7068,7 +7299,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.578Z"
+      "lastUpdated": "2025-12-24T13:43:55.102Z"
     },
     {
       "symbol": "CKHL",
@@ -7101,7 +7332,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.586Z"
+      "lastUpdated": "2025-12-24T13:43:55.017Z"
     },
     {
       "symbol": "UHEWA",
@@ -7134,7 +7365,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.612Z"
+      "lastUpdated": "2025-12-24T13:43:55.060Z"
     },
     {
       "symbol": "UNHPL",
@@ -7167,7 +7398,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
+      "lastUpdated": "2025-12-24T13:43:55.062Z"
     },
     {
       "symbol": "SJCL",
@@ -7200,29 +7431,29 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.608Z"
+      "lastUpdated": "2025-12-24T13:43:55.052Z"
     },
     {
-      "symbol": "NWCL",
-      "originalSymbol": "NWCL",
-      "companyName": "Nepal Warehousing Company Limited ",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 776,
-      "open": 776,
-      "high": 776,
-      "low": 776,
-      "close": 776,
-      "previousClose": 787,
-      "change": -11,
-      "changePercent": -1.4,
+      "symbol": "WNLB",
+      "originalSymbol": "WNLB",
+      "companyName": "Wean Nepal Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1847,
+      "open": 1847,
+      "high": 1847,
+      "low": 1847,
+      "close": 1847,
+      "previousClose": 1874,
+      "change": -27,
+      "changePercent": -1.44,
       "intradayChange": 0,
       "intradayChangePercent": 0,
-      "overnightChange": -11,
-      "overnightChangePercent": -1.4,
+      "overnightChange": -27,
+      "overnightChangePercent": -1.44,
       "isMarketOpen": false,
-      "volume": 1206,
-      "turnover": 935856,
+      "volume": 802,
+      "turnover": 1481294,
       "totalTrades": 0,
       "supplyDemand": {
         "buyVolume": 0,
@@ -7233,7 +7464,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.579Z"
+      "lastUpdated": "2025-12-24T13:43:55.105Z"
+    },
+    {
+      "symbol": "NMLBBL",
+      "originalSymbol": "NMLBBL",
+      "companyName": "Nerude Mirmire Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 631,
+      "open": 631,
+      "high": 631,
+      "low": 631,
+      "close": 631,
+      "previousClose": 640,
+      "change": -9,
+      "changePercent": -1.41,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -9,
+      "overnightChangePercent": -1.41,
+      "isMarketOpen": false,
+      "volume": 6710,
+      "turnover": 4234010,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.099Z"
     },
     {
       "symbol": "SAIL",
@@ -7266,7 +7530,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.617Z"
+      "lastUpdated": "2025-12-24T13:43:55.086Z"
+    },
+    {
+      "symbol": "NABBC",
+      "originalSymbol": "NABBC",
+      "companyName": "Narayani Development Bank Limited",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 1145,
+      "open": 1145,
+      "high": 1145,
+      "low": 1145,
+      "close": 1145,
+      "previousClose": 1161,
+      "change": -16,
+      "changePercent": -1.38,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -16,
+      "overnightChangePercent": -1.38,
+      "isMarketOpen": false,
+      "volume": 32078,
+      "turnover": 36729310,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.073Z"
     },
     {
       "symbol": "KPCL",
@@ -7299,7 +7596,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.592Z"
+      "lastUpdated": "2025-12-24T13:43:55.026Z"
     },
     {
       "symbol": "MHNL",
@@ -7332,7 +7629,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.596Z"
+      "lastUpdated": "2025-12-24T13:43:55.033Z"
     },
     {
       "symbol": "BGWT",
@@ -7365,7 +7662,205 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.583Z"
+      "lastUpdated": "2025-12-24T13:43:55.010Z"
+    },
+    {
+      "symbol": "MERO",
+      "originalSymbol": "MERO",
+      "companyName": "Mero Microfinance Bittiya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 730.4,
+      "open": 730.4,
+      "high": 730.4,
+      "low": 730.4,
+      "close": 730.4,
+      "previousClose": 740,
+      "change": -9.6,
+      "changePercent": -1.3,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -9.6,
+      "overnightChangePercent": -1.3,
+      "isMarketOpen": false,
+      "volume": 2951,
+      "turnover": 2155410.4,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.096Z"
+    },
+    {
+      "symbol": "SKBBL",
+      "originalSymbol": "SKBBL",
+      "companyName": "Sana Kisan Bikas Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 762,
+      "open": 762,
+      "high": 762,
+      "low": 762,
+      "close": 762,
+      "previousClose": 771.99,
+      "change": -9.99,
+      "changePercent": -1.29,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -9.99,
+      "overnightChangePercent": -1.29,
+      "isMarketOpen": false,
+      "volume": 34858,
+      "turnover": 26561796,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.100Z"
+    },
+    {
+      "symbol": "NMFBS",
+      "originalSymbol": "NMFBS",
+      "companyName": "National Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1275,
+      "open": 1275,
+      "high": 1275,
+      "low": 1275,
+      "close": 1275,
+      "previousClose": 1291.5,
+      "change": -16.5,
+      "changePercent": -1.28,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -16.5,
+      "overnightChangePercent": -1.28,
+      "isMarketOpen": false,
+      "volume": 7531,
+      "turnover": 9602025,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.099Z"
+    },
+    {
+      "symbol": "DLBS",
+      "originalSymbol": "DLBS",
+      "companyName": "Dhaulagiri Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1313,
+      "open": 1313,
+      "high": 1313,
+      "low": 1313,
+      "close": 1313,
+      "previousClose": 1329.9,
+      "change": -16.9,
+      "changePercent": -1.27,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -16.9,
+      "overnightChangePercent": -1.27,
+      "isMarketOpen": false,
+      "volume": 185,
+      "turnover": 242905,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.091Z"
+    },
+    {
+      "symbol": "NADEP",
+      "originalSymbol": "NADEP",
+      "companyName": "Nadep Laghubittiya bittya Sanstha Ltd.",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 790,
+      "open": 790,
+      "high": 790,
+      "low": 790,
+      "close": 790,
+      "previousClose": 800,
+      "change": -10,
+      "changePercent": -1.25,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -10,
+      "overnightChangePercent": -1.25,
+      "isMarketOpen": false,
+      "volume": 3345,
+      "turnover": 2642550,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.097Z"
+    },
+    {
+      "symbol": "SMFBS",
+      "originalSymbol": "SMFBS",
+      "companyName": "Swabhimaan Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 1675,
+      "open": 1675,
+      "high": 1675,
+      "low": 1675,
+      "close": 1675,
+      "previousClose": 1695,
+      "change": -20,
+      "changePercent": -1.18,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -20,
+      "overnightChangePercent": -1.18,
+      "isMarketOpen": false,
+      "volume": 264,
+      "turnover": 442200,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.102Z"
     },
     {
       "symbol": "MEHL",
@@ -7398,7 +7893,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.594Z"
+      "lastUpdated": "2025-12-24T13:43:55.030Z"
     },
     {
       "symbol": "PMHPL",
@@ -7431,7 +7926,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.602Z"
+      "lastUpdated": "2025-12-24T13:43:55.042Z"
     },
     {
       "symbol": "MKHL",
@@ -7464,7 +7959,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.596Z"
+      "lastUpdated": "2025-12-24T13:43:55.035Z"
     },
     {
       "symbol": "GVL",
@@ -7497,7 +7992,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.589Z"
+      "lastUpdated": "2025-12-24T13:43:55.022Z"
     },
     {
       "symbol": "SANVI",
@@ -7530,7 +8025,73 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.606Z"
+      "lastUpdated": "2025-12-24T13:43:55.049Z"
+    },
+    {
+      "symbol": "NICLBSL",
+      "originalSymbol": "NICLBSL",
+      "companyName": "NIC ASIA Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 548,
+      "open": 548,
+      "high": 548,
+      "low": 548,
+      "close": 548,
+      "previousClose": 553.8,
+      "change": -5.8,
+      "changePercent": -1.05,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -5.8,
+      "overnightChangePercent": -1.05,
+      "isMarketOpen": false,
+      "volume": 6651,
+      "turnover": 3644748,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.098Z"
+    },
+    {
+      "symbol": "HLBSL",
+      "originalSymbol": "HLBSL",
+      "companyName": "Himalayan Laghubitta Bittiya Sanstha Limited",
+      "sector": "Microfinance",
+      "sectorId": 64,
+      "ltp": 917.4,
+      "open": 917.4,
+      "high": 917.4,
+      "low": 917.4,
+      "close": 917.4,
+      "previousClose": 927,
+      "change": -9.6,
+      "changePercent": -1.04,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -9.6,
+      "overnightChangePercent": -1.04,
+      "isMarketOpen": false,
+      "volume": 2342,
+      "turnover": 2148550.8,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.093Z"
     },
     {
       "symbol": "MHL",
@@ -7563,7 +8124,40 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.595Z"
+      "lastUpdated": "2025-12-24T13:43:55.033Z"
+    },
+    {
+      "symbol": "SHINE",
+      "originalSymbol": "SHINE",
+      "companyName": "Shine Resunga Development Bank Ltd.",
+      "sector": "Development Banks",
+      "sectorId": 55,
+      "ltp": 391,
+      "open": 391,
+      "high": 391,
+      "low": 391,
+      "close": 391,
+      "previousClose": 394.9,
+      "change": -3.9,
+      "changePercent": -0.99,
+      "intradayChange": 0,
+      "intradayChangePercent": 0,
+      "overnightChange": -3.9,
+      "overnightChangePercent": -0.99,
+      "isMarketOpen": false,
+      "volume": 19517,
+      "turnover": 7631147,
+      "totalTrades": 0,
+      "supplyDemand": {
+        "buyVolume": 0,
+        "sellVolume": 0,
+        "ratio": 0
+      },
+      "fiftyTwoWeek": {
+        "high": 0,
+        "low": 0
+      },
+      "lastUpdated": "2025-12-24T13:43:55.075Z"
     },
     {
       "symbol": "PPCL",
@@ -7596,7 +8190,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.603Z"
+      "lastUpdated": "2025-12-24T13:43:55.043Z"
     },
     {
       "symbol": "SHEL",
@@ -7629,7 +8223,7 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.607Z"
+      "lastUpdated": "2025-12-24T13:43:55.050Z"
     },
     {
       "symbol": "SSHL",
@@ -7662,602 +8256,8 @@
         "high": 0,
         "low": 0
       },
-      "lastUpdated": "2025-12-24T12:55:16.610Z"
-    },
-    {
-      "symbol": "MEN",
-      "originalSymbol": "MEN",
-      "companyName": "Mountain Energy Nepal Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 560,
-      "open": 560,
-      "high": 560,
-      "low": 560,
-      "close": 560,
-      "previousClose": 565,
-      "change": -5,
-      "changePercent": -0.88,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -5,
-      "overnightChangePercent": -0.88,
-      "isMarketOpen": false,
-      "volume": 40504,
-      "turnover": 22682240,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.594Z"
-    },
-    {
-      "symbol": "DOLTI",
-      "originalSymbol": "DOLTI",
-      "companyName": "Dolti Power Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 512.5,
-      "open": 512.5,
-      "high": 512.5,
-      "low": 512.5,
-      "close": 512.5,
-      "previousClose": 517,
-      "change": -4.5,
-      "changePercent": -0.87,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -4.5,
-      "overnightChangePercent": -0.87,
-      "isMarketOpen": false,
-      "volume": 1402,
-      "turnover": 718525,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.587Z"
-    },
-    {
-      "symbol": "IHL",
-      "originalSymbol": "IHL",
-      "companyName": "Ingwa Hydropower Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 589.9,
-      "open": 589.9,
-      "high": 589.9,
-      "low": 589.9,
-      "close": 589.9,
-      "previousClose": 595,
-      "change": -5.1,
-      "changePercent": -0.86,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -5.1,
-      "overnightChangePercent": -0.86,
-      "isMarketOpen": false,
-      "volume": 13567,
-      "turnover": 8003173.3,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.591Z"
-    },
-    {
-      "symbol": "TTL",
-      "originalSymbol": "TTL",
-      "companyName": "Trade Tower Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 732,
-      "open": 732,
-      "high": 732,
-      "low": 732,
-      "close": 732,
-      "previousClose": 738.3,
-      "change": -6.3,
-      "changePercent": -0.85,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -6.3,
-      "overnightChangePercent": -0.85,
-      "isMarketOpen": false,
-      "volume": 14815,
-      "turnover": 10844580,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.580Z"
-    },
-    {
-      "symbol": "UPPER",
-      "originalSymbol": "UPPER",
-      "companyName": "Upper Tamakoshi Hydropower Ltd",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 172.8,
-      "open": 172.8,
-      "high": 172.8,
-      "low": 172.8,
-      "close": 172.8,
-      "previousClose": 174,
-      "change": -1.2,
-      "changePercent": -0.69,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -1.2,
-      "overnightChangePercent": -0.69,
-      "isMarketOpen": false,
-      "volume": 40204,
-      "turnover": 6947251.2,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
-    },
-    {
-      "symbol": "HHL",
-      "originalSymbol": "HHL",
-      "companyName": "Himalayan Hydropower Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 320.7,
-      "open": 320.7,
-      "high": 320.7,
-      "low": 320.7,
-      "close": 320.7,
-      "previousClose": 322.9,
-      "change": -2.2,
-      "changePercent": -0.68,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2.2,
-      "overnightChangePercent": -0.68,
-      "isMarketOpen": false,
-      "volume": 30436,
-      "turnover": 9760825.2,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.590Z"
-    },
-    {
-      "symbol": "AKPL",
-      "originalSymbol": "AKPL",
-      "companyName": "Arun Kabeli Power Ltd.",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 244,
-      "open": 244,
-      "high": 244,
-      "low": 244,
-      "close": 244,
-      "previousClose": 245.6,
-      "change": -1.6,
-      "changePercent": -0.65,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -1.6,
-      "overnightChangePercent": -0.65,
-      "isMarketOpen": false,
-      "volume": 49807,
-      "turnover": 12152908,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.582Z"
-    },
-    {
-      "symbol": "SHPC",
-      "originalSymbol": "SHPC",
-      "companyName": "Sanima Mai Hydropower Ltd.",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 515,
-      "open": 515,
-      "high": 515,
-      "low": 515,
-      "close": 515,
-      "previousClose": 518,
-      "change": -3,
-      "changePercent": -0.58,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -3,
-      "overnightChangePercent": -0.58,
-      "isMarketOpen": false,
-      "volume": 65973,
-      "turnover": 33976095,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.607Z"
-    },
-    {
-      "symbol": "UPCL",
-      "originalSymbol": "UPCL",
-      "companyName": "UNIVERSAL POWER COMPANY LTD",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 359,
-      "open": 359,
-      "high": 359,
-      "low": 359,
-      "close": 359,
-      "previousClose": 361,
-      "change": -2,
-      "changePercent": -0.55,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2,
-      "overnightChangePercent": -0.55,
-      "isMarketOpen": false,
-      "volume": 85232,
-      "turnover": 30598288,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.613Z"
-    },
-    {
-      "symbol": "NYADI",
-      "originalSymbol": "NYADI",
-      "companyName": "Nyadi Hydropower Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 370,
-      "open": 370,
-      "high": 370,
-      "low": 370,
-      "close": 370,
-      "previousClose": 372,
-      "change": -2,
-      "changePercent": -0.54,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2,
-      "overnightChangePercent": -0.54,
-      "isMarketOpen": false,
-      "volume": 6842,
-      "turnover": 2531540,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.601Z"
-    },
-    {
-      "symbol": "MABEL",
-      "originalSymbol": "MABEL",
-      "companyName": "Mabilung Energy Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 690,
-      "open": 690,
-      "high": 690,
-      "low": 690,
-      "close": 690,
-      "previousClose": 693.7,
-      "change": -3.7,
-      "changePercent": -0.53,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -3.7,
-      "overnightChangePercent": -0.53,
-      "isMarketOpen": false,
-      "volume": 14037,
-      "turnover": 9685530,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.593Z"
-    },
-    {
-      "symbol": "MHCL",
-      "originalSymbol": "MHCL",
-      "companyName": "Molung Hydropower Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 382,
-      "open": 382,
-      "high": 382,
-      "low": 382,
-      "close": 382,
-      "previousClose": 384,
-      "change": -2,
-      "changePercent": -0.52,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2,
-      "overnightChangePercent": -0.52,
-      "isMarketOpen": false,
-      "volume": 5675,
-      "turnover": 2167850,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.595Z"
-    },
-    {
-      "symbol": "JHAPA",
-      "originalSymbol": "JHAPA",
-      "companyName": "Jhapa Energy Limited",
-      "sector": "Others",
-      "sectorId": 53,
-      "ltp": 1230,
-      "open": 1230,
-      "high": 1230,
-      "low": 1230,
-      "close": 1230,
-      "previousClose": 1236,
-      "change": -6,
-      "changePercent": -0.49,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -6,
-      "overnightChangePercent": -0.49,
-      "isMarketOpen": false,
-      "volume": 4601,
-      "turnover": 5659230,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.577Z"
-    },
-    {
-      "symbol": "GHL",
-      "originalSymbol": "GHL",
-      "companyName": "Ghalemdi Hydro Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 207,
-      "open": 207,
-      "high": 207,
-      "low": 207,
-      "close": 207,
-      "previousClose": 208,
-      "change": -1,
-      "changePercent": -0.48,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -1,
-      "overnightChangePercent": -0.48,
-      "isMarketOpen": false,
-      "volume": 24343,
-      "turnover": 5039001,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.588Z"
-    },
-    {
-      "symbol": "LEC",
-      "originalSymbol": "LEC",
-      "companyName": "Liberty Energy Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 194.5,
-      "open": 194.5,
-      "high": 194.5,
-      "low": 194.5,
-      "close": 194.5,
-      "previousClose": 195.4,
-      "change": -0.9,
-      "changePercent": -0.46,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -0.9,
-      "overnightChangePercent": -0.46,
-      "isMarketOpen": false,
-      "volume": 73296,
-      "turnover": 14256072,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.592Z"
-    },
-    {
-      "symbol": "SARBTM",
-      "originalSymbol": "SARBTM",
-      "companyName": "Sarbottam Cement Limited",
-      "sector": "Manufacturing And Processing",
-      "sectorId": 56,
-      "ltp": 865,
-      "open": 865,
-      "high": 865,
-      "low": 865,
-      "close": 865,
-      "previousClose": 869,
-      "change": -4,
-      "changePercent": -0.46,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -4,
-      "overnightChangePercent": -0.46,
-      "isMarketOpen": false,
-      "volume": 6176,
-      "turnover": 5342240,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.617Z"
-    },
-    {
-      "symbol": "OHL",
-      "originalSymbol": "OHL",
-      "companyName": "Oriental Hotels Limited",
-      "sector": "Hotels And Tourism",
-      "sectorId": 52,
-      "ltp": 691.1,
-      "open": 691.1,
-      "high": 691.1,
-      "low": 691.1,
-      "close": 691.1,
-      "previousClose": 694,
-      "change": -2.9,
-      "changePercent": -0.42,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2.9,
-      "overnightChangePercent": -0.42,
-      "isMarketOpen": false,
-      "volume": 3066,
-      "turnover": 2118912.6,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.576Z"
-    },
-    {
-      "symbol": "BHDC",
-      "originalSymbol": "BHDC",
-      "companyName": "Bindhyabasini Hydropower Development Company Limited",
-      "sector": "Hydro Power",
-      "sectorId": 54,
-      "ltp": 472,
-      "open": 472,
-      "high": 472,
-      "low": 472,
-      "close": 472,
-      "previousClose": 474,
-      "change": -2,
-      "changePercent": -0.42,
-      "intradayChange": 0,
-      "intradayChangePercent": 0,
-      "overnightChange": -2,
-      "overnightChangePercent": -0.42,
-      "isMarketOpen": false,
-      "volume": 23945,
-      "turnover": 11302040,
-      "totalTrades": 0,
-      "supplyDemand": {
-        "buyVolume": 0,
-        "sellVolume": 0,
-        "ratio": 0
-      },
-      "fiftyTwoWeek": {
-        "high": 0,
-        "low": 0
-      },
-      "lastUpdated": "2025-12-24T12:55:16.584Z"
+      "lastUpdated": "2025-12-24T13:43:55.057Z"
     }
   ],
-  "updatedAt": "2025-12-24T12:55:16.688Z"
+  "updatedAt": "2025-12-24T13:43:55.373Z"
 }

@@ -1,112 +1,92 @@
 /* =========================================
-   NEPSE Stock Website - Global Styles
-   Strict White-Dominant (Light) Theme
+   NEPSE Stock Website - Premium Financial Dashboard
+   Palette: Ivory & Carafe (Warm, Dense, Minimalism)
    ========================================= */
 
-/* CSS Variables / Design Tokens */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
 :root {
-    /* ===== STRICT HIGH-CONTRAST PALETTE ===== */
-    --c-white: #FFFFFF;
-    --c-black: #000000;
+    /* ===== PREMIUM FINANCIAL PALETTE ===== */
+    --bg-app: #F9F8F6;
+    /* Warm Ivory */
+    --bg-card: #FFFFFF;
 
-    /* Neutral Shades */
-    --c-gray-50: #F9F9F9;
-    --c-gray-100: #F5F5F5;
-    --c-gray-200: #EEEEEE;
-    --c-gray-300: #E0E0E0;
-    --c-gray-400: #CCCCCC;
-    --c-gray-500: #AAAAAA;
-    --c-gray-600: #888888;
-    --c-gray-700: #666666;
-    --c-gray-800: #444444;
-    --c-gray-900: #222222;
+    --text-primary: #1C1917;
+    /* Warm Black (Carafe Dark) */
+    --text-secondary: #57534E;
+    /* Taupe/Stone */
+    --text-muted: #A8A29E;
 
-    /* Design Tokens */
-    --bg-primary: var(--c-white);
-    --bg-secondary: var(--c-gray-50);
-    --bg-tertiary: var(--c-gray-100);
+    --border-subtle: #E7E5E4;
+    --border-main: #D6D3D1;
 
-    --text-primary: var(--c-black);
-    --text-secondary: var(--c-gray-700);
-    --text-muted: var(--c-gray-500);
-    --text-disabled: var(--c-gray-400);
-    --text-inverse: var(--c-white);
+    --primary-accent: #292524;
+    /* Deep Brown/Black */
 
-    --border-subtle: var(--c-gray-100);
-    --border-main: var(--c-gray-200);
-    --border-strong: var(--c-black);
+    --success: #15803d;
+    /* Financial Emerald */
+    --danger: #b91c1c;
+    /* Deep Crimson */
+    --color-unchanged: #57534E;
 
-    /* Price Indicators */
-    --color-positive: #22c55e;
-    --color-negative: #ef4444;
-    --color-unchanged: #888888;
+    --bg-positive-subtle: #f0fdf4;
+    --bg-negative-subtle: #fef2f2;
 
-    /* Contrast-ready indicator backgrounds (optional) */
-    --bg-positive-subtle: rgba(34, 197, 94, 0.1);
-    --bg-negative-subtle: rgba(239, 68, 68, 0.1);
-    --bg-unchanged-subtle: rgba(136, 136, 136, 0.1);
-
-    /* Shadows (Extremely subtle) */
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
-
-    /* Typography Scale */
-    --text-xs: 0.7rem;
-    --text-sm: 0.8rem;
-    --text-base: 0.9rem;
-    --text-lg: 1rem;
-    --text-xl: 1.15rem;
-    --text-2xl: 1.35rem;
-    --text-3xl: 2rem;
-    --text-4xl: 3rem;
-
-    --font-normal: 400;
-    --font-medium: 500;
-    --font-semibold: 600;
-    --font-bold: 700;
-    --font-black: 900;
+    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
 
     /* Spacing System */
-    --space-1: 3px;
-    --space-2: 6px;
-    --space-4: 12px;
-    --space-6: 18px;
-    --space-8: 24px;
-    --space-12: 36px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
 
-    /* Radius */
+    /* Typography Scale */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 2.25rem;
+
+    /* Radii */
     --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 16px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
     --radius-full: 9999px;
 
+    /* Shadows */
+    --shadow-premium: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
     /* Transitions */
+    --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 
     --container-max: 1400px;
 }
 
 /* Reset & Base Styles */
-*,
-*::before,
-*::after {
+* {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
 html {
-    font-size: 15px;
+    font-size: 16px;
     scroll-behavior: smooth;
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: var(--bg-primary);
+    background-color: var(--bg-app);
     color: var(--text-primary);
+    font-family: var(--font-main);
     line-height: 1.5;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
@@ -121,55 +101,86 @@ body {
 
 .main-content {
     flex: 1;
-    padding-top: calc(70px + 1rem);
-    padding-bottom: var(--space-8);
+    padding-top: calc(60px + 2rem);
+    padding-bottom: 4rem;
 }
 
-/* Container */
 .layout-container {
     width: 100%;
     max-width: var(--container-max);
     margin: 0 auto;
-    padding: 0 var(--space-8);
+    padding: 0 2rem;
 }
 
 @media (max-width: 768px) {
     .layout-container {
-        padding: 0 var(--space-4);
+        padding: 0 1rem;
     }
 }
 
-/* Typography */
+/* Typography for Financial Data */
+.tabular-nums,
+.stock-price,
+.stock-change,
+.stock-volume,
+.financial-cell {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+}
+
 a {
     text-decoration: none;
     color: inherit;
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast);
 }
 
 h1,
 h2,
 h3,
-h4,
-h5,
-h6 {
-    font-weight: var(--font-black);
+h4 {
+    font-weight: 800;
     color: var(--text-primary);
-    letter-spacing: -0.04em;
-    line-height: 1.1;
-    margin-bottom: var(--space-4);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
 }
 
-h2 {
-    font-size: var(--text-3xl);
+/* Utility Classes */
+.text-right {
+    text-align: right;
 }
 
-h3 {
-    font-size: var(--text-2xl);
+.text-center {
+    text-align: center;
 }
 
-p {
-    color: var(--text-secondary);
-    margin-bottom: var(--space-4);
+.text-muted {
+    color: var(--text-muted);
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.flex {
+    display: flex;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.gap-2 {
+    gap: 0.5rem;
+}
+
+.gap-4 {
+    gap: 1rem;
 }
 
 /* Buttons */
@@ -177,105 +188,46 @@ p {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 24px;
-    font-size: var(--text-sm);
-    font-weight: 800;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.875rem;
+    font-weight: 600;
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all var(--transition-fast);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    border: none;
+    transition: var(--transition-base);
+    border: 1px solid transparent;
 }
 
 .btn-primary {
-    background-color: var(--c-black);
-    color: var(--c-white);
+    background-color: var(--primary-accent);
+    color: white;
 }
 
 .btn-primary:hover {
-    background-color: var(--c-gray-800);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    background-color: #000;
+    transform: translateY(-1px);
 }
 
-.btn-outline {
-    background: transparent;
-    border: 2px solid var(--c-black);
-    color: var(--c-black);
-}
-
-.btn-outline:hover {
-    background: var(--c-black);
-    color: var(--c-white);
-}
-
-.btn-ghost {
-    background: transparent;
-    color: var(--text-secondary);
-}
-
-.btn-ghost:hover {
+.btn-secondary {
+    background-color: var(--bg-card);
+    border-color: var(--border-main);
     color: var(--text-primary);
-    background: var(--bg-secondary);
-}
-
-/* Cards */
-.card {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-main);
-    border-radius: var(--radius-lg);
-    padding: var(--space-6);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--transition-normal);
-}
-
-.card:hover {
-    border-color: var(--c-black);
-    box-shadow: var(--shadow-md);
-}
-
-/* Badge */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 12px;
-    background: var(--c-black);
-    color: var(--c-white);
-    font-size: 10px;
-    font-weight: 800;
-    border-radius: var(--radius-sm);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 /* Forms */
 input,
 select {
-    background: var(--bg-primary);
+    background: var(--bg-card);
     border: 1px solid var(--border-main);
-    padding: 12px 16px;
+    padding: 0.6rem 1rem;
     border-radius: var(--radius-md);
     color: var(--text-primary);
-    font-weight: 500;
-    transition: border-color var(--transition-fast);
+    font-family: var(--font-main);
+    transition: var(--transition-fast);
 }
 
 input:focus,
 select:focus {
     outline: none;
-    border-color: var(--c-black);
-}
-
-/* Animations */
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
 }

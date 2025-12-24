@@ -23,9 +23,9 @@ Technical architecture documentation for the NEPSE Stock Website.
 
 ### Primary Path (REST API)
 ```
-NEPSE API → Backend Scraper → Local JSON → Express API → React App
+NEPSE API → Backend Scraper → Local JSON → Express API → React App (Root State)
 ```
-This is the main data flow. The backend fetches NEPSE data every 8 seconds during market hours, saves to local JSON files, and the React frontend queries via REST API.
+The backend fetches NEPSE data every 10 seconds during market hours, saves to local JSON files, and the React frontend queries via REST API. Search state is managed at the root `App.jsx` level to sync the Header search bar with the HomePage table filters.
 
 ---
 
@@ -112,11 +112,11 @@ frontend/
 ### Data Flow
 
 ```
-User Action → React Component → Custom Hook → API Service
+User Action (Header Search) → App.jsx (State Change) → HomePage.jsx (Filter Update)
                                     ↓
 Local JSON ← Express Route ← API Request
                                     ↓
-                              State Update → Re-render
+                               State Update → Re-render
 ```
 
 ---

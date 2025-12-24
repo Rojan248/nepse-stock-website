@@ -3,8 +3,11 @@ import { Search } from 'lucide-react';
 import { searchStocks } from '../services/api';
 import './SearchBar.css';
 
-function SearchBar({ onSearch, onInputChange, placeholder = "Search stocks..." }) {
-    const [query, setQuery] = useState('');
+function SearchBar({ onSearch, onInputChange, value, placeholder = "Search stocks..." }) {
+    const [localQuery, setLocalQuery] = useState('');
+    const query = value !== undefined ? value : localQuery;
+    const setQuery = value !== undefined ? (onInputChange || (() => { })) : setLocalQuery;
+
     const [suggestions, setSuggestions] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -52,11 +55,12 @@ function SearchBar({ onSearch, onInputChange, placeholder = "Search stocks..." }
     }, [query]);
 
     const handleInputChange = (e) => {
-        const value = e.target.value;
-        setQuery(value);
-        // Notify parent of every keystroke for real-time filtering
+        const val = e.target.value;
+        if (value === undefined) {
+            setLocalQuery(val);
+        }
         if (onInputChange) {
-            onInputChange(value);
+            onInputChange(val);
         }
     };
 

@@ -5,7 +5,7 @@ import SearchBar from './SearchBar';
 import logoPrimary from '../assets/img/logo-primary.jpg';
 import './Header.css';
 
-function Header() {
+function Header({ searchTerm, onSearchChange }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [marketStatus, setMarketStatus] = useState(null);
     const navigate = useNavigate();
@@ -30,7 +30,11 @@ function Header() {
 
     const handleSearch = (query) => {
         if (query.trim()) {
-            navigate(`/search?q=${encodeURIComponent(query)}`);
+            // If we are not on the homepage, navigate to home and search
+            if (location.pathname !== '/') {
+                navigate('/');
+            }
+            onSearchChange(query);
             setIsMenuOpen(false);
         }
     };
@@ -48,7 +52,12 @@ function Header() {
                     </Link>
 
                     <div className="search-bar">
-                        <SearchBar onSearch={handleSearch} placeholder="Search stocks..." />
+                        <SearchBar
+                            value={searchTerm}
+                            onInputChange={onSearchChange}
+                            onSearch={handleSearch}
+                            placeholder="Search stocks..."
+                        />
                     </div>
                 </div>
 

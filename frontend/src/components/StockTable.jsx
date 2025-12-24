@@ -113,25 +113,52 @@ function StockTable({
 
 
 
-    if (loading) {
+    const renderMobileCards = () => {
         return (
-            <div className="no-data">
-                <p>Loading stocks...</p>
-            </div>
-        );
-    }
+            <div className="mobile-card-container">
+                {sortedStocks.map((stock) => {
+                    // Use change value for color determination
+                    const changeVal = stock.change !== undefined ? stock.change : (stock.prices?.change || 0);
+                    const percentVal = stock.changePercent !== undefined ? stock.changePercent : (stock.prices?.changePercent || 0);
+                    const isPositive = changeVal > 0;
+                    const isNegative = changeVal < 0;
 
-    if (!stocks || stocks.length === 0) {
-        return (
-            <div className="no-data">
-                <p>No stocks available</p>
+                    const symbol = stock.symbol || stock._id;
+                    const ltp = stock.ltp || stock.prices?.ltp || stock.close || 0;
+
+                    return (
+                        <div className="stock-card" key={symbol} onClick={() => onRowClick && onRowClick(stock)}>
+                            <div className="card-header">
+                                <span className="stock-symbol">{stock.symbol}</span>
+                                <span className="stock-ltp">
+                                    <AnimatedCell
+                                        value={ltp}
+                                        previousValue={getPreviousValue(symbol, 'ltp')}
+                                        formatter={formatPrice}
+                                        showDirection={true}
+                                    />
+                                </span>
+                            </div>
+                            <div className="card-body">
+                                <span className="stock-name">{stock.companyName || stock.name || stock.symbol}</span>
+                                <span className={`stock-change ${isPositive ? 'stock-card-change price-up' : isNegative ? 'stock-card-change price-down' : 'stock-card-change price-unchanged'}`}>
+                                    <AnimatedCell
+                                        value={Math.abs(changeVal)}
+                                        previousValue={Math.abs(getPreviousValue(symbol, 'change') || 0)}
+                                        formatter={(v) => `${isPositive ? '+' : isNegative ? '-' : ''}${v?.toFixed(2)} (${percentVal?.toFixed(2)}%)`}
+                                    />
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         );
-    }
+    };
 
     return (
         <div className="stock-table-wrapper">
-            <div className="table-container">
+            <div className="table-container desktop-table-container">
                 <table className="stock-table">
                     <thead>
                         <tr>
@@ -196,7 +223,6 @@ function StockTable({
                                     <ChevronDown className={`sort-icon ${sortConfig.key === 'volume' ? `active ${sortConfig.direction}` : ''}`} />
                                 </div>
                             </th>
-                            <th className="text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody className={isPolling ? 'polling' : ''}>
@@ -213,7 +239,7 @@ function StockTable({
                                 <tr
                                     key={symbol}
                                     onClick={() => onRowClick && onRowClick(stock)}
-                                    className="clickable"
+                                    className="clickable-row"
                                 >
                                     <td className="symbol-cell">
                                         {stock.symbol}
@@ -221,37 +247,36 @@ function StockTable({
                                     <td className="company-cell">
                                         {stock.companyName || stock.symbol}
                                     </td>
-                                    <td>
+                                    <td className="sector-cell">
                                         {stock.sector || 'Others'}
                                     </td>
-                                    <td className="text-right">
+                                    <td className="text-right financial-cell ltp-cell">
                                         <AnimatedCell
                                             value={stock.ltp || stock.prices?.ltp || stock.close || 0}
                                             previousValue={getPreviousValue(symbol, 'ltp')}
                                             formatter={formatPrice}
                                             showDirection={true}
-                                            className="font-bold"
                                         />
                                     </td>
-                                    <td className="text-right">
+                                    <td className="text-right financial-cell">
                                         <div className={`change-pill ${isPositive ? 'positive' : isNegative ? 'negative' : ''}`}>
                                             <AnimatedCell
                                                 value={Math.abs(changeVal)}
                                                 previousValue={Math.abs(getPreviousValue(symbol, 'change') || 0)}
-                                                formatter={(v) => v?.toFixed(2) || '0.00'}
+                                                formatter={(v) => `${isPositive ? '+' : isNegative ? '-' : ''}${v?.toFixed(2)}`}
                                             />
                                         </div>
                                     </td>
-                                    <td className="text-right">
-                                        <div className={`change-percent ${isPositive ? 'change-percent--positive' : isNegative ? 'change-percent--negative' : ''}`}>
+                                    <td className="text-right financial-cell">
+                                        <div className={`change-percent-badge ${isPositive ? 'positive' : isNegative ? 'negative' : ''}`}>
                                             <AnimatedCell
                                                 value={Math.abs(percentVal)}
                                                 previousValue={Math.abs(getPreviousValue(symbol, 'changePercent') || 0)}
-                                                formatter={(v) => `${isPositive ? '+' : ''}${v?.toFixed(2)}%`}
+                                                formatter={(v) => `${isPositive ? '+' : isNegative ? '-' : ''}${v?.toFixed(2)}%`}
                                             />
                                         </div>
                                     </td>
-                                    <td className="text-right text-muted">
+                                    <td className="text-right financial-cell volume-cell">
                                         <AnimatedCell
                                             value={stock.volume || stock.trading?.volume || 0}
                                             previousValue={getPreviousValue(symbol, 'volume')}
@@ -259,21 +284,14 @@ function StockTable({
                                             showDirection={false}
                                         />
                                     </td>
-                                    <td className="text-center">
-                                        <Link
-                                            to={`/stock/${stock.symbol}`}
-                                            className="action-button"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            View
-                                        </Link>
-                                    </td>
                                 </tr>
                             );
                         })}
                     </tbody>
                 </table>
             </div>
+
+            {renderMobileCards()}
 
             {showPagination && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-4 my-8 pagination">

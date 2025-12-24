@@ -1,12 +1,13 @@
 const libraryFetcher = require('./scrapers/libraryFetcher');
 const proxyFetcher = require('./scrapers/proxyFetcher');
 const customScraper = require('./scrapers/customScraper');
+const mockFetcher = require('./scrapers/mockFetcher');
 const logger = require('./utils/logger');
 const NEPSE_STOCKS = require('../data/nepseStocks');
 
 /**
  * Unified Data Fetcher with Intelligent Fallback
- * Priority: Library → Proxy → Custom
+ * Priority: Development (Mock) → Library → Proxy → Custom
  */
 
 // Create a lookup map for quick symbol -> stock info lookup
@@ -129,6 +130,22 @@ const calculateMarketSummary = (stocks, existingSummary = {}) => {
  */
 const fetchLatestData = async () => {
     logger.info('Starting data fetch cycle...');
+
+    // Development Mode Override: Use Mock Fetcher
+    if (process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true') {
+        try {
+            logger.info('DEV MODE: Using Mock Fetcher for simulation...');
+            const data = await mockFetcher.fetchData();
+            if (data) {
+                lastDataSource = 'mock';
+                lastUpdateTime = new Date();
+                logger.info(`✓ [Mock] Generated data for ${data.stocks.length} stocks`);
+                return data;
+            }
+        } catch (error) {
+            logger.error(`Mock fetcher failed: ${error.message}`);
+        }
+    }
 
     // Try Option 1: Library Fetcher
     try {

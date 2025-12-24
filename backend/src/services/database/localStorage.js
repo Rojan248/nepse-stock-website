@@ -7,9 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
-
-// Data directory for JSON files
-const DATA_DIR = path.join(__dirname, '..', '..', '..', 'data');
+const { DATA_DIR } = require('../../utils/storage');
 
 // In-memory data store
 const store = {
@@ -123,6 +121,8 @@ const releaseWriteLock = (key) => {
     writeLocks[key] = false;
 };
 
+const { safeWriteJson, safeWriteJsonSync } = require('../../utils/storage');
+
 /**
  * Perform the actual file write
  * @param {string} key - The storage key
@@ -130,19 +130,23 @@ const releaseWriteLock = (key) => {
  * @param {boolean} isImmediate - Whether this is an immediate write
  */
 const performWrite = (key, data, isImmediate = false) => {
-    try {
-        ensureDataDir();
-        const filePath = FILES[key];
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        logger.debug(`Saved ${key} to ${filePath}${isImmediate ? ' (immediate)' : ''}`);
-    } catch (error) {
-        logger.error(`Error saving ${key}: ${error.message}`);
-        throw error;
+    // Just map key to filename
+    const filename = path.basename(FILES[key]);
+
+    if (isImmediate) {
+        safeWriteJsonSync(filename, data);
+    } else {
+        // For async writes, we don't await here as it's triggered by setTimeout
+        // But we catch errors to prevent unhandled rejections
+        safeWriteJson(filename, data).catch(err => {
+            logger.error(`Async save failed for ${key}: ${err.message}`);
+        });
     }
 };
 
 /**
  * Ensure data directory exists
+ * Handled by storage.js but keeping for initialization safety
  */
 const ensureDataDir = () => {
     if (!fs.existsSync(DATA_DIR)) {

@@ -1,5 +1,90 @@
 [
   {
+    "totalTurnover": 311866640.9000002,
+    "totalVolume": 1072092,
+    "totalTransactions": 10510,
+    "indexValue": 2012.1670395203462,
+    "indexChange": -2.464749830805504,
+    "indexChangePercent": -0.12041337858884743,
+    "timestamp": "2025-12-24T14:41:10.976Z",
+    "updatedAt": "2025-12-24T14:41:10.976Z"
+  },
+  {
+    "totalTurnover": 299601088.8,
+    "totalVolume": 996477,
+    "totalTransactions": 27641,
+    "nepseIndex": 1999.0388313420096,
+    "timestamp": "2025-12-24T14:34:58.265Z",
+    "updatedAt": "2025-12-24T14:34:58.265Z"
+  },
+  {
+    "totalTurnover": 301452685.6000001,
+    "totalVolume": 1047788,
+    "totalTransactions": 20908,
+    "nepseIndex": 1982.1899074074995,
+    "timestamp": "2025-12-24T14:28:55.215Z",
+    "updatedAt": "2025-12-24T14:28:55.215Z"
+  },
+  {
+    "isOpen": false,
+    "state": "POST_CLOSE",
+    "indexValue": 2585.87,
+    "indexChange": 1.37,
+    "indexChangePercent": 0.05,
+    "indices": [
+      {
+        "id": 57,
+        "name": "Sensitive Index",
+        "value": 448.53,
+        "change": 0.94,
+        "changePercent": 0.21,
+        "high": 448.6947,
+        "low": 445.9441,
+        "previousClose": 448.5307
+      },
+      {
+        "id": 58,
+        "name": "NEPSE Index",
+        "value": 2585.87,
+        "change": 1.37,
+        "changePercent": 0.05,
+        "high": 2593.576,
+        "low": 2577.6343,
+        "previousClose": 2585.8718
+      },
+      {
+        "id": 62,
+        "name": "Float Index",
+        "value": 177.03,
+        "change": 0.17,
+        "changePercent": 0.1,
+        "high": 177.4264,
+        "low": 176.3276,
+        "previousClose": 177.0359
+      },
+      {
+        "id": 63,
+        "name": "Sensitive Float Index",
+        "value": 152.09,
+        "change": 0.46,
+        "changePercent": 0.3,
+        "high": 152.0979,
+        "low": 151.1262,
+        "previousClose": 152.0923
+      }
+    ],
+    "totalTransactions": 62768,
+    "totalTurnover": 3224664663.45,
+    "totalVolume": 7224917,
+    "totalMarketCap": 4341739255698.6,
+    "activeCompanies": 334,
+    "timestamp": "2025-12-24T13:43:55.373Z",
+    "advancedCompanies": 66,
+    "declinedCompanies": 104,
+    "unchangedCompanies": 4,
+    "updatedAt": "2025-12-24T13:43:55.373Z"
+  },
+  {
     "isOpen": false,
     "state": "POST_CLOSE",
     "indexValue": 2585.87,
