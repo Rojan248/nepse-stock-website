@@ -257,12 +257,14 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         }
     }, [stocks, filteredStocks, displayStocks, currentPage, loading]);
 
-    const turnoverValue = marketSummary?.totalTurnover
-        ? (marketSummary.totalTurnover >= 10000000
-            ? (marketSummary.totalTurnover / 10000000).toFixed(2)
-            : (marketSummary.totalTurnover / 100000).toFixed(2))
-        : '0.00';
-    const turnoverUnit = marketSummary?.totalTurnover >= 10000000 ? 'Cr' : 'L';
+    // Calculate turnover for display (support fallback to summing stocks)
+    let turnoverRaw = marketSummary?.totalTurnover || displayStocks.reduce((acc, stock) => acc + (parseFloat(stock.turnover) || 0), 0);
+    const turnoverUnit = turnoverRaw >= 10000000 ? 'Cr' : 'L';
+    const turnoverValue = turnoverRaw >= 10000000
+        ? (turnoverRaw / 10000000).toFixed(2)
+        : (turnoverRaw / 100000).toFixed(2);
+
+    const totalBreadth = (marketStats.advanced + marketStats.declined + marketStats.unchanged) || 1;
 
     if (loading && !stocks.length) {
         return <LoadingSpinner fullPage text="Loading market data..." />;
@@ -272,13 +274,8 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         <div className="home-page layout-container">
             {/* Market Summary */}
             <section className="market-overview">
-                <div className="section-header-row">
-                    <h2 className="section-title">Market Summary</h2>
-                    {lastUpdated && (
-                        <span className="last-updated" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            Last updated: {lastUpdated.toLocaleTimeString()}
-                        </span>
-                    )}
+                <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 className="section-title text-2xl" style={{ margin: 0 }}>Market Summary</h2>
                 </div>
                 <div className="market-cards">
                     <SummaryCard
@@ -310,20 +307,28 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                 </div>
 
                 {/* Market Breadth / Comparison */}
-                <div className="market-breadth" style={{ marginTop: '2rem', display: 'flex', gap: '2rem', alignItems: 'center', background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                    <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Advanced</div>
-                        <div style={{ color: 'var(--price-up)', fontSize: '1.5rem', fontWeight: '700' }}>{marketStats.advanced}</div>
+                {/* Market Breadth / Comparison */}
+                <div className="market-breadth" style={{ marginTop: '2rem', background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Advanced</div>
+                            <div style={{ color: 'var(--success)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.advanced}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Declined</div>
+                            <div style={{ color: 'var(--danger)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.declined}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Unchanged</div>
+                            <div style={{ color: 'var(--color-unchanged)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.unchanged}</div>
+                        </div>
                     </div>
-                    <div style={{ width: '1px', height: '2rem', background: 'var(--border-subtle)' }}></div>
-                    <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Declined</div>
-                        <div style={{ color: 'var(--price-down)', fontSize: '1.5rem', fontWeight: '700' }}>{marketStats.declined}</div>
-                    </div>
-                    <div style={{ width: '1px', height: '2rem', background: 'var(--border-subtle)' }}></div>
-                    <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Unchanged</div>
-                        <div style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '700' }}>{marketStats.unchanged}</div>
+
+                    {/* Visual Ratio Bar */}
+                    <div style={{ height: '8px', width: '100%', display: 'flex', borderRadius: '999px', overflow: 'hidden', background: '#e5e7eb' }}>
+                        <div style={{ width: `${(marketStats.advanced / totalBreadth) * 100}%`, background: 'var(--success)', height: '100%' }} />
+                        <div style={{ width: `${(marketStats.declined / totalBreadth) * 100}%`, background: 'var(--danger)', height: '100%' }} />
+                        <div style={{ width: `${(marketStats.unchanged / totalBreadth) * 100}%`, background: 'var(--color-unchanged)', height: '100%' }} />
                     </div>
                 </div>
             </section>
@@ -340,10 +345,7 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                         {/* Styled Watchlist Button */}
                         <button
                             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all text-sm font-medium watchlist-toggle ${showFavoritesOnly
-                                ? 'bg-amber-50 border-amber-200 text-amber-800 active'
-                                : 'bg-white border-subtle text-secondary hover:bg-gray-50'}`}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                            className={`btn-premium ${showFavoritesOnly ? 'active' : ''}`}
                         >
                             <Star size={16} fill={showFavoritesOnly ? "currentColor" : "none"} />
                             <span>Watchlist</span>
