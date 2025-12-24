@@ -8,8 +8,8 @@
  * @returns {string} Formatted price
  */
 export const formatPrice = (number) => {
-    if (number === null || number === undefined) return '₨0.00';
-    return `₨${parseFloat(number).toLocaleString('en-IN', {
+    if (number === null || number === undefined) return 'Rs 0.00';
+    return `Rs ${parseFloat(number).toLocaleString('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     })}`;
@@ -93,13 +93,13 @@ export const getChangeClass = (changePercent) => {
  * @returns {string} Formatted turnover
  */
 export const formatTurnover = (turnover) => {
-    if (!turnover) return '₨0';
+    if (!turnover) return 'Rs 0';
 
     if (turnover >= 10000000) {
-        return `₨${(turnover / 10000000).toFixed(2)} Cr`;
+        return `Rs ${(turnover / 10000000).toFixed(2)} Cr`;
     }
     if (turnover >= 100000) {
-        return `₨${(turnover / 100000).toFixed(2)} L`;
+        return `Rs ${(turnover / 100000).toFixed(2)} L`;
     }
-    return `₨${formatNumber(turnover)}`;
+    return `Rs ${formatNumber(turnover)}`;
 };

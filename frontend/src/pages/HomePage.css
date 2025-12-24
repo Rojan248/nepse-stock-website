@@ -1,34 +1,34 @@
 .home-page {
-    max-width: var(--container-max);
+    max-width: 1400px;
     margin: 0 auto;
-    background: var(--bg-primary);
+    padding: 2rem;
     min-height: 100vh;
 }
 
 /* Market Summary Section */
 .market-overview {
-    margin-bottom: var(--space-8);
+    margin-bottom: 3rem;
 }
 
 .section-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-6);
+    margin-bottom: 1.5rem;
 }
 
 .section-title {
-    font-size: var(--text-3xl);
-    font-weight: var(--font-black);
+    font-size: 1.5rem;
+    font-weight: 800;
     color: var(--text-primary);
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
     margin: 0;
 }
 
 .market-cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-6);
+    gap: 1.5rem;
 }
 
 /* Stocks Section */
@@ -42,14 +42,16 @@
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: var(--space-4);
-    margin-bottom: var(--space-8);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .filters {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: 1rem;
     flex-wrap: wrap;
 }
 

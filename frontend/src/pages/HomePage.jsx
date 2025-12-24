@@ -58,13 +58,12 @@ async function fetchAllStocks() {
     return allStocks;
 }
 
-function HomePage() {
+function HomePage({ globalSearch }) {
     const navigate = useNavigate();
     const [marketSummary, setMarketSummary] = useState(null);
     const [stocks, setStocks] = useState([]);
     const [sectors, setSectors] = useState([]);
     const [selectedSector, setSelectedSector] = useState('all');
-    const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -161,16 +160,16 @@ function HomePage() {
         };
     }, [fetchMarketData, loadAllStocks]);
 
-    // Reset page to 1 when sector filter or search query changes
+    // Reset page to 1 when sector filter or globalSearch changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [selectedSector, searchQuery]);
+    }, [selectedSector, globalSearch]);
 
     const handleStockClick = (stock) => {
         navigate(`/stock/${stock.symbol}`);
     };
 
-    // Client-side filtering by sector AND search query
+    // Client-side filtering by sector AND globalSearch query
     const filteredStocks = useMemo(() => {
         let result = stocks;
 
@@ -193,8 +192,8 @@ function HomePage() {
         }
 
         // Filter by search query (symbol or company name)
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase().trim();
+        if (globalSearch && globalSearch.trim()) {
+            const query = globalSearch.toLowerCase().trim();
             result = result.filter(stock => {
                 const symbol = (stock.symbol || '').toLowerCase();
                 const name = (stock.companyName || '').toLowerCase();
@@ -203,7 +202,7 @@ function HomePage() {
         }
 
         return result;
-    }, [stocks, selectedSector, searchQuery]);
+    }, [stocks, selectedSector, globalSearch]);
 
     // Client-side pagination
     const totalPages = Math.max(1, Math.ceil(filteredStocks.length / ITEMS_PER_PAGE));
@@ -225,6 +224,13 @@ function HomePage() {
         }
     }, [stocks, filteredStocks, displayStocks, currentPage, loading]);
 
+    const turnoverValue = marketSummary?.totalTurnover
+        ? (marketSummary.totalTurnover >= 10000000
+            ? (marketSummary.totalTurnover / 10000000).toFixed(2)
+            : (marketSummary.totalTurnover / 100000).toFixed(2))
+        : '0.00';
+    const turnoverUnit = marketSummary?.totalTurnover >= 10000000 ? 'Cr' : 'L';
+
     if (loading && !stocks.length) {
         return <LoadingSpinner fullPage text="Loading market data..." />;
     }
@@ -235,6 +241,11 @@ function HomePage() {
             <section className="market-overview">
                 <div className="section-header-row">
                     <h2 className="section-title">Market Summary</h2>
+                    {lastUpdated && (
+                        <span className="last-updated" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            Last updated: {lastUpdated.toLocaleTimeString()}
+                        </span>
+                    )}
                 </div>
                 <div className="market-cards">
                     <SummaryCard
@@ -243,11 +254,16 @@ function HomePage() {
                         change={marketSummary?.indexChangePercent}
                         valueKey="nepse-index"
                     />
-                    <SummaryCard
-                        label="Turnover"
-                        value={formatTurnover(marketSummary?.totalTurnover)}
-                        valueKey="turnover"
-                    />
+                    <div className="summary-card">
+                        <div className="summary-label">
+                            TURNOVER
+                        </div>
+                        <div className="summary-value" style={{ display: 'flex', alignItems: 'baseline', columnGap: '6px' }}>
+                            <span className="currency-symbol" style={{ fontSize: '0.6em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Rs</span>
+                            <span className="number">{turnoverValue}</span>
+                            <span className="unit" style={{ fontSize: '0.6em', color: 'var(--text-secondary)' }}>{turnoverUnit}</span>
+                        </div>
+                    </div>
                     <SummaryCard
                         label="Transactions"
                         value={formatNumber(marketSummary?.totalTransactions)}
@@ -259,6 +275,24 @@ function HomePage() {
                         valueKey="volume"
                     />
                 </div>
+
+                {/* Market Breadth / Comparison */}
+                <div className="market-breadth" style={{ marginTop: '2rem', display: 'flex', gap: '2rem', alignItems: 'center', background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                    <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Advanced</div>
+                        <div style={{ color: 'var(--price-up)', fontSize: '1.5rem', fontWeight: '700' }}>{marketSummary?.advancedCompanies || 0}</div>
+                    </div>
+                    <div style={{ width: '1px', height: '2rem', background: 'var(--border-subtle)' }}></div>
+                    <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Declined</div>
+                        <div style={{ color: 'var(--price-down)', fontSize: '1.5rem', fontWeight: '700' }}>{marketSummary?.declinedCompanies || 0}</div>
+                    </div>
+                    <div style={{ width: '1px', height: '2rem', background: 'var(--border-subtle)' }}></div>
+                    <div className="breadth-item" style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Unchanged</div>
+                        <div style={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: '700' }}>{marketSummary?.unchangedCompanies || 0}</div>
+                    </div>
+                </div>
             </section>
 
             {/* All Stocks */}
@@ -266,10 +300,6 @@ function HomePage() {
                 <div className="section-header">
                     <h3 className="section-title">All Stocks ({filteredStocks.length})</h3>
                     <div className="filters">
-                        <SearchBar
-                            onInputChange={setSearchQuery}
-                            placeholder="Search by symbol or company..."
-                        />
                         <Select
                             value={selectedSector}
                             onChange={(e) => setSelectedSector(e.target.value)}

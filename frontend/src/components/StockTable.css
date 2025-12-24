@@ -1,188 +1,151 @@
 .stock-table-wrapper {
     width: 100%;
-    background: #FFFFFF;
-    border: 1px solid #EEEEEE;
-    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-premium);
 }
 
 .stock-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
-/* Header */
-.stock-table thead {
-    border-bottom: 2px solid #000000;
-    background: #FAFAFA;
-}
-
+/* Header Cells */
 .stock-table th {
-    padding: 14px 20px;
+    padding: 1rem 1.5rem;
     text-align: left;
-    font-size: 10px;
-    font-weight: 800;
+    font-size: 0.7rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
     background: #FAFAFA;
+    border-bottom: 1px solid var(--border-subtle);
     white-space: nowrap;
-}
-
-.stock-table th div {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.sort-icon {
-    width: 14px;
-    height: 14px;
-    transition: transform var(--transition-fast);
-}
-
-.sort-icon.active.desc {
-    transform: rotate(180deg);
-}
-
-/* Numeric alignment */
-.stock-table th.numeric,
-.stock-table th:nth-child(4),
-.stock-table th:nth-child(5),
-.stock-table th:nth-child(6),
-.stock-table th:nth-child(7) {
-    text-align: right;
 }
 
 .stock-table th.sortable {
     cursor: pointer;
-    transition: color 150ms ease;
+    transition: var(--transition-base);
 }
 
 .stock-table th.sortable:hover {
-    color: #000000;
-}
-
-/* Rows */
-.stock-table tbody tr {
-    border-bottom: 1px solid #EEEEEE;
-    transition: all 0.2s ease;
-}
-
-.stock-table tbody tr:hover {
-    background: #F5F5F5;
-}
-
-.stock-table td {
-    padding: 16px 20px;
-    font-size: 13px;
     color: var(--text-primary);
-    font-weight: 500;
+    background: #F5F5F4;
 }
 
-.stock-table td:nth-child(4),
-.stock-table td:nth-child(5),
-.stock-table td:nth-child(6),
-.stock-table td:nth-child(7) {
+/* Base Body Cells */
+.stock-table td {
+    padding: 1rem 1.5rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
+    transition: var(--transition-base);
+}
+
+/* Row Hover & Clickability */
+.clickable-row {
+    cursor: pointer;
+}
+
+.clickable-row:hover td {
+    background-color: #F5F5F4;
+}
+
+/* Financial Cells - Monospace & Right Aligned */
+.financial-cell {
+    font-family: var(--font-mono);
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
 
-/* Symbol Column */
-.stock-table td:first-child {
+.symbol-cell {
     font-weight: 800;
-    font-size: 14px;
-    color: var(--c-black);
-    letter-spacing: -0.01em;
+    color: var(--primary-accent);
+}
+
+.company-cell {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sector-cell {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+/* Change Badges - Transparent Style */
+.change-pill,
+.change-percent-badge {
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+}
+
+.change-pill.positive,
+.change-percent-badge.positive {
+    background-color: #f0fdf4;
+    color: #15803d;
+}
+
+.change-pill.negative,
+.change-percent-badge.negative {
+    background-color: #fef2f2;
+    color: #b91c1c;
+}
+
+/* Specific Column Widths */
+.stock-table th:nth-child(1),
+.stock-table td:nth-child(1) {
+    width: 12%;
+}
+
+/* Symbol */
+.stock-table th:nth-child(2),
+.stock-table td:nth-child(2) {
+    width: 30%;
 }
 
 /* Company */
-.company-cell {
-    color: #888888;
-    font-size: 13px;
-    max-width: 320px;
-    font-weight: 500;
+.stock-table th:nth-child(3),
+.stock-table td:nth-child(3) {
+    width: 15%;
 }
 
-/* Sector Badge inside table */
-.sector-badge-table {
-    display: inline-block;
-    padding: 2px 8px;
-    border: 1px solid #EEEEEE;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #999999;
+/* Sector */
+.stock-table th:nth-child(4),
+.stock-table td:nth-child(4) {
+    width: 12%;
 }
 
-/* Change Pill - Colored */
-.change-pill {
-    display: inline-flex;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-weight: 800;
-    font-size: 11px;
-    background: var(--color-unchanged);
-    color: var(--c-white);
-    min-width: 60px;
-    justify-content: center;
+/* LTP */
+.stock-table th:nth-child(5),
+.stock-table td:nth-child(5) {
+    width: 10%;
 }
 
-.change-pill.positive {
-    background: var(--color-positive);
+/* Change */
+.stock-table th:nth-child(6),
+.stock-table td:nth-child(6) {
+    width: 10%;
 }
 
-.change-pill.negative {
-    background: var(--color-negative);
+/* % Change */
+.stock-table th:nth-child(7),
+.stock-table td:nth-child(7) {
+    width: 11%;
 }
 
-.change-percent {
-    font-weight: 800;
-    color: var(--color-unchanged);
-}
-
-.change-percent--positive {
-    color: var(--color-positive);
-}
-
-.change-percent--negative {
-    color: var(--color-negative);
-}
-
-/* Color markers for price changes */
-.stock-card-change.price-up {
-    color: var(--color-positive);
-}
-
-.stock-card-change.price-down {
-    color: var(--color-negative);
-}
-
-.stock-card-change.price-unchanged {
-    color: var(--color-unchanged);
-}
-
-/* Action Button */
-.action-button {
-    padding: 8px 16px;
-    background: #000000;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.action-button:hover {
-    background: #333333;
-    transform: scale(1.05);
-}
+/* Volume */
 
 /* Pagination */
 .pagination {
@@ -190,53 +153,93 @@
     justify-content: center;
     align-items: center;
     gap: 1.5rem;
-    padding: 2rem 0;
-    background: #FFFFFF;
+    padding: 2.5rem 0;
 }
 
 .pagination button {
-    background: #FFFFFF;
-    border: 1.5px solid #000000;
-    color: #000000;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: var(--transition-base);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .pagination button:hover:not(:disabled) {
-    background: #000000;
-    color: #FFFFFF;
+    background: var(--bg-app);
+    border-color: var(--text-primary);
 }
 
 .pagination button:disabled {
-    opacity: 0.2;
-    border-color: #CCCCCC;
-    color: #CCCCCC;
+    opacity: 0.4;
     cursor: not-allowed;
 }
 
 .pagination-info {
-    font-size: 12px;
-    font-weight: 800;
-    color: #888888;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Mobile Responsiveness */
+/* CRITICAL: Hide mobile view on desktop by default */
+.mobile-card-container {
+    display: none;
+}
 
-    .stock-table th,
-    .stock-table td {
-        padding: 12px 16px;
+@media (max-width: 1024px) {
+
+    .stock-table td,
+    .stock-table th {
+        padding: 0.75rem 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .desktop-table-container {
+        display: none;
     }
 
-    .company-cell {
-        display: none;
+    .mobile-card-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .stock-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        box-shadow: var(--shadow-premium);
+        cursor: pointer;
+    }
+
+    .stock-symbol {
+        font-family: var(--font-mono);
+        color: var(--primary-accent);
+        font-weight: 800;
+        font-size: 1rem;
+    }
+
+    .stock-ltp {
+        font-family: var(--font-mono);
+        font-weight: 700;
+    }
+
+    .card-header {
+        margin-bottom: 0.5rem;
+    }
+
+    .stock-name {
+        font-size: 0.75rem;
+        color: var(--text-muted);
     }
 }

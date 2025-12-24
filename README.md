@@ -9,11 +9,12 @@ Real-time Nepal Stock Exchange (NEPSE) data visualization platform with automati
 ## Features
 
 - 📊 **Real-time Stock Data** - Live prices, changes, and volumes
-- 🔄 **Auto Updates** - 8-second refresh during market hours (10 AM - 3 PM NST)
+- 🔍 **Unified Global Search** - Search stocks by symbol or name from anywhere in the app
+- 🔄 **Auto Updates** - 10-second refresh during market hours (10 AM - 3 PM NST)
+- 📈 **Market Breadth** - Track Advanced, Declined, and Unchanged counts at a glance
 - 📈 **Top Gainers/Losers** - Track best and worst performers
 - 🆕 **IPO Tracking** - Browse upcoming, open, and completed IPOs
-- 🔍 **Smart Search** - Find stocks by symbol or company name
-- 📱 **Responsive Design** - Works on desktop, tablet, and mobile
+- 📱 **Responsive Design** - Optimized for desktop, tablet, and mobile
 - 🌙 **Dark Theme** - Modern, eye-friendly interface
 
 ## Tech Stack
@@ -146,9 +147,16 @@ MIT License - see [LICENSE](./LICENSE) for details.
 - Data sourced from Nepal Stock Exchange (NEPSE)
 - Built for the Nepali investment community
 
+## Recent Updates (Dec 2025)
+
+- **Architecture Redesign**: Migrated search state to root components for a unified header search experience.
+- **Data Integrity**: Fixed data mapping for the NEPSE Index and added Market Breadth indicators.
+- **UI Polish**: Resolved currency symbol rendering issues (switched to 'Rs') and fixed various layout overlaps.
+- **Infrastructure**: Stabilized production deployment on `nepse.me` via PM2 and Cloudflare Tunnels.
+
 ## Known Issues
 
-- **Mobile & Tablet Optimization:** The UI is currently being optimized for mobile and tablet devices. You may experience layout shifts or overlapping elements on smaller screens. We are actively working on a responsive redesign.
+- **Historical Charts**: Some historical data points may have gaps due to upstream API maintenance. This does not affect live trading data.
 
 ## Roadmap & Upcoming Features
 
