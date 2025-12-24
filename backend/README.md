@@ -3,7 +3,7 @@
 Scraper and API server for NEPSE (Nepal Stock Exchange) stock data.
 
 ## Features
-- Automatic stock data scraping every 8 seconds (market hours)
+- Automatic stock data scraping every 10 seconds (market hours)
 - Dual fallback system (Library → Proxy → Custom)
 - REST API endpoints for stock and IPO data
 - Local JSON file persistence
