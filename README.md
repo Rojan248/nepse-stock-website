@@ -151,7 +151,7 @@ MIT License - see [LICENSE](./LICENSE) for details.
 
 - **Architecture Redesign**: Migrated search state to root components for a unified header search experience.
 - **Data Integrity**: Fixed data mapping for the NEPSE Index and added Market Breadth indicators.
-- **UI Polish**: Resolved currency symbol rendering issues (switched to 'Rs') and fixed various layout overlaps.
+- **UI Polish**: Resolved currency symbol rendering issues (switched to 'Rs') and fixed various layout overlaps. Updated design system to **Stark Minimalism** (Pure Black, Pure White, Green, and Red).
 - **Infrastructure**: Stabilized production deployment on `nepse.me` via PM2 and Cloudflare Tunnels.
 
 ## Known Issues
