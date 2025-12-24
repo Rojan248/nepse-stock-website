@@ -71,18 +71,17 @@ Note: `node_modules`, `.git`, `.next`, `dist`, and `build` folders are excluded 
 
 2. Git Status & Branches
 
-- Current active branch: next-huge-change
+- Current active branch: master
 - All local branches:
   - master
-  - next-huge-change
+  - backup/pre-reset-master-2025-12-19
 - Remote branches:
   - origin/master
-  - origin/next-huge-change
 
-Last 3 commit messages (on `next-huge-change`):
-1. b3e166b docs: explain data persistence and market-hours behavior
-2. b8505fb fix: ensure stocks remain visible when market closed - display last trading session data
-3. 74dd179 refactor(ui): replace navigation buttons with new icon-enhanced Button component and improve accessibility
+Last 3 commit messages (on `master`):
+1. d74b289 feat: unified header search, fixed nepse index data, and improved market breadth visualization
+2. 013c242 fix: turnover card overlap and search bar padding
+3. b3e166b docs: explain data persistence and market-hours behavior
 
 
 3. Key File Locations
