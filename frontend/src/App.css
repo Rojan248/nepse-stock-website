@@ -121,8 +121,8 @@ body {
 
 .main-content {
     flex: 1;
-    padding-top: calc(80px + 2rem);
-    padding-bottom: var(--space-12);
+    padding-top: calc(70px + 1rem);
+    padding-bottom: var(--space-8);
 }
 
 /* Container */
