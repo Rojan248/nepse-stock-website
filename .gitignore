@@ -32,3 +32,8 @@ credentials/
 cloudflared/*.json
 cloudflared/config.yml
 cloudflared/cert.pem
+
+# Database persistence
+backend/data/*.json
+backend/data/*.tmp
+!backend/data/nepseStocks.js

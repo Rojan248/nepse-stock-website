@@ -5,7 +5,8 @@ import SearchBar from './SearchBar';
 import logoPrimary from '../assets/img/logo-primary.jpg';
 import './Header.css';
 
-function Header({ searchTerm, onSearchChange }) {
+function Header({ searchTerm, onSearchChange, lastUpdated }) {
+    const [secondsAgo, setSecondsAgo] = useState(0);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [marketStatus, setMarketStatus] = useState(null);
     const navigate = useNavigate();
@@ -16,6 +17,19 @@ function Header({ searchTerm, onSearchChange }) {
         const interval = setInterval(fetchStatus, 30000); // Update every 30 seconds
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        if (!lastUpdated) return;
+
+        // Reset secondsAgo when lastUpdated changes
+        setSecondsAgo(0);
+
+        const ticker = setInterval(() => {
+            setSecondsAgo(prev => prev + 1);
+        }, 1000);
+
+        return () => clearInterval(ticker);
+    }, [lastUpdated]);
 
     const fetchStatus = async () => {
         try {
@@ -86,8 +100,15 @@ function Header({ searchTerm, onSearchChange }) {
                     </Link>
 
                     <div className={`market-status ${marketStatus === 'Open' ? 'market-status--open' : 'market-status--closed'}`}>
-                        <span className="status-dot"></span>
-                        <span className="market-status__text">{marketStatus || 'Closed'}</span>
+                        <div className="status-badge" style={{ display: 'flex', alignItems: 'center' }}>
+                            <span className="status-dot"></span>
+                            <span className="market-status__text">{marketStatus || 'Closed'}</span>
+                        </div>
+                        {lastUpdated && (
+                            <span className="last-updated-ticker" style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginLeft: '12px' }}>
+                                Updated: {secondsAgo}s ago
+                            </span>
+                        )}
                     </div>
                 </nav>
 

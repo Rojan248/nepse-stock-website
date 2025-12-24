@@ -9,6 +9,8 @@ import Select from '../components/ui/Select';
 import SearchBar from '../components/SearchBar';
 import { formatNumber, formatPercent, formatTurnover, getChangeClass } from '../utils/formatting';
 import { ITEMS_PER_PAGE } from '../utils/constants';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Star } from 'lucide-react';
 import './HomePage.css';
 
 // Live update interval - 15 seconds
@@ -58,7 +60,7 @@ async function fetchAllStocks() {
     return allStocks;
 }
 
-function HomePage({ globalSearch }) {
+function HomePage({ globalSearch, setGlobalLastUpdated }) {
     const navigate = useNavigate();
     const [marketSummary, setMarketSummary] = useState(null);
     const [stocks, setStocks] = useState([]);
@@ -68,6 +70,8 @@ function HomePage({ globalSearch }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [favorites, setFavorites] = useLocalStorage('nepse-favorites', []);
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
     // Refs for cleanup and tracking
     const mountedRef = useRef(true);
@@ -116,7 +120,11 @@ function HomePage({ globalSearch }) {
             if (!mountedRef.current) return;
 
             setStocks(allStocks);
-            setLastUpdated(new Date());
+            const now = new Date();
+            setLastUpdated(now);
+            if (setGlobalLastUpdated) {
+                setGlobalLastUpdated(now);
+            }
             // Reset to page 1 when reloading all stocks
             if (isInitial) {
                 setCurrentPage(1);
@@ -169,6 +177,15 @@ function HomePage({ globalSearch }) {
         navigate(`/stock/${stock.symbol}`);
     };
 
+    const toggleFavorite = useCallback((symbol) => {
+        setFavorites(prev => {
+            if (prev.includes(symbol)) {
+                return prev.filter(s => s !== symbol);
+            }
+            return [...prev, symbol];
+        });
+    }, [setFavorites]);
+
     // Client-side filtering by sector AND globalSearch query
     const filteredStocks = useMemo(() => {
         let result = stocks;
@@ -201,8 +218,13 @@ function HomePage({ globalSearch }) {
             });
         }
 
+        // Filter by favorites
+        if (showFavoritesOnly) {
+            result = result.filter(stock => favorites.includes(stock.symbol));
+        }
+
         return result;
-    }, [stocks, selectedSector, globalSearch]);
+    }, [stocks, selectedSector, globalSearch, showFavoritesOnly, favorites]);
 
     // Client-side pagination
     const totalPages = Math.max(1, Math.ceil(filteredStocks.length / ITEMS_PER_PAGE));
@@ -299,7 +321,17 @@ function HomePage({ globalSearch }) {
             <section className="stocks-section">
                 <div className="section-header">
                     <h3 className="section-title">All Stocks ({filteredStocks.length})</h3>
-                    <div className="filters">
+                    <div className="filters" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <Button
+                            variant={showFavoritesOnly ? 'primary' : 'secondary'}
+                            size="sm"
+                            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                            buttonClass="watchlist-toggle"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                            <Star size={16} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
+                            Watchlist {favorites.length > 0 && `(${favorites.length})`}
+                        </Button>
                         <Select
                             value={selectedSector}
                             onChange={(e) => setSelectedSector(e.target.value)}
@@ -316,6 +348,8 @@ function HomePage({ globalSearch }) {
                     totalPages={totalPages}
                     onPageChange={setCurrentPage}
                     loading={loading}
+                    favorites={favorites}
+                    onToggleFavorite={toggleFavorite}
                 />
             </section >
 
