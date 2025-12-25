@@ -94,3 +94,108 @@
         width: 100%;
     }
 }
+
+/* Watchlist Button Styles */
+.watchlist-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.3s ease;
+
+    /* Default State (Black) */
+    background-color: #000000;
+    color: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.watchlist-btn:hover {
+    background-color: #262626;
+    /* neutral-800 */
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Active State (Clicked) */
+.watchlist-btn.active {
+    background-color: #171717;
+    /* neutral-900 */
+    color: #e5e5e5;
+    /* neutral-200 */
+    box-shadow: 0 0 0 2px #171717, 0 0 0 4px #ffffff, 0 4px 12px rgba(234, 179, 8, 0.2);
+}
+
+/* Icon Container */
+.icon-container {
+    position: relative;
+    width: 18px;
+    height: 18px;
+}
+
+.icon-container svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+/* Star Icon Transitions */
+.star-icon {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+}
+
+.watchlist-btn.active .star-icon {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+}
+
+/* Check Icon Transitions */
+.check-icon {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+    color: #4ade80;
+    /* green-400 */
+}
+
+.watchlist-btn.active .check-icon {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+}
+
+/* Click Animation */
+@keyframes pop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(0.95);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.watchlist-btn:active {
+    animation: pop 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Text Transition */
+.btn-label {
+    position: relative;
+    z-index: 10;
+}
