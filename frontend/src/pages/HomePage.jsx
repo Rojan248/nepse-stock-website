@@ -344,13 +344,25 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                     </h2>
 
                     <div className="flex items-center gap-3 w-full md:w-auto filters">
-                        {/* Rigorous Watchlist Button */}
+                        {/* Animated Watchlist Button */}
                         <button
                             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            className={`h-10 px-4 rounded-lg flex items-center gap-2 border font-medium text-sm transition-all shadow-sm ${showFavoritesOnly ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'}`}
+                            className={`watchlist-btn ${showFavoritesOnly ? 'active' : ''}`}
                         >
-                            <Star size={14} fill={showFavoritesOnly ? "currentColor" : "none"} />
-                            <span className="uppercase tracking-wide text-xs font-bold">Watchlist</span>
+                            <div className="icon-container">
+                                {/* Star Icon */}
+                                <svg className="star-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+
+                                {/* Check Icon */}
+                                <svg className="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </div>
+
+                            <span className="btn-label">{showFavoritesOnly ? 'Added' : 'Watchlist'}</span>
+
                             {favorites.length > 0 && (
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${showFavoritesOnly ? 'bg-amber-200 text-amber-900' : 'bg-stone-100 text-stone-500'}`}>
                                     {favorites.length}
