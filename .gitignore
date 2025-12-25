@@ -37,3 +37,6 @@ cloudflared/cert.pem
 backend/data/*.json
 backend/data/*.tmp
 !backend/data/nepseStocks.js
+
+# Temporary UI components
+useable/
