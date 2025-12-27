@@ -6,7 +6,13 @@ const logger = require('../utils/logger');
  * Uses multiple NEPSE data API sources with fallback
  */
 
-const TIMEOUT = 15000; // 15 seconds
+const https = require('https');
+
+// Shared Keep-Alive Agent for performance
+const httpsAgent = new https.Agent({ keepAlive: true });
+
+// Strict 4s timeout as requested
+const TIMEOUT = 4000;
 
 // Multiple API sources to try
 const API_SOURCES = [
@@ -34,6 +40,7 @@ const API_SOURCES = [
 const createClient = (baseURL) => axios.create({
     baseURL,
     timeout: TIMEOUT,
+    httpsAgent,
     headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -73,6 +80,19 @@ const fetchData = async () => {
                 ]);
 
                 if (stocksData && stocksData.length > 0) {
+                    // STALE DATA GUARD: Check if data is from today (Nepal Time: GMT+5:45)
+                    const now = new Date();
+                    const nptOffset = 5.75 * 60 * 60 * 1000;
+                    const nptDate = new Date(now.getTime() + nptOffset).toISOString().split('T')[0];
+
+                    // Parse 'As Of Date' from the response if available, or check fallback timestamp
+                    const sourceDate = (marketData && marketData.timestamp) ? marketData.timestamp.split('T')[0] : null;
+
+                    if (sourceDate && sourceDate !== nptDate) {
+                        logger.warn(`Stale data detected from ${source.name}: Source Date ${sourceDate} != Today ${nptDate}`);
+                        throw new Error(`Stale data from ${source.name}`);
+                    }
+
                     logger.info(`Proxy fetcher: Retrieved ${stocksData.length} stocks from ${source.name}`);
                     return {
                         stocks: stocksData,
@@ -172,7 +192,7 @@ const fetchFromShareSansar = async () => {
         });
 
         const response = await client.get('https://www.sharesansar.com/live-trading');
-        
+
         // ShareSansar returns HTML, would need HTML parsing
         // This is a placeholder - real implementation would parse the HTML
         if (response.data && typeof response.data === 'object' && response.data.data) {
@@ -196,7 +216,7 @@ const fetchFromShareSansar = async () => {
                 },
                 lastUpdated: new Date().toISOString()
             }));
-            
+
             return {
                 stocks,
                 ipos: [],

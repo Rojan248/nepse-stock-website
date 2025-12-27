@@ -3,6 +3,7 @@ const router = express.Router();
 const stockOperations = require('../services/database/stockOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../services/utils/logger');
+const analytics = require('../services/analytics');
 
 /**
  * Stock API Routes
@@ -52,6 +53,9 @@ router.get('/search', asyncHandler(async (req, res) => {
     }
 
     const stocks = await stockOperations.searchStocks(q);
+
+    // Record search for analytics
+    analytics.recordSearch(q);
 
     res.json({
         success: true,
@@ -188,6 +192,9 @@ router.get('/:symbol', asyncHandler(async (req, res) => {
             error: { message: `Stock with symbol '${symbol}' not found` }
         });
     }
+
+    // Record view for analytics
+    analytics.recordView(symbol);
 
     res.json({
         success: true,

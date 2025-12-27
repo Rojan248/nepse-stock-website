@@ -5,6 +5,7 @@ import StockTable from '../components/StockTable';
 import SummaryCard from '../components/SummaryCard';
 import SectorChart from '../components/SectorChart';
 import LoadingSpinner from '../components/LoadingSpinner';
+import TrendingBar from '../components/TrendingBar';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import SearchBar from '../components/SearchBar';
@@ -335,6 +336,9 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
 
             {/* Sector Analysis Chart */}
             <SectorChart stocks={stocks} />
+
+            {/* Trending Stocks */}
+            <TrendingBar />
 
             {/* All Stocks */}
             <section className="stocks-section">

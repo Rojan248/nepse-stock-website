@@ -5,12 +5,12 @@ import axios from 'axios';
  * Handles all backend API communication
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 const TIMEOUT = 10000;
 
 // Create axios instance
 const api = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: API_URL,
     timeout: TIMEOUT,
     headers: {
         'Content-Type': 'application/json'

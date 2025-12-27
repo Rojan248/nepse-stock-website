@@ -6,7 +6,7 @@
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "build:frontend": "cd frontend && npm run build",
     "start:prod": "cd backend && NODE_ENV=production node src/server.js",
-    "deploy": "npm run install:all && npm run build:frontend && echo 'Build complete. Ready to start with PM2.'"
+    "deploy": "node deploy_update.js"
   },
   "keywords": [
     "nepse",

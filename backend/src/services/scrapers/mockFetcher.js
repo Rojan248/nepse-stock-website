@@ -1,77 +1,87 @@
-const nepseStocks = require('../../data/nepseStocks');
+const NEPSE_STOCKS = require('../../data/nepseStocks');
 const logger = require('../utils/logger');
 
-// Cache base prices to allow realistic trends during a session
-const basePrices = new Map();
-
 /**
- * Get formatted time HH:mm:ss
+ * Mock Fetcher Service
+ * Simulates real market data for development & weekend testing
  */
-const getTime = () => {
-    const now = new Date();
-    return now.toTimeString().split(' ')[0];
+
+// Helper to generate realistic random price change
+const generatePrice = (basePrice) => {
+    // -2% to +2% fluctuation
+    const fluctuation = (Math.random() * 0.04) - 0.02;
+    return Math.round(basePrice * (1 + fluctuation) * 10) / 10;
 };
 
-function getRandomFluctuation(price) {
-    // Fluctuate between -2% and +2%
-    const percent = (Math.random() * 4 - 2) / 100;
-    return parseFloat((price + (price * percent)).toFixed(1));
-}
+const fetchData = async () => {
+    logger.info('[MockFetcher] Generating weekend market data...');
 
-async function fetchData() {
-    logger.info("⚠️ [MockFetcher] Generating simulation data...");
-
-    // Simulate network delay
+    // Simulate network delay (500ms)
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const stocks = nepseStocks.map(stock => {
-        // Initialize base price if not exists
-        if (!basePrices.has(stock.symbol)) {
-            // Random price between 100 and 3000
-            const randomPrice = Math.floor(Math.random() * 2900) + 100;
-            basePrices.set(stock.symbol, randomPrice);
+    const today = new Date();
+
+    // Generate stocks
+    const stocks = NEPSE_STOCKS.map((stock, index) => {
+        const basePrice = stock.base || 300; // fallback base price
+
+        // Edge Case: Force one stock to have 0 price to test database shield
+        if (index === 0) {
+            return {
+                symbol: stock.symbol,
+                companyName: stock.name,
+                sector: stock.sector,
+                prices: { ltp: 0, previousClose: 0, change: 0, changePercent: 0, high: 0, low: 0, open: 0 },
+                trading: { volume: 0, turnover: 0, totalTrades: 0 },
+                timestamp: today.toISOString()
+            };
         }
 
-        const basePrice = basePrices.get(stock.symbol);
-        const newPrice = getRandomFluctuation(basePrice);
-
-        // Update base price slightly to create trends (optional, but keeps it drifting)
-        // basePrices.set(stock.symbol, newPrice); 
-
-        const change = parseFloat((newPrice - basePrice).toFixed(1));
-        const pChange = parseFloat(((newPrice - basePrice) / basePrice * 100).toFixed(2));
+        const ltp = generatePrice(basePrice);
+        const previousClose = basePrice;
+        const change = ltp - previousClose;
+        const changePercent = (change / previousClose) * 100;
 
         return {
             symbol: stock.symbol,
             companyName: stock.name,
-            sector: stock.sector || "Others",
-            ltp: newPrice,
-            change: change,
-            changePercent: pChange,
-            open: basePrice,
-            high: Math.max(basePrice, newPrice),
-            low: Math.min(basePrice, newPrice),
-            volume: Math.floor(Math.random() * 5000) + 100,
-            turnover: newPrice * (Math.floor(Math.random() * 1000) + 10),
-            status: "Active",
-            timestamp: new Date().toISOString()
+            sector: stock.sector,
+            prices: {
+                ltp,
+                previousClose,
+                change: Math.round(change * 100) / 100,
+                changePercent: Math.round(changePercent * 100) / 100,
+                high: ltp * 1.01,
+                low: ltp * 0.99,
+                open: previousClose
+            },
+            trading: {
+                volume: Math.floor(Math.random() * 50000),
+                turnover: Math.floor(Math.random() * 10000000),
+                totalTrades: Math.floor(Math.random() * 500)
+            },
+            timestamp: today.toISOString()
         };
     });
 
-    return {
-        source: 'mock',
-        timestamp: new Date().toISOString(),
-        stocks: stocks,
-        marketSummary: {
-            totalTurnover: stocks.reduce((acc, s) => acc + (s.turnover || 0), 0),
-            totalVolume: stocks.reduce((acc, s) => acc + (s.volume || 0), 0),
-            totalTransactions: Math.floor(Math.random() * 50000) + 10000,
-            indexValue: 2000 + (Math.random() * 50 - 25), // Mock index around 2000
-            indexChange: (Math.random() * 10) - 5,
-            indexChangePercent: (Math.random() * 0.5) - 0.25,
-            timestamp: new Date().toISOString()
-        }
+    // Generate Market Summary
+    const marketSummary = {
+        indexValue: 2000 + (Math.random() * 20 - 10),
+        indexChange: Math.random() * 10 - 5,
+        totalTurnover: stocks.reduce((acc, s) => acc + s.trading.turnover, 0),
+        totalVolume: stocks.reduce((acc, s) => acc + s.trading.volume, 0),
+        activeCompanies: stocks.length,
+        timestamp: today.toISOString()
     };
-}
 
-module.exports = { fetchData };
+    return {
+        stocks,
+        marketSummary,
+        source: 'mock-weekend-mode',
+        timestamp: today.toISOString()
+    };
+};
+
+module.exports = {
+    fetchData
+};

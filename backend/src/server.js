@@ -97,6 +97,10 @@ const startServer = async () => {
         logger.info('Initializing local JSON storage...');
         await connectDB();
 
+        // Initialize analytics service
+        const analytics = require('./services/analytics');
+        await analytics.initialize();
+
         // Start Express server
         const server = app.listen(PORT, '0.0.0.0', () => {
             logger.info(`Server running on http://0.0.0.0:${PORT}`);
@@ -113,6 +117,10 @@ const startServer = async () => {
 
             // Stop scheduler
             scheduler.stopScheduler();
+
+            // Shutdown analytics
+            const analytics = require('./services/analytics');
+            await analytics.shutdown();
 
             // Close server
             server.close(() => {

@@ -8,13 +8,18 @@ const NEPSE_STOCKS = require('../../data/nepseStocks');
  * Falls back to simulated data only when all real sources fail
  */
 
+const https = require('https');
+const http = require('http');
+
 const NEPSE_BASE_URL = 'https://nepalstock.com.np';
-const TIMEOUT = 20000;
+const TIMEOUT = 4000; // Strict 4s timeout
 
 // Create axios instance for NEPSE
 const nepseClient = axios.create({
     baseURL: NEPSE_BASE_URL,
     timeout: TIMEOUT,
+    httpAgent: new http.Agent({ keepAlive: true }),
+    httpsAgent: new https.Agent({ keepAlive: true }),
     headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -93,7 +98,7 @@ const fetchFromNEPSEDirect = async () => {
 
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
             const stocks = response.data.map(transformNEPSEStock);
-            
+
             // Also fetch market summary
             const marketSummary = await fetchNEPSEMarketSummary(token);
 
@@ -119,14 +124,14 @@ const getNEPSEToken = async () => {
         // Get the prove token
         const proveResponse = await nepseClient.get('/api/authenticate/prove');
         const proveData = proveResponse.data;
-        
+
         if (proveData) {
             // NEPSE uses a specific algorithm to generate access token from prove
             // For now, try using the prove token directly or a simplified approach
             const accessResponse = await nepseClient.post('/api/authenticate/accesstoken', {
                 accessToken: proveData
             });
-            
+
             if (accessResponse.data && accessResponse.data.accessToken) {
                 return accessResponse.data.accessToken;
             }
@@ -180,7 +185,7 @@ const fetchFromNEPSEPublic = async () => {
     for (const endpoint of endpoints) {
         try {
             const response = await nepseClient.get(endpoint);
-            
+
             if (response.data) {
                 let data = response.data;
                 if (data.data) data = data.data;
@@ -370,7 +375,7 @@ const generateRealisticPrice = (basePrice, volatility = 0.03) => {
  */
 const generateSimulatedData = () => {
     logger.info('Generating simulated market data from static stock list...');
-    
+
     const now = new Date();
     const stocks = NEPSE_STOCKS.map(stock => {
         const basePrice = stock.base || Math.floor(Math.random() * 500) + 100;
