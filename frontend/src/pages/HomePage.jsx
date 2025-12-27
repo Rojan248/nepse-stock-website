@@ -375,20 +375,12 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                         </button>
 
                         {/* Rigorous Sector Select */}
-                        <div className="relative flex items-center">
-                            <select
-                                value={selectedSector}
-                                onChange={(e) => setSelectedSector(e.target.value)}
-                                className="h-10 pl-4 pr-10 rounded-lg border border-stone-200 bg-white text-stone-700 text-xs font-bold uppercase tracking-wide appearance-none hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-stone-400 min-w-[180px]"
-                            >
-                                <option value="all">All Sectors</option>
-                                {sectors.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <ChevronDown
-                                size={14}
-                                className="absolute right-3 text-stone-400 pointer-events-none"
-                            />
-                        </div>
+                        <Select
+                            value={selectedSector}
+                            onChange={(e) => setSelectedSector(e.target.value)}
+                            options={[{ label: 'ALL SECTORS', value: 'all' }, ...sectors.map(s => ({ label: s, value: s }))]}
+                            placeholder="ALL SECTORS"
+                        />
                     </div>
                 </div>
                 <StockTable
