@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Flame } from 'lucide-react';
 import axios from 'axios';
 import './TrendingBar.css';
 
@@ -41,8 +42,8 @@ const TrendingBar = () => {
     return (
         <div className="trending-bar">
             <div className="trending-container">
-                <div className="trending-header">
-                    <span className="trending-icon">🔥</span>
+                <div className="trending-header" style={{ display: 'flex', alignItems: 'center' }}>
+                    <Flame size={18} color="#ef4444" fill="#ef4444" style={{ marginRight: '8px' }} />
                     <span className="trending-title">Trending:</span>
                 </div>
                 <div className="trending-items">

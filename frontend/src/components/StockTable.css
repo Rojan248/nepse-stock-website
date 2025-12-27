@@ -25,6 +25,18 @@
     background: #FAFAFA;
     border-bottom: 1px solid var(--border-subtle);
     white-space: nowrap;
+    vertical-align: middle;
+}
+
+.stock-table th>div {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.stock-table th.text-right>div {
+    justify-content: flex-end;
 }
 
 .stock-table th.sortable {
