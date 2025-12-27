@@ -188,6 +188,46 @@ router.get('/time-sync-status', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/trending
+ * Get trending stocks based on user activity
+ */
+router.get('/trending', asyncHandler(async (req, res) => {
+    const analytics = require('../services/analytics');
+    const { limit = 6 } = req.query;
+
+    // Get trending stocks from analytics
+    const trending = analytics.getTrending(parseInt(limit));
+
+    // Enrich with current stock data (price change, name)
+    const enrichedTrending = await Promise.all(
+        trending.map(async (item) => {
+            const stock = await stockOperations.getStockBySymbol(item.symbol);
+
+            if (!stock) {
+                return null;
+            }
+
+            return {
+                symbol: item.symbol,
+                name: stock.companyName || stock.symbol,
+                score: item.score,
+                change: stock.prices?.changePercent || stock.changePercent || 0,
+                ltp: stock.prices?.ltp || stock.ltp || 0
+            };
+        })
+    );
+
+    // Filter out null entries (stocks not found)
+    const validTrending = enrichedTrending.filter(item => item !== null);
+
+    res.json({
+        success: true,
+        data: validTrending,
+        count: validTrending.length
+    });
+}));
+
+/**
  * POST /api/force-update
  * Force an immediate data update
  */

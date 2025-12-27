@@ -59,7 +59,11 @@ const performUpdate = async () => {
 
     // Scheduler Shield: Skip updates on weekends
     const currentState = getMarketState();
-    if (currentState === MARKET_STATES.WEEKEND) {
+    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
+
+    logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDev}, NODE_ENV=${process.env.NODE_ENV}, Bypass=${isDev}`);
+
+    if (currentState === MARKET_STATES.WEEKEND && !isDev) {
         logger.info('Skipping update: Market is closed (WEEKEND)');
         return false;
     }
@@ -140,7 +144,8 @@ const startScheduler = async () => {
         if (!isRunning) return;
 
         const marketOpen = isMarketOpen();
-        const interval = marketOpen ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
+        const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
+        const interval = (marketOpen || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
         const state = currentMarketState || 'UNKNOWN';
 
         if (marketOpen) {

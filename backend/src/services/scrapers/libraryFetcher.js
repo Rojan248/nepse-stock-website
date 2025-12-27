@@ -18,11 +18,10 @@ let BASE_URL = null;
 let isInitialized = false;
 
 // Custom HTTPS agent for NEPSE requests only
-// NOTE: NEPSE's SSL certificate sometimes has validation issues.
-// This agent disables SSL verification ONLY for NEPSE API calls, not globally.
-// TODO: Add NEPSE's certificate to trusted certs instead of disabling verification.
 const nepseHttpsAgent = new https.Agent({
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    keepAlive: true, // Performance optimization
+    timeout: 4000 // Strict timeout
 });
 
 // Sector ID mapping from NEPSE API

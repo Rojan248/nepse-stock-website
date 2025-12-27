@@ -28,6 +28,8 @@ async function safeWriteJson(filename, data) {
         return true;
     } catch (error) {
         logger.error(`[Storage] Failed to save ${filename}: ${error.message}`);
+        // Attempt to clean up temp file if rename failed
+        try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) { }
         throw error;
     }
 }
@@ -53,6 +55,8 @@ function safeWriteJsonSync(filename, data) {
         return true;
     } catch (error) {
         logger.error(`[Storage] Failed to save ${filename} (Sync): ${error.message}`);
+        // Attempt to clean up temp file if rename failed
+        try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) { }
         throw error;
     }
 }
@@ -60,5 +64,6 @@ function safeWriteJsonSync(filename, data) {
 module.exports = {
     safeWriteJson,
     safeWriteJsonSync,
+    saveData: safeWriteJson, // Alias to satisfy the requirement
     DATA_DIR
 };
