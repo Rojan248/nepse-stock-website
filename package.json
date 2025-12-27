@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "description": "NEPSE Stock Market Website - Production Deployment",
   "scripts": {
-    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "build:frontend": "cd frontend && npm run build",
-    "start:prod": "cd backend && NODE_ENV=production node src/server.js",
-    "deploy": "node deploy_update.js"
+    "build:fresh": "cd frontend && npm run build",
+    "start:prod": "cd backend && pm2 start ecosystem.config.js --env production",
+    "deploy": "node deploy_update.js",
+    "setup": "npm run install:all && npm run build:fresh"
   },
   "keywords": [
     "nepse",
