@@ -137,6 +137,46 @@
 }
 
 /* ========================================
+   TAB NAVIGATION
+   ======================================== */
+.sdp__tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    background: #F5F5F4;
+    padding: 0.25rem;
+    border-radius: var(--radius-md);
+    width: fit-content;
+}
+
+.sdp__tab {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sdp__tab:hover {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.sdp__tab.active {
+    background: #FFFFFF;
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.sdp__tab-content {
+    min-height: 300px;
+}
+
+/* ========================================
    KEY METRICS SECTION (3 columns × 2 rows)
    ======================================== */
 .sdp__metrics {

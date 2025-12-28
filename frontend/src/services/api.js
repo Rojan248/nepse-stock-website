@@ -193,6 +193,21 @@ export const getSectors = async () => {
     }
 };
 
+/**
+ * Get market depth (Level 2 data) for a stock
+ */
+export const getStockDepth = async (symbol) => {
+    try {
+        const response = await api.get(`/stocks/${symbol}/depth`);
+        if (!response) return null;
+        const payload = response.data !== undefined ? response.data : response;
+        return payload.data || payload || null;
+    } catch (error) {
+        console.error(`Failed to fetch depth for ${symbol}:`, error);
+        return null;
+    }
+};
+
 // ==================== IPO APIs ====================
 
 /**

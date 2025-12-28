@@ -1,11 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getServerHealth } from '../services/api';
+import { getServerHealth, getStockDepth } from '../services/api';
 import { useStockDetail } from '../hooks/useStocks';
 import { useStocks } from '../hooks/useStocks';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { MarketDepth, Floorsheet } from '../components/depth';
 import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass } from '../utils/formatting';
 import './StockDetailPage.css';
 
@@ -15,6 +16,9 @@ function StockDetailPage() {
     const { stock, loading, error } = useStockDetail(symbol);
     const { stocks } = useStocks(1, 100);
     const [healthStatus, setHealthStatus] = useState(null);
+    const [activeTab, setActiveTab] = useState('overview');
+    const [depthData, setDepthData] = useState(null);
+    const [depthLoading, setDepthLoading] = useState(false);
 
     useEffect(() => {
         const checkHealth = async () => {
@@ -25,6 +29,24 @@ function StockDetailPage() {
         const interval = setInterval(checkHealth, 30000);
         return () => clearInterval(interval);
     }, []);
+
+    // Lazy load depth data when tab is selected
+    useEffect(() => {
+        if ((activeTab === 'depth' || activeTab === 'floorsheet') && !depthData && symbol) {
+            const fetchDepth = async () => {
+                setDepthLoading(true);
+                try {
+                    const data = await getStockDepth(symbol);
+                    setDepthData(data);
+                } catch (err) {
+                    console.error('Failed to fetch depth:', err);
+                } finally {
+                    setDepthLoading(false);
+                }
+            };
+            fetchDepth();
+        }
+    }, [activeTab, symbol, depthData]);
 
     const relatedStocks = stocks
         .filter(s => s.sector === stock?.sector && s.symbol !== stock?.symbol)
@@ -98,88 +120,126 @@ function StockDetailPage() {
                     </div>
                 </section>
 
-                {/* Key Metrics - 3 columns × 2 rows */}
-                <section className="sdp__metrics">
-                    <h3 className="sdp__section-title">Key Metrics</h3>
-                    <div className="sdp__metrics-grid">
-                        <div className="sdp__metric">
-                            <span className="sdp__metric-label">Open</span>
-                            <span className="sdp__metric-value">{formatPrice(open)}</span>
-                        </div>
-                        <div className="sdp__metric">
-                            <span className="sdp__metric-label">High</span>
-                            <span className="sdp__metric-value sdp__metric-value--up">{formatPrice(high)}</span>
-                        </div>
-                        <div className="sdp__metric">
-                            <span className="sdp__metric-label">Low</span>
-                            <span className="sdp__metric-value sdp__metric-value--down">{formatPrice(low)}</span>
-                        </div>
-                        <div className="sdp__metric">
-                            <span className="sdp__metric-label">Prev Close</span>
-                            <span className="sdp__metric-value">{formatPrice(previousClose)}</span>
-                        </div>
-                        <div className="sdp__metric">
-                            <span className="sdp__metric-label">Volume</span>
-                            <span className="sdp__metric-value">{formatNumber(volume)}</span>
-                        </div>
-                        <div className="sdp__metric">
-                            <span className="sdp__metric-label">Turnover</span>
-                            <span className="sdp__metric-value">{formatTurnover(turnover)}</span>
-                        </div>
-                    </div>
-                </section>
+                {/* Tab Navigation */}
+                <div className="sdp__tabs">
+                    <button
+                        className={`sdp__tab ${activeTab === 'overview' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('overview')}
+                    >
+                        Overview
+                    </button>
+                    <button
+                        className={`sdp__tab ${activeTab === 'depth' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('depth')}
+                    >
+                        Market Depth
+                    </button>
+                    <button
+                        className={`sdp__tab ${activeTab === 'floorsheet' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('floorsheet')}
+                    >
+                        Floorsheet
+                    </button>
+                </div>
 
-                {/* Price Summary - Vertical Stack Layout */}
-                <section className="sdp__summary">
-                    <h3 className="sdp__section-title">Price Summary</h3>
-                    <div className="sdp__range-stack">
-                        <span className="sdp__range-label">Day Range</span>
-                        <div className="sdp__range-values">
-                            <span className="sdp__range-min">{formatPrice(low)}</span>
-                            <span className="sdp__range-max">{formatPrice(high)}</span>
-                        </div>
-                        <div className="sdp__range-track">
-                            <div className="sdp__range-indicator" style={{ left: `${rangePercent}%` }}></div>
-                        </div>
-                        <div className="sdp__range-current">
-                            Current: <strong>{formatPrice(displayLtp)}</strong>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Related Stocks */}
-                {relatedStocks.length > 0 && (
-                    <section className="sdp__related">
-                        <h3 className="sdp__section-title">Related in {stock.sector}</h3>
-                        <div className="sdp__related-table">
-                            {relatedStocks.map((s) => {
-                                const sChangeVal = s.change !== undefined ? s.change : 0;
-                                const sChangePercent = s.changePercent !== undefined ? s.changePercent : 0;
-                                const sChangeClass = getChangeClass(sChangeVal);
-                                const sChangeSymbol = sChangeVal >= 0 ? '▲' : '▼';
-                                const sLtp = s.ltp || s.close || 0;
-
-                                return (
-                                    <div
-                                        key={s.symbol}
-                                        className="sdp__related-row"
-                                        onClick={() => navigate(`/stock/${s.symbol}`)}
-                                    >
-                                        <span className="sdp__related-symbol">{s.symbol}</span>
-                                        <span className="sdp__related-name">{s.companyName}</span>
-                                        <span className="sdp__related-ltp">{formatPrice(sLtp)}</span>
-                                        <span className={`sdp__related-change ${sChangeClass}`}>
-                                            {sChangeSymbol} {sChangeVal >= 0 ? '+' : ''}{sChangeVal.toFixed(2)} ({formatPercent(sChangePercent)})
-                                        </span>
+                {/* Tab Content */}
+                <div className="sdp__tab-content">
+                    {activeTab === 'overview' && (
+                        <>
+                            {/* Key Metrics - 3 columns × 2 rows */}
+                            <section className="sdp__metrics">
+                                <h3 className="sdp__section-title">Key Metrics</h3>
+                                <div className="sdp__metrics-grid">
+                                    <div className="sdp__metric">
+                                        <span className="sdp__metric-label">Open</span>
+                                        <span className="sdp__metric-value">{formatPrice(open)}</span>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
+                                    <div className="sdp__metric">
+                                        <span className="sdp__metric-label">High</span>
+                                        <span className="sdp__metric-value sdp__metric-value--up">{formatPrice(high)}</span>
+                                    </div>
+                                    <div className="sdp__metric">
+                                        <span className="sdp__metric-label">Low</span>
+                                        <span className="sdp__metric-value sdp__metric-value--down">{formatPrice(low)}</span>
+                                    </div>
+                                    <div className="sdp__metric">
+                                        <span className="sdp__metric-label">Prev Close</span>
+                                        <span className="sdp__metric-value">{formatPrice(previousClose)}</span>
+                                    </div>
+                                    <div className="sdp__metric">
+                                        <span className="sdp__metric-label">Volume</span>
+                                        <span className="sdp__metric-value">{formatNumber(volume)}</span>
+                                    </div>
+                                    <div className="sdp__metric">
+                                        <span className="sdp__metric-label">Turnover</span>
+                                        <span className="sdp__metric-value">{formatTurnover(turnover)}</span>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Price Summary - Vertical Stack Layout */}
+                            <section className="sdp__summary">
+                                <h3 className="sdp__section-title">Price Summary</h3>
+                                <div className="sdp__range-stack">
+                                    <span className="sdp__range-label">Day Range</span>
+                                    <div className="sdp__range-values">
+                                        <span className="sdp__range-min">{formatPrice(low)}</span>
+                                        <span className="sdp__range-max">{formatPrice(high)}</span>
+                                    </div>
+                                    <div className="sdp__range-track">
+                                        <div className="sdp__range-indicator" style={{ left: `${rangePercent}%` }}></div>
+                                    </div>
+                                    <div className="sdp__range-current">
+                                        Current: <strong>{formatPrice(displayLtp)}</strong>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Related Stocks */}
+                            {relatedStocks.length > 0 && (
+                                <section className="sdp__related">
+                                    <h3 className="sdp__section-title">Related in {stock.sector}</h3>
+                                    <div className="sdp__related-table">
+                                        {relatedStocks.map((s) => {
+                                            const sChangeVal = s.change !== undefined ? s.change : 0;
+                                            const sChangePercent = s.changePercent !== undefined ? s.changePercent : 0;
+                                            const sChangeClass = getChangeClass(sChangeVal);
+                                            const sChangeSymbol = sChangeVal >= 0 ? '▲' : '▼';
+                                            const sLtp = s.ltp || s.close || 0;
+
+                                            return (
+                                                <div
+                                                    key={s.symbol}
+                                                    className="sdp__related-row"
+                                                    onClick={() => navigate(`/stock/${s.symbol}`)}
+                                                >
+                                                    <span className="sdp__related-symbol">{s.symbol}</span>
+                                                    <span className="sdp__related-name">{s.companyName}</span>
+                                                    <span className="sdp__related-ltp">{formatPrice(sLtp)}</span>
+                                                    <span className={`sdp__related-change ${sChangeClass}`}>
+                                                        {sChangeSymbol} {sChangeVal >= 0 ? '+' : ''}{sChangeVal.toFixed(2)} ({formatPercent(sChangePercent)})
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+                        </>
+                    )}
+
+                    {activeTab === 'depth' && (
+                        <MarketDepth symbol={symbol} data={depthData} loading={depthLoading} />
+                    )}
+
+                    {activeTab === 'floorsheet' && (
+                        <Floorsheet symbol={symbol} data={depthData} loading={depthLoading} />
+                    )}
+                </div>
             </div>
         </div>
     );
 }
 
 export default StockDetailPage;
+

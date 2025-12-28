@@ -203,6 +203,31 @@ router.get('/:symbol', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/stocks/:symbol/depth
+ * Get market depth (Level 2 data) and floorsheet for a stock
+ */
+router.get('/:symbol/depth', asyncHandler(async (req, res) => {
+    const { symbol } = req.params;
+    const depthFetcher = require('../services/depthFetcher');
+
+    try {
+        const depthData = await depthFetcher.getDepth(symbol);
+
+        res.json({
+            success: true,
+            symbol: symbol.toUpperCase(),
+            data: depthData
+        });
+    } catch (error) {
+        logger.error(`Failed to fetch depth for ${symbol}: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to fetch market depth' }
+        });
+    }
+}));
+
+/**
  * POST /api/stocks/admin/cleanup
  * Delete inactive stocks (zero LTP) from database
  * Should be called after data refresh

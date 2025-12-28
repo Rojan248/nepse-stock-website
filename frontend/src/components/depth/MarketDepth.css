@@ -1,0 +1,195 @@
+/* Market Depth Component Styles */
+
+.market-depth {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.depth-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.depth-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.depth-source {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.depth-container {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.depth-side {
+    flex: 1;
+}
+
+.depth-side-header {
+    display: flex;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+}
+
+.depth-buy .depth-side-header {
+    background: rgba(34, 197, 94, 0.08);
+    color: #15803d;
+}
+
+.depth-sell .depth-side-header {
+    background: rgba(239, 68, 68, 0.08);
+    color: #b91c1c;
+}
+
+.depth-col {
+    flex: 1;
+    text-align: center;
+}
+
+.depth-col:first-child {
+    text-align: left;
+}
+
+.depth-col:last-child {
+    text-align: right;
+}
+
+.depth-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.depth-row {
+    display: flex;
+    position: relative;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    background: #FAFAFA;
+    overflow: hidden;
+}
+
+.depth-row-sell {
+    direction: rtl;
+}
+
+.depth-row-sell .depth-cell {
+    direction: ltr;
+}
+
+.depth-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    opacity: 0.15;
+    transition: width 0.3s ease;
+}
+
+.depth-bar-buy {
+    background: var(--success);
+}
+
+.depth-bar-sell {
+    background: var(--danger);
+    left: auto;
+    right: 0;
+}
+
+.depth-cell {
+    flex: 1;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.depth-cell:first-child {
+    text-align: left;
+}
+
+.depth-cell:last-child {
+    text-align: right;
+}
+
+.depth-price {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.depth-divider {
+    width: 1px;
+    background: var(--border-subtle);
+    margin: 0 0.5rem;
+}
+
+/* Loading State */
+.depth-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--text-muted);
+    gap: 1rem;
+}
+
+.depth-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-subtle);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.depth-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .depth-container {
+        flex-direction: column;
+    }
+
+    .depth-divider {
+        width: 100%;
+        height: 1px;
+        margin: 1rem 0;
+    }
+}
