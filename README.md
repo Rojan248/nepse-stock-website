@@ -128,7 +128,7 @@ See [SETUP_GUIDE.md](docs/SETUP_GUIDE.md) for detailed deployment instructions.
 - **Architecture Redesign**: Migrated search state to root components for a unified header search experience.
 - **Data Integrity**: Fixed data mapping for the NEPSE Index and added Market Breadth indicators.
 - **UI Polish**: Switched to **Stark Minimalism** color palette (Pure Black/White). Resolved currency symbol rendering issues (switched to 'Rs').
-- **Infrastructure**: Stabilized production deployment on `nepse.me` via PM2 and Cloudflare Tunnels.
+- **Infrastructure**: Stabilized local deployment environment via PM2 and environment configuration.
 
 ## License
 
