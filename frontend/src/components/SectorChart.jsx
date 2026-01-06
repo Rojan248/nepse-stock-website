@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import './SectorChart.css';
 
 const SectorChart = ({ stocks }) => {
-    const data = useMemo(() => {
-        if (!stocks || stocks.length === 0) return [];
+    const { data, totalCount } = useMemo(() => {
+        if (!stocks || stocks.length === 0) return { data: [], totalCount: 0 };
 
         const sectorStats = {};
 
@@ -16,10 +16,10 @@ const SectorChart = ({ stocks }) => {
             sectorStats[sector].turnover += parseFloat(stock.turnover || 0);
         });
 
-        // Convert to array and sort by count descending
-        return Object.values(sectorStats)
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10); // Show top 10 sectors
+        const sectorArray = Object.values(sectorStats).sort((a, b) => b.count - a.count);
+        const total = sectorArray.reduce((sum, sector) => sum + sector.count, 0);
+
+        return { data: sectorArray, totalCount: total };
     }, [stocks]);
 
     // Show loading skeleton if no data
@@ -51,15 +51,12 @@ const SectorChart = ({ stocks }) => {
         return name;
     };
 
-    // Calculate max count for percentage calculation
-    const maxCount = Math.max(...data.map(d => d.count));
-
     return (
         <div className="market-box">
             <div className="market-header">
                 <div>
                     <h3>Market Structure</h3>
-                    <p>Distribution of stocks per sector</p>
+                    <p>Distribution of stocks per sector · Total {totalCount} stocks</p>
                 </div>
                 <div className="legend">
                     <span className="dot"></span> Sector Weight
@@ -67,8 +64,10 @@ const SectorChart = ({ stocks }) => {
             </div>
 
             <div className="chart-container">
-                {data.map((sector, index) => {
-                    const percentage = ((sector.count / maxCount) * 100).toFixed(0);
+                {data.map((sector) => {
+                    const percentage = totalCount > 0
+                        ? ((sector.count / totalCount) * 100).toFixed(1)
+                        : '0.0';
 
                     return (
                         <div className="chart-row" key={sector.name}>

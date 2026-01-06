@@ -237,8 +237,15 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         return filteredStocks.slice(start, end);
     }, [filteredStocks, currentPage]);
 
-    // Calculate Market Breadth logic (client-side)
-    const marketStats = useMemo(() => {
+    // Market breadth from API (preferred when provided by backend)
+    const breadthFromApi = useMemo(() => ({
+        advanced: marketSummary?.advancedCompanies ?? null,
+        declined: marketSummary?.declinedCompanies ?? null,
+        unchanged: marketSummary?.unchangedCompanies ?? null
+    }), [marketSummary]);
+
+    // Market breadth derived from stocks (fallback)
+    const breadthFromStocks = useMemo(() => {
         if (!stocks || stocks.length === 0) return { advanced: 0, declined: 0, unchanged: 0 };
         return {
             advanced: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) > 0).length,
@@ -246,6 +253,14 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
             unchanged: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) === 0).length
         };
     }, [stocks]);
+
+    // Use API breadth when available, otherwise fall back to stock-derived values
+    const marketStats = useMemo(() => {
+        const advanced = breadthFromApi.advanced ?? breadthFromStocks.advanced;
+        const declined = breadthFromApi.declined ?? breadthFromStocks.declined;
+        const unchanged = breadthFromApi.unchanged ?? breadthFromStocks.unchanged;
+        return { advanced, declined, unchanged };
+    }, [breadthFromApi, breadthFromStocks]);
 
     // DEBUG: Log stocks state changes
     useEffect(() => {
@@ -265,6 +280,13 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         ? (turnoverRaw / 10000000).toFixed(2)
         : (turnoverRaw / 100000).toFixed(2);
 
+    const indexValueDisplay = Number.isFinite(marketSummary?.indexValue)
+        ? marketSummary.indexValue.toFixed(2)
+        : '--';
+    const indexChangePercent = Number.isFinite(marketSummary?.indexChangePercent)
+        ? marketSummary.indexChangePercent
+        : undefined;
+
     const totalBreadth = (marketStats.advanced + marketStats.declined + marketStats.unchanged) || 1;
 
     if (loading && !stocks.length) {
@@ -281,8 +303,8 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                 <div className="market-cards">
                     <SummaryCard
                         label="NEPSE Index"
-                        value={marketSummary?.indexValue?.toFixed(2) || '--'}
-                        change={marketSummary?.indexChangePercent}
+                        value={indexValueDisplay}
+                        change={indexChangePercent}
                         valueKey="nepse-index"
                     />
                     <div className="summary-card">

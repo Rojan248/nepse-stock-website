@@ -1,22 +1,15 @@
-/**
- * Database Connection - Local Storage
- * Uses local JSON file storage for data persistence
- */
-
-const { initializeLocalStorage, saveAllData } = require('./localStorage');
+const { prisma } = require('./prismaClient');
 const logger = require('../utils/logger');
 
 let isInitialized = false;
 
-/**
- * Connect to database (initializes local storage)
- */
+// Connect Prisma client
 const connectDB = async () => {
     try {
         if (!isInitialized) {
-            initializeLocalStorage();
+            await prisma.$connect();
             isInitialized = true;
-            logger.info('Database connected (Local JSON Storage)');
+            logger.info('Database connected (Prisma)');
         }
         return true;
     } catch (error) {
@@ -25,13 +18,11 @@ const connectDB = async () => {
     }
 };
 
-/**
- * Disconnect from database (save all data)
- */
+// Disconnect Prisma client
 const disconnectDB = async () => {
     try {
-        saveAllData();
-        logger.info('Database disconnected (data saved)');
+        await prisma.$disconnect();
+        logger.info('Database disconnected');
         return true;
     } catch (error) {
         logger.error(`Error during disconnect: ${error.message}`);
@@ -39,15 +30,11 @@ const disconnectDB = async () => {
     }
 };
 
-/**
- * Check if database is connected
- */
-const isConnected = () => {
-    return isInitialized;
-};
+const isConnected = () => isInitialized;
 
 module.exports = {
     connectDB,
     disconnectDB,
-    isConnected
+    isConnected,
+    prisma
 };

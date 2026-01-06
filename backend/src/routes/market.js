@@ -7,6 +7,7 @@ const dataFetcher = require('../services/dataFetcher');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString } = require('../services/utils/marketTime');
+const { prisma } = require('../services/database/connection');
 
 /**
  * Market API Routes
@@ -119,16 +120,14 @@ router.get('/health', asyncHandler(async (req, res) => {
  * Extended health metrics for monitoring system resilience
  */
 router.get('/health/extended', asyncHandler(async (req, res) => {
-    const fs = require('fs');
-    const path = require('path');
-    const stocksPath = path.join(__dirname, '../../data/stocks.json');
-
     let lastSyncSecondsAgo = -1;
     try {
-        const stats = fs.statSync(stocksPath);
-        lastSyncSecondsAgo = Math.floor((Date.now() - stats.mtimeMs) / 1000);
+        const latestStock = await prisma.stock.findFirst({ orderBy: { updatedAt: 'desc' } });
+        if (latestStock?.updatedAt) {
+            lastSyncSecondsAgo = Math.floor((Date.now() - latestStock.updatedAt.getTime()) / 1000);
+        }
     } catch (e) {
-        logger.error(`Failed to get stocks.json stats: ${e.message}`);
+        logger.error(`Failed to get latest stock timestamp: ${e.message}`);
     }
 
     const memoryUsage = process.memoryUsage();
@@ -239,6 +238,121 @@ router.post('/force-update', asyncHandler(async (req, res) => {
     res.json({
         success,
         message: success ? 'Update completed successfully' : 'Update failed',
+        timestamp: new Date().toISOString()
+    });
+}));
+
+/**
+ * POST /api/sync-from-web
+ * Sync market data directly from web scraping (custom scraper)
+ */
+router.post('/sync-from-web', asyncHandler(async (req, res) => {
+    logger.info('Web sync requested via API');
+    
+    const result = await dataFetcher.syncMarketDataFromWeb();
+    
+    res.json({
+        success: result.updated,
+        data: result,
+        timestamp: new Date().toISOString()
+    });
+}));
+
+/**
+ * GET /api/scrape-live
+ * Scrape and return live market data from official sources (without saving)
+ */
+router.get('/scrape-live', asyncHandler(async (req, res) => {
+    logger.info('Live scrape requested');
+    
+    const axios = require('axios');
+    const result = {
+        nepseIndex: null,
+        totalTransactions: null,
+        totalTurnover: null,
+        totalVolume: null,
+        advanced: null,
+        declined: null,
+        unchanged: null,
+        source: null,
+        error: null,
+        htmlSample: null
+    };
+    
+    // Scrape from Merolagani (SSR website - contains data in HTML)
+    try {
+        const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
+            timeout: 15000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Cache-Control': 'no-cache'
+            }
+        });
+        
+        const html = resp.data || '';
+        logger.info(`Merolagani HTML fetched: ${html.length} bytes`);
+        
+        // Find the market summary section and extract a sample
+        const txIdx = html.indexOf('Transactions');
+        if (txIdx > 0) {
+            result.htmlSample = html.substring(Math.max(0, txIdx - 50), txIdx + 150);
+        }
+        
+        // DEBUG: Log the HTML structure around "Total Transactions"
+        const totalTxIdx = html.indexOf('Total Transactions');
+        if (totalTxIdx > 0) {
+            const snippet = html.substring(totalTxIdx, totalTxIdx + 200);
+            logger.info(`HTML snippet: ${snippet}`);
+        }
+        
+        // Try multiple regex patterns
+        // Pattern 1: Table row format
+        let txMatch = html.match(/Total Transactions<\/th>\s*<td[^>]*>([0-9,]+)/i);
+        if (!txMatch) {
+            // Pattern 2: With class attributes
+            txMatch = html.match(/Total Transactions<\/[^>]+>\s*<[^>]+>([0-9,]+)/i);
+        }
+        if (!txMatch) {
+            // Pattern 3: Generic - just find the number after Total Transactions
+            txMatch = html.match(/Total Transactions[\s\S]{0,50}?([0-9,]{3,})/i);
+        }
+        if (txMatch) {
+            result.totalTransactions = parseInt(txMatch[1].replace(/,/g, ''), 10);
+        }
+        
+        // Total Turnover
+        let turnoverMatch = html.match(/Total Turnover[\s\S]{0,50}?([0-9,\.]{5,})/i);
+        if (turnoverMatch) {
+            result.totalTurnover = parseFloat(turnoverMatch[1].replace(/,/g, ''));
+        }
+        
+        // Total Traded Shares
+        let volumeMatch = html.match(/Total Traded Shares[\s\S]{0,50}?([0-9,]{3,})/i);
+        if (volumeMatch) {
+            result.totalVolume = parseInt(volumeMatch[1].replace(/,/g, ''), 10);
+        }
+        
+        // NEPSE Index - look for pattern like: NEPSE</td><td>2,620.92
+        let nepseMatch = html.match(/NEPSE<\/[^>]+>\s*<[^>]+>([0-9,\.]+)/i);
+        if (!nepseMatch) {
+            nepseMatch = html.match(/>NEPSE[\s\S]{0,30}?([0-9,]{1,3}(?:,[0-9]{3})*\.?[0-9]*)/i);
+        }
+        if (nepseMatch) {
+            result.nepseIndex = parseFloat(nepseMatch[1].replace(/,/g, ''));
+        }
+        
+        result.source = 'merolagani';
+        
+    } catch (err) {
+        result.error = err.message;
+        logger.error(`Scrape failed: ${err.message}`);
+    }
+    
+    res.json({
+        success: result.totalTransactions !== null || result.nepseIndex !== null,
+        data: result,
         timestamp: new Date().toISOString()
     });
 }));

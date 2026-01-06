@@ -353,8 +353,23 @@ const fetchMarketSummary = async (token) => {
         const indicesMap = new Map();
 
         // Process bulk indices (usually returns 4)
+        // Also extract market breadth data (advance/decline/unchanged) from NEPSE index
+        let advancedCompanies = null;
+        let declinedCompanies = null;
+        let unchangedCompanies = null;
+        
         if (bulkIndicesRes.data && Array.isArray(bulkIndicesRes.data)) {
             bulkIndicesRes.data.forEach(idx => {
+                // Log all fields from the first index for debugging
+                if (idx.id === 58) {
+                    logger.debug(`NEPSE Index raw data: ${JSON.stringify(idx)}`);
+                    // Extract breadth data - NEPSE API uses these field names
+                    advancedCompanies = parseInt(idx.advance) || parseInt(idx.positive) || parseInt(idx.up) || null;
+                    declinedCompanies = parseInt(idx.decline) || parseInt(idx.negative) || parseInt(idx.down) || null;
+                    unchangedCompanies = parseInt(idx.unchanged) || parseInt(idx.neutral) || parseInt(idx.noChange) || null;
+                    logger.info(`Breadth from NEPSE: A=${advancedCompanies}, D=${declinedCompanies}, U=${unchangedCompanies}`);
+                }
+                
                 indicesMap.set(idx.id, {
                     id: idx.id,
                     name: idx.index,
@@ -363,7 +378,11 @@ const fetchMarketSummary = async (token) => {
                     changePercent: parseFloat(idx.perChange) || 0,
                     high: parseFloat(idx.high) || 0,
                     low: parseFloat(idx.low) || 0,
-                    previousClose: parseFloat(idx.previousClose) || 0
+                    previousClose: parseFloat(idx.previousClose) || 0,
+                    // Include breadth data if available
+                    advance: parseInt(idx.advance) || null,
+                    decline: parseInt(idx.decline) || null,
+                    unchanged: parseInt(idx.unchanged) || null
                 });
             });
         }
@@ -436,6 +455,9 @@ const fetchMarketSummary = async (token) => {
             totalVolume,
             totalMarketCap,
             activeCompanies: totalScripsTraded,
+            advancedCompanies,
+            declinedCompanies,
+            unchangedCompanies,
             timestamp: new Date().toISOString()
         };
 

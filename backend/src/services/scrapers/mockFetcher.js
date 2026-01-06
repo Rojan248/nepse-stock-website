@@ -65,12 +65,24 @@ const fetchData = async () => {
     });
 
     // Generate Market Summary
+    // Count advanced/declined/unchanged based on generated price changes
+    let advanced = 0, declined = 0, unchanged = 0;
+    stocks.forEach(s => {
+        if (s.prices.change > 0) advanced++;
+        else if (s.prices.change < 0) declined++;
+        else unchanged++;
+    });
+    
     const marketSummary = {
-        indexValue: 2000 + (Math.random() * 20 - 10),
+        indexValue: 2620 + (Math.random() * 20 - 10),
         indexChange: Math.random() * 10 - 5,
         totalTurnover: stocks.reduce((acc, s) => acc + s.trading.turnover, 0),
         totalVolume: stocks.reduce((acc, s) => acc + s.trading.volume, 0),
-        activeCompanies: stocks.length,
+        totalTransactions: stocks.reduce((acc, s) => acc + s.trading.totalTrades, 0),
+        activeCompanies: stocks.filter(s => s.trading.volume > 0).length,
+        advancedCompanies: advanced,
+        declinedCompanies: declined,
+        unchangedCompanies: unchanged,
         timestamp: today.toISOString()
     };
 

@@ -1,0 +1,75 @@
+// Prisma schema for NEPSE backend (SQLite for local dev)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Stock {
+  id             Int      @id @default(autoincrement())
+  symbol         String   @unique
+  companyName    String
+  sector         String?
+  lastTradedPrice Float?
+  previousClose   Float?
+  openPrice       Float?
+  highPrice       Float?
+  lowPrice        Float?
+  volume          Float?
+  totalTrades     Int?
+  turnover        Float?
+  change          Float?
+  percentageChange Float?
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  history        MarketHistory[]
+}
+
+model MarketHistory {
+  id          Int      @id @default(autoincrement())
+  symbol      String
+  date        DateTime
+  closePrice  Float?
+  highPrice   Float?
+  lowPrice    Float?
+  volume      Float?
+  turnover    Float?
+  change      Float?
+  percentageChange Float?
+
+  stock       Stock?   @relation(fields: [symbol], references: [symbol], onDelete: Cascade)
+
+  @@index([symbol, date])
+}
+
+model MarketSummary {
+  id                Int      @id @default(autoincrement())
+  indexValue        Float?
+  indexChange       Float?
+  indexChangePercent Float?
+  totalTurnover     Float?
+  totalVolume       Float?
+  totalTransactions Float?
+  activeCompanies   Int?
+  advancedCompanies Int?
+  declinedCompanies Int?
+  unchangedCompanies Int?
+  timestamp         DateTime @default(now())
+}
+
+model Ipo {
+  id          Int      @id @default(autoincrement())
+  symbol      String   @unique
+  companyName String
+  sector      String?
+  issueDate   DateTime?
+  closingDate DateTime?
+  price       Float?
+  units       Int?
+  status      String?
+  issueManager String?
+}

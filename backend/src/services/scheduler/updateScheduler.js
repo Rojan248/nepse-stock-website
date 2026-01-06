@@ -5,6 +5,7 @@ const stockOperations = require('../database/stockOperations');
 const ipoOperations = require('../database/ipoOperations');
 const marketOperations = require('../database/marketOperations');
 const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSync, MARKET_STATES } = require('../utils/marketTime');
+const watchdogService = require('../watchdog/WatchdogService');
 
 /**
  * Update Scheduler
@@ -168,6 +169,16 @@ const startScheduler = async () => {
     schedulerJob = schedule.scheduleJob('0 0 * * *', async () => {
         logger.info('Running daily cleanup...');
         await marketOperations.cleanOldSummaries(30);
+    });
+
+    // Schedule Watchdog (Every 10 minutes)
+    schedule.scheduleJob('*/10 * * * *', async () => {
+        logger.info('Running scheduled watchdog verification...');
+        try {
+            await watchdogService.verify();
+        } catch (e) {
+            logger.error(`Scheduled watchdog failed: ${e.message}`);
+        }
     });
 
     const nst = getNSTTime();

@@ -8,11 +8,13 @@ const { corsMiddleware } = require('./middleware/cors');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
+const { initScheduler } = require('./services/scheduler');
 
 // Import routes
 const stocksRouter = require('./routes/stocks');
 const iposRouter = require('./routes/ipos');
 const marketRouter = require('./routes/market');
+const watchdogRouter = require('./routes/watchdog');
 
 /**
  * NEPSE Backend Server
@@ -46,6 +48,7 @@ app.use((req, res, next) => {
 app.use('/api/stocks', stocksRouter);
 app.use('/api/ipos', iposRouter);
 app.use('/api', marketRouter);
+app.use('/api/watchdog', watchdogRouter);
 
 // Root endpoint (handled by static files in production)
 if (process.env.NODE_ENV !== 'production') {
@@ -54,7 +57,7 @@ if (process.env.NODE_ENV !== 'production') {
             success: true,
             message: 'NEPSE Stock API Server',
             version: '1.0.0',
-            database: 'Local JSON Storage',
+            database: 'SQLite (Prisma)',
             endpoints: {
                 stocks: '/api/stocks',
                 ipos: '/api/ipos',
@@ -93,8 +96,8 @@ const startServer = async () => {
             fs.mkdirSync(logsDir, { recursive: true });
         }
 
-        // Connect to local JSON storage
-        logger.info('Initializing local JSON storage...');
+        // Connect to database (Prisma)
+        logger.info('Connecting to database (Prisma)...');
         await connectDB();
 
         // Initialize analytics service
@@ -107,9 +110,13 @@ const startServer = async () => {
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
         });
 
-        // Start the scheduler
+        // Start the legacy update scheduler
         logger.info('Starting data update scheduler...');
         scheduler.startScheduler();
+
+        // Start cron-based scheduler for reliability
+        initScheduler();
+        logger.info('Scheduler service started');
 
         // Graceful shutdown
         const gracefulShutdown = async (signal) => {

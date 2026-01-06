@@ -8,7 +8,7 @@ module.exports = {
         max_memory_restart: '1G',
         env: {
             NODE_ENV: 'production',
-            USE_MOCK_DATA: 'true',
+            USE_MOCK_DATA: 'false',
             PORT: 5000
         },
         error_file: './logs/pm2-error.log',
