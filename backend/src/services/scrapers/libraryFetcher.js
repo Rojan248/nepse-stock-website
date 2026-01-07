@@ -1,5 +1,6 @@
 const https = require('https');
 const logger = require('../utils/logger');
+const { stockInfoMap: staticStockMap } = require('../../data/nepseStocks');
 
 /**
  * Library-based NEPSE Data Fetcher
@@ -170,19 +171,20 @@ const fetchData = async () => {
 const fetchSecuritiesWithPrices = async (token) => {
     try {
         const headers = createHeaders(token);
-        const sectorIds = Object.keys(SECTOR_IDS).map(id => parseInt(id));
 
-        // Fetch from multiple index endpoints to ensure full coverage
-        // Index 58 is usually enough, but others can contain different securities
-        const fetchPromises = sectorIds.map(id =>
-            nepseAxios.get(`${BASE_URL}/api/nots/securityDailyTradeStat/${id}`, {
+        // Optimize: Fetch ONLY Sector 58 (NEPSE Index) which contains ALL traded securities
+        // This avoids making 17+ parallel requests which triggers NEPSE firewall/rate-limiting
+        const fetchPromises = [
+            nepseAxios.get(`${BASE_URL}/api/nots/securityDailyTradeStat/58`, {
                 headers,
-                httpsAgent: nepseHttpsAgent
+                httpsAgent: nepseHttpsAgent,
+                timeout: 10000
             }).catch(err => {
-                logger.debug(`Error fetching index ${id}: ${err.message}`);
+                logger.error(`Error fetching Main Sector 58: ${err.message}`);
                 return { data: [] };
             })
-        );
+        ];
+
 
         const responses = await Promise.all(fetchPromises);
 
@@ -201,7 +203,7 @@ const fetchSecuritiesWithPrices = async (token) => {
         });
 
         const mergedSecurities = Array.from(allSecuritiesMap.values());
-        logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${sectorIds.length} indices`);
+        logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${fetchPromises.length} primary source(s)`);
 
         // Transform to our standard format
         return mergedSecurities.map(security => transformSecurity(security)).filter(s => s !== null);
@@ -239,9 +241,6 @@ const isMarketOpen = () => {
 const transformSecurity = (security, marketOpen = null) => {
     if (!security) return null;
 
-    if (security.symbol === 'AKPL' || security.symbol === 'AIG') {
-        logger.info(`[DEBUG] Raw ${security.symbol}: ${JSON.stringify(security)}`);
-    }
 
     const rawSymbol = security.symbol || '';
     const symbol = sanitizeSymbol(rawSymbol);
@@ -254,6 +253,16 @@ const transformSecurity = (security, marketOpen = null) => {
     // This prevents showing "Rs 0.00" for untraded stocks
     if (ltp === 0 && prevClose > 0) {
         ltp = prevClose;
+    }
+
+    // If both LTP and previousClose are 0, use static base price from our stock mapping
+    // This handles stocks that haven't traded recently or have data quality issues
+    if (ltp === 0 && prevClose === 0) {
+        const staticInfo = staticStockMap.get(symbol.toUpperCase());
+        if (staticInfo && staticInfo.base > 0) {
+            ltp = staticInfo.base;
+            logger.debug(`[${symbol}] Using static base price: ${ltp} (no trade data available)`);
+        }
     }
 
     const open = parseFloat(security.openPrice) || ltp;
@@ -357,7 +366,7 @@ const fetchMarketSummary = async (token) => {
         let advancedCompanies = null;
         let declinedCompanies = null;
         let unchangedCompanies = null;
-        
+
         if (bulkIndicesRes.data && Array.isArray(bulkIndicesRes.data)) {
             bulkIndicesRes.data.forEach(idx => {
                 // Log all fields from the first index for debugging
@@ -369,7 +378,7 @@ const fetchMarketSummary = async (token) => {
                     unchangedCompanies = parseInt(idx.unchanged) || parseInt(idx.neutral) || parseInt(idx.noChange) || null;
                     logger.info(`Breadth from NEPSE: A=${advancedCompanies}, D=${declinedCompanies}, U=${unchangedCompanies}`);
                 }
-                
+
                 indicesMap.set(idx.id, {
                     id: idx.id,
                     name: idx.index,

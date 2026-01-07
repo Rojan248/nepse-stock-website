@@ -10,15 +10,16 @@ The system is designed as a lightweight, high-performance financial terminal. It
 
 ```
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│   React App     │ ──── │  Express API    │ ──── │  Local JSON     │
+│   React App     │ ──── │  Express API    │ ──── │  SQLite + JSON  │
 │   (Frontend)    │      │   (Backend)     │      │  Storage        │
 └─────────────────┘      └─────────────────┘      └─────────────────┘
                                  │
-                                 ↓
-                          ┌─────────────┐
-                          │   NEPSE     │
-                          │   API       │
-                          └─────────────┘
+                    ┌────────────┼────────────┐
+                    ↓            ↓            ↓
+              ┌──────────┐ ┌──────────┐ ┌──────────┐
+              │  NEPSE   │ │Merolagani│ │NepseAlpha│
+              │  API     │ │  (Watch) │ │  (Watch) │
+              └──────────┘ └──────────┘ └──────────┘
 ```
 
 ---
@@ -27,9 +28,17 @@ The system is designed as a lightweight, high-performance financial terminal. It
 
 ### Primary Path (REST API)
 ```
-NEPSE API → Backend Scraper → Local JSON → Express API → React App (Root State)
+NEPSE API → Backend Scraper → SQLite/JSON → Express API → React App (Root State)
 ```
-The backend fetches NEPSE data every 10 seconds during market hours, saves to local JSON files, and the React frontend queries via REST API. Search state is managed at the root `App.jsx` level to sync the Header search bar with the HomePage table filters.
+The backend fetches NEPSE data every 10 seconds during market hours, saves to SQLite database (via Prisma) and local JSON files as fallback. The React frontend queries via REST API. Search state is managed at the root `App.jsx` level to sync the Header search bar with the HomePage table filters.
+
+### Watchdog Path (Data Verification)
+```
+Local Data ←→ WatchdogService ←→ External Providers (Merolagani, NepseAlpha)
+                    ↓
+              Auto-Correction
+```
+The Watchdog service periodically verifies local data against external sources and applies auto-corrections when discrepancies are detected.
 
 ---
 
@@ -44,26 +53,42 @@ backend/
 │   ├── routes/                # API endpoints
 │   │   ├── stocks.js
 │   │   ├── ipos.js
-│   │   └── market.js
+│   │   ├── market.js
+│   │   └── watchdog.js        # Watchdog verification endpoints
 │   ├── services/
 │   │   ├── scrapers/          # Data fetchers
 │   │   │   ├── libraryFetcher.js    # Primary NEPSE API
 │   │   │   ├── proxyFetcher.js
+│   │   │   ├── mockFetcher.js       # Testing/fallback
 │   │   │   └── customScraper.js
 │   │   ├── database/          # Storage operations
 │   │   │   ├── localStorage.js      # JSON file storage
 │   │   │   ├── connection.js        # Connection wrapper
+│   │   │   ├── prismaClient.js      # Prisma ORM client
 │   │   │   ├── stockOperations.js
 │   │   │   ├── ipoOperations.js
 │   │   │   └── marketOperations.js
+│   │   ├── watchdog/          # Data verification service
+│   │   │   ├── WatchdogService.js   # Main verification logic
+│   │   │   └── providers/
+│   │   │       ├── MerolaganiProvider.js
+│   │   │       └── NepseAlphaProvider.js
 │   │   ├── scheduler/         # Update scheduler
-│   │   └── utils/             # Logging, errors
+│   │   ├── analytics.js       # Market analytics
+│   │   ├── dataFetcher.js     # Main data orchestrator
+│   │   └── depthFetcher.js    # Market depth data
+│   ├── utils/                 # Logging, errors
 │   └── middleware/            # CORS, error handlers
-├── data/                      # JSON data files
+├── prisma/                    # Prisma ORM
+│   ├── schema.prisma          # Database schema
+│   └── migrations/            # Database migrations
+├── data/                      # JSON data files (fallback)
 │   ├── stocks.json
 │   ├── marketSummary.json
 │   ├── marketHistory.json
 │   └── ipos.json
+└── logs/                      # Application logs
+    └── watchdog_verification.json
 ```
 
 ### Data Fetching Strategy
@@ -73,10 +98,18 @@ Primary: Library Fetcher (nepse-api-helper)
     ↓ (on failure)
 Fallback: Proxy Fetcher
     ↓ (on failure)
-Fallback: Custom Scraper
+Fallback: Mock Fetcher (cached data)
     ↓ (on failure)
 Retry with exponential backoff
 ```
+
+### Watchdog Service
+
+The Watchdog service ensures data integrity by:
+1. **Verification**: Comparing local data with external sources (Merolagani, NepseAlpha)
+2. **Auto-Correction**: Automatically fixing discrepancies when detected
+3. **Stale Data Detection**: Warning when data is older than 24 hours on trading days
+4. **Logging**: Maintaining verification reports for auditing
 
 ### Update Schedule
 
@@ -84,6 +117,8 @@ Retry with exponential backoff
 |-----------|-----------------|
 | Market Open (10 AM - 3 PM NST) | 10 seconds |
 | Market Closed | 1 hour |
+
+**Trading Days:** Sunday to Thursday (Nepal trading week)
 
 ---
 
@@ -95,15 +130,17 @@ Retry with exponential backoff
 frontend/
 ├── src/
 │   ├── App.jsx               # Routes + layout
-│   ├── components/           # Reusable UI
+│   ├── components/           # Reusable UI (35+ components)
 │   │   ├── Header.jsx
 │   │   ├── StockCard.jsx
 │   │   ├── StockTable.jsx
+│   │   ├── SectorChart.jsx
 │   │   └── ...
 │   ├── pages/                # Route pages
 │   │   ├── HomePage.jsx
 │   │   ├── StockDetailPage.jsx
 │   │   ├── IPOPage.jsx
+│   │   ├── TopMoversPage.jsx
 │   │   └── SearchResultsPage.jsx
 │   ├── hooks/                # Custom hooks
 │   │   ├── useStocks.js
@@ -118,57 +155,39 @@ frontend/
 ```
 User Action (Header Search) → App.jsx (State Change) → HomePage.jsx (Filter Update)
                                     ↓
-Local JSON ← Express Route ← API Request
+SQLite/JSON ← Express Route ← API Request
                                     ↓
                                State Update → Re-render
 ```
 
 ---
 
-## Data Schema
+## Data Storage
 
-### stocks.json
-```javascript
-{
-  "NABIL": {
-    symbol: String,
-    companyName: String,
-    sector: String,
-    prices: { open, high, low, close, ltp },
-    change: Number,
-    changePercent: Number,
-    volume: Number,
-    turnover: Number,
-    previousClose: Number,
-    timestamp: ISO Date String
-  }
-}
-```
+### Primary: SQLite (via Prisma ORM)
 
-### marketSummary.json
-```javascript
-{
-  indexValue: Number,
-  indexChange: Number,
-  indexChangePercent: Number,
-  totalTurnover: Number,
-  totalVolume: Number,
-  totalTransactions: Number,
-  advancedCompanies: Number,
-  declinedCompanies: Number,
-  unchangedCompanies: Number,
-  timestamp: ISO Date String
-}
-```
+The application uses SQLite with Prisma ORM for structured data storage:
 
----
+| Model | Description |
+|-------|-------------|
+| `Stock` | Stock symbols, prices, and metadata |
+| `MarketHistory` | Historical price data per symbol |
+| `MarketSummary` | NEPSE index and market statistics |
+| `Ipo` | IPO listings and details |
 
-## Data Persistence
+### Fallback: JSON Files
+
+Legacy JSON file storage in `backend/data/` for backward compatibility:
+- `stocks.json` - All stock prices and details
+- `marketSummary.json` - NEPSE index and market stats
+- `marketHistory.json` - Historical index data
+- `ipos.json` - IPO listings
 
 ### Write Strategy
 - **Debounced saves**: Changes trigger saves after 2s delay (batches rapid updates)
 - **Immediate saves**: Shutdown triggers immediate save
 - **Write locks**: Prevent race conditions during concurrent writes
+- **Transaction support**: Prisma handles database transactions for data integrity
 
 ---
 
@@ -178,3 +197,35 @@ Local JSON ← Express Route ← API Request
 2. **Input Validation**: Stock symbols sanitized before storage
 3. **Rate Limiting**: Update interval prevents API abuse
 4. **CORS**: Configurable origin whitelist
+5. **No Authentication Required**: Public data dashboard (removed Firebase auth)
+
+---
+
+## Deployment Architecture
+
+The application is self-hosted with PM2 process management:
+
+```
+┌────────────────────────────────────────────────────┐
+│                 Production Server                   │
+│                                                    │
+│  ┌──────────────┐  ┌──────────────┐               │
+│  │   PM2        │  │   Express    │               │
+│  │   (Process   │──│   Backend    │               │
+│  │   Manager)   │  │   :5000      │               │
+│  └──────────────┘  └──────────────┘               │
+│                           │                        │
+│                    ┌──────────────┐               │
+│                    │   SQLite     │               │
+│                    │   Database   │               │
+│                    └──────────────┘               │
+└────────────────────────────────────────────────────┘
+                           │
+                    (Port Forwarding or
+                     Reverse Proxy)
+                           │
+                    ┌──────────────┐
+                    │   Internet   │
+                    │  nepse.me    │
+                    └──────────────┘
+```

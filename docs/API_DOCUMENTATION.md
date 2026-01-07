@@ -3,7 +3,7 @@
 ## Base URL
 
 **Development:** `http://localhost:5000/api`  
-**Production:** `https://your-api-domain.com/api`
+**Production:** `https://nepse.me/api`
 
 ## Response Format
 
@@ -149,7 +149,8 @@ Get latest NEPSE market summary.
     "totalTransactions": 50000,
     "totalTurnover": 5000000000,
     "advancedCompanies": 120,
-    "declinedCompanies": 60
+    "declinedCompanies": 60,
+    "unchangedCompanies": 20
   }
 }
 ```
@@ -174,6 +175,41 @@ Server health check.
   "data": {
     "source": "proxy",
     "stockCount": 250
+  }
+}
+```
+
+---
+
+## Watchdog Endpoints
+
+### GET /api/watchdog/status
+Get current watchdog service status and latest verification report.
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": "OK",
+  "lastVerification": "2026-01-06T12:00:00Z",
+  "discrepancies": []
+}
+```
+
+---
+
+### POST /api/watchdog/verify
+Trigger a manual verification cycle.
+
+**Response:**
+```json
+{
+  "success": true,
+  "report": {
+    "timestamp": "2026-01-06T12:00:00Z",
+    "status": "OK",
+    "discrepancies": [],
+    "correctionApplied": false
   }
 }
 ```

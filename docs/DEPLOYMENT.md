@@ -14,7 +14,7 @@ This guide covers the steps to deploy the NEPSE Stock Website to a self-hosted p
 ### A. Clone and Install
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Rojan248/nepse-stock-website.git
 cd nepse-stock-website
 
 # Install all dependencies (frontend & backend)
@@ -28,10 +28,19 @@ Create a `.env` file in the `backend/` directory with production values:
 ```env
 NODE_ENV=production
 PORT=5000
-# Add your other secrets here (e.g., Google Service Account if used)
+DATABASE_URL="file:./prisma/dev.db"
+# Add your other secrets here
 ```
 
-### C. Build Frontend
+### C. Setup Database
+Initialize the SQLite database with Prisma:
+```bash
+cd backend
+npx prisma generate
+npx prisma migrate deploy
+```
+
+### D. Build Frontend
 Compile the React frontend into static files:
 ```bash
 npm run build:frontend
@@ -72,10 +81,8 @@ npm run pm2:start
 - **On your local network**: `http://<server-local-ip>:5000`
   - Find server IP: `ipconfig` (Windows) or `ip addr` (Linux)
 
-
-
 ### Verifying Deployment
-Open your public URL and check:
+Open your URL and check:
 - [ ] Homepage loads with market summary
 - [ ] Stock table displays data
 - [ ] Navigation works (Top Movers, IPOs, Stock Detail)
@@ -86,11 +93,32 @@ Open your public URL and check:
 
 ## 4. Exposing to the Internet
 
+### Option A: Port Forwarding
+Open port 5000 on your router and point it to your server's local IP.
 
+### Option B: Reverse Proxy (Nginx)
+Use Nginx to proxy requests to port 5000 with SSL:
+```nginx
+server {
+    listen 80;
+    server_name nepse.me;
+    
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
 
-Alternative methods:
-- **Port Forwarding**: Open port 5000 on your router (less secure).
-- **Reverse Proxy**: Use Nginx/Apache to proxy requests to port 5000.
+### Option C: Cloud Hosting
+Deploy to cloud providers like:
+- **Render.com** - Free tier available
+- **DigitalOcean** - VPS hosting
+- **AWS/GCP** - Full cloud infrastructure
 
 ## 5. Troubleshooting
 
@@ -111,7 +139,8 @@ npm run pm2:status
 **Common Issues**
 - **Port in use**: Change `PORT` in `backend/.env` if 5000 is taken.
 - **Frontend not loading**: Ensure you ran `npm run build:frontend` successfully.
-- **Permissions**: Ensure the user has write permissions to the `backend/logs` directory.
+- **Permissions**: Ensure the user has write permissions to the `backend/logs` and `backend/prisma` directories.
+- **Database errors**: Run `npx prisma migrate deploy` to apply pending migrations.
 
 ## 6. Auto-Start on Boot
 
@@ -159,3 +188,23 @@ Ensure the application starts automatically when the server reboots.
     ```bash
     sudo systemctl disable nepse-backend
     ```
+
+## 7. Watchdog Service
+
+The application includes a Watchdog service that monitors data integrity:
+
+### Automatic Verification
+- Runs periodically to compare local data with external sources
+- Auto-corrects discrepancies when detected
+- Logs verification reports to `backend/logs/watchdog_verification.json`
+
+### Manual Verification
+Trigger a verification cycle via API:
+```bash
+curl -X POST http://localhost:5000/api/watchdog/verify
+```
+
+### Checking Status
+```bash
+curl http://localhost:5000/api/watchdog/status
+```

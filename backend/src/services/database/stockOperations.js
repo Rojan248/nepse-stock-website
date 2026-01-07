@@ -64,10 +64,32 @@ const saveStocks = async (stocks) => {
     }
 
     try {
+        // First, get all existing stocks that we're about to update
+        const symbols = stocks.filter(s => s && s.symbol).map(s => s.symbol.toUpperCase());
+        const existingStocks = await prisma.stock.findMany({
+            where: { symbol: { in: symbols } },
+            select: { symbol: true, lastTradedPrice: true }
+        });
+        const existingMap = new Map(existingStocks.map(s => [s.symbol, s.lastTradedPrice]));
+
         const ops = stocks
             .filter(s => s && s.symbol)
             .map((stock) => {
                 const data = mapStockInput(stock);
+                const existingLtp = existingMap.get(data.symbol);
+                const newLtp = data.lastTradedPrice || 0;
+
+                // If existing stock has valid price and new data has zero price,
+                // preserve the existing price data (don't overwrite with zeros)
+                if (existingLtp && existingLtp > 0 && newLtp === 0) {
+                    logger.debug(`[${data.symbol}] Preserving existing LTP=${existingLtp} (incoming LTP=0)`);
+                    // Only update timestamp, not the price
+                    return prisma.stock.update({
+                        where: { symbol: data.symbol },
+                        data: { updatedAt: new Date() }
+                    });
+                }
+
                 return prisma.stock.upsert({
                     where: { symbol: data.symbol },
                     update: data,

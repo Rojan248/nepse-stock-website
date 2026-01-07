@@ -11,18 +11,26 @@
 
 ```
 backend/
-├── package.json                            # Scripts: dev, start, pm2:*, test. Deps: express, axios, node-schedule, nepse-api-helper, winston.
+├── package.json                            # Scripts: dev, start, pm2:*, test. Deps: express, axios, prisma, nepse-api-helper, winston.
 ├── ecosystem.config.js                     # PM2 process manager config for production deployment.
 ├── jest.config.js                          # Jest test configuration.
 ├── .env.example / .env.test                # Environment variable templates.
 ├── README.md                               # Backend-specific documentation.
 │
-├── data/                                   # [RUNTIME] Persisted JSON files (created at runtime).
+├── prisma/                                 # Prisma ORM configuration
+│   ├── schema.prisma                       # Database schema (Stock, MarketSummary, MarketHistory, Ipo models).
+│   ├── migrations/                         # Database migration files.
+│   └── dev.db                              # [RUNTIME] SQLite database file.
+│
+├── data/                                   # [RUNTIME] Fallback JSON files (legacy).
 │   ├── stocks.json                         # All stock data, keyed by symbol.
 │   ├── marketSummary.json                  # Latest market summary (NEPSE Index, turnover, etc.).
 │   ├── marketHistory.json                  # Historical market summary records.
 │   ├── ipos.json                           # IPO listings.
 │   └── topMovers.json                      # Cached top gainers/losers/volume lists.
+│
+├── logs/                                   # [RUNTIME] Application logs.
+│   └── watchdog_verification.json          # Watchdog service verification reports.
 │
 └── src/
     ├── server.js                           # **MAIN ENTRY POINT**. Creates Express app, mounts routes, starts scheduler.
@@ -30,7 +38,8 @@ backend/
     ├── routes/
     │   ├── stocks.js                       # GET /api/stocks, /api/stocks/:symbol, /api/stocks/search, /api/stocks/top-*, admin endpoints.
     │   ├── market.js                       # GET /api/market-summary, /api/health, /api/scheduler-status, POST /api/force-update.
-    │   └── ipos.js                         # GET /api/ipos, /api/ipos/active, /api/ipos/status/:status.
+    │   ├── ipos.js                         # GET /api/ipos, /api/ipos/active, /api/ipos/status/:status.
+    │   └── watchdog.js                     # GET /api/watchdog/status, POST /api/watchdog/verify.
     │
     ├── middleware/
     │   ├── cors.js                         # CORS configuration for frontend access.
@@ -38,6 +47,9 @@ backend/
     │
     ├── services/
     │   ├── dataFetcher.js                  # **ORCHESTRATOR**: Tries scrapers in order (Library → Proxy → Custom → Mock). Enriches data with company names.
+    │   ├── analytics.js                    # Market analytics and calculations.
+    │   ├── depthFetcher.js                 # Market depth data fetching.
+    │   ├── scheduler.js                    # Main scheduler entry point.
     │   │
     │   ├── scrapers/
     │   │   ├── libraryFetcher.js           # **OPTION 1**: Uses `nepse-api-helper` npm package to fetch from official NEPSE API (with token handling).
@@ -49,11 +61,18 @@ backend/
     │   │   └── updateScheduler.js          # **HEART OF THE SYSTEM**: Calls `dataFetcher.fetchLatestData()` every 10s during market hours, 1hr otherwise. Uses `node-schedule` for daily cleanup. Relies on `marketTime.js` for accurate Nepal time.
     │   │
     │   ├── database/
-    │   │   ├── connection.js               # `connectDB()` / `disconnectDB()` wrappers for local storage.
-    │   │   ├── localStorage.js             # **CORE STORAGE**: In-memory Maps + debounced JSON file persistence. Contains `stockOps`, `marketOps`, `ipoOps`.
-    │   │   ├── stockOperations.js          # Re-exports stock functions from localStorage.js for cleaner imports.
-    │   │   ├── marketOperations.js         # Re-exports market functions from localStorage.js.
-    │   │   └── ipoOperations.js            # Re-exports IPO functions from localStorage.js.
+    │   │   ├── connection.js               # `connectDB()` / `disconnectDB()` wrappers.
+    │   │   ├── prismaClient.js             # Prisma ORM client singleton.
+    │   │   ├── localStorage.js             # **FALLBACK STORAGE**: In-memory Maps + debounced JSON file persistence.
+    │   │   ├── stockOperations.js          # Stock CRUD operations (Prisma + localStorage fallback).
+    │   │   ├── marketOperations.js         # Market summary operations.
+    │   │   └── ipoOperations.js            # IPO CRUD operations.
+    │   │
+    │   ├── watchdog/                       # **DATA VERIFICATION SERVICE**
+    │   │   ├── WatchdogService.js          # Main verification logic: compares local vs external data, auto-corrects discrepancies.
+    │   │   └── providers/
+    │   │       ├── MerolaganiProvider.js   # Fetches data from Merolagani for verification.
+    │   │       └── NepseAlphaProvider.js   # Fetches data from NepseAlpha for verification.
     │   │
     │   └── utils/
     │       ├── logger.js                   # Winston logger configuration (console + file).
@@ -87,7 +106,7 @@ frontend/src/
 │   ├── TopMoversPage.jsx / .css            # Top gainers/losers/traded stocks.
 │   └── SearchResultsPage.jsx / .css        # Displays search results from Header search bar.
 │
-├── components/
+├── components/                             # 35+ reusable UI components
 │   ├── Header.jsx / Header.css             # Sticky header, logo, navigation, global SearchBar component.
 │   ├── SearchBar.jsx / .css                # Input + dropdown autocomplete, updates globalSearch state in App.
 │   ├── StockTable.jsx / .css               # **DATA TABLE**: Sortable columns, pagination, favorites toggle. Renders rows with change highlighting.
@@ -134,33 +153,41 @@ flowchart LR
         A[NEPSE Official API]
         B[NepAlpha / ShareSansar APIs]
         C[WorldTimeAPI.io]
+        D[Merolagani / NepseAlpha - Watchdog]
     end
 
     subgraph Backend
-        D[updateScheduler.js] -->|"every 10s (market open)"| E[dataFetcher.js]
-        E -->|"Option 1"| F[libraryFetcher.js]
-        E -->|"Option 2"| G[proxyFetcher.js]
-        E -->|"Option 3"| H[customScraper.js]
-        E -->|"DEV"| I[mockFetcher.js]
+        E[updateScheduler.js] -->|"every 10s (market open)"| F[dataFetcher.js]
+        F -->|"Option 1"| G[libraryFetcher.js]
+        F -->|"Option 2"| H[proxyFetcher.js]
+        F -->|"Option 3"| I[customScraper.js]
+        F -->|"DEV"| J[mockFetcher.js]
 
-        F --> A
-        G --> B
+        G --> A
+        H --> B
 
-        E -->|enriched data| J["stockOperations.saveStocks()"]
-        J --> K["localStorage.js (in-memory Map)"]
-        K -->|"debounced 2s"| L["backend/data/*.json"]
+        F -->|enriched data| K["stockOperations.saveStocks()"]
+        K --> L["Prisma ORM (SQLite)"]
+        L --> M["prisma/dev.db"]
 
-        D --> M[marketTime.js]
-        M --> C
+        K --> N["localStorage.js (fallback)"]
+        N -->|"debounced 2s"| O["backend/data/*.json"]
 
-        N[Express Routes] -->|"reads from"| K
+        E --> P[marketTime.js]
+        P --> C
+
+        Q[Express Routes] -->|"reads from"| L
+        
+        R[WatchdogService] -->|"verifies"| L
+        R --> D
+        R -->|"auto-corrects"| L
     end
 
     subgraph Frontend
-        O[api.js axios] -->|"GET /api/stocks"| N
-        P["HomePage.jsx (useEffect polling)"] -->|"every 15s"| O
-        P --> Q[displayStocks state]
-        Q --> R["StockTable.jsx (renders rows)"]
+        S[api.js axios] -->|"GET /api/stocks"| Q
+        T["HomePage.jsx (useEffect polling)"] -->|"every 15s"| S
+        T --> U[displayStocks state]
+        U --> V["StockTable.jsx (renders rows)"]
     end
 ```
 
@@ -172,12 +199,13 @@ flowchart LR
 | **2. INGEST** | `dataFetcher.js` | `fetchLatestData()` tries scrapers in order: `libraryFetcher` → `proxyFetcher` → `customScraper`. In DEV, uses `mockFetcher`. |
 | **3. FETCH** | `libraryFetcher.js` | Initializes `nepse-api-helper`, gets auth token, calls `/api/nots/securityDailyTradeStat/58` to get all stocks, `fetchMarketSummary()` for index data. |
 | **4. TRANSFORM** | `dataFetcher.js` | Enriches stocks with company names from static `nepseStocks.js` map. Calculates market summary stats if API data is incomplete. |
-| **5. STORE** | `localStorage.js` | `stockOps.saveStocks(stocks)` upserts into in-memory `store.stocks` Map. Triggers debounced `saveFile('stocks', ...)` which calls `safeWriteJson()` after 2s. |
-| **6. PERSIST** | `utils/storage.js` | `safeWriteJson()` writes to temp file first, then atomically renames to `backend/data/stocks.json`. |
-| **7. SERVE** | `routes/stocks.js` | `GET /api/stocks` calls `stockOperations.getAllStocks()` which reads from in-memory Map and returns JSON. |
-| **8. FETCH (FE)** | `api.js` | `getStocks(page, limit)` calls `/api/stocks?skip=...&limit=...`, returns `{ stocks, total }`. |
-| **9. POLL** | `HomePage.jsx` | `loadAllStocks()` is called on mount and every 15s via `setInterval`. Loops through pages to fetch ALL stocks. |
-| **10. RENDER** | `StockTable.jsx` | Receives `displayStocks` prop, renders table rows with sortable columns, pagination, and favorites toggle. |
+| **5. STORE** | `stockOperations.js` | `saveStocks(stocks)` upserts into Prisma/SQLite database. Falls back to localStorage.js if Prisma fails. |
+| **6. PERSIST** | `prismaClient.js` | Prisma ORM handles SQLite transactions. JSON fallback uses atomic writes via `safeWriteJson()`. |
+| **7. VERIFY** | `WatchdogService.js` | Periodically compares local data with external sources (Merolagani, NepseAlpha). Auto-corrects discrepancies. |
+| **8. SERVE** | `routes/stocks.js` | `GET /api/stocks` calls `stockOperations.getAllStocks()` which reads from Prisma/SQLite and returns JSON. |
+| **9. FETCH (FE)** | `api.js` | `getStocks(page, limit)` calls `/api/stocks?skip=...&limit=...`, returns `{ stocks, total }`. |
+| **10. POLL** | `HomePage.jsx` | `loadAllStocks()` is called on mount and every 15s via `setInterval`. Loops through pages to fetch ALL stocks. |
+| **11. RENDER** | `StockTable.jsx` | Receives `displayStocks` prop, renders table rows with sortable columns, pagination, and favorites toggle. |
 
 ---
 
@@ -193,13 +221,33 @@ flowchart LR
 | `pm2:start` | `pm2 start ecosystem.config.js` | Start with PM2 process manager. |
 | `pm2:stop/restart/delete/logs/status` | PM2 management commands. |
 
+### Backend: Database (Prisma/SQLite)
+
+The application uses SQLite via Prisma ORM as the primary database:
+
+| Model | Description |
+|-------|-------------|
+| `Stock` | Stock symbol, prices, sector, company name, change metrics |
+| `MarketHistory` | Historical price data per symbol with date indexing |
+| `MarketSummary` | NEPSE index, turnover, volume, breadth (adv/dec/unchanged) |
+| `Ipo` | IPO listings with dates, prices, status |
+
+### Backend: Watchdog Service
+
+The Watchdog service ensures data integrity:
+
+1. **Verification Cycle**: Compares local database with external providers (Merolagani, NepseAlpha)
+2. **Auto-Correction**: Fixes zero breadth counts by restoring previous trading day data
+3. **Stale Detection**: Warns when data is older than 24 hours on trading days
+4. **Logging**: Maintains verification reports in `logs/watchdog_verification.json`
+
 ### Backend: Scheduler Logic (`updateScheduler.js`)
 
 - **Market Hours**: 10:00 AM - 3:00 PM NST, Sunday-Thursday.
 - **Intervals**:
   - Market OPEN: `NEPSE_UPDATE_INTERVAL` env var (default 10,000ms = 10s).
   - Market CLOSED: 1 hour.
-  - WEEKEND: Skips updates entirely.
+  - WEEKEND: Skips updates entirely (Friday/Saturday).
 - **Daily Cleanup**: `node-schedule` cron at midnight (`0 0 * * *`) to prune old market history.
 
 ### Backend: Scraper Priority
@@ -271,6 +319,7 @@ All components reference these variables. Example from `StockTable.css`:
 |---------|---------|---------------|
 | **express** | ^4.18.2 | Core HTTP server framework. |
 | **axios** | ^1.6.2 | HTTP client for scraper fallbacks. |
+| **@prisma/client** | ^5.x | **CRITICAL**: ORM for SQLite database operations. |
 | **nepse-api-helper** | ^2.6.0 | **CRITICAL**: Handles NEPSE's complex token/WAFv2 authentication. Main data source. |
 | **node-schedule** | ^2.1.1 | Cron-style scheduling for daily cleanup job. |
 | **winston** | ^3.11.0 | Structured logging to console + file. |
@@ -278,6 +327,7 @@ All components reference these variables. Example from `StockTable.css`:
 | **cors** | ^2.8.5 | Enable CORS for frontend requests. |
 | **nodemon** (dev) | ^3.0.2 | Dev hot-reload. |
 | **pm2** (dev) | ^6.0.14 | Production process manager. |
+| **prisma** (dev) | ^5.x | Prisma CLI for migrations and schema management. |
 | **jest** (dev) | ^29.7.0 | Unit testing. |
 
 ### Frontend
@@ -300,21 +350,25 @@ All components reference these variables. Example from `StockTable.css`:
 
 > These are the specific choices this project makes, not generic practices.
 
-1. **No Database**: Uses local JSON files (`backend/data/*.json`) instead of MongoDB/PostgreSQL. Data is held in-memory (`Map` objects) for fast reads, with debounced writes to disk.
+1. **Hybrid Storage**: Uses SQLite (via Prisma ORM) as the primary database with JSON files as fallback. This provides structured querying with Prisma while maintaining backward compatibility.
 
-2. **Atomic Writes**: `safeWriteJson()` writes to a `.tmp` file first, then renames to prevent corruption on crash.
+2. **Watchdog Service**: A dedicated service verifies local data against external sources (Merolagani, NepseAlpha) and auto-corrects discrepancies to ensure data integrity.
 
-3. **Time Sync**: The backend fetches accurate Nepal time from external APIs (WorldTimeAPI, TimeAPI.io) because the host machine's clock may be wrong. This offset is used to determine market open/close status.
+3. **Atomic Writes**: `safeWriteJson()` writes to a `.tmp` file first, then renames to prevent corruption on crash.
 
-4. **Fallback Scrapers**: If the official NEPSE library fails (auth issues, rate limits), the system falls back to NepAlpha and ShareSansar public APIs.
+4. **Time Sync**: The backend fetches accurate Nepal time from external APIs (WorldTimeAPI, TimeAPI.io) because the host machine's clock may be wrong. This offset is used to determine market open/close status.
 
-5. **Client-Side Filtering**: The frontend fetches ALL stocks (~270) and filters by sector and search query in JavaScript, rather than making server-side queries. This simplifies the API and enables instant filtering.
+5. **Fallback Scrapers**: If the official NEPSE library fails (auth issues, rate limits), the system falls back to NepAlpha and ShareSansar public APIs.
 
-6. **Global Search in Header**: Search state is lifted to `App.jsx` so the Header's SearchBar can update it, and `HomePage` can filter the table. This enables a unified search experience across pages.
+6. **Client-Side Filtering**: The frontend fetches ALL stocks (~270) and filters by sector and search query in JavaScript, rather than making server-side queries. This simplifies the API and enables instant filtering.
 
-7. **Debounced Saves**: Stock data is saved to disk only after 2 seconds of inactivity to reduce I/O during rapid updates.
+7. **Global Search in Header**: Search state is lifted to `App.jsx` so the Header's SearchBar can update it, and `HomePage` can filter the table. This enables a unified search experience across pages.
 
-8. **LTP Preservation**: If an incoming stock update has `ltp=0`, the system preserves the existing LTP to prevent data corruption.
+8. **Debounced Saves**: Stock data is saved to disk only after 2 seconds of inactivity to reduce I/O during rapid updates.
+
+9. **LTP Preservation**: If an incoming stock update has `ltp=0`, the system preserves the existing LTP to prevent data corruption.
+
+10. **No Authentication**: The application is a public data dashboard with no user authentication required. All displayed data is publicly available NEPSE information.
 
 ---
 
@@ -327,4 +381,4 @@ This document provides a complete blueprint of the NEPSE Stock Website architect
 3. Identify which files to modify for any feature change.
 4. Know which libraries are essential and why.
 
-**Last Updated**: 2025-12-26
+**Last Updated**: 2026-01-06

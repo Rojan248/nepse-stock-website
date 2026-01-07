@@ -19,6 +19,9 @@ cd frontend && npm run dev
 # Build frontend
 npm run build:frontend
 
+# Setup database
+cd backend && npx prisma generate && npx prisma migrate deploy
+
 # Start backend with PM2
 cd backend && npm run pm2:start
 
@@ -35,19 +38,28 @@ npm run pm2:restart
 npm run pm2:stop
 ```
 
-### Cloudflare Tunnel
+### Database (Prisma)
 ```bash
-# Run tunnel (foreground)
-cloudflared tunnel run nepse-tunnel
+# Generate Prisma client
+npx prisma generate
 
-# Run tunnel (background - Windows)
-Start-Process cloudflared -ArgumentList "tunnel", "run", "nepse-tunnel" -WindowStyle Hidden
+# Apply migrations
+npx prisma migrate deploy
 
-# Check tunnel info
-cloudflared tunnel info nepse-tunnel
+# Create new migration
+npx prisma migrate dev --name <migration-name>
 
-# List all tunnels
-cloudflared tunnel list
+# Open Prisma Studio (database viewer)
+npx prisma studio
+```
+
+### Watchdog Service
+```bash
+# Check watchdog status
+curl http://localhost:5000/api/watchdog/status
+
+# Trigger manual verification
+curl -X POST http://localhost:5000/api/watchdog/verify
 ```
 
 ## Important URLs
@@ -55,8 +67,8 @@ cloudflared tunnel list
 - **Local backend:** http://localhost:5000
 - **Local frontend (dev):** http://localhost:3000
 - **PM2 Web UI:** `pm2 web` (then open http://localhost:9615)
-- **Cloudflare Dashboard:** https://one.dash.cloudflare.com/
-- **Your public URL:** [Find it here](./CLOUDFLARE_TUNNEL.md#finding-your-tunnel-url)
+- **Prisma Studio:** `npx prisma studio` (opens in browser)
+- **Production URL:** https://nepse.me
 
 ## File Locations
 
@@ -65,9 +77,11 @@ cloudflared tunnel list
 | Backend logs | `backend/logs/` |
 | PM2 logs | `backend/logs/pm2-*.log` |
 | Environment file | `backend/.env` |
-| Cloudflare config | `./config.yml` (Template) |
-| Tunnel Credentials | Managed via environment variables |
+| SQLite Database | `backend/prisma/dev.db` |
+| Prisma Schema | `backend/prisma/schema.prisma` |
+| Watchdog logs | `backend/logs/watchdog_verification.json` |
 | Built frontend | `frontend/dist/` |
+| JSON data (fallback) | `backend/data/` |
 
 ## Troubleshooting Quick Checks
 
@@ -75,13 +89,16 @@ cloudflared tunnel list
 1. Is backend running? `npm run pm2:status`
 2. Check logs: `npm run pm2:logs`
 3. Test locally: `curl http://localhost:5000`
-
-**Cloudflare Tunnel not working:**
-1. Is tunnel running? Check cloudflared terminal
-2. Is backend running? Check PM2 status
-3. Check tunnel URL in Cloudflare dashboard
+4. Check database: `npx prisma studio`
 
 **Data not updating:**
 1. Check backend logs for errors
 2. Verify NEPSE API is responding
 3. Check market status (market closed on Fri/Sat)
+4. Run watchdog verification: `curl -X POST http://localhost:5000/api/watchdog/verify`
+
+**Database issues:**
+1. Check if database exists: `backend/prisma/dev.db`
+2. Apply pending migrations: `npx prisma migrate deploy`
+3. Regenerate client: `npx prisma generate`
+4. Check Prisma Studio for data: `npx prisma studio`

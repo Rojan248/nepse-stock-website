@@ -25,6 +25,7 @@ The application utilizes a **Stark Minimalism** design philosophy to ensure clar
 - 📈 **Market Breadth** - Track Advanced, Declined, and Unchanged counts at a glance
 - 📈 **Top Gainers/Losers** - Track best and worst performers
 - 🆕 **IPO Tracking** - Browse upcoming, open, and completed IPOs
+- 🛡️ **Watchdog Service** - Automatic data verification and self-correction
 - 📱 **Responsive Design** - Optimized for desktop, tablet, and mobile
 - 🌙 **Dark Theme** - Modern, eye-friendly interface
 
@@ -34,7 +35,7 @@ The application utilizes a **Stark Minimalism** design philosophy to ensure clar
 |-------|-------------|
 | **Frontend** | React 18, Vite, React Router, Axios |
 | **Backend** | Node.js, Express |
-| **Storage** | Local JSON Files (no external database required) |
+| **Database** | SQLite (via Prisma ORM), JSON fallback |
 | **Styling** | Vanilla CSS with Stark Minimalism design system |
 
 ## Quick Start
@@ -46,13 +47,15 @@ The application utilizes a **Stark Minimalism** design philosophy to ensure clar
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/nepse-stock-website.git
+git clone https://github.com/Rojan248/nepse-stock-website.git
 cd nepse-stock-website
 
 # Backend setup
 cd backend
 npm install
 cp .env.example .env
+npx prisma generate
+npx prisma migrate dev
 npm run dev
 
 # Frontend setup (new terminal)
@@ -71,15 +74,18 @@ nepse-stock-website/
 │   ├── src/
 │   │   ├── routes/        # API endpoints
 │   │   ├── services/      # Business logic
+│   │   │   ├── database/  # Data operations (Prisma + JSON)
+│   │   │   ├── scrapers/  # Data fetchers
+│   │   │   └── watchdog/  # Data verification service
 │   │   └── middleware/    # Express middleware
-│   └── tests/             # Backend tests
+│   ├── prisma/            # Database schema & migrations
+│   └── data/              # JSON fallback storage
 ├── frontend/              # React application
 │   ├── src/
 │   │   ├── components/    # Reusable components
 │   │   ├── pages/         # Page components
 │   │   ├── hooks/         # Custom React hooks
 │   │   └── services/      # API client
-│   └── tests/             # Frontend tests
 └── docs/                  # Documentation
 ```
 
@@ -92,6 +98,7 @@ nepse-stock-website/
 | `GET /api/stocks/search?q=` | Search stocks |
 | `GET /api/ipos` | IPO listings |
 | `GET /api/market-summary` | NEPSE index data |
+| `GET /api/watchdog/status` | Watchdog service status |
 | `GET /api/health` | Server status |
 
 ## Environment Variables
@@ -100,6 +107,7 @@ nepse-stock-website/
 ```
 PORT=5000
 NODE_ENV=development
+DATABASE_URL="file:./prisma/dev.db"
 NEPSE_UPDATE_INTERVAL=10000
 LOG_LEVEL=info
 ```
@@ -111,24 +119,60 @@ VITE_API_URL=/api
 
 ## Data Storage
 
-Stock data is stored locally in `backend/data/`:
-- `stocks.json` - All stock prices and details
-- `marketSummary.json` - NEPSE index and market stats  
-- `marketHistory.json` - Historical index data
-- `ipos.json` - IPO listings
+### Primary: SQLite Database
+Stock data is stored in SQLite via Prisma ORM (`backend/prisma/dev.db`):
+- `Stock` - Stock prices and metadata
+- `MarketSummary` - NEPSE index and market stats
+- `MarketHistory` - Historical data
+- `Ipo` - IPO listings
+
+### Fallback: JSON Files
+Legacy JSON storage in `backend/data/` for backward compatibility.
 
 Data persists automatically on graceful shutdown (Ctrl+C).
 
+## Watchdog Service
+
+The built-in Watchdog service ensures data integrity:
+- **Verification**: Compares local data with external sources (Merolagani, NepseAlpha)
+- **Auto-Correction**: Automatically fixes discrepancies
+- **Stale Detection**: Warns when data is outdated
+- **Logging**: Maintains audit trail in `backend/logs/`
+
 ## Deployment
 
-See [SETUP_GUIDE.md](docs/SETUP_GUIDE.md) for detailed deployment instructions.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed deployment instructions.
 
-## Recent Updates (Dec 2025)
+### Quick Deploy
+```bash
+# Build frontend
+npm run build:frontend
 
-- **Architecture Redesign**: Migrated search state to root components for a unified header search experience.
-- **Data Integrity**: Fixed data mapping for the NEPSE Index and added Market Breadth indicators.
-- **UI Polish**: Switched to **Stark Minimalism** color palette (Pure Black/White). Resolved currency symbol rendering issues (switched to 'Rs').
-- **Infrastructure**: Stabilized local deployment environment via PM2 and environment configuration.
+# Setup database
+cd backend && npx prisma migrate deploy
+
+# Start with PM2
+npm run pm2:start
+```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | Complete setup instructions |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment guide |
+| [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | API reference |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
+| [SECURITY.md](docs/SECURITY.md) | Security best practices |
+
+## Recent Updates (Jan 2026)
+
+- **Watchdog Service**: Added data verification with auto-correction using external providers
+- **Prisma/SQLite**: Migrated from JSON-only to SQLite database with Prisma ORM
+- **Simplified Deployment**: Removed Cloudflare integration, focused on self-hosted setup
+- **Data Integrity**: Fixed inflated stock counts and improved sector classification
+- **Architecture Redesign**: Migrated search state to root components for unified UX
 
 ## License
 

@@ -8,3 +8,17 @@ build/
 .DS_Store
 .vscode/
 .idea/
+
+# Data and DB
+*.db
+*.db-journal
+*.sqlite
+prisma/dev.db
+src/data/*.json
+logs/*.json
+
+# Debug Scripts
+scripts/debug_*.js
+scripts/patch_*.js
+scripts/check_*.js
+scripts/fix-*.js
