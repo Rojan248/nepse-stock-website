@@ -3,16 +3,19 @@
 
 /* Base Variables */
 :root {
+
     --color-bg: #ffffff;
     --color-text-main: #171717;
     --color-text-sub: #737373;
-    --color-bar-bg: #f5f5f5;
-    --color-bar-fill: #171717;
-    --color-bar-hover: #000000;
+    --color-bar-bg: #f8fafc;
+    /* Premium Blue Gradient Start/End colors */
+    --color-bar-primary: #3b82f6;
+    --color-bar-secondary: #1d4ed8;
     --font-family: 'Inter', sans-serif;
     /* Toned down easing - professional and clean */
     --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
 }
+
 
 /* --- Container --- */
 .market-box {
@@ -113,26 +116,31 @@
     overflow: hidden;
 }
 
+
 /* The Bar Itself */
 .bar {
     height: 100%;
-    background-color: var(--color-bar-fill);
+    /* Gradient Background for Premium Feel */
+    background: linear-gradient(90deg, var(--color-bar-primary) 0%, var(--color-bar-secondary) 100%);
     border-radius: 6px;
     position: relative;
+    box-shadow: 0 2px 5px rgba(59, 130, 246, 0.25);
 
     /* Use custom property for animation */
     width: var(--target-width, 0);
 
     /* Smoother, professional transitions */
-    transition: background-color 0.3s ease, width 0.8s var(--ease-smooth);
+    transition: width 0.8s var(--ease-smooth), filter 0.3s ease;
 
     /* Animate from 0 to target width with toned-down timing */
     animation: grow-bar 0.8s var(--ease-smooth) forwards;
 }
 
 .chart-row:hover .bar {
-    background-color: var(--color-bar-hover);
+    /* Brighten on hover */
+    filter: brightness(1.1);
 }
+
 
 /* Shimmer Effect - Slower and Subtler */
 @keyframes shimmer {
