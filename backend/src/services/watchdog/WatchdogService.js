@@ -19,10 +19,10 @@ class WatchdogService {
      */
     async verify() {
         logger.info('[Watchdog] Starting verification cycle...');
-        
+
         // 1. Get Local Data (Source of Truth for our App)
         const localData = await this.getLocalData();
-        
+
         // 2. Get External Data
         const externalData = await Promise.all(
             this.providers.map(p => p.fetchMarketSummary())
@@ -30,7 +30,7 @@ class WatchdogService {
 
         // 3. Compare
         const report = this.generateReport(localData, externalData);
-        
+
         // 4. Auto-Correction Logic
         if (report.status !== 'OK' || (localData && localData.data.breadth.advanced === 0 && localData.data.breadth.declined === 0)) {
             logger.warn(`[Watchdog] Issues detected or Zero Breadth. Attempting auto-correction...`);
@@ -42,11 +42,11 @@ class WatchdogService {
             const lastUpdate = new Date(localData.timestamp);
             const now = new Date();
             const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
-            
+
             // If data is older than 24 hours and it's a trading day (Sun-Thu), warn
             const day = now.getDay();
             const isTradingDay = day >= 0 && day <= 4; // Sun=0, Thu=4
-            
+
             if (hoursDiff > 24 && isTradingDay) {
                 report.status = report.status === 'OK' ? 'WARNING' : report.status;
                 report.discrepancies.push(`Local data is stale (${hoursDiff.toFixed(1)} hours old)`);
@@ -55,7 +55,7 @@ class WatchdogService {
 
         // 6. Log/Alert
         await this.saveReport(report);
-        
+
         logger.info('[Watchdog] Verification completed.');
         return report;
     }
@@ -66,19 +66,19 @@ class WatchdogService {
             // This usually happens when the live feed resets but we want to show the last close
             const localBreadth = report.local?.data?.breadth;
             const isZeroed = localBreadth && localBreadth.advanced === 0 && localBreadth.declined === 0;
-            
+
             if (isZeroed) {
                 logger.info('[Watchdog] Local breadth is zeroed. Fetching previous trading day data...');
                 const previousData = await dataFetcher.fetchPreviousTradingDayData();
-                
+
                 if (previousData) {
                     logger.info(`[Watchdog] Found valid previous data: Adv=${previousData.advanced}, Dec=${previousData.declined}`);
-                    
+
                     // Update the latest market summary
                     const latestSummary = await prisma.marketSummary.findFirst({
                         orderBy: { timestamp: 'desc' }
                     });
-                    
+
                     if (latestSummary) {
                         await prisma.marketSummary.update({
                             where: { id: latestSummary.id },
@@ -104,7 +104,7 @@ class WatchdogService {
             const summary = await prisma.marketSummary.findFirst({
                 orderBy: { timestamp: 'desc' }
             });
-            
+
             if (!summary) return null;
 
             return {
@@ -143,15 +143,26 @@ class WatchdogService {
             return report;
         }
 
+        const TOLERANCE_PERCENT = 1.0;
+
+        // Check if we have ANY valid external data
+        const validExternal = external.filter(e => e && e.data && !e.error && e.status !== 'skipped');
+
+        if (validExternal.length === 0) {
+            report.status = 'WARNING';
+            report.discrepancies.push('No valid external data available for verification');
+            return report;
+        }
+
         // Compare with Merolagani (if available)
-        const m = external.find(e => e.source === 'Merolagani');
+        const m = validExternal.find(e => e.source === 'Merolagani');
         if (m && m.data) {
-            // Compare Turnover (allow 1% difference)
+            // Compare Turnover
             if (m.data.totalTurnover && local.data.totalTurnover) {
                 const diff = Math.abs(m.data.totalTurnover - local.data.totalTurnover);
                 const pct = (diff / local.data.totalTurnover) * 100;
-                
-                if (pct > 1.0) {
+
+                if (pct > TOLERANCE_PERCENT) {
                     report.status = 'WARNING';
                     report.discrepancies.push(`Turnover mismatch: Local=${local.data.totalTurnover}, Merolagani=${m.data.totalTurnover} (${pct.toFixed(2)}% diff)`);
                 }
@@ -161,8 +172,8 @@ class WatchdogService {
             if (m.data.totalTransactions && local.data.totalTransactions) {
                 const diff = Math.abs(m.data.totalTransactions - local.data.totalTransactions);
                 const pct = (diff / local.data.totalTransactions) * 100;
-                
-                if (pct > 1.0) {
+
+                if (pct > TOLERANCE_PERCENT) {
                     report.status = 'WARNING';
                     report.discrepancies.push(`Transactions mismatch: Local=${local.data.totalTransactions}, Merolagani=${m.data.totalTransactions} (${pct.toFixed(2)}% diff)`);
                 }
@@ -174,24 +185,20 @@ class WatchdogService {
 
     async saveReport(report) {
         try {
-            // Append to log file (or overwrite for now to keep it simple)
-            // In production, maybe append to a daily log
             let logs = [];
-            if (fs.existsSync(LOG_FILE)) {
-                try {
-                    const content = fs.readFileSync(LOG_FILE, 'utf8');
-                    logs = JSON.parse(content);
-                    if (!Array.isArray(logs)) logs = [];
-                } catch (e) {
-                    // ignore corrupt file
-                }
+            try {
+                const content = await fs.promises.readFile(LOG_FILE, 'utf8');
+                logs = JSON.parse(content);
+                if (!Array.isArray(logs)) logs = [];
+            } catch (e) {
+                // File might not exist or be corrupt, start fresh
             }
-            
+
             // Keep last 50 reports
             logs.unshift(report);
             if (logs.length > 50) logs = logs.slice(0, 50);
-            
-            fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+
+            await fs.promises.writeFile(LOG_FILE, JSON.stringify(logs, null, 2));
         } catch (error) {
             logger.error(`[Watchdog] Failed to save report: ${error.message}`);
         }

@@ -25,17 +25,6 @@ const fetchData = async () => {
     const stocks = NEPSE_STOCKS.map((stock, index) => {
         const basePrice = stock.base || 300; // fallback base price
 
-        // Edge Case: Force one stock to have 0 price to test database shield
-        if (index === 0) {
-            return {
-                symbol: stock.symbol,
-                companyName: stock.name,
-                sector: stock.sector,
-                prices: { ltp: 0, previousClose: 0, change: 0, changePercent: 0, high: 0, low: 0, open: 0 },
-                trading: { volume: 0, turnover: 0, totalTrades: 0 },
-                timestamp: today.toISOString()
-            };
-        }
 
         const ltp = generatePrice(basePrice);
         const previousClose = basePrice;
@@ -72,7 +61,7 @@ const fetchData = async () => {
         else if (s.prices.change < 0) declined++;
         else unchanged++;
     });
-    
+
     const marketSummary = {
         indexValue: 2620 + (Math.random() * 20 - 10),
         indexChange: Math.random() * 10 - 5,

@@ -74,6 +74,7 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
     const [lastUpdated, setLastUpdated] = useState(null);
     const [favorites, setFavorites] = useLocalStorage('nepse-favorites', []);
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all');
 
     // Refs for cleanup and tracking
     const mountedRef = useRef(true);
@@ -173,7 +174,7 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
     // Reset page to 1 when sector filter or globalSearch changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [selectedSector, globalSearch]);
+    }, [selectedSector, globalSearch, statusFilter]);
 
     const handleStockClick = (stock) => {
         navigate(`/stock/${stock.symbol}`);
@@ -210,6 +211,17 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
             });
         }
 
+        // Filter by status (Advanced/Declined/Unchanged)
+        if (statusFilter !== 'all') {
+            result = result.filter(stock => {
+                const change = stock.change || stock.prices?.change || 0;
+                if (statusFilter === 'advanced') return change > 0;
+                if (statusFilter === 'declined') return change < 0;
+                if (statusFilter === 'unchanged') return change === 0;
+                return true;
+            });
+        }
+
         // Filter by search query (symbol or company name)
         if (globalSearch && globalSearch.trim()) {
             const query = globalSearch.toLowerCase().trim();
@@ -226,7 +238,7 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         }
 
         return result;
-    }, [stocks, selectedSector, globalSearch, showFavoritesOnly, favorites]);
+    }, [stocks, selectedSector, globalSearch, showFavoritesOnly, favorites, statusFilter]);
 
     // Client-side pagination
     const totalPages = Math.max(1, Math.ceil(filteredStocks.length / ITEMS_PER_PAGE));
@@ -333,15 +345,42 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                 {/* Market Breadth / Comparison */}
                 <div className="market-breadth" style={{ marginTop: '2rem', background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <div style={{ textAlign: 'center' }}>
+                        <div
+                            onClick={() => setStatusFilter(statusFilter === 'advanced' ? 'all' : 'advanced')}
+                            style={{
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                opacity: statusFilter === 'all' || statusFilter === 'advanced' ? 1 : 0.4,
+                                transform: statusFilter === 'advanced' ? 'scale(1.1)' : 'scale(1)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Advanced</div>
                             <div style={{ color: 'var(--success)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.advanced}</div>
                         </div>
-                        <div style={{ textAlign: 'center' }}>
+                        <div
+                            onClick={() => setStatusFilter(statusFilter === 'declined' ? 'all' : 'declined')}
+                            style={{
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                opacity: statusFilter === 'all' || statusFilter === 'declined' ? 1 : 0.4,
+                                transform: statusFilter === 'declined' ? 'scale(1.1)' : 'scale(1)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Declined</div>
                             <div style={{ color: 'var(--danger)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.declined}</div>
                         </div>
-                        <div style={{ textAlign: 'center' }}>
+                        <div
+                            onClick={() => setStatusFilter(statusFilter === 'unchanged' ? 'all' : 'unchanged')}
+                            style={{
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                opacity: statusFilter === 'all' || statusFilter === 'unchanged' ? 1 : 0.4,
+                                transform: statusFilter === 'unchanged' ? 'scale(1.1)' : 'scale(1)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Unchanged</div>
                             <div style={{ color: 'var(--color-unchanged)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.unchanged}</div>
                         </div>

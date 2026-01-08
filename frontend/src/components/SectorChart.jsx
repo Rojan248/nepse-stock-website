@@ -9,6 +9,12 @@ const SectorChart = ({ stocks }) => {
 
         stocks.forEach(stock => {
             const sector = stock.sector || 'Others';
+
+            // Filter out non-business sectors/instruments
+            if (['Promoter Share', 'Corporate Debenture', 'Trading'].includes(sector)) {
+                return;
+            }
+
             if (!sectorStats[sector]) {
                 sectorStats[sector] = { name: sector, count: 0, turnover: 0 };
             }
@@ -72,8 +78,8 @@ const SectorChart = ({ stocks }) => {
                     return (
                         <div className="chart-row" key={sector.name}>
                             <div className="label">{formatSector(sector.name)}</div>
-                            <div className="bar-area">
-                                <div className="bar" style={{ '--target-width': `${percentage}%` }}></div>
+                            <div className="bar-area" style={{ '--target-width': `${percentage}%` }}>
+                                <div className="bar"></div>
                                 <div className="values">
                                     <strong>{percentage}%</strong>
                                     <span>({sector.count})</span>

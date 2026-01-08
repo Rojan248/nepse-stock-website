@@ -182,7 +182,12 @@
     gap: 5px;
     white-space: nowrap;
     opacity: 0;
-    transform: translateX(-10px);
+    /* Dynamic positioning based on bar width */
+    left: var(--target-width, 0%);
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%) translateX(-10px);
+    
     /* Smoother fade-in */
     animation: fade-in-slide 0.5s ease-out forwards;
 }
@@ -219,7 +224,7 @@
 @keyframes fade-in-slide {
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(-50%) translateX(0);
     }
 }
 
@@ -245,7 +250,6 @@
 
 .chart-row:nth-child(1) .values {
     animation-delay: 0.4s;
-    left: 92%;
 }
 
 .chart-row:nth-child(2) .bar {
@@ -254,7 +258,6 @@
 
 .chart-row:nth-child(2) .values {
     animation-delay: 0.45s;
-    left: 65%;
 }
 
 .chart-row:nth-child(3) .bar {
@@ -263,7 +266,6 @@
 
 .chart-row:nth-child(3) .values {
     animation-delay: 0.5s;
-    left: 48%;
 }
 
 .chart-row:nth-child(4) .bar {
@@ -272,7 +274,6 @@
 
 .chart-row:nth-child(4) .values {
     animation-delay: 0.55s;
-    left: 35%;
 }
 
 .chart-row:nth-child(5) .bar {
@@ -281,7 +282,6 @@
 
 .chart-row:nth-child(5) .values {
     animation-delay: 0.6s;
-    left: 34%;
 }
 
 .chart-row:nth-child(6) .bar {
@@ -290,7 +290,6 @@
 
 .chart-row:nth-child(6) .values {
     animation-delay: 0.65s;
-    left: 28%;
 }
 
 .chart-row:nth-child(7) .bar {
@@ -299,7 +298,6 @@
 
 .chart-row:nth-child(7) .values {
     animation-delay: 0.7s;
-    left: 27%;
 }
 
 .chart-row:nth-child(8) .bar {
@@ -308,7 +306,6 @@
 
 .chart-row:nth-child(8) .values {
     animation-delay: 0.75s;
-    left: 25%;
 }
 
 .chart-row:nth-child(9) .bar {
@@ -317,7 +314,6 @@
 
 .chart-row:nth-child(9) .values {
     animation-delay: 0.8s;
-    left: 22%;
 }
 
 .chart-row:nth-child(10) .bar {
@@ -326,7 +322,6 @@
 
 .chart-row:nth-child(10) .values {
     animation-delay: 0.85s;
-    left: 15%;
 }
 
 /* Loading Skeleton Animation */

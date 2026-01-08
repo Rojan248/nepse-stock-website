@@ -27,6 +27,18 @@ const initScheduler = () => {
         }
     });
 
+    // End-of-Day Snapshot (15:05, Sun-Thu)
+    // Ensures accurate historical data and precise daily calculations
+    cron.schedule('5 15 * * 0-4', async () => {
+        try {
+            const stockOps = require('./database/stockOperations');
+            logger.info('[Scheduler] Running End-of-Day Market Snapshot...');
+            await stockOps.snapshotDailyMarket();
+        } catch (err) {
+            logger.error(`[Scheduler] EOD Snapshot failed: ${err.message}`);
+        }
+    });
+
     logger.info('Scheduler initialized (market hours 11:00-15:00 NST, Sun-Thu)');
 };
 

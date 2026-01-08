@@ -41,22 +41,47 @@ const mapStockOutput = (stock) => {
     };
 };
 
-const mapStockInput = (stock) => ({
-    symbol: (stock.symbol || '').toUpperCase(),
-    companyName: stock.companyName || stock.name || stock.symbol,
-    sector: stock.sector || null,
-    lastTradedPrice: stock.lastTradedPrice ?? stock.ltp ?? null,
-    previousClose: stock.previousClose ?? stock.previousClosingPrice ?? null,
-    openPrice: stock.openPrice ?? null,
-    highPrice: stock.highPrice ?? null,
-    lowPrice: stock.lowPrice ?? null,
-    volume: stock.volume ?? stock.totalTradedQuantity ?? null,
-    totalTrades: stock.totalTrades ?? stock.totalTradedTransactions ?? null,
-    turnover: stock.turnover ?? stock.totalTradedValue ?? null,
-    change: stock.change ?? stock.pointChange ?? null,
-    percentageChange: stock.percentageChange ?? stock.changePercent ?? null,
-    updatedAt: new Date()
-});
+const mapStockInput = (stock) => {
+    // Extract base fields
+    const symbol = (stock.symbol || '').toUpperCase();
+    const companyName = stock.companyName || stock.name || symbol;
+    const sector = stock.sector || null;
+
+    // Prices can be top-level or in a 'prices' object
+    const p = stock.prices || {};
+    const lastTradedPrice = stock.lastTradedPrice ?? stock.ltp ?? stock.close ?? p.ltp ?? p.close ?? null;
+    const previousClose = stock.previousClose ?? stock.previousClosingPrice ?? p.previousClose ?? null;
+    const openPrice = stock.openPrice ?? p.open ?? null;
+    const highPrice = stock.highPrice ?? p.high ?? null;
+    const lowPrice = stock.lowPrice ?? p.low ?? null;
+
+    // Trading data can be top-level or in a 'trading' object
+    const t = stock.trading || {};
+    const volume = stock.volume ?? t.volume ?? stock.totalTradedQuantity ?? null;
+    const totalTrades = stock.totalTrades ?? t.totalTrades ?? stock.totalTradedTransactions ?? null;
+    const turnover = stock.turnover ?? t.turnover ?? stock.totalTradedValue ?? null;
+
+    // Change data
+    const change = stock.change ?? p.change ?? stock.pointChange ?? null;
+    const percentageChange = stock.percentageChange ?? stock.changePercent ?? p.changePercent ?? null;
+
+    return {
+        symbol,
+        companyName,
+        sector,
+        lastTradedPrice,
+        previousClose,
+        openPrice,
+        highPrice,
+        lowPrice,
+        volume,
+        totalTrades,
+        turnover,
+        change,
+        percentageChange,
+        updatedAt: new Date()
+    };
+};
 
 const saveStocks = async (stocks) => {
     if (!Array.isArray(stocks) || stocks.length === 0) {
@@ -334,6 +359,105 @@ const cleanupInvalidStocks = async (validSymbols) => {
     }
 };
 
+
+/**
+ * Creates historical records for all stocks for the current day.
+ * Ensures data precision by recalculating change/percentage before saving.
+ */
+const snapshotDailyMarket = async () => {
+    logger.info('Starting End-of-Day Market Snapshot...');
+    try {
+        // 1. Fetch all valid stocks
+        const stocks = await prisma.stock.findMany({
+            where: { lastTradedPrice: { gt: 0 } }
+        });
+
+        if (stocks.length === 0) {
+            logger.warn('No active stocks found for snapshot.');
+            return { count: 0 };
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+        let count = 0;
+
+        // 2. Process each stock inside a transaction for atomicity
+        await prisma.$transaction(async (tx) => {
+            for (const stock of stocks) {
+                // Precision Calculation: Ensure change and percent match the close/prevClose
+                let ltp = stock.lastTradedPrice;
+                let prev = stock.previousClose;
+                let change = stock.change;
+                let pChange = stock.percentageChange;
+
+                // If we have both prices, force mathematical consistency
+                if (ltp && prev && prev > 0) {
+                    const calcChange = ltp - prev;
+                    if (Math.abs(calcChange - (change || 0)) > 0.01) {
+                        logger.debug(`[${stock.symbol}] Fixing Change: Was ${change}, Now ${calcChange.toFixed(2)}`);
+                        change = parseFloat(calcChange.toFixed(2));
+                    }
+
+                    const calcPct = (calcChange / prev) * 100;
+                    if (Math.abs(calcPct - (pChange || 0)) > 0.01) {
+                        logger.debug(`[${stock.symbol}] Fixing % Change: Was ${pChange}%, Now ${calcPct.toFixed(2)}%`);
+                        pChange = parseFloat(calcPct.toFixed(2));
+                    }
+                }
+
+                // Upsert history record
+                // Note: We use findFirst/create/update logic or checking existence because
+                // composite unique constraints might not be set up on [symbol, date] for simple Upsert depending on schema details.
+                // But generally, we can try to find existing first.
+
+                const existing = await tx.marketHistory.findFirst({
+                    where: {
+                        symbol: stock.symbol,
+                        date: today
+                    }
+                });
+
+                if (existing) {
+                    await tx.marketHistory.update({
+                        where: { id: existing.id },
+                        data: {
+                            closePrice: ltp,
+                            highPrice: stock.highPrice,
+                            lowPrice: stock.lowPrice,
+                            volume: stock.volume,
+                            turnover: stock.turnover,
+                            change: change,
+                            percentageChange: pChange
+                        }
+                    });
+                } else {
+                    await tx.marketHistory.create({
+                        data: {
+                            symbol: stock.symbol,
+                            date: today,
+                            closePrice: ltp,
+                            highPrice: stock.highPrice,
+                            lowPrice: stock.lowPrice,
+                            volume: stock.volume,
+                            turnover: stock.turnover,
+                            change: change,
+                            percentageChange: pChange
+                        }
+                    });
+                }
+                count++;
+            }
+        });
+
+        logger.info(`Daily snapshot completed. Processed ${count} stocks.`);
+        return { success: true, count };
+    } catch (error) {
+        logger.error(`Error in snapshotDailyMarket: ${error.message}`);
+        throw error;
+    }
+};
+
 module.exports = {
     saveStocks,
     getAllStocks,
@@ -350,5 +474,7 @@ module.exports = {
     clearAllStocks,
     deleteInactiveStocks,
     cleanupInactiveStocks,
-    cleanupInvalidStocks
+    cleanupInvalidStocks,
+    snapshotDailyMarket
 };
+
