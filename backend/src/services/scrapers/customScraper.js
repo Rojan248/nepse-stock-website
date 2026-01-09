@@ -1,209 +1,114 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 const NEPSE_STOCKS = require('../../data/nepseStocks');
-
-/**
- * Custom NEPSE Scraper - Real-time Data Fetching
- * Implements direct NEPSE API access with authentication
- * Falls back to simulated data only when all real sources fail
- */
-
 const https = require('https');
 const http = require('http');
 
-const NEPSE_BASE_URL = 'https://nepalstock.com.np';
-const TIMEOUT = 4000; // Strict 4s timeout
+/**
+ * Custom NEPSE Scraper - Reliable Public Endpoint & HTML Scraper
+ * 
+ * STRATEGY:
+ * 1. Try NEPSE's public API endpoints (Today's Price) with browser headers.
+ *    - This often works without auth if headers match a real browser.
+ * 2. Fallback to Alternative Sources (Merolagani/NepseAlpha).
+ * 3. Last Resort: Simulated Data.
+ * 
+ * NOTE: This scraper specifically AVOIDS the complex token/salt logic which is 
+ * already handled by the primary `libraryFetcher.js` (using nepse-api-helper).
+ * This ensures we have a truly distinct fallback method.
+ */
 
-// Create axios instance for NEPSE
+const NEPSE_BASE_URL = 'https://nepalstock.com.np';
+const TIMEOUT = 5000;
+
+// Browser-like headers to bypass basic WAF checks
+const BROWSER_HEADERS = {
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Connection': 'keep-alive',
+    'Content-Type': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Referer': 'https://nepalstock.com.np/',
+    'Origin': 'https://nepalstock.com.np',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin'
+};
+
 const nepseClient = axios.create({
     baseURL: NEPSE_BASE_URL,
     timeout: TIMEOUT,
     httpAgent: new http.Agent({ keepAlive: true }),
     httpsAgent: new https.Agent({ keepAlive: true }),
-    headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://nepalstock.com.np/',
-        'Origin': 'https://nepalstock.com.np'
-    }
+    headers: BROWSER_HEADERS
 });
 
 /**
- * Fetch data using custom scraper
- * Tries real NEPSE API first, then alternative sources, finally simulated data
- * @returns {Object} Data object (always returns data)
+ * Main Fetch Function
  */
 const fetchData = async () => {
-    logger.info('Custom scraper starting...');
+    logger.info('Custom scraper (fallback) starting...');
 
-    // Strategy 1: Try direct NEPSE API with token
-    try {
-        const nepseData = await fetchFromNEPSEDirect();
-        if (nepseData && nepseData.stocks && nepseData.stocks.length > 0) {
-            logger.info(`✓ Custom scraper got ${nepseData.stocks.length} stocks from NEPSE direct`);
-            return nepseData;
-        }
-    } catch (error) {
-        logger.debug(`NEPSE direct failed: ${error.message}`);
-    }
-
-    // Strategy 2: Try NEPSE API without auth (public endpoints)
+    // Strategy 1: NEPSE Public Endpoints
     try {
         const publicData = await fetchFromNEPSEPublic();
         if (publicData && publicData.stocks && publicData.stocks.length > 0) {
-            logger.info(`✓ Custom scraper got ${publicData.stocks.length} stocks from NEPSE public API`);
+            logger.info(`✓ Custom scraper: Got ${publicData.stocks.length} stocks from NEPSE public API`);
             return publicData;
         }
     } catch (error) {
-        logger.debug(`NEPSE public API failed: ${error.message}`);
+        logger.debug(`Custom scraper: NEPSE public API failed: ${error.message}`);
     }
 
-    // Strategy 3: Try alternative sources (MeroLagani, etc.)
+    // Strategy 2: Alternative Sources (Merolagani)
     try {
         const altData = await fetchFromAlternativeSources();
         if (altData && altData.stocks && altData.stocks.length > 0) {
-            logger.info(`✓ Custom scraper got ${altData.stocks.length} stocks from alternative source`);
+            logger.info(`✓ Custom scraper: Got ${altData.stocks.length} stocks from Alternative Source`);
             return altData;
         }
     } catch (error) {
-        logger.debug(`Alternative sources failed: ${error.message}`);
+        logger.debug(`Custom scraper: Alternative sources failed: ${error.message}`);
     }
 
-    // Strategy 4: Fallback to simulated data
-    logger.info('All real sources failed - using simulated data fallback...');
+    // Strategy 3: Simulated Data (Last Resort)
+    logger.warn('Custom scraper: All real sources failed. Using simulated data.');
     const simulatedData = generateSimulatedData();
-    logger.info(`✓ Generated simulated data for ${simulatedData.stocks.length} stocks`);
     return simulatedData;
 };
 
 /**
- * Fetch directly from NEPSE API with authentication
- */
-const fetchFromNEPSEDirect = async () => {
-    try {
-        // Step 1: Get authentication token
-        const token = await getNEPSEToken();
-        if (!token) {
-            logger.debug('Could not obtain NEPSE token');
-            return null;
-        }
-
-        // Step 2: Fetch today's prices with auth
-        const response = await nepseClient.get('/api/nots/nepse-data/today-price', {
-            headers: {
-                'Authorization': `Salter ${token}`
-            }
-        });
-
-        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-            const stocks = response.data.map(transformNEPSEStock);
-
-            // Also fetch market summary
-            const marketSummary = await fetchNEPSEMarketSummary(token);
-
-            return {
-                stocks,
-                ipos: [],
-                marketSummary,
-                source: 'nepse-direct',
-                timestamp: new Date().toISOString()
-            };
-        }
-    } catch (error) {
-        logger.debug(`NEPSE direct fetch error: ${error.message}`);
-    }
-    return null;
-};
-
-/**
- * Get NEPSE authentication token
- */
-const getNEPSEToken = async () => {
-    try {
-        // Get the prove token
-        const proveResponse = await nepseClient.get('/api/authenticate/prove');
-        const proveData = proveResponse.data;
-
-        if (proveData) {
-            // NEPSE uses a specific algorithm to generate access token from prove
-            // For now, try using the prove token directly or a simplified approach
-            const accessResponse = await nepseClient.post('/api/authenticate/accesstoken', {
-                accessToken: proveData
-            });
-
-            if (accessResponse.data && accessResponse.data.accessToken) {
-                return accessResponse.data.accessToken;
-            }
-        }
-    } catch (error) {
-        logger.debug(`Token generation failed: ${error.message}`);
-    }
-    return null;
-};
-
-/**
- * Fetch NEPSE market summary
- */
-const fetchNEPSEMarketSummary = async (token) => {
-    try {
-        const headers = token ? { 'Authorization': `Salter ${token}` } : {};
-        const response = await nepseClient.get('/api/nots', { headers });
-
-        if (response.data) {
-            const data = response.data;
-            return {
-                indexValue: parseFloat(data.index) || parseFloat(data.nepseIndex) || 0,
-                indexChange: parseFloat(data.change) || parseFloat(data.pointChange) || 0,
-                indexChangePercent: parseFloat(data.perChange) || parseFloat(data.percentChange) || 0,
-                totalTransactions: parseInt(data.totalTransactions) || 0,
-                totalTurnover: parseFloat(data.totalTurnover) || 0,
-                totalVolume: parseInt(data.totalVolume) || 0,
-                activeCompanies: parseInt(data.tradedScrip) || 0,
-                advancedCompanies: parseInt(data.positive) || 0,
-                declinedCompanies: parseInt(data.negative) || 0,
-                unchangedCompanies: parseInt(data.neutral) || 0,
-                timestamp: new Date().toISOString()
-            };
-        }
-    } catch (error) {
-        logger.debug(`Market summary fetch failed: ${error.message}`);
-    }
-    return null;
-};
-
-/**
- * Fetch from NEPSE public endpoints (no auth required)
+ * Fetch from NEPSE public endpoints that might be exposed
  */
 const fetchFromNEPSEPublic = async () => {
+    // List of potential public endpoints to try
     const endpoints = [
-        '/api/nots/nepse-data/today-price',
-        '/api/nots/security',
-        '/api/nots/securityDailyTradeStat'
+        '/api/nots/nepse-data/today-price', // Often the most reliable public one
+        '/api/nots/securityDailyTradeStat/58' // Sometimes accessible
     ];
 
     for (const endpoint of endpoints) {
         try {
+            logger.debug(`Custom scraper: Trying ${endpoint}...`);
             const response = await nepseClient.get(endpoint);
+            
+            let data = response.data;
+            // Handle different wrapper formats
+            if (data.data) data = data.data;
+            if (data.content) data = data.content;
 
-            if (response.data) {
-                let data = response.data;
-                if (data.data) data = data.data;
-                if (data.content) data = data.content;
-
-                if (Array.isArray(data) && data.length > 0) {
-                    const stocks = data.map(transformNEPSEStock);
-                    return {
-                        stocks,
-                        ipos: [],
-                        marketSummary: null,
-                        source: 'nepse-public',
-                        timestamp: new Date().toISOString()
-                    };
-                }
+            if (Array.isArray(data) && data.length > 0) {
+                const stocks = data.map(transformNEPSEStock);
+                return {
+                    stocks,
+                    ipos: [],
+                    marketSummary: null, // Will be calculated by dataFetcher
+                    source: 'nepse-public-fallback',
+                    timestamp: new Date().toISOString()
+                };
             }
         } catch (error) {
-            logger.debug(`NEPSE endpoint ${endpoint} failed: ${error.message}`);
+            // Ssh, it's a fallback
         }
     }
     return null;
@@ -246,11 +151,11 @@ const transformNEPSEStock = (item) => {
 };
 
 /**
- * Fetch from alternative data sources
+ * Fetch from alternative data sources (Merolagani)
  */
 const fetchFromAlternativeSources = async () => {
-    // Try MeroLagani
     try {
+        // Merolagani Handler
         const response = await axios.get('https://merolagani.com/handlers/weaboradataaborahandler.ashx', {
             params: { type: 'get_live_market' },
             timeout: TIMEOUT,
@@ -276,7 +181,7 @@ const fetchFromAlternativeSources = async () => {
                 trading: {
                     volume: parseInt(item.v) || 0,
                     turnover: parseFloat(item.t) || 0,
-                    totalTrades: 0
+                    totalTrades: 0 // Merolagani simple feed doesn't have trades count
                 },
                 lastUpdated: new Date().toISOString()
             }));
@@ -286,79 +191,15 @@ const fetchFromAlternativeSources = async () => {
                     stocks,
                     ipos: [],
                     marketSummary: null,
-                    source: 'merolagani',
+                    source: 'merolagani-fallback',
                     timestamp: new Date().toISOString()
                 };
             }
         }
     } catch (error) {
-        logger.debug(`MeroLagani fetch failed: ${error.message}`);
+        // Silent fail
     }
-
     return null;
-};
-
-/**
- * Reference implementation for NEPSE authentication (not active)
- * This is documentation for future implementation
- */
-const authenticateWithNEPSE = async () => {
-    try {
-        // Step 1: Get prove token
-        const proveResponse = await axios.get(`${NEPSE_BASE_URL}/api/authenticate/prove`, {
-            timeout: TIMEOUT,
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-
-        const proveToken = proveResponse.data;
-
-        // Step 2: Generate access token
-        // Note: NEPSE uses a custom token generation algorithm
-        // This would need reverse engineering of their JavaScript
-        const accessToken = generateAccessToken(proveToken);
-
-        return accessToken;
-    } catch (error) {
-        logger.error(`NEPSE authentication failed: ${error.message}`);
-        return null;
-    }
-};
-
-/**
- * Token generation placeholder
- * Real implementation would need NEPSE's algorithm
- */
-const generateAccessToken = (proveToken) => {
-    // This is where NEPSE's token algorithm would go
-    // It typically involves:
-    // - Decoding the prove token
-    // - Applying mathematical transformations
-    // - Generating the final access token
-
-    logger.debug('Token generation not implemented');
-    return null;
-};
-
-/**
- * Reference function for fetching securities (not active)
- */
-const fetchSecuritiesFromNEPSE = async (accessToken) => {
-    try {
-        const response = await axios.get(`${NEPSE_BASE_URL}/api/nots/security`, {
-            timeout: TIMEOUT,
-            headers: {
-                'Authorization': `Salter ${accessToken}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        return response.data;
-    } catch (error) {
-        logger.error(`Failed to fetch securities: ${error.message}`);
-        return null;
-    }
 };
 
 /**
@@ -374,8 +215,6 @@ const generateRealisticPrice = (basePrice, volatility = 0.03) => {
  * This is the LAST RESORT fallback when all real APIs fail
  */
 const generateSimulatedData = () => {
-    logger.info('Generating simulated market data from static stock list...');
-
     const now = new Date();
     const stocks = NEPSE_STOCKS.map(stock => {
         const basePrice = stock.base || Math.floor(Math.random() * 500) + 100;
@@ -423,7 +262,6 @@ const generateSimulatedData = () => {
     const totalVolume = stocks.reduce((sum, s) => sum + s.trading.volume, 0);
     const totalTrades = stocks.reduce((sum, s) => sum + s.trading.totalTrades, 0);
 
-    // Generate realistic NEPSE index (around 2000-2500)
     const baseIndex = 2200;
     const indexChange = (Math.random() - 0.5) * 40;
     const indexValue = Math.round((baseIndex + indexChange) * 100) / 100;
