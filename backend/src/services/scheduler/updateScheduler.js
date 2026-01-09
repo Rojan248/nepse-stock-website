@@ -6,6 +6,7 @@ const ipoOperations = require('../database/ipoOperations');
 const marketOperations = require('../database/marketOperations');
 const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSync, MARKET_STATES } = require('../utils/marketTime');
 const watchdogService = require('../watchdog/WatchdogService');
+const { isAnyLockActive, getLockStatus } = require('../utils/updateLock');
 
 /**
  * Update Scheduler
@@ -66,6 +67,13 @@ const performUpdate = async () => {
 
     if (currentState === MARKET_STATES.WEEKEND && !isDev) {
         logger.info('Skipping update: Market is closed (WEEKEND)');
+        return false;
+    }
+
+    // Skip if Watchdog is currently correcting data (prevent race condition)
+    if (isAnyLockActive()) {
+        const lockInfo = getLockStatus();
+        logger.info(`[Scheduler] Skipping update: Watchdog lock active (owner: ${lockInfo.lockOwner}, expires in ${Math.round(lockInfo.remainingMs / 1000)}s)`);
         return false;
     }
 

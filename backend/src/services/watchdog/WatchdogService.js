@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const { acquireLock, releaseLock } = require('../utils/updateLock');
 const merolagani = require('./providers/MerolaganiProvider');
 const nepseAlpha = require('./providers/NepseAlphaProvider');
 const dataFetcher = require('../dataFetcher');
@@ -62,6 +63,12 @@ class WatchdogService {
 
     async attemptCorrection(report) {
         try {
+            // Acquire lock to prevent scheduler from overwriting our corrections
+            if (!acquireLock('watchdog')) {
+                logger.warn('[Watchdog] Could not acquire lock, skipping correction');
+                return;
+            }
+
             // Scenario 1: Local data is zeroed out (0 Adv/0 Dec)
             // This usually happens when the live feed resets but we want to show the last close
             const localBreadth = report.local?.data?.breadth;
@@ -94,7 +101,11 @@ class WatchdogService {
                     }
                 }
             }
+
+            // Release lock after correction
+            releaseLock('watchdog');
         } catch (e) {
+            releaseLock('watchdog');
             logger.error(`[Watchdog] Correction failed: ${e.message}`);
         }
     }

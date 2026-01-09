@@ -20,7 +20,9 @@ const corsOptions = {
         ];
 
         // Allow requests with no origin (mobile apps, curl, etc.)
+        // Log for monitoring but still allow (rate limiting handles abuse)
         if (!origin) {
+            logger.debug(`[CORS] Request without Origin header from ${req?.ip || 'unknown'}`);
             return callback(null, true);
         }
 
