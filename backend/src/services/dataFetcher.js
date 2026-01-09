@@ -3,7 +3,6 @@ const https = require('https');
 const libraryFetcher = require('./scrapers/libraryFetcher');
 const proxyFetcher = require('./scrapers/proxyFetcher');
 const customScraper = require('./scrapers/customScraper');
-const mockFetcher = require('./scrapers/mockFetcher');
 const logger = require('./utils/logger');
 const NEPSE_STOCKS = require('../data/nepseStocks');
 
@@ -23,7 +22,8 @@ const marketOpenClient = axios.create({
 
 /**
  * Unified Data Fetcher with Intelligent Fallback
- * Priority: Development (Mock) → Library → Proxy → Custom
+ * Priority: Library → Proxy → Custom Scraper
+ * Only uses REAL data from NEPSE - no mock/fake data
  */
 
 // Create a lookup map for quick symbol -> stock info lookup
@@ -85,7 +85,7 @@ const fetchLiveMarketMeta = async () => {
         // 1. >Total Transactions< ... >123,456<
         // 2. Total Transactions ... 123,456
         const match = html.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
-        
+
         if (match && match[1]) {
             const raw = match[1].replace(/,/g, '');
             const count = parseInt(raw, 10);
@@ -106,7 +106,7 @@ const fetchLiveMarketMeta = async () => {
         });
         // Matches: "Transactions": "123,456" or similar JSON/HTML patterns
         const alphaMatch = alpha.data.match(/Transactions["']?\s*[:=]\s*["']?([0-9,]+)/i);
-        
+
         if (alphaMatch && alphaMatch[1]) {
             const count = parseInt(alphaMatch[1].replace(/,/g, ''), 10);
             if (!Number.isNaN(count) && count > 100) {
@@ -126,7 +126,7 @@ const fetchLiveMarketMeta = async () => {
         });
         // Matches: Total Transactions ... 123,456
         const ssMatch = ss.data.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
-        
+
         if (ssMatch && ssMatch[1]) {
             const count = parseInt(ssMatch[1].replace(/,/g, ''), 10);
             if (!Number.isNaN(count) && count > 100) {
@@ -232,17 +232,17 @@ const syncMarketDataFromWeb = async () => {
 
         // Use the centralized library fetcher
         const libData = await libraryFetcher.fetchData();
-        
+
         if (!libData || !libData.marketSummary) {
             logger.warn('syncMarketDataFromWeb: No data from library fetcher');
             return { updated: false, reason: 'Library fetcher returned no data' };
         }
 
         const summary = libData.marketSummary;
-        
+
         // Get the latest record to merge with
         const latest = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
-        
+
         // Build merged data
         let merged = {
             indexValue: summary.indexValue ?? latest?.indexValue ?? null,
@@ -294,18 +294,18 @@ const syncMarketDataFromWeb = async () => {
                 logger.info(`syncMarketDataFromWeb: Applied DB breadth fallback A=${dbBreadth.advanced} D=${dbBreadth.declined} U=${dbBreadth.unchanged}`);
             }
         }
-        
+
         // Only create new record if we have meaningful data
         if (merged.totalTransactions || merged.totalTurnover) {
             await prisma.marketSummary.create({ data: merged });
             logger.info(`syncMarketDataFromWeb: Updated - Tx=${merged.totalTransactions}, Turnover=${merged.totalTurnover}`);
-            return { 
-                updated: true, 
+            return {
+                updated: true,
                 source: 'library-fetcher',
-                ...merged 
+                ...merged
             };
         }
-        
+
         return { updated: false, reason: 'No meaningful data scraped' };
     } catch (error) {
         logger.error(`syncMarketDataFromWeb failed: ${error.message}`);
@@ -339,23 +339,23 @@ const parsePrice = (value) => {
  */
 const updateMarketBreadth = (stocks) => {
     let advanced = 0, declined = 0, unchanged = 0;
-    
+
     if (!Array.isArray(stocks)) {
         return { advanced, declined, unchanged };
     }
-    
+
     stocks.forEach(stock => {
         // Try multiple field names for current price
         const current = parsePrice(
-            stock.lastTradedPrice || stock.ltp || stock.close || 
+            stock.lastTradedPrice || stock.ltp || stock.close ||
             stock.prices?.ltp || stock.prices?.close
         );
         // Try multiple field names for previous close
         const prev = parsePrice(
-            stock.previousClose || stock.previousClosingPrice || 
+            stock.previousClose || stock.previousClosingPrice ||
             stock.previous_close || stock.prices?.previousClose
         );
-        
+
         // If either price is 0/invalid, count as unchanged (no data)
         if (current === 0 || prev === 0) {
             unchanged++;
@@ -367,7 +367,7 @@ const updateMarketBreadth = (stocks) => {
             unchanged++;
         }
     });
-    
+
     logger.debug(`Market Breadth: Advanced=${advanced}, Declined=${declined}, Unchanged=${unchanged}`);
     return { advanced, declined, unchanged };
 };
@@ -485,23 +485,7 @@ const calculateMarketSummary = (stocks, existingSummary = {}) => {
 const fetchLatestData = async () => {
     logger.info('Starting data fetch cycle...');
 
-    // Development Mode Override: Use Mock Fetcher
-    if (process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true') {
-        try {
-            logger.info('DEV MODE: Using Mock Fetcher for simulation...');
-            const data = await mockFetcher.fetchData();
-            if (data) {
-                lastDataSource = 'mock';
-                lastUpdateTime = new Date();
-                logger.info(`✓ [Mock] Generated data for ${data.stocks.length} stocks`);
-                return data;
-            }
-        } catch (error) {
-            logger.error(`Mock fetcher failed: ${error.message}`);
-        }
-    }
-
-    // Try Option 1: Library Fetcher
+    // Try Option 1: Library Fetcher (Primary - NEPSE API Helper)
     try {
         logger.debug('Attempting library fetcher (Option 1)...');
         const data = await libraryFetcher.fetchData();
@@ -682,7 +666,7 @@ const fetchPreviousTradingDayData = async () => {
         const nepseModule = await import('nepse-api-helper');
         const nepseClient = nepseModule.nepseClient;
         const createHeaders = nepseModule.createHeaders;
-        
+
         await nepseClient.initialize({ useWasm: true });
         const token = await nepseClient.getToken();
 
@@ -691,28 +675,28 @@ const fetchPreviousTradingDayData = async () => {
 
         // Fetch securityDailyTradeStat (Index 58 is usually "All Scrips" or similar broad index)
         const url = `https://www.nepalstock.com.np/api/nots/securityDailyTradeStat/58`;
-        
+
         const res = await axios.get(url, { headers, httpsAgent: agent });
         const data = res.data;
-        
+
         if (!Array.isArray(data) || data.length === 0) {
             logger.warn('No previous trading day data found');
             return null;
         }
-        
+
         logger.info(`Fetched ${data.length} records from previous trading day.`);
-        
+
         let advanced = 0;
         let declined = 0;
         let unchanged = 0;
-        
+
         data.forEach(stock => {
             const diff = stock.difference || (stock.closePrice - stock.previousClose);
             if (diff > 0) advanced++;
             else if (diff < 0) declined++;
             else unchanged++;
         });
-        
+
         return {
             advanced,
             declined,
