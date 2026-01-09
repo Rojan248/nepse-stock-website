@@ -258,14 +258,23 @@ const syncMarketDataFromWeb = async () => {
             timestamp: new Date()
         };
 
-        // If market is closed, do NOT overwrite the DB; return the latest stored snapshot (last open day)
-        if (!marketOpen) {
-            logger.info('syncMarketDataFromWeb: Market closed, keeping last stored market summary');
+        // SMART UPDATE LOGIC:
+        // Even if market is closed, we might receive the "Final Closing" report 5-15 mins later.
+        // We only block the update if the data is IDENTICAL to what we already have.
+        const hasChanged = !latest ||
+            merged.totalTransactions !== latest.totalTransactions ||
+            merged.totalTurnover !== latest.totalTurnover ||
+            merged.totalVolume !== latest.totalVolume;
+
+        if (!marketOpen && !hasChanged) {
+            logger.debug('syncMarketDataFromWeb: Market closed & data unchanged, skipping DB write');
             return {
                 updated: false,
-                reason: 'market-closed',
+                reason: 'market-closed-unchanged',
                 latest: latest ? { ...latest, source: 'cached-latest' } : merged
             };
+        } else if (!marketOpen && hasChanged) {
+            logger.info('syncMarketDataFromWeb: Market closed but DATA CHANGED (Closing Report detected) - Saving to DB.');
         }
 
         // If breadth looks empty (all zero/unchanged only), try DB fallback
