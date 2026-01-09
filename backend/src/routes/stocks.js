@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const stockOperations = require('../services/database/stockOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { requireAdminKey } = require('../middleware/auth');
 const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 
@@ -230,9 +231,9 @@ router.get('/:symbol/depth', asyncHandler(async (req, res) => {
 /**
  * POST /api/stocks/admin/cleanup
  * Delete inactive stocks (zero LTP) from database
- * Should be called after data refresh
+ * Protected by Admin Key
  */
-router.post('/admin/cleanup', async (req, res) => {
+router.post('/admin/cleanup', requireAdminKey, async (req, res) => {
     try {
         logger.info('Running cleanup to delete inactive stocks...');
 
@@ -257,9 +258,9 @@ router.post('/admin/cleanup', async (req, res) => {
 /**
  * POST /api/stocks/admin/validate
  * Remove stocks not in the official NEPSE list
- * Fetches valid symbols from NEPSE API and removes any stocks not in that list
+ * Protected by Admin Key
  */
-router.post('/admin/validate', async (req, res) => {
+router.post('/admin/validate', requireAdminKey, async (req, res) => {
     try {
         logger.info('Validating stocks against official NEPSE data...');
 

@@ -5,6 +5,7 @@ const stockOperations = require('../services/database/stockOperations');
 const scheduler = require('../services/scheduler/updateScheduler');
 const dataFetcher = require('../services/dataFetcher');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { requireAdminKey } = require('../middleware/auth');
 const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
@@ -229,8 +230,9 @@ router.get('/trending', asyncHandler(async (req, res) => {
 /**
  * POST /api/force-update
  * Force an immediate data update
+ * Protected by Admin Key
  */
-router.post('/force-update', asyncHandler(async (req, res) => {
+router.post('/force-update', requireAdminKey, asyncHandler(async (req, res) => {
     logger.info('Force update requested via API');
 
     const success = await scheduler.forceUpdate();
@@ -245,8 +247,9 @@ router.post('/force-update', asyncHandler(async (req, res) => {
 /**
  * POST /api/sync-from-web
  * Sync market data directly from web scraping (custom scraper)
+ * Protected by Admin Key
  */
-router.post('/sync-from-web', asyncHandler(async (req, res) => {
+router.post('/sync-from-web', requireAdminKey, asyncHandler(async (req, res) => {
     logger.info('Web sync requested via API');
     
     const result = await dataFetcher.syncMarketDataFromWeb();
