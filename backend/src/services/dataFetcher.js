@@ -22,8 +22,7 @@ const marketOpenClient = axios.create({
 
 /**
  * Unified Data Fetcher with Intelligent Fallback
- * Priority: Library → Proxy → Custom Scraper
- * Only uses REAL data from NEPSE - no mock/fake data
+ * Priority: Development (Mock) → Library → Proxy → Custom
  */
 
 // Create a lookup map for quick symbol -> stock info lookup
@@ -485,7 +484,9 @@ const calculateMarketSummary = (stocks, existingSummary = {}) => {
 const fetchLatestData = async () => {
     logger.info('Starting data fetch cycle...');
 
-    // Try Option 1: Library Fetcher (Primary - NEPSE API Helper)
+    // NOTE: Mock fetcher removed - always use real scraped data
+
+    // Try Option 1: Library Fetcher
     try {
         logger.debug('Attempting library fetcher (Option 1)...');
         const data = await libraryFetcher.fetchData();
