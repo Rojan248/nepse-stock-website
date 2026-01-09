@@ -81,12 +81,15 @@ const fetchLiveMarketMeta = async () => {
         });
         const html = resp.data || '';
         // Robust regex: look for 'Total Transactions' followed by any tags/whitespace, then a number
-        // This handles: <th>Total Transactions</th>....<td>64,407</td> or similar patterns
-        const match = html.match(/Total\s+Transactions[^0-9]*([0-9,]+)/i);
+        // Matches:
+        // 1. >Total Transactions< ... >123,456<
+        // 2. Total Transactions ... 123,456
+        const match = html.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
+        
         if (match && match[1]) {
             const raw = match[1].replace(/,/g, '');
             const count = parseInt(raw, 10);
-            if (!Number.isNaN(count) && count > 0) {
+            if (!Number.isNaN(count) && count > 100) { // Sane range check (>100 tx)
                 logger.info(`Transaction Match Found (Merolagani): ${count}`);
                 return { totalTransactions: count, totalTurnover: null, totalVolume: null };
             }
@@ -101,16 +104,38 @@ const fetchLiveMarketMeta = async () => {
             timeout: 5000,
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
         });
-        const alphaMatch = alpha.data.match(/Transactions[^0-9]*([0-9,]+)/i);
+        // Matches: "Transactions": "123,456" or similar JSON/HTML patterns
+        const alphaMatch = alpha.data.match(/Transactions["']?\s*[:=]\s*["']?([0-9,]+)/i);
+        
         if (alphaMatch && alphaMatch[1]) {
             const count = parseInt(alphaMatch[1].replace(/,/g, ''), 10);
-            if (!Number.isNaN(count) && count > 0) {
+            if (!Number.isNaN(count) && count > 100) {
                 logger.info(`Transaction Match Found (NepseAlpha): ${count}`);
                 return { totalTransactions: count, totalTurnover: null, totalVolume: null };
             }
         }
     } catch (err) {
         logger.debug(`nepsealpha fallback failed: ${err.message}`);
+    }
+
+    // Fallback 3: ShareSansar (New)
+    try {
+        const ss = await axios.get('https://www.sharesansar.com/market', {
+            timeout: 5000,
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
+        });
+        // Matches: Total Transactions ... 123,456
+        const ssMatch = ss.data.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
+        
+        if (ssMatch && ssMatch[1]) {
+            const count = parseInt(ssMatch[1].replace(/,/g, ''), 10);
+            if (!Number.isNaN(count) && count > 100) {
+                logger.info(`Transaction Match Found (ShareSansar): ${count}`);
+                return { totalTransactions: count, totalTurnover: null, totalVolume: null };
+            }
+        }
+    } catch (err) {
+        logger.debug(`sharesansar fallback failed: ${err.message}`);
     }
 
     return null;
