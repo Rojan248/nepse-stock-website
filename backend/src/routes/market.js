@@ -6,6 +6,7 @@ const scheduler = require('../services/scheduler/updateScheduler');
 const dataFetcher = require('../services/dataFetcher');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
+const { adminLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
@@ -232,7 +233,7 @@ router.get('/trending', asyncHandler(async (req, res) => {
  * Force an immediate data update
  * Protected by Admin Key
  */
-router.post('/force-update', requireAdminKey, asyncHandler(async (req, res) => {
+router.post('/force-update', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     logger.info('Force update requested via API');
 
     const success = await scheduler.forceUpdate();
@@ -249,11 +250,11 @@ router.post('/force-update', requireAdminKey, asyncHandler(async (req, res) => {
  * Sync market data directly from web scraping (custom scraper)
  * Protected by Admin Key
  */
-router.post('/sync-from-web', requireAdminKey, asyncHandler(async (req, res) => {
+router.post('/sync-from-web', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     logger.info('Web sync requested via API');
-    
+
     const result = await dataFetcher.syncMarketDataFromWeb();
-    
+
     res.json({
         success: result.updated,
         data: result,
@@ -267,7 +268,7 @@ router.post('/sync-from-web', requireAdminKey, asyncHandler(async (req, res) => 
  */
 router.get('/scrape-live', asyncHandler(async (req, res) => {
     logger.info('Live scrape requested');
-    
+
     const axios = require('axios');
     const result = {
         nepseIndex: null,
@@ -281,7 +282,7 @@ router.get('/scrape-live', asyncHandler(async (req, res) => {
         error: null,
         htmlSample: null
     };
-    
+
     // Scrape from Merolagani (SSR website - contains data in HTML)
     try {
         const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
@@ -293,23 +294,23 @@ router.get('/scrape-live', asyncHandler(async (req, res) => {
                 'Cache-Control': 'no-cache'
             }
         });
-        
+
         const html = resp.data || '';
         logger.info(`Merolagani HTML fetched: ${html.length} bytes`);
-        
+
         // Find the market summary section and extract a sample
         const txIdx = html.indexOf('Transactions');
         if (txIdx > 0) {
             result.htmlSample = html.substring(Math.max(0, txIdx - 50), txIdx + 150);
         }
-        
+
         // DEBUG: Log the HTML structure around "Total Transactions"
         const totalTxIdx = html.indexOf('Total Transactions');
         if (totalTxIdx > 0) {
             const snippet = html.substring(totalTxIdx, totalTxIdx + 200);
             logger.info(`HTML snippet: ${snippet}`);
         }
-        
+
         // Try multiple regex patterns
         // Pattern 1: Table row format
         let txMatch = html.match(/Total Transactions<\/th>\s*<td[^>]*>([0-9,]+)/i);
@@ -324,19 +325,19 @@ router.get('/scrape-live', asyncHandler(async (req, res) => {
         if (txMatch) {
             result.totalTransactions = parseInt(txMatch[1].replace(/,/g, ''), 10);
         }
-        
+
         // Total Turnover
         let turnoverMatch = html.match(/Total Turnover[\s\S]{0,50}?([0-9,\.]{5,})/i);
         if (turnoverMatch) {
             result.totalTurnover = parseFloat(turnoverMatch[1].replace(/,/g, ''));
         }
-        
+
         // Total Traded Shares
         let volumeMatch = html.match(/Total Traded Shares[\s\S]{0,50}?([0-9,]{3,})/i);
         if (volumeMatch) {
             result.totalVolume = parseInt(volumeMatch[1].replace(/,/g, ''), 10);
         }
-        
+
         // NEPSE Index - look for pattern like: NEPSE</td><td>2,620.92
         let nepseMatch = html.match(/NEPSE<\/[^>]+>\s*<[^>]+>([0-9,\.]+)/i);
         if (!nepseMatch) {
@@ -345,14 +346,14 @@ router.get('/scrape-live', asyncHandler(async (req, res) => {
         if (nepseMatch) {
             result.nepseIndex = parseFloat(nepseMatch[1].replace(/,/g, ''));
         }
-        
+
         result.source = 'merolagani';
-        
+
     } catch (err) {
         result.error = err.message;
         logger.error(`Scrape failed: ${err.message}`);
     }
-    
+
     res.json({
         success: result.totalTransactions !== null || result.nepseIndex !== null,
         data: result,

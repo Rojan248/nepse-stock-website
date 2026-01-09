@@ -3,6 +3,7 @@ const router = express.Router();
 const stockOperations = require('../services/database/stockOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
+const { searchLimiter, adminLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 
@@ -43,7 +44,7 @@ router.get('/', asyncHandler(async (req, res) => {
  * GET /api/stocks/search
  * Search stocks by symbol or company name
  */
-router.get('/search', asyncHandler(async (req, res) => {
+router.get('/search', searchLimiter, asyncHandler(async (req, res) => {
     const { q } = req.query;
 
     if (!q || q.length < 1) {
@@ -233,7 +234,7 @@ router.get('/:symbol/depth', asyncHandler(async (req, res) => {
  * Delete inactive stocks (zero LTP) from database
  * Protected by Admin Key
  */
-router.post('/admin/cleanup', requireAdminKey, async (req, res) => {
+router.post('/admin/cleanup', adminLimiter, requireAdminKey, async (req, res) => {
     try {
         logger.info('Running cleanup to delete inactive stocks...');
 
@@ -260,7 +261,7 @@ router.post('/admin/cleanup', requireAdminKey, async (req, res) => {
  * Remove stocks not in the official NEPSE list
  * Protected by Admin Key
  */
-router.post('/admin/validate', requireAdminKey, async (req, res) => {
+router.post('/admin/validate', adminLimiter, requireAdminKey, async (req, res) => {
     try {
         logger.info('Validating stocks against official NEPSE data...');
 

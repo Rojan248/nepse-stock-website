@@ -16,6 +16,7 @@ class AnalyticsService {
         this.saveInterval = null;
         this.decayInterval = null;
         this.isDirty = false;
+        this.MAX_ENTRIES = 2000; // Hard limit to prevent memory exhaustion (DoS protection)
     }
 
     /**
@@ -41,6 +42,11 @@ class AnalyticsService {
                 // Convert array back to Map
                 if (Array.isArray(parsed)) {
                     this.scores = new Map(parsed);
+                    // Enforce limit on load in case file was tampered
+                    if (this.scores.size > this.MAX_ENTRIES) {
+                        logger.warn(`[Analytics] Loaded data exceeds limit (${this.scores.size} > ${this.MAX_ENTRIES}). Pruning...`);
+                        this.applyDecay();
+                    }
                     logger.info(`[Analytics] Loaded ${this.scores.size} stock scores from file`);
                 }
             } else {
@@ -99,13 +105,18 @@ class AnalyticsService {
     applyDecay() {
         let decayedCount = 0;
 
+        // If over limit, use aggressive decay to shrink size
+        const isOverLimit = this.scores.size > this.MAX_ENTRIES;
+        const decayFactor = isOverLimit ? 0.7 : 0.9;
+        const pruneThreshold = isOverLimit ? 5 : 1; // Drop low scores aggressively if full
+
         for (const [symbol, data] of this.scores.entries()) {
-            data.views = Math.floor(data.views * 0.9);
-            data.searches = Math.floor(data.searches * 0.9);
+            data.views = Math.floor(data.views * decayFactor);
+            data.searches = Math.floor(data.searches * decayFactor);
             data.score = this.calculateScore(data.views, data.searches);
 
             // Remove entries with very low scores to prevent memory bloat
-            if (data.score < 1) {
+            if (data.score < pruneThreshold) {
                 this.scores.delete(symbol);
             } else {
                 decayedCount++;
@@ -113,7 +124,7 @@ class AnalyticsService {
         }
 
         this.isDirty = true;
-        logger.info(`[Analytics] Applied decay to ${decayedCount} stocks`);
+        logger.info(`[Analytics] Applied decay to ${decayedCount} stocks (Limit: ${isOverLimit ? 'EXCEEDED' : 'OK'})`);
     }
 
     /**
@@ -127,9 +138,15 @@ class AnalyticsService {
      * Record a stock view
      */
     recordView(symbol) {
-        if (!symbol) return;
+        if (!this.isValidInput(symbol)) return;
 
         const upperSymbol = symbol.toUpperCase();
+
+        // Prevent map explosion: If full and new key, ignore
+        if (!this.scores.has(upperSymbol) && this.scores.size >= this.MAX_ENTRIES) {
+            return;
+        }
+
         const current = this.scores.get(upperSymbol) || { views: 0, searches: 0, score: 0 };
 
         current.views++;
@@ -145,9 +162,15 @@ class AnalyticsService {
      * Record a stock search
      */
     recordSearch(query) {
-        if (!query) return;
+        if (!this.isValidInput(query)) return;
 
         const upperQuery = query.toUpperCase();
+
+        // Prevent map explosion: If full and new key, ignore
+        if (!this.scores.has(upperQuery) && this.scores.size >= this.MAX_ENTRIES) {
+            return;
+        }
+
         const current = this.scores.get(upperQuery) || { views: 0, searches: 0, score: 0 };
 
         current.searches++;
@@ -157,6 +180,16 @@ class AnalyticsService {
         this.isDirty = true;
 
         logger.debug(`[Analytics] Search recorded: ${upperQuery} (score: ${current.score})`);
+    }
+
+    /**
+     * Validate input to prevent spam/garbage (DoS protection)
+     */
+    isValidInput(text) {
+        if (!text || typeof text !== 'string') return false;
+        if (text.length < 2 || text.length > 20) return false; // Stock symbols are usually 3-4 chars
+        // Allow only alphanumeric and common separators (dot/dash)
+        return /^[a-zA-Z0-9\-\.]+$/.test(text);
     }
 
     /**

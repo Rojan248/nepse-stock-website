@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
+const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
@@ -29,6 +30,7 @@ app.set('trust proxy', 1);
 
 // Middleware
 app.use(corsMiddleware);
+app.use(globalLimiter); // Rate limiting: 100 req/min per IP
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
