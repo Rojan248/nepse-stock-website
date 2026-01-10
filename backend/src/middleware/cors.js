@@ -22,7 +22,7 @@ const corsOptions = {
         // Allow requests with no origin (mobile apps, curl, etc.)
         // Log for monitoring but still allow (rate limiting handles abuse)
         if (!origin) {
-            logger.debug(`[CORS] Request without Origin header from ${req?.ip || 'unknown'}`);
+            logger.debug('[CORS] Request without Origin header');
             return callback(null, true);
         }
 
@@ -49,7 +49,10 @@ const corsMiddleware = cors(corsOptions);
  * Simple CORS headers middleware (fallback)
  */
 const simpleCorsMiddleware = (req, res, next) => {
-    res.header('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
+    const origin = req.headers.origin || process.env.CORS_ORIGIN || '*';
+    
+    // When credentials are true, Origin cannot be '*'
+    res.header('Access-Control-Allow-Origin', origin === '*' ? 'http://localhost:3000' : origin);
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     res.header('Access-Control-Allow-Credentials', 'true');

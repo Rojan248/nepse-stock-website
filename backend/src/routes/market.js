@@ -121,7 +121,7 @@ router.get('/health', asyncHandler(async (req, res) => {
  * GET /api/health/extended
  * Extended health metrics for monitoring system resilience
  */
-router.get('/health/extended', asyncHandler(async (req, res) => {
+router.get('/health/extended', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     let lastSyncSecondsAgo = -1;
     try {
         const latestStock = await prisma.stock.findFirst({ orderBy: { updatedAt: 'desc' } });
@@ -266,7 +266,7 @@ router.post('/sync-from-web', adminLimiter, requireAdminKey, asyncHandler(async 
  * GET /api/scrape-live
  * Scrape and return live market data from official sources (without saving)
  */
-router.get('/scrape-live', asyncHandler(async (req, res) => {
+router.get('/scrape-live', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     logger.info('Live scrape requested');
 
     const axios = require('axios');

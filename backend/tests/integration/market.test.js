@@ -97,6 +97,30 @@ describe('Market API Endpoints', () => {
         });
     });
 
+    describe('GET /api/health/extended', () => {
+        it('should reject requests without admin key', async () => {
+            const res = await request(app).get('/api/health/extended');
+            expect(res.status).toBe(401);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('should reject requests with invalid admin key', async () => {
+            const res = await request(app).get('/api/health/extended')
+                .set('x-admin-key', 'wrong-key');
+            expect(res.status).toBe(401);
+        });
+
+        it('should allow requests with valid admin key', async () => {
+            // Prisma is used in this route, so we might need to mock it if it's not already
+            const res = await request(app).get('/api/health/extended')
+                .set('x-admin-key', 'test-admin-key');
+            
+            // Depending on prisma mock state, this might return 200 or 500
+            // But 401 should definitely be gone
+            expect(res.status).not.toBe(401);
+        });
+    });
+
     describe('GET /api/scheduler-status', () => {
         it('should return scheduler status', async () => {
             const res = await request(app).get('/api/scheduler-status');

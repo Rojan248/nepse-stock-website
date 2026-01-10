@@ -152,6 +152,14 @@ router.get('/unchanged', asyncHandler(async (req, res) => {
 router.get('/sector/:sector', asyncHandler(async (req, res) => {
     const { sector } = req.params;
 
+    // Validate sector format
+    if (!/^[a-zA-Z0-9\s-]+$/.test(sector)) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Invalid sector format' }
+        });
+    }
+
     const stocks = await stockOperations.getStocksBySector(sector);
 
     res.json({
@@ -185,6 +193,14 @@ router.get('/recent', asyncHandler(async (req, res) => {
  */
 router.get('/:symbol', asyncHandler(async (req, res) => {
     const { symbol } = req.params;
+
+    // Validate symbol format (alphanumeric only)
+    if (!/^[a-zA-Z0-9]+$/.test(symbol)) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Invalid symbol format' }
+        });
+    }
 
     const stock = await stockOperations.getStockBySymbol(symbol);
 

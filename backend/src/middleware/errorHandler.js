@@ -7,7 +7,7 @@ const { createErrorResponse } = require('../services/utils/errorHandler');
  * 
  * Configuration (via environment variables):
  * - LOG_IPS: Set to 'true' to include anonymized IPs in logs. Default: false (no IP logged)
- * - LOG_IP_SALT: Optional salt for IP hashing. If not set, uses a default internal salt.
+ * - LOG_IP_SALT: Optional salt for IP hashing. If not set, uses a random internal salt (resets on restart).
  * 
  * When LOG_IPS=true:
  * - IPv4: Last octet is zeroed (e.g., 192.168.1.100 → 192.168.1.0)
@@ -15,7 +15,14 @@ const { createErrorResponse } = require('../services/utils/errorHandler');
  * - Additionally, a short hash is appended for correlation without exposing the full IP
  */
 
-const IP_SALT = process.env.LOG_IP_SALT || 'nepse-default-salt-2024';
+let IP_SALT = process.env.LOG_IP_SALT;
+if (!IP_SALT) {
+    IP_SALT = crypto.randomBytes(16).toString('hex');
+    // Only warn if logging is actually enabled
+    if (process.env.LOG_IPS === 'true') {
+        logger.warn('LOG_IP_SALT not set. Using random session salt for IP anonymization.');
+    }
+}
 
 /**
  * Anonymize an IP address for GDPR/CCPA compliance

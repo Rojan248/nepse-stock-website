@@ -80,6 +80,13 @@ describe('Stock API Endpoints', () => {
             expect(stock).toHaveProperty('prices');
             expect(stock).toHaveProperty('volume');
         });
+
+        it('should reject invalid symbol format', async () => {
+            const res = await request(app).get('/api/stocks/TEST@123');
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+            expect(res.body.error.message).toBe('Invalid symbol format');
+        });
     });
 
     describe('GET /api/stocks/search', () => {
@@ -112,6 +119,13 @@ describe('Stock API Endpoints', () => {
             const res = await request(app).get('/api/stocks/sector/NonExistent');
             expect(res.status).toBe(200);
             expect(res.body.data).toEqual([]);
+        });
+
+        it('should reject invalid sector format', async () => {
+            const res = await request(app).get('/api/stocks/sector/Banking$;DROP TABLE');
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+            expect(res.body.error.message).toBe('Invalid sector format');
         });
     });
 
