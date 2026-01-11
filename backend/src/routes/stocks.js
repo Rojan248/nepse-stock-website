@@ -273,6 +273,34 @@ router.post('/admin/cleanup', adminLimiter, requireAdminKey, async (req, res) =>
 });
 
 /**
+ * POST /api/stocks/admin/cleanup-bonds
+ * Remove non-equity securities (Bonds, Mutual Funds, Debentures, Promoter Shares)
+ * Protected by Admin Key
+ */
+router.post('/admin/cleanup-bonds', adminLimiter, requireAdminKey, async (req, res) => {
+    try {
+        logger.info('Running cleanup to remove non-equity securities (Bonds, MFs, Debentures)...');
+
+        const { removed, remaining, removedSymbols } = await stockOperations.deleteNonEquitySecurities();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Non-equity securities cleanup completed',
+            removed,
+            remaining,
+            removedSymbols: removedSymbols.slice(0, 50)  // Limit to 50 for response size
+        });
+    } catch (err) {
+        logger.error(`Cleanup failed: ${err.message}`);
+        return res.status(500).json({
+            success: false,
+            message: 'Cleanup failed',
+            error: err.message
+        });
+    }
+});
+
+/**
  * POST /api/stocks/admin/validate
  * Remove stocks not in the official NEPSE list
  * Protected by Admin Key

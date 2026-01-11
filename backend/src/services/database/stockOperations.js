@@ -365,18 +365,20 @@ const cleanupInvalidStocks = async (validSymbols) => {
  */
 const deleteNonEquitySecurities = async () => {
     try {
-        // Get all stocks to check their symbols
+        // Get all stocks to check their symbols and names
         const allStocks = await prisma.stock.findMany({
-            select: { symbol: true, sector: true }
+            select: { symbol: true, sector: true, companyName: true }
         });
 
         // Find non-equity symbols using same patterns as libraryFetcher.isEquitySecurity
         const nonEquitySymbols = allStocks.filter(s => {
             const symbol = s.symbol.toUpperCase();
             const sector = (s.sector || '').toLowerCase();
+            const companyName = (s.companyName || '').toLowerCase();
 
             // Mutual Funds
             if (sector === 'mutual fund' || sector.includes('mutual fund')) return true;
+            if (companyName.includes('mutual fund') || companyName.includes('kosh')) return true;
 
             // Bonds (ends with B + 2-4 digits, e.g., ADBLB87)
             if (/B\d{2,4}$/.test(symbol)) return true;
@@ -392,6 +394,10 @@ const deleteNonEquitySecurities = async () => {
             if (/UR\d{2}/.test(symbol)) return true;  // NIFRAUR85
             if (/SY$/.test(symbol)) return true;      // GSY, KSY, RSY (yojana units)
             if (/SF$/.test(symbol)) return true;      // PRSF, SAGF type symbols
+
+            // Name-based checks (catches misclassified bonds like "4% Agricultural Bond")
+            if (companyName.includes('bond') || companyName.includes('debenture')) return true;
+            if (companyName.includes('%')) return true;  // "4% Agricultural Bond"
 
             // Promoter Shares (ends with PO)
             if (symbol.endsWith('PO')) return true;
