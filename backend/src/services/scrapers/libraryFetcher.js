@@ -388,20 +388,28 @@ const transformSecurity = (security, marketOpen = null) => {
 
     const open = parseFloat(security.openPrice) || ltp;
 
-    // Calculate both types of change
-    const intradayChange = ltp - open;
-    const intradayChangePercent = open > 0 ? (intradayChange / open) * 100 : 0;
+    // Use NEPSE API's percentageChange directly if available (most accurate)
+    // Only calculate ourselves if the API doesn't provide it
+    const apiPercentChange = parseFloat(security.percentageChange);
+    const hasApiChange = !isNaN(apiPercentChange);
 
+    // Calculate overnight change (LTP vs previous close) - always needed for pointChange
     const overnightChange = ltp - prevClose;
     const overnightChangePercent = prevClose > 0 ? (overnightChange / prevClose) * 100 : 0;
 
-    // Determine market status if not provided
-    const isOpen = marketOpen !== null ? marketOpen : isMarketOpen();
+    // Use API percentageChange if valid, otherwise use our calculated overnight change
+    // The API value is more accurate as it accounts for dividends, splits, etc.
+    const displayChangePercent = hasApiChange ? apiPercentChange : overnightChangePercent;
+    const displayChange = hasApiChange
+        ? (prevClose > 0 ? prevClose * (apiPercentChange / 100) : overnightChange)
+        : overnightChange;
 
-    // When market is OPEN: show intraday change (from today's open)
-    // When market is CLOSED: show overnight change (from previous close)
-    const displayChange = isOpen ? intradayChange : overnightChange;
-    const displayChangePercent = isOpen ? intradayChangePercent : overnightChangePercent;
+    // Also calculate intraday for reference
+    const intradayChange = ltp - open;
+    const intradayChangePercent = open > 0 ? (intradayChange / open) * 100 : 0;
+
+    // Determine market status if not provided  
+    const isOpen = marketOpen !== null ? marketOpen : isMarketOpen();
 
     // Map sector from indexId
     const sectorId = security.indexId || 53;
