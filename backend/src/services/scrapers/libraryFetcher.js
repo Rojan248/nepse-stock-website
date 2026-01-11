@@ -207,7 +207,8 @@ const isEquitySecurity = (security) => {
     if (sector.includes('mutual fund')) return false;
     if (companyName.includes('mutual fund') || companyName.includes('kosh')) return false;
 
-    // === STEP 4: Detect Bonds/Debentures ===
+    // === STEP 4: Detect Bonds/Debentures (Dirty Data Fix) ===
+    // Symbol patterns
     if (/B\d{2,4}$/.test(symbol)) return false;  // ADBLB87
     if (/D\d{2,4}$/.test(symbol)) return false;  // SBLD83
     if (/\d{2}[_/]\d{2}/.test(symbol)) return false;  // 84_85 patterns
@@ -215,7 +216,11 @@ const isEquitySecurity = (security) => {
     if (/UR\d{2}/.test(symbol)) return false;  // NIFRAUR85
     if (/SY$/.test(symbol)) return false;  // GSY, KSY (yojana units)
     if (/SF$/.test(symbol)) return false;  // PRSF type symbols
+
+    // Name-based checks (catches misclassified bonds like "4% Agricultural Bond")
     if (companyName.includes('debenture') || companyName.includes('bond')) return false;
+    if (instrumentName.includes('debenture') || instrumentName.includes('bond')) return false;
+    if (companyName.includes('%') || instrumentName.includes('%')) return false;  // "4% Agricultural Bond"
 
     // === STEP 5: Detect Promoter Shares (Cascade Check) ===
 
