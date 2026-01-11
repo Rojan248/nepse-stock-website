@@ -71,10 +71,10 @@ const fetchData = async () => {
         logger.debug(`Custom scraper: Alternative sources failed: ${error.message}`);
     }
 
-    // Strategy 3: Simulated Data (Last Resort)
-    logger.warn('Custom scraper: All real sources failed. Using simulated data.');
-    const simulatedData = generateSimulatedData();
-    return simulatedData;
+    // No more simulated data fallback - only use real scraped data
+    // If all sources fail, return null and let the caller handle it
+    logger.warn('Custom scraper: All real sources failed. No fallback data available.');
+    return null;
 };
 
 /**
@@ -91,7 +91,7 @@ const fetchFromNEPSEPublic = async () => {
         try {
             logger.debug(`Custom scraper: Trying ${endpoint}...`);
             const response = await nepseClient.get(endpoint);
-            
+
             let data = response.data;
             // Handle different wrapper formats
             if (data.data) data = data.data;

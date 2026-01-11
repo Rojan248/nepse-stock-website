@@ -59,16 +59,13 @@ const performUpdate = async () => {
     const startTime = Date.now();
     logger.info('Starting data update cycle...');
 
-    // Scheduler Shield: Skip updates on weekends
+    // Weekend handling: Still fetch data (last trading day's closing data is available)
+    // but at reduced frequency (hourly instead of every 10 seconds)
     const currentState = getMarketState();
     const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
+    const isWeekend = currentState === MARKET_STATES.WEEKEND;
 
-    logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDev}, NODE_ENV=${process.env.NODE_ENV}, Bypass=${isDev}`);
-
-    if (currentState === MARKET_STATES.WEEKEND && !isDev) {
-        logger.info('Skipping update: Market is closed (WEEKEND)');
-        return false;
-    }
+    logger.debug(`Scheduler Debug: State=${currentState}, isDev=${isDev}, isWeekend=${isWeekend}`);
 
     // Skip if Watchdog is currently correcting data (prevent race condition)
     if (isAnyLockActive()) {

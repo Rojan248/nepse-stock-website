@@ -25,6 +25,10 @@ const nepseHttpsAgent = new https.Agent({
     timeout: 4000 // Strict timeout
 });
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+const CONCURRENCY_LIMIT = 20; // Max parallel requests for individual stock details
+
 // Sector ID mapping from NEPSE API
 const SECTOR_IDS = {
     58: 'NEPSE Index',
@@ -117,9 +121,12 @@ const fetchData = async () => {
 
         const token = await nepseClient.getToken();
 
-        // Fetch all base data in parallel
+        // Fetch company list first (needed by fetchSecuritiesWithPrices)
+        const companyList = await fetchCompanyList(token);
+
+        // Fetch securities and market summary in parallel
         const [securities, marketSummary] = await Promise.all([
-            fetchSecuritiesWithPrices(token),
+            fetchSecuritiesWithPrices(token, companyList),
             fetchMarketSummary(token)
         ]);
 
@@ -168,7 +175,7 @@ const fetchData = async () => {
 /**
  * Fetch all securities with price data from NEPSE
  */
-const fetchSecuritiesWithPrices = async (token) => {
+const fetchSecuritiesWithPrices = async (token, companyList) => {
     try {
         const headers = createHeaders(token);
 
@@ -205,13 +212,87 @@ const fetchSecuritiesWithPrices = async (token) => {
         const mergedSecurities = Array.from(allSecuritiesMap.values());
         logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${fetchPromises.length} primary source(s)`);
 
+
+        // Identify missing stocks (Active in Company List but not in Trade Stat)
+        const tradedSymbols = new Set(mergedSecurities.map(s => s.symbol));
+        const missingCompanies = companyList.filter(c => c.status === 'A' && !tradedSymbols.has(c.symbol));
+
+        logger.info(`Found ${missingCompanies.length} active stocks missing from trade report. Fetching details...`);
+
+        // Fetch details for missing stocks in batches
+        const missingSecurities = await fetchMissingSecurities(missingCompanies, token);
+        const allSecurities = [...mergedSecurities, ...missingSecurities];
+
+        logger.info(`Total securities after merging: ${allSecurities.length}`);
+
         // Transform to our standard format
-        return mergedSecurities.map(security => transformSecurity(security)).filter(s => s !== null);
+        const transformed = allSecurities.map(security => transformSecurity(security)).filter(s => s !== null);
+
+        return transformed;
 
     } catch (error) {
         logger.error(`Error fetching securities with prices: ${error.message}`);
         return null;
     }
+};
+
+/**
+ * Fetch detailed data for a list of companies using security/{id}
+ * Done in batches to control concurrency
+ */
+const fetchMissingSecurities = async (companies, token) => {
+    const results = [];
+    const headers = createHeaders(token);
+
+    // Process in chunks
+    for (let i = 0; i < companies.length; i += CONCURRENCY_LIMIT) {
+        const chunk = companies.slice(i, i + CONCURRENCY_LIMIT);
+        const chunkPromises = chunk.map(async (company) => {
+            try {
+                // Fetch individual security details
+                // Uses: /api/nots/security/{id}
+                const res = await nepseAxios.get(`${BASE_URL}/api/nots/security/${company.id}`, {
+                    headers,
+                    httpsAgent: nepseHttpsAgent
+                });
+
+                const data = res.data;
+                if (!data || !data.securityMcsData) return null;
+
+                // Map to 'securityDailyTradeStat' structure so transformSecurity can handle it
+                const mcs = data.securityMcsData;
+                const info = data.securityData;
+
+                return {
+                    symbol: info.symbol,
+                    securityName: info.securityName,
+                    lastTradedPrice: mcs.lastTradedPrice || mcs.closePrice || 0,
+                    previousClose: mcs.previousClose || 0,
+                    openPrice: mcs.openPrice || 0,
+                    highPrice: mcs.highPrice || 0,
+                    lowPrice: mcs.lowPrice || 0,
+                    totalTradeQuantity: mcs.totalTradeQuantity || 0,
+                    totalTradeValue: 0, // No turnover if not traded
+                    totalTrades: mcs.totalTrades || 0,
+                    percentageChange: 0, // Assumed 0 if not traded today
+                    lastUpdatedDateTime: mcs.lastUpdatedDateTime
+                };
+            } catch (error) {
+                logger.warn(`Failed to fetch details for ${company.symbol} (${company.id}): ${error.message}`);
+                return null;
+            }
+        });
+
+        const chunkResults = await Promise.all(chunkPromises);
+        results.push(...chunkResults.filter(r => r !== null));
+
+        // precise delay between chunks
+        if (i + CONCURRENCY_LIMIT < companies.length) {
+            await new Promise(r => setTimeout(r, 200));
+        }
+    }
+
+    return results;
 };
 
 /**
@@ -508,6 +589,23 @@ const fetchTopMovers = async (token, type) => {
 
     } catch (error) {
         logger.debug(`Error fetching top ${type}: ${error.message}`);
+        return [];
+    }
+};
+
+/**
+ * Fetch list of all companies from NEPSE
+ */
+const fetchCompanyList = async (token) => {
+    try {
+        const headers = createHeaders(token);
+        const res = await nepseAxios.get(`${BASE_URL}/api/nots/company/list`, {
+            headers,
+            httpsAgent: nepseHttpsAgent
+        });
+        return res.data;
+    } catch (error) {
+        logger.warn(`Error fetching company list: ${error.message}`);
         return [];
     }
 };
