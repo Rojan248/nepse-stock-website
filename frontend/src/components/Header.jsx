@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getServerHealth } from '../services/api';
 import SearchBar from './SearchBar';
+import SystemHealthBadge from './SystemHealthBadge';
 import logoPrimary from '../assets/img/logo-primary.jpg';
 import './Header.css';
 
@@ -110,6 +111,9 @@ function Header({ searchTerm, onSearchChange, lastUpdated }) {
                             </span>
                         )}
                     </div>
+
+                    {/* System Health Status Badge */}
+                    <SystemHealthBadge />
                 </nav>
 
                 {/* Mobile Menu Toggle */}
