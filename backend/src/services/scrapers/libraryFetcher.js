@@ -173,36 +173,71 @@ const fetchData = async () => {
 };
 
 /**
- * Check if a security is an equity (stock) vs non-equity (bond, MF, debenture)
+ * Safely determines if a security is a Public Equity (Ordinary Share).
+ * Uses Cascade Strategy: checks official API fields first, falls back to symbol patterns.
+ * Filters out Promoters, Mutual Funds, and Debentures.
  * @param {Object} security - Transformed security object
  * @returns {boolean} True if equity security
  */
 const isEquitySecurity = (security) => {
     if (!security) return false;
 
-    const symbol = security.symbol.toUpperCase();
+    const symbol = (security.symbol || '').toUpperCase();
     const sectorId = security.sectorId;
     const sector = (security.sector || '').toLowerCase();
+    const companyName = (security.companyName || '').toLowerCase();
+    const instrumentType = security.instrumentType;
+    const shareGroupId = security.shareGroupId;
+    const instrumentName = (security.instrumentName || '').toLowerCase();
 
-    // Exclude Mutual Funds (sector ID 66 or sector name contains 'mutual fund')
+    // === STEP 1: Check instrumentType (Primary Filter) ===
+    // If API provides instrumentType, use it as the authoritative source
+    if (instrumentType && instrumentType !== 'Equity') {
+        return false;
+    }
+
+    // === STEP 2: Check Status (Must be Active) ===
+    // NEPSE uses 'A' for Active. Some endpoints might use 'Active'.
+    if (security.status && security.status !== 'A' && security.status !== 'Active') {
+        return false;
+    }
+
+    // === STEP 3: Detect Mutual Funds ===
     if (sectorId === 66) return false;
     if (sector.includes('mutual fund')) return false;
+    if (companyName.includes('mutual fund') || companyName.includes('kosh')) return false;
 
-    // Exclude Bonds/Debentures - various patterns:
-    // - Ends with B + 2-4 digits (e.g., ADBLB87)
-    // - Ends with D + 2-4 digits (e.g., SBLD83)
-    // - Contains digit pairs with underscore/slash (e.g., GBILD84_85, NICAD85/86)
-    // - Ends with EB, UR, SY (common bond/unit suffixes)
-    if (/B\d{2,4}$/.test(symbol)) return false;
-    if (/D\d{2,4}$/.test(symbol)) return false;
-    if (/\d{2}[_/]\d{2}/.test(symbol)) return false;  // 84_85 or 83/84 patterns
-    if (/EB\d{2}/.test(symbol)) return false;  // NMBEB92, EBLEB89
+    // === STEP 4: Detect Bonds/Debentures ===
+    if (/B\d{2,4}$/.test(symbol)) return false;  // ADBLB87
+    if (/D\d{2,4}$/.test(symbol)) return false;  // SBLD83
+    if (/\d{2}[_/]\d{2}/.test(symbol)) return false;  // 84_85 patterns
+    if (/EB\d{2}/.test(symbol)) return false;  // NMBEB92
     if (/UR\d{2}/.test(symbol)) return false;  // NIFRAUR85
-    if (/SY$/.test(symbol)) return false;  // GSY, KSY, RSY (yojana units)
-    if (/SF$/.test(symbol)) return false;  // PRSF, SAGF type symbols
+    if (/SY$/.test(symbol)) return false;  // GSY, KSY (yojana units)
+    if (/SF$/.test(symbol)) return false;  // PRSF type symbols
+    if (companyName.includes('debenture') || companyName.includes('bond')) return false;
 
-    // Exclude Promoter Shares (ends with PO)
-    if (symbol.endsWith('PO')) return false;
+    // === STEP 5: Detect Promoter Shares (Cascade Check) ===
+
+    // Check A: Explicit 'shareGroupId' (Best Source if available)
+    if (shareGroupId && (shareGroupId === 'P' || shareGroupId === 'Promoter')) {
+        return false;
+    }
+
+    // Check B: Explicit 'instrumentName' (Secondary Source)
+    if (instrumentName.includes('promoter')) {
+        return false;
+    }
+
+    // Check C: Company name contains 'promoter'
+    if (companyName.includes('promoter')) {
+        return false;
+    }
+
+    // Check D: Symbol ends with 'PO' (Known promoter suffix)
+    if (symbol.endsWith('PO')) {
+        return false;
+    }
 
     return true;
 };

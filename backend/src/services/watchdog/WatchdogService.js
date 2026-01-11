@@ -6,6 +6,7 @@ const { acquireLock, releaseLock } = require('../utils/updateLock');
 const merolagani = require('./providers/MerolaganiProvider');
 const nepseAlpha = require('./providers/NepseAlphaProvider');
 const dataFetcher = require('../dataFetcher');
+const { sendAlert } = require('../utils/alertService');
 
 const prisma = new PrismaClient();
 const LOG_FILE = path.join(__dirname, '../../../logs/watchdog_verification.json');
@@ -13,6 +14,8 @@ const LOG_FILE = path.join(__dirname, '../../../logs/watchdog_verification.json'
 class WatchdogService {
     constructor() {
         this.providers = [merolagani, nepseAlpha];
+        this.consecutiveCriticalErrors = 0;  // 3-Strike Rule state
+        this.ALERT_THRESHOLD = 3;             // Alert after 3 failures (30 mins)
     }
 
     /**
@@ -54,11 +57,41 @@ class WatchdogService {
             }
         }
 
-        // 6. Log/Alert
+        // 6. Handle Alerting (3-Strike Rule)
+        await this.handleAlerting(report);
+
+        // 7. Log Report
         await this.saveReport(report);
 
         logger.info('[Watchdog] Verification completed.');
         return report;
+    }
+
+    /**
+     * 3-Strike Alerting: Only alert after 3 consecutive CRITICAL failures
+     * Prevents notification spam from transient network issues
+     */
+    async handleAlerting(report) {
+        if (report.status === 'CRITICAL') {
+            this.consecutiveCriticalErrors++;
+            logger.warn(`[Watchdog] Critical Strike ${this.consecutiveCriticalErrors}/${this.ALERT_THRESHOLD}`);
+
+            // Trigger alert only on the 3rd consecutive failure
+            if (this.consecutiveCriticalErrors === this.ALERT_THRESHOLD) {
+                const msg = `🚨 **CRITICAL DATA ISSUE**\nWatchdog detected serious issues for ${this.ALERT_THRESHOLD} cycles (${this.ALERT_THRESHOLD * 10} mins).\n\n**Issues:**\n${report.discrepancies.join('\n')}`;
+                await sendAlert(msg, 'error', 'watchdog_critical');
+            }
+        } else {
+            // Reset counter if data returns to normal (Self-Healing)
+            if (this.consecutiveCriticalErrors > 0) {
+                logger.info('[Watchdog] Data normalized. Strike count reset.');
+                // Optional: Send recovery notification
+                if (this.consecutiveCriticalErrors >= this.ALERT_THRESHOLD) {
+                    await sendAlert('✅ Watchdog: Data integrity restored', 'success', 'watchdog_recovered');
+                }
+            }
+            this.consecutiveCriticalErrors = 0;
+        }
     }
 
     async attemptCorrection(report) {
