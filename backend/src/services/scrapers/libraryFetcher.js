@@ -202,10 +202,16 @@ const isEquitySecurity = (security) => {
         return false;
     }
 
-    // === STEP 3: Detect Mutual Funds ===
+    // === STEP 3: Detect Mutual Funds/Schemes ===
     if (sectorId === 66) return false;
     if (sector.includes('mutual fund')) return false;
     if (companyName.includes('mutual fund') || companyName.includes('kosh')) return false;
+
+    // Additional fund patterns (catches GIBF1, NICGF2, SAGF, SEF, SFEF, RBBF40)
+    if (companyName.includes('balanced fund') || companyName.includes('growth fund')) return false;
+    if (companyName.includes('equity fund') || companyName.includes('focused fund')) return false;
+    if (companyName.includes('samriddhi fund') || companyName.includes('focus 40')) return false;
+    if (/^[A-Z]+F\d*$/.test(symbol)) return false;  // SAGF, SEF, GIBF1, NIBSF2 pattern
 
     // === STEP 4: Detect Bonds/Debentures (Dirty Data Fix) ===
     // Symbol patterns

@@ -380,6 +380,12 @@ const deleteNonEquitySecurities = async () => {
             if (sector === 'mutual fund' || sector.includes('mutual fund')) return true;
             if (companyName.includes('mutual fund') || companyName.includes('kosh')) return true;
 
+            // Additional fund patterns (catches GIBF1, NICGF2, SAGF, SEF, SFEF, RBBF40)
+            if (companyName.includes('balanced fund') || companyName.includes('growth fund')) return true;
+            if (companyName.includes('equity fund') || companyName.includes('focused fund')) return true;
+            if (companyName.includes('samriddhi fund') || companyName.includes('focus 40')) return true;
+            if (/^[A-Z]+F\d*$/.test(symbol)) return true;  // SAGF, SEF, GIBF1, NIBSF2 pattern
+
             // Bonds (ends with B + 2-4 digits, e.g., ADBLB87)
             if (/B\d{2,4}$/.test(symbol)) return true;
 
