@@ -88,9 +88,14 @@ router.get('/health', asyncHandler(async (req, res) => {
     const marketStats = await marketOperations.getMarketStats();
     const stockCount = await stockOperations.getStockCount();
 
+    // Determine overall health status
+    const isHealthy = updateStatus.consecutiveFailures < 3 &&
+        stockCount > 100 &&
+        !(updateStatus.circuitBreaker?.isOpen);
+
     res.json({
         success: true,
-        status: 'running',
+        status: isHealthy ? 'healthy' : 'degraded',
         server: {
             uptime: uptimeSeconds,
             uptimeFormatted: formatUptime(uptimeSeconds),
@@ -101,6 +106,8 @@ router.get('/health', asyncHandler(async (req, res) => {
             isRunning: updateStatus.isRunning,
             lastUpdate: updateStatus.lastUpdateTime,
             updateCount: updateStatus.updateCount,
+            failureCount: updateStatus.failureCount,
+            consecutiveFailures: updateStatus.consecutiveFailures,
             lastError: updateStatus.lastError
         },
         market: {
@@ -113,6 +120,10 @@ router.get('/health', asyncHandler(async (req, res) => {
             stockCount,
             hasMarketData: marketStats.hasData,
             isHealthy: fetchStatus.isHealthy
+        },
+        resilience: {
+            circuitBreaker: updateStatus.circuitBreaker,
+            alerting: updateStatus.alerting
         }
     });
 }));

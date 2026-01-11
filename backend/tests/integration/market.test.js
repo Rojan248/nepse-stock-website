@@ -29,9 +29,13 @@ jest.mock('../../src/services/scheduler/updateScheduler', () => ({
         isMarketOpen: false,
         lastUpdateTime: new Date().toISOString(),
         updateCount: 100,
+        failureCount: 0,
+        consecutiveFailures: 0,
         lastError: null,
         currentNST: new Date().toISOString(),
-        marketHours: { open: '10:00', close: '15:00' }
+        marketHours: { open: '10:00', close: '15:00' },
+        circuitBreaker: { isOpen: false, consecutiveFailures: 0 },
+        alerting: { enabled: false }
     }),
     forceUpdate: jest.fn().mockResolvedValue(true)
 }));
@@ -78,7 +82,7 @@ describe('Market API Endpoints', () => {
             const res = await request(app).get('/api/health');
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
-            expect(res.body.status).toBe('running');
+            expect(['healthy', 'degraded']).toContain(res.body.status);
         });
 
         it('should show data source', async () => {
@@ -114,7 +118,7 @@ describe('Market API Endpoints', () => {
             // Prisma is used in this route, so we might need to mock it if it's not already
             const res = await request(app).get('/api/health/extended')
                 .set('x-admin-key', 'test-admin-key');
-            
+
             // Depending on prisma mock state, this might return 200 or 500
             // But 401 should definitely be gone
             expect(res.status).not.toBe(401);
