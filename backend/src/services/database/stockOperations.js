@@ -359,6 +359,64 @@ const cleanupInvalidStocks = async (validSymbols) => {
     }
 };
 
+/**
+ * Delete non-equity securities from database (Mutual Funds, Bonds, Debentures, Promoter Shares)
+ * These are filtered out during fetching but may still exist in DB from old data
+ */
+const deleteNonEquitySecurities = async () => {
+    try {
+        // Get all stocks to check their symbols
+        const allStocks = await prisma.stock.findMany({
+            select: { symbol: true, sector: true }
+        });
+
+        // Find non-equity symbols using same patterns as libraryFetcher.isEquitySecurity
+        const nonEquitySymbols = allStocks.filter(s => {
+            const symbol = s.symbol.toUpperCase();
+            const sector = (s.sector || '').toLowerCase();
+
+            // Mutual Funds
+            if (sector === 'mutual fund' || sector.includes('mutual fund')) return true;
+
+            // Bonds (ends with B + 2-4 digits, e.g., ADBLB87)
+            if (/B\d{2,4}$/.test(symbol)) return true;
+
+            // Debentures (ends with D + 2-4 digits, e.g., SBLD83)
+            if (/D\d{2,4}$/.test(symbol)) return true;
+
+            // Double-year patterns with underscore/slash (e.g., GBILD84_85, NICAD85/86)
+            if (/\d{2}[_/]\d{2}/.test(symbol)) return true;
+
+            // Other bond/unit patterns
+            if (/EB\d{2}/.test(symbol)) return true;  // NMBEB92, EBLEB89
+            if (/UR\d{2}/.test(symbol)) return true;  // NIFRAUR85
+            if (/SY$/.test(symbol)) return true;      // GSY, KSY, RSY (yojana units)
+            if (/SF$/.test(symbol)) return true;      // PRSF, SAGF type symbols
+
+            // Promoter Shares (ends with PO)
+            if (symbol.endsWith('PO')) return true;
+
+            return false;
+        }).map(s => s.symbol);
+
+        if (nonEquitySymbols.length === 0) {
+            logger.info('No non-equity securities found in database');
+            return { removed: 0, remaining: allStocks.length, removedSymbols: [] };
+        }
+
+        const result = await prisma.stock.deleteMany({
+            where: { symbol: { in: nonEquitySymbols } }
+        });
+
+        const remaining = await prisma.stock.count();
+        logger.info(`Deleted ${result.count} non-equity securities: MFs, Bonds, Debentures, Promoter Shares. ${remaining} stocks remaining.`);
+        return { removed: result.count, remaining, removedSymbols: nonEquitySymbols };
+    } catch (error) {
+        logger.error(`Error deleting non-equity securities: ${error.message}`);
+        throw error;
+    }
+};
+
 
 /**
  * Creates historical records for all stocks for the current day.
@@ -475,6 +533,7 @@ module.exports = {
     deleteInactiveStocks,
     cleanupInactiveStocks,
     cleanupInvalidStocks,
+    deleteNonEquitySecurities,
     snapshotDailyMarket
 };
 

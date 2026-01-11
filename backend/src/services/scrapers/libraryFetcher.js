@@ -173,6 +173,41 @@ const fetchData = async () => {
 };
 
 /**
+ * Check if a security is an equity (stock) vs non-equity (bond, MF, debenture)
+ * @param {Object} security - Transformed security object
+ * @returns {boolean} True if equity security
+ */
+const isEquitySecurity = (security) => {
+    if (!security) return false;
+
+    const symbol = security.symbol.toUpperCase();
+    const sectorId = security.sectorId;
+    const sector = (security.sector || '').toLowerCase();
+
+    // Exclude Mutual Funds (sector ID 66 or sector name contains 'mutual fund')
+    if (sectorId === 66) return false;
+    if (sector.includes('mutual fund')) return false;
+
+    // Exclude Bonds/Debentures - various patterns:
+    // - Ends with B + 2-4 digits (e.g., ADBLB87)
+    // - Ends with D + 2-4 digits (e.g., SBLD83)
+    // - Contains digit pairs with underscore/slash (e.g., GBILD84_85, NICAD85/86)
+    // - Ends with EB, UR, SY (common bond/unit suffixes)
+    if (/B\d{2,4}$/.test(symbol)) return false;
+    if (/D\d{2,4}$/.test(symbol)) return false;
+    if (/\d{2}[_/]\d{2}/.test(symbol)) return false;  // 84_85 or 83/84 patterns
+    if (/EB\d{2}/.test(symbol)) return false;  // NMBEB92, EBLEB89
+    if (/UR\d{2}/.test(symbol)) return false;  // NIFRAUR85
+    if (/SY$/.test(symbol)) return false;  // GSY, KSY, RSY (yojana units)
+    if (/SF$/.test(symbol)) return false;  // PRSF, SAGF type symbols
+
+    // Exclude Promoter Shares (ends with PO)
+    if (symbol.endsWith('PO')) return false;
+
+    return true;
+};
+
+/**
  * Fetch all securities with price data from NEPSE
  */
 const fetchSecuritiesWithPrices = async (token, companyList) => {
@@ -225,8 +260,13 @@ const fetchSecuritiesWithPrices = async (token, companyList) => {
 
         logger.info(`Total securities after merging: ${allSecurities.length}`);
 
-        // Transform to our standard format
-        const transformed = allSecurities.map(security => transformSecurity(security)).filter(s => s !== null);
+        // Transform to our standard format and filter to stocks only
+        const transformed = allSecurities
+            .map(security => transformSecurity(security))
+            .filter(s => s !== null)
+            .filter(s => isEquitySecurity(s)); // Exclude MFs, bonds, debentures
+
+        logger.info(`Filtered to ${transformed.length} equity securities (excluded mutual funds, bonds, debentures)`);
 
         return transformed;
 
