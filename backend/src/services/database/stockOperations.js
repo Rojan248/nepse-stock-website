@@ -4,6 +4,7 @@
 
 const { prisma } = require('./connection');
 const logger = require('../utils/logger');
+const { isEquitySecurity } = require('../utils/securityFilters');
 
 const mapStockOutput = (stock) => {
     if (!stock) return null;
@@ -370,46 +371,8 @@ const deleteNonEquitySecurities = async () => {
             select: { symbol: true, sector: true, companyName: true }
         });
 
-        // Find non-equity symbols using same patterns as libraryFetcher.isEquitySecurity
-        const nonEquitySymbols = allStocks.filter(s => {
-            const symbol = s.symbol.toUpperCase();
-            const sector = (s.sector || '').toLowerCase();
-            const companyName = (s.companyName || '').toLowerCase();
-
-            // Mutual Funds
-            if (sector === 'mutual fund' || sector.includes('mutual fund')) return true;
-            if (companyName.includes('mutual fund') || companyName.includes('kosh')) return true;
-
-            // Additional fund patterns (catches GIBF1, NICGF2, SAGF, SEF, SFEF, RBBF40)
-            if (companyName.includes('balanced fund') || companyName.includes('growth fund')) return true;
-            if (companyName.includes('equity fund') || companyName.includes('focused fund')) return true;
-            if (companyName.includes('samriddhi fund') || companyName.includes('focus 40')) return true;
-            if (/^[A-Z]+F\d*$/.test(symbol)) return true;  // SAGF, SEF, GIBF1, NIBSF2 pattern
-
-            // Bonds (ends with B + 2-4 digits, e.g., ADBLB87)
-            if (/B\d{2,4}$/.test(symbol)) return true;
-
-            // Debentures (ends with D + 2-4 digits, e.g., SBLD83)
-            if (/D\d{2,4}$/.test(symbol)) return true;
-
-            // Double-year patterns with underscore/slash (e.g., GBILD84_85, NICAD85/86)
-            if (/\d{2}[_/]\d{2}/.test(symbol)) return true;
-
-            // Other bond/unit patterns
-            if (/EB\d{2}/.test(symbol)) return true;  // NMBEB92, EBLEB89
-            if (/UR\d{2}/.test(symbol)) return true;  // NIFRAUR85
-            if (/SY$/.test(symbol)) return true;      // GSY, KSY, RSY (yojana units)
-            if (/SF$/.test(symbol)) return true;      // PRSF, SAGF type symbols
-
-            // Name-based checks (catches misclassified bonds like "4% Agricultural Bond")
-            if (companyName.includes('bond') || companyName.includes('debenture')) return true;
-            if (companyName.includes('%')) return true;  // "4% Agricultural Bond"
-
-            // Promoter Shares (ends with PO)
-            if (symbol.endsWith('PO')) return true;
-
-            return false;
-        }).map(s => s.symbol);
+        // Find non-equity symbols using unified filter
+        const nonEquitySymbols = allStocks.filter(s => !isEquitySecurity(s)).map(s => s.symbol);
 
         if (nonEquitySymbols.length === 0) {
             logger.info('No non-equity securities found in database');

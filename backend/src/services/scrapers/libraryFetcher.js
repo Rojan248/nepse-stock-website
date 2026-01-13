@@ -179,79 +179,7 @@ const fetchData = async () => {
  * @param {Object} security - Transformed security object
  * @returns {boolean} True if equity security
  */
-const isEquitySecurity = (security) => {
-    if (!security) return false;
-
-    const symbol = (security.symbol || '').toUpperCase();
-    const sectorId = security.sectorId;
-    const sector = (security.sector || '').toLowerCase();
-    const companyName = (security.companyName || '').toLowerCase();
-    const instrumentType = security.instrumentType;
-    const shareGroupId = security.shareGroupId;
-    const instrumentName = (security.instrumentName || '').toLowerCase();
-
-    // === STEP 1: Check instrumentType (Primary Filter) ===
-    // If API provides instrumentType, use it as the authoritative source
-    if (instrumentType && instrumentType !== 'Equity') {
-        return false;
-    }
-
-    // === STEP 2: Check Status (Must be Active) ===
-    // NEPSE uses 'A' for Active. Some endpoints might use 'Active'.
-    if (security.status && security.status !== 'A' && security.status !== 'Active') {
-        return false;
-    }
-
-    // === STEP 3: Detect Mutual Funds/Schemes ===
-    if (sectorId === 66) return false;
-    if (sector.includes('mutual fund')) return false;
-    if (companyName.includes('mutual fund') || companyName.includes('kosh')) return false;
-
-    // Additional fund patterns (catches GIBF1, NICGF2, SAGF, SEF, SFEF, RBBF40)
-    if (companyName.includes('balanced fund') || companyName.includes('growth fund')) return false;
-    if (companyName.includes('equity fund') || companyName.includes('focused fund')) return false;
-    if (companyName.includes('samriddhi fund') || companyName.includes('focus 40')) return false;
-    if (/^[A-Z]+F\d*$/.test(symbol)) return false;  // SAGF, SEF, GIBF1, NIBSF2 pattern
-
-    // === STEP 4: Detect Bonds/Debentures (Dirty Data Fix) ===
-    // Symbol patterns
-    if (/B\d{2,4}$/.test(symbol)) return false;  // ADBLB87
-    if (/D\d{2,4}$/.test(symbol)) return false;  // SBLD83
-    if (/\d{2}[_/]\d{2}/.test(symbol)) return false;  // 84_85 patterns
-    if (/EB\d{2}/.test(symbol)) return false;  // NMBEB92
-    if (/UR\d{2}/.test(symbol)) return false;  // NIFRAUR85
-    if (/SY$/.test(symbol)) return false;  // GSY, KSY (yojana units)
-    if (/SF$/.test(symbol)) return false;  // PRSF type symbols
-
-    // Name-based checks (catches misclassified bonds like "4% Agricultural Bond")
-    if (companyName.includes('debenture') || companyName.includes('bond')) return false;
-    if (instrumentName.includes('debenture') || instrumentName.includes('bond')) return false;
-    if (companyName.includes('%') || instrumentName.includes('%')) return false;  // "4% Agricultural Bond"
-
-    // === STEP 5: Detect Promoter Shares (Cascade Check) ===
-
-    // Check A: Explicit 'shareGroupId' (Best Source if available)
-    if (shareGroupId && (shareGroupId === 'P' || shareGroupId === 'Promoter')) {
-        return false;
-    }
-
-    // Check B: Explicit 'instrumentName' (Secondary Source)
-    if (instrumentName.includes('promoter')) {
-        return false;
-    }
-
-    // Check C: Company name contains 'promoter'
-    if (companyName.includes('promoter')) {
-        return false;
-    }
-
-    // Check D: Symbol ends with 'PO' (Known promoter suffix)
-    if (symbol.endsWith('PO')) {
-        return false;
-    }
-
-    return true;
-};
+const { isEquitySecurity } = require('../utils/securityFilters');
 
 /**
  * Fetch all securities with price data from NEPSE
@@ -706,5 +634,6 @@ const fetchCompanyList = async (token) => {
 
 module.exports = {
     fetchData,
-    initializeLibrary
+    initializeLibrary,
+    isEquitySecurity
 };
