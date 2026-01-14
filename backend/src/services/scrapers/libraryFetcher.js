@@ -31,7 +31,7 @@ const CONCURRENCY_LIMIT = 20; // Max parallel requests for individual stock deta
 
 // Sector ID mapping from NEPSE API
 const SECTOR_IDS = {
-    58: 'NEPSE Index',
+    // 58: 'NEPSE Index', // Removed to prevent it being used as a stock sector
     57: 'Sensitive Index',
     51: 'Commercial Banks',
     52: 'Hotels And Tourism',
@@ -386,8 +386,23 @@ const transformSecurity = (security, marketOpen = null) => {
     const isOpen = marketOpen !== null ? marketOpen : isMarketOpen();
 
     // Map sector from indexId
-    const sectorId = security.indexId || 53;
-    const sector = SECTOR_IDS[sectorId] || 'Others';
+    // Priority: Static Metadata > API Sector Name > Fallback 'Others'
+    const staticInfo = staticStockMap.get(symbol.toUpperCase());
+    const apiSectorId = security.indexId;
+    const apiSectorName = SECTOR_IDS[apiSectorId];
+
+    let sector = 'Others';
+    let sectorId = 53;
+
+    if (staticInfo && staticInfo.sector) {
+        sector = staticInfo.sector;
+        // Keep the API's sectorId if it provided one, otherwise use a default
+        sectorId = apiSectorId || 53;
+    } else if (apiSectorName && apiSectorId !== 58) {
+        // Only use API sector if it's not the generic 'NEPSE Index' (ID 58)
+        sector = apiSectorName;
+        sectorId = apiSectorId;
+    }
 
     // Get volume and calculate turnover if not provided
     const volume = parseInt(security.totalTradeQuantity) || parseInt(security.totalTradedQuantity) || 0;
