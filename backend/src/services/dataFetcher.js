@@ -3,6 +3,7 @@ const https = require('https');
 const libraryFetcher = require('./scrapers/libraryFetcher');
 const proxyFetcher = require('./scrapers/proxyFetcher');
 const customScraper = require('./scrapers/customScraper');
+const alertService = require('./alertService');
 const logger = require('./utils/logger');
 const NEPSE_STOCKS = require('../data/nepseStocks');
 
@@ -47,94 +48,99 @@ const RETRY_DELAY = 2000; // 2 seconds
 const fetchLiveMarketMeta = async () => {
     // Try primary
     const tryEndpoint = async (url) => {
-        const resp = await marketOpenClient.get(url);
-        const body = resp.data || {};
-        const totalTransactions = parseInt(body.totalTransaction || body.totalTransactions || body.totalTrades || 0) || null;
-        const totalTurnover = body.totalTurnover ? parseFloat(body.totalTurnover) : null;
-        const totalVolume = body.totalVolume ? parseFloat(body.totalVolume) : null;
-        if (totalTransactions !== null || totalTurnover !== null || totalVolume !== null) {
-            return { totalTransactions, totalTurnover, totalVolume };
+        try {
+            const resp = await marketOpenClient.get(url);
+            const body = resp.data || {};
+            const totalTransactions = parseInt(body.totalTransaction || body.totalTransactions || body.totalTrades || 0) || null;
+            const totalTurnover = body.totalTurnover ? parseFloat(body.totalTurnover) : null;
+            const totalVolume = body.totalVolume ? parseFloat(body.totalVolume) : null;
+            if (totalTransactions !== null || totalTurnover !== null || totalVolume !== null) {
+                return { totalTransactions, totalTurnover, totalVolume };
+            }
+        } catch (err) {
+            logger.debug(`market-open endpoint failed (${url}): ${err.message}`);
         }
-        return null;
+        return null; // Explicit null return on failure
     };
 
+    // 1. Try Primary & Alt concurrently (they are fast)
     try {
-        const primary = await tryEndpoint(MARKET_OPEN_URL);
-        if (primary) return primary;
-    } catch (err) {
-        logger.debug(`market-open primary failed: ${err.message}`);
+        const primaryResult = await Promise.any([
+            tryEndpoint(MARKET_OPEN_URL).then(res => { if(!res) throw new Error('No Data'); return res; }),
+            tryEndpoint(MARKET_OPEN_ALT).then(res => { if(!res) throw new Error('No Data'); return res; })
+        ]);
+        if (primaryResult) return primaryResult;
+    } catch (e) {
+        logger.debug('Primary NEPSE endpoints failed, trying fallbacks...');
     }
 
+    // 2. Prepare Fallback Tasks (execute in parallel)
+    const fallbacks = [
+        // Merolagani
+        (async () => {
+            try {
+                const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
+                    timeout: 5000,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
+                });
+                const html = resp.data || '';
+                const match = html.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
+                if (match && match[1]) {
+                    const count = parseInt(match[1].replace(/,/g, ''), 10);
+                    if (!Number.isNaN(count) && count > 100) {
+                        logger.info(`Transaction Match Found (Merolagani): ${count}`);
+                        return { totalTransactions: count, totalTurnover: null, totalVolume: null };
+                    }
+                }
+            } catch (err) { logger.debug(`merolagani fallback failed: ${err.message}`); }
+            throw new Error('Merolagani failed');
+        })(),
+
+        // NepseAlpha
+        (async () => {
+            try {
+                const alpha = await axios.get('https://nepsealpha.com/trading-menu', {
+                    timeout: 5000,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
+                });
+                const alphaMatch = alpha.data.match(/Transactions["']?\s*[:=]\s*["']?([0-9,]+)/i);
+                if (alphaMatch && alphaMatch[1]) {
+                    const count = parseInt(alphaMatch[1].replace(/,/g, ''), 10);
+                    if (!Number.isNaN(count) && count > 100) {
+                        logger.info(`Transaction Match Found (NepseAlpha): ${count}`);
+                        return { totalTransactions: count, totalTurnover: null, totalVolume: null };
+                    }
+                }
+            } catch (err) { logger.debug(`nepsealpha fallback failed: ${err.message}`); }
+            throw new Error('NepseAlpha failed');
+        })(),
+
+        // ShareSansar
+        (async () => {
+            try {
+                const ss = await axios.get('https://www.sharesansar.com/market', {
+                    timeout: 5000,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
+                });
+                const ssMatch = ss.data.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
+                if (ssMatch && ssMatch[1]) {
+                    const count = parseInt(ssMatch[1].replace(/,/g, ''), 10);
+                    if (!Number.isNaN(count) && count > 100) {
+                        logger.info(`Transaction Match Found (ShareSansar): ${count}`);
+                        return { totalTransactions: count, totalTurnover: null, totalVolume: null };
+                    }
+                }
+            } catch (err) { logger.debug(`sharesansar fallback failed: ${err.message}`); }
+            throw new Error('ShareSansar failed');
+        })()
+    ];
+
+    // 3. Race Fallbacks
     try {
-        const alt = await tryEndpoint(MARKET_OPEN_ALT);
-        if (alt) return alt;
-    } catch (err) {
-        logger.debug(`market-open alt failed: ${err.message}`);
-    }
-
-    // Fallback: Merolagani HTML scrape (using robust text-pattern search)
-    try {
-        const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
-            timeout: 5000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-        });
-        const html = resp.data || '';
-        // Robust regex: look for 'Total Transactions' followed by any tags/whitespace, then a number
-        // Matches:
-        // 1. >Total Transactions< ... >123,456<
-        // 2. Total Transactions ... 123,456
-        const match = html.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
-
-        if (match && match[1]) {
-            const raw = match[1].replace(/,/g, '');
-            const count = parseInt(raw, 10);
-            if (!Number.isNaN(count) && count > 100) { // Sane range check (>100 tx)
-                logger.info(`Transaction Match Found (Merolagani): ${count}`);
-                return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-            }
-        }
-    } catch (err) {
-        logger.debug(`merolagani fallback failed: ${err.message}`);
-    }
-
-    // Fallback 2: NepseAlpha
-    try {
-        const alpha = await axios.get('https://nepsealpha.com/trading-menu', {
-            timeout: 5000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-        });
-        // Matches: "Transactions": "123,456" or similar JSON/HTML patterns
-        const alphaMatch = alpha.data.match(/Transactions["']?\s*[:=]\s*["']?([0-9,]+)/i);
-
-        if (alphaMatch && alphaMatch[1]) {
-            const count = parseInt(alphaMatch[1].replace(/,/g, ''), 10);
-            if (!Number.isNaN(count) && count > 100) {
-                logger.info(`Transaction Match Found (NepseAlpha): ${count}`);
-                return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-            }
-        }
-    } catch (err) {
-        logger.debug(`nepsealpha fallback failed: ${err.message}`);
-    }
-
-    // Fallback 3: ShareSansar (New)
-    try {
-        const ss = await axios.get('https://www.sharesansar.com/market', {
-            timeout: 5000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-        });
-        // Matches: Total Transactions ... 123,456
-        const ssMatch = ss.data.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
-
-        if (ssMatch && ssMatch[1]) {
-            const count = parseInt(ssMatch[1].replace(/,/g, ''), 10);
-            if (!Number.isNaN(count) && count > 100) {
-                logger.info(`Transaction Match Found (ShareSansar): ${count}`);
-                return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-            }
-        }
-    } catch (err) {
-        logger.debug(`sharesansar fallback failed: ${err.message}`);
+        const result = await Promise.any(fallbacks);
+        return result;
+    } catch (aggregateError) {
+        logger.debug('All fallback sources failed.');
     }
 
     return null;
@@ -579,6 +585,10 @@ const fetchLatestData = async () => {
     // All sources failed
     consecutiveFailures++;
     logger.error(`All data sources failed. Consecutive failures: ${consecutiveFailures}`);
+
+    if (consecutiveFailures >= 3) {
+        await alertService.sendAlert(`CRITICAL: All 3 data sources (Library, Proxy, Custom) are failing. Consecutive failures: ${consecutiveFailures}. Please investigate immediately.`, 'error');
+    }
 
     return null;
 };

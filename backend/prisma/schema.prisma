@@ -27,6 +27,8 @@ model Stock {
   updatedAt      DateTime @default(now()) @updatedAt
 
   history        MarketHistory[]
+
+  @@index([sector])
 }
 
 model MarketHistory {

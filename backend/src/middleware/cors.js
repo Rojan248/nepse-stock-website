@@ -6,35 +6,48 @@ const logger = require('../services/utils/logger');
  * Allows cross-origin requests from frontend
  */
 
+const getOrigins = () => {
+    const envOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : [];
+    
+    // In production, strictly rely on environment variables
+    if (process.env.NODE_ENV === 'production') {
+        return envOrigins;
+    }
+
+    // In development, allow common localhost ports
+    return [
+        ...envOrigins,
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173', // Vite default
+        'http://127.0.0.1:5173'
+    ];
+};
+
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests from configured origin
-        const allowedOrigins = [
-            process.env.CORS_ORIGIN || 'http://localhost:3000',
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-            'http://localhost:5173', // Vite default
-            'http://127.0.0.1:5173',
-            'https://nepse.me',
-            'https://www.nepse.me'
-        ];
+        const allowedOrigins = getOrigins();
 
         // Allow requests with no origin (mobile apps, curl, etc.)
-        // Log for monitoring but still allow (rate limiting handles abuse)
+        // STRICT MODE: In production, we block no-origin requests unless explicitly configured otherwise
         if (!origin) {
-            logger.debug('[CORS] Request without Origin header');
-            return callback(null, true);
+            if (process.env.NODE_ENV !== 'production') {
+                logger.debug('[CORS] Request without Origin header (Allowed in Dev)');
+                return callback(null, true);
+            }
+            logger.warn('[CORS] Blocked request without Origin header');
+            return callback(new Error('Not allowed by CORS'));
         }
 
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
             logger.warn(`CORS blocked request from origin: ${origin}`);
-            callback(null, false);
+            callback(new Error('Not allowed by CORS'));
         }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Admin-Key'],
     credentials: true,
     maxAge: 86400 // 24 hours
 };
@@ -46,16 +59,19 @@ const corsOptions = {
 const corsMiddleware = cors(corsOptions);
 
 /**
- * Simple CORS headers middleware (fallback)
+ * Simple CORS headers middleware (fallback/legacy)
  */
 const simpleCorsMiddleware = (req, res, next) => {
-    const origin = req.headers.origin || process.env.CORS_ORIGIN || '*';
-    
-    // When credentials are true, Origin cannot be '*'
-    res.header('Access-Control-Allow-Origin', origin === '*' ? 'http://localhost:3000' : origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    // Only use if standard CORS middleware is bypassed
+    const origin = req.headers.origin;
+    const allowedOrigins = getOrigins();
+
+    if (origin && allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Admin-Key');
+        res.header('Access-Control-Allow-Credentials', 'true');
+    }
 
     // Handle preflight
     if (req.method === 'OPTIONS') {
