@@ -159,11 +159,9 @@ npm run pm2:start
 
 | Document | Description |
 |----------|-------------|
-| [SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | Complete setup instructions |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment guide |
-| [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | API reference |
+| [SETUP.md](docs/SETUP.md) | Complete setup and deployment instructions |
+| [API.md](docs/API.md) | API reference |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
-| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 | [SECURITY.md](docs/SECURITY.md) | Security best practices |
 
 ## Recent Updates (Jan 2026)

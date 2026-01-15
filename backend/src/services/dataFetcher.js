@@ -245,6 +245,8 @@ const syncMarketDataFromWeb = async () => {
 
         const summary = libData.marketSummary;
 
+        // Placeholder - do not run this tool yet until I read schema again.
+
         // Get the latest record to merge with
         const latest = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
 

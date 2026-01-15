@@ -43,14 +43,20 @@ NODE_ENV=development
 # Database (SQLite via Prisma)
 DATABASE_URL="file:./prisma/dev.db"
 
-# Optional: Update interval in milliseconds (default 10000 = 10s)
-NEPSE_UPDATE_INTERVAL=10000
-
-# Optional: Market hours override (defaults: 10:00-15:00)
+# Data Update Settings
+NEPSE_UPDATE_INTERVAL=8000
 MARKET_OPEN_HOUR=10
-MARKET_OPEN_MINUTE=0
 MARKET_CLOSE_HOUR=15
-MARKET_CLOSE_MINUTE=0
+
+# Security
+# Key for protected Admin endpoints (/force-update, /admin/cleanup)
+ADMIN_API_KEY=change-this-to-a-secure-random-string
+
+# CORS (comma-separated origins)
+CORS_ORIGIN=http://localhost:3000
+
+# Logging
+LOG_LEVEL=info
 ```
 
 ### Initialize Database

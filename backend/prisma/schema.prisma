@@ -63,6 +63,15 @@ model MarketSummary {
   timestamp         DateTime @default(now())
 }
 
+model SectorIndex {
+  id              Int      @id @default(autoincrement())
+  topic           String   // e.g., "Banking", "NEPSE Index"
+  indexValue      Float
+  change          Float
+  percentageChange Float
+  timestamp       DateTime @default(now())
+}
+
 model Ipo {
   id          Int      @id @default(autoincrement())
   symbol      String   @unique

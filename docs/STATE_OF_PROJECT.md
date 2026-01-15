@@ -119,10 +119,9 @@
 
 | Feature | Status | Details |
 |---------|--------|---------|
-| **~100 stocks null LTP** | Data issue | Inactive/new listings without trades |
+| **0 stocks null LTP** | Resolved | All active stocks have valid price data |
 | **Price History Charts** | Data exists | `MarketHistory` model populated, charts not built |
-| **Admin UI** | Endpoints only | `/api/stocks/admin/*` exists, no dashboard UI |
-| **Rate Limiting** | Not implemented | Security recommendation |
+| **Admin UI** | Endpoints Protected | `/api/stocks/admin/*` protected by Key, no dashboard UI |
 | **HTTPS** | External | Must configure nginx/reverse proxy |
 
 ### 🔴 Not Implemented
@@ -184,12 +183,11 @@
 ## 9. Known Technical Debt
 
 ### High Priority
-1. **No Rate Limiting** - API can be abused
-2. **Admin Endpoints Unprotected** - Anyone can call cleanup/validate
+1. **Missing Indices** - Market Summary only showing 4/17 indices
 
 ### Medium Priority
-3. **Legacy localStorage.js** (25KB) - Still exists as fallback, could be removed
-4. **No TypeScript** - Entire codebase is JavaScript
+2. **Legacy localStorage.js** (25KB) - Still exists as fallback, could be removed
+3. **No TypeScript** - Entire codebase is JavaScript
 5. **Frontend npm audit warnings** - 7 vulnerabilities in dev dependencies
 
 ### Low Priority
