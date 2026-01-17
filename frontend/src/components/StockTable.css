@@ -90,6 +90,9 @@
 .sector-cell {
     color: var(--text-muted);
     font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* LTP Cell - prevent Rs wrapping */
@@ -158,7 +161,18 @@
 
 .stock-table th:nth-child(4),
 .stock-table td:nth-child(4) {
-    width: 140px;
+    width: 160px;
+    /* Widened to fit "Manufacturing..." better */
+}
+
+/* ... */
+
+.sector-cell {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stock-table th:nth-child(5),

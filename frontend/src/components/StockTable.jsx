@@ -281,7 +281,10 @@ function StockTable({
                                             <AnimatedCell
                                                 value={Math.abs(changeVal)}
                                                 previousValue={Math.abs(getPreviousValue(symbol, 'change') || 0)}
-                                                formatter={(v) => `${isPositive ? '+' : isNegative ? '-' : ''}${v?.toFixed(2)}`}
+                                                formatter={(v) => {
+                                                    if (!v || v === 0) return '-';
+                                                    return `${isPositive ? '+' : isNegative ? '-' : ''}${v?.toFixed(2)}`;
+                                                }}
                                             />
                                         </div>
                                     </td>
@@ -290,7 +293,10 @@ function StockTable({
                                             <AnimatedCell
                                                 value={Math.abs(percentVal)}
                                                 previousValue={Math.abs(getPreviousValue(symbol, 'changePercent') || 0)}
-                                                formatter={(v) => `${isPositive ? '+' : isNegative ? '-' : ''}${v?.toFixed(2)}%`}
+                                                formatter={(v) => {
+                                                    if (!v || v === 0) return '-';
+                                                    return `${isPositive ? '+' : isNegative ? '-' : ''}${v?.toFixed(2)}%`;
+                                                }}
                                             />
                                         </div>
                                     </td>
@@ -298,7 +304,7 @@ function StockTable({
                                         <AnimatedCell
                                             value={stock.volume || stock.trading?.volume || 0}
                                             previousValue={getPreviousValue(symbol, 'volume')}
-                                            formatter={formatNumber}
+                                            formatter={(v) => v === 0 ? '-' : formatNumber(v)}
                                             showDirection={false}
                                         />
                                     </td>
