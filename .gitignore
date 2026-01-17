@@ -40,3 +40,5 @@ backend/data/*.tmp
 
 # Temporary UI components
 useable/
+
+cloudflared.exe

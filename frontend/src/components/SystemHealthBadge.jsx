@@ -43,12 +43,22 @@ export default function SystemHealthBadge() {
     const lastUpdateDate = health?.scheduler?.lastUpdate ? new Date(health.scheduler.lastUpdate) : null;
     const isStale = lastUpdateDate && (new Date() - lastUpdateDate > 24 * 60 * 60 * 1000);
 
-    // Determine Styles & Text (Priority: Offline > Circuit Breaker > Stale > Healthy)
+    // Check if market is closed (anything other than OPEN)
+    const marketState = health?.market?.state;
+    const isMarketClosed = marketState && marketState !== 'OPEN';
+
+    // Default: Systems Operational
     let badgeStyle = { ...styles.badge, ...styles.success };
     let icon = <CheckCircle size={16} style={{ marginRight: '6px' }} />;
     let label = "Systems Operational";
 
-    if (isOffline) {
+    // Priority: Market Closed (weekend/post-3pm) > Offline > Circuit Breaker > Stale > Healthy
+    if (isMarketClosed && (isOffline || isCircuitOpen)) {
+        // Show friendly "Market Closed" instead of error during non-trading hours
+        badgeStyle = { ...styles.badge, ...styles.closed };
+        icon = <Clock size={16} style={{ marginRight: '6px' }} />;
+        label = "Market Closed";
+    } else if (isOffline) {
         badgeStyle = { ...styles.badge, ...styles.error };
         icon = <AlertTriangle size={16} style={{ marginRight: '6px' }} />;
         label = "System Outage";
@@ -131,6 +141,11 @@ const styles = {
         backgroundColor: '#fee2e2',
         color: '#991b1b',
         borderColor: '#fecaca'
+    },
+    closed: {
+        backgroundColor: '#dbeafe',
+        color: '#1e40af',
+        borderColor: '#93c5fd'
     },
     tooltip: {
         position: 'absolute',

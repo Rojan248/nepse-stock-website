@@ -8,7 +8,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
 const { adminLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
-const { getTimeSyncStatus, getNepseTimeString } = require('../services/utils/marketTime');
+const { getTimeSyncStatus, getNepseTimeString, getMarketState } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
 
 /**
@@ -113,7 +113,8 @@ router.get('/health', asyncHandler(async (req, res) => {
         market: {
             isOpen: updateStatus.isMarketOpen,
             currentNST: updateStatus.currentNST,
-            hours: updateStatus.marketHours
+            hours: updateStatus.marketHours,
+            state: getMarketState()
         },
         data: {
             source: fetchStatus.dataSource,
