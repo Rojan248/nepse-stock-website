@@ -43,8 +43,8 @@ Server will run on http://localhost:5000
 
 ## Data Storage
 
-Data is stored in `data/` directory:
-- `stocks.json` - Stock prices and details
-- `marketSummary.json` - Market index data
-- `marketHistory.json` - Historical data
-- `ipos.json` - IPO listings
+Primary storage is **SQLite** managed via **Prisma ORM**:
+- Database file: `prisma/dev.db`
+- Models: `Stock`, `MarketSummary`, `MarketHistory`, `Ipo`
+
+Legacy JSON files in `data/` are used as fallback or for specific static data.

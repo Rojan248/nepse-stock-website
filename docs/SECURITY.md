@@ -14,95 +14,60 @@
 | **SQL Injection** | ✅ Protected | Prisma uses parameterized queries |
 | **Path Traversal** | ✅ Protected | No user-controlled file paths |
 | **CORS** | ⚠️ Permissive | `corsMiddleware` may need tightening |
-| **Rate Limiting** | ❌ Missing | No request throttling |
-| **Authentication** | ❌ Missing | Admin endpoints unprotected |
+| **Rate Limiting** | ✅ Implemented | Global `apiLimiter` + Strict `adminLimiter` |
+| **Authentication** | ✅ Implemented | Admin endpoints protected by API Key |
 | **HTTPS** | ❌ External | Must configure nginx/reverse proxy |
 
 ---
 
 ## 2. Vulnerability Assessment
 
-### 2.1 Unprotected Admin Endpoints (HIGH)
+### 2.1 Admin Endpoints (Resolved)
 
-**Location**: `routes/stocks.js` lines 235-298
+**Location**: `routes/stocks.js`
 
-**Vulnerable Endpoints**:
-```
-POST /api/stocks/admin/cleanup     # Deletes inactive stocks
-POST /api/stocks/admin/validate    # Removes invalid stocks
-POST /api/force-update             # Forces data refresh
-POST /api/watchdog/verify          # Triggers verification
-```
+**Status**: ✅ Protected
 
-**Risk**: Anyone can call these endpoints and:
-- Delete stock data
-- Trigger excessive API calls to NEPSE
-- Manipulate Watchdog behavior
+**Implementation**:
+Endpoints (`/admin/cleanup`, `/admin/validate`, `/force-update`, `/watchdog/verify`) are protected by the `requireAdminKey` middleware which validates the `x-api-key` header against the `ADMIN_API_KEY` environment variable.
 
-**Recommended Fix**:
+**Middleware**:
 ```javascript
-// backend/src/middleware/adminAuth.js
-const adminAuth = (req, res, next) => {
+// backend/src/middleware/auth.js
+const requireAdminKey = (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
-    
-    if (!process.env.ADMIN_API_KEY) {
-        console.warn('ADMIN_API_KEY not set - rejecting admin request');
-        return res.status(503).json({ error: 'Admin access not configured' });
+    if (apiKey && apiKey === process.env.ADMIN_API_KEY) {
+        return next();
     }
-    
-    if (apiKey !== process.env.ADMIN_API_KEY) {
-        return res.status(401).json({ error: 'Invalid API key' });
-    }
-    
-    next();
+    return res.status(401).json({ error: 'Unauthorized' });
 };
-
-module.exports = { adminAuth };
-```
-
-**Apply to routes**:
-```javascript
-const { adminAuth } = require('../middleware/adminAuth');
-
-router.post('/admin/cleanup', adminAuth, async (req, res) => { ... });
-router.post('/admin/validate', adminAuth, async (req, res) => { ... });
 ```
 
 ---
 
-### 2.2 No Rate Limiting (MEDIUM)
+### 2.2 Rate Limiting (Resolved)
 
-**Risk**: 
-- API exhaustion via rapid requests
-- NEPSE API rate limit triggering
-- Server resource depletion
+**Status**: ✅ Implemented
 
-**Recommended Fix**:
-```bash
-npm install express-rate-limit
-```
+**Implementation**:
+Server uses `express-rate-limit` with two tiers:
+1. `globalLimiter`: 100 requests per 15 minutes per IP (applied globally).
+2. `adminLimiter` / `strictLimiter`: 5 requests per minute (applied to sensitive endpoints).
 
+**Configuration**:
 ```javascript
-// backend/src/server.js
+// backend/src/middleware/rateLimiter.js
 const rateLimit = require('express-rate-limit');
 
-// General API limiter
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per IP
-    message: { success: false, error: 'Too many requests' }
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100
 });
 
-// Stricter limiter for write operations
-const strictLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 5, // 5 requests per minute
-    message: { success: false, error: 'Rate limit exceeded' }
+const adminLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5
 });
-
-app.use('/api/', apiLimiter);
-app.use('/api/force-update', strictLimiter);
-app.use('/api/watchdog/verify', strictLimiter);
 ```
 
 ---
@@ -287,14 +252,14 @@ server {
 ### Immediate Actions
 | Task | Status | Priority |
 |------|--------|----------|
-| Add API key to admin endpoints | ⬜ | HIGH |
-| Implement rate limiting | ⬜ | HIGH |
+| Add API key to admin endpoints | ✅ | HIGH |
+| Implement rate limiting | ✅ | HIGH |
 | Restrict CORS in production | ⬜ | MEDIUM |
 
 ### Short-term Actions
 | Task | Status | Priority |
 |------|--------|----------|
-| Add Helmet.js security headers | ⬜ | MEDIUM |
+| Add Helmet.js security headers | ✅ | MEDIUM |
 | Run `npm audit fix` | ⬜ | MEDIUM |
 | Configure HTTPS via nginx | ⬜ | MEDIUM |
 
