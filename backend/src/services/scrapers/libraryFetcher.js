@@ -1,6 +1,8 @@
 const https = require('https');
 const logger = require('../utils/logger');
 const { stockInfoMap: staticStockMap } = require('../../data/nepseStocks');
+const { SECTOR_IDS, ALL_SECTORS, MAX_RETRIES, RETRY_DELAY, CONCURRENCY_LIMIT, TIMEOUT } = require('./libraryConfig');
+const { transformSecurity: transformSecurityLib, sanitizeSymbol } = require('./libraryTransformers');
 
 /**
  * Library-based NEPSE Data Fetcher
@@ -21,35 +23,9 @@ let isInitialized = false;
 // Custom HTTPS agent for NEPSE requests only
 const nepseHttpsAgent = new https.Agent({
     rejectUnauthorized: false,
-    keepAlive: true, // Performance optimization
-    timeout: 4000 // Strict timeout
+    keepAlive: true,
+    timeout: TIMEOUT
 });
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
-const CONCURRENCY_LIMIT = 20; // Max parallel requests for individual stock details
-
-// Sector ID mapping from NEPSE API
-const SECTOR_IDS = {
-    // 58: 'NEPSE Index', // Removed to prevent it being used as a stock sector
-    57: 'Sensitive Index',
-    51: 'Commercial Banks',
-    52: 'Hotels And Tourism',
-    53: 'Others',
-    54: 'Hydro Power',
-    55: 'Development Banks',
-    56: 'Manufacturing And Processing',
-    59: 'Non Life Insurance',
-    60: 'Finance',
-    61: 'Trading',
-    64: 'Microfinance',
-    65: 'Life Insurance',
-    66: 'Mutual Fund',
-    67: 'Investment'
-};
-
-// All sector IDs to fetch (58 = NEPSE Index contains all stocks)
-const ALL_SECTORS = [58];
 
 /**
  * Initialize the NEPSE library
@@ -310,151 +286,20 @@ const fetchMissingSecurities = async (companies, token) => {
 };
 
 /**
- * Sanitize symbol for storage key (remove special characters)
- */
-const sanitizeSymbol = (symbol) => {
-    if (!symbol) return '';
-    return symbol.replace(/[\/\\\.#$\[\]]/g, '_');
-};
-
-/**
  * Check if market is currently open (Nepal time)
  * Market hours: 10:00 AM - 3:00 PM NST, Sunday to Thursday
  */
 const { isMarketActive } = require('../utils/marketTime');
-
-// ... (other imports)
 
 // Use centralized market time utility instead of local calculation
 const isMarketOpen = () => {
     return isMarketActive();
 };
 
-/**
- * Transform NEPSE security data to standard format
- */
+// Wrap the imported transformSecurity to pass required dependencies
+// Wrap the imported transformSecurity to pass required dependencies
 const transformSecurity = (security, marketOpen = null) => {
-    if (!security) return null;
-
-
-    const rawSymbol = security.symbol || '';
-    const symbol = sanitizeSymbol(rawSymbol);
-    if (!symbol) return null;
-
-    const prevClose = parseFloat(security.previousClose) || 0;
-    let ltp = parseFloat(security.lastTradedPrice) || parseFloat(security.closePrice) || 0;
-
-    // If no trade has happened (LTP is 0), use previous close as the current price
-    // This prevents showing "Rs 0.00" for untraded stocks
-    if (ltp === 0 && prevClose > 0) {
-        ltp = prevClose;
-    }
-
-    // If both LTP and previousClose are 0, use static base price from our stock mapping
-    // This handles stocks that haven't traded recently or have data quality issues
-    if (ltp === 0 && prevClose === 0) {
-        const staticInfo = staticStockMap.get(symbol.toUpperCase());
-        if (staticInfo && staticInfo.base > 0) {
-            ltp = staticInfo.base;
-            logger.debug(`[${symbol}] Using static base price: ${ltp} (no trade data available)`);
-        }
-    }
-
-    const open = parseFloat(security.openPrice) || ltp;
-
-    // Use NEPSE API's percentageChange directly if available (most accurate)
-    // Only calculate ourselves if the API doesn't provide it
-    const apiPercentChange = parseFloat(security.percentageChange);
-    const hasApiChange = !isNaN(apiPercentChange);
-
-    // Calculate overnight change (LTP vs previous close) - always needed for pointChange
-    const overnightChange = ltp - prevClose;
-    const overnightChangePercent = prevClose > 0 ? (overnightChange / prevClose) * 100 : 0;
-
-    // Use API percentageChange if valid, otherwise use our calculated overnight change
-    // The API value is more accurate as it accounts for dividends, splits, etc.
-    const displayChangePercent = hasApiChange ? apiPercentChange : overnightChangePercent;
-    const displayChange = hasApiChange
-        ? (prevClose > 0 ? prevClose * (apiPercentChange / 100) : overnightChange)
-        : overnightChange;
-
-    // Also calculate intraday for reference
-    const intradayChange = ltp - open;
-    const intradayChangePercent = open > 0 ? (intradayChange / open) * 100 : 0;
-
-    // Determine market status if not provided  
-    const isOpen = marketOpen !== null ? marketOpen : isMarketOpen();
-
-    // Map sector from indexId
-    // Priority: Static Metadata > API Sector Name > Fallback 'Others'
-    const staticInfo = staticStockMap.get(symbol.toUpperCase());
-    const apiSectorId = security.indexId;
-    const apiSectorName = SECTOR_IDS[apiSectorId];
-
-    let sector = 'Others';
-    let sectorId = 53;
-
-    if (staticInfo && staticInfo.sector) {
-        sector = staticInfo.sector;
-        // Keep the API's sectorId if it provided one, otherwise use a default
-        sectorId = apiSectorId || 53;
-    } else if (apiSectorName && apiSectorId !== 58) {
-        // Only use API sector if it's not the generic 'NEPSE Index' (ID 58)
-        sector = apiSectorName;
-        sectorId = apiSectorId;
-    }
-
-    // Get volume and calculate turnover if not provided
-    const volume = parseInt(security.totalTradeQuantity) || parseInt(security.totalTradedQuantity) || 0;
-    let turnover = parseFloat(security.totalTradedValue) || parseFloat(security.turnover) || 0;
-
-    // Calculate turnover from LTP * Volume if not available
-    if (turnover === 0 && volume > 0 && ltp > 0) {
-        turnover = ltp * volume;
-    }
-
-    // Get total trades
-    const totalTrades = parseInt(security.noOfTrades) || parseInt(security.totalTrades) || 0;
-
-    // Extended Metrics: Supply/Demand
-    const buyVolume = parseInt(security.totalBuyQuantity) || 0;
-    const sellVolume = parseInt(security.totalSellQuantity) || 0;
-    const buySellRatio = sellVolume > 0 ? buyVolume / sellVolume : 0;
-
-    return {
-        symbol,
-        originalSymbol: rawSymbol,
-        companyName: security.securityName || security.name || rawSymbol,
-        sector,
-        sectorId,
-        ltp,
-        open,
-        high: parseFloat(security.highPrice) || ltp,
-        low: parseFloat(security.lowPrice) || ltp,
-        close: parseFloat(security.closePrice) || ltp,
-        previousClose: prevClose,
-        change: Math.round(displayChange * 100) / 100,
-        changePercent: Math.round(displayChangePercent * 100) / 100,
-        intradayChange: Math.round(intradayChange * 100) / 100,
-        intradayChangePercent: Math.round(intradayChangePercent * 100) / 100,
-        overnightChange: Math.round(overnightChange * 100) / 100,
-        overnightChangePercent: Math.round(overnightChangePercent * 100) / 100,
-        isMarketOpen: isOpen,
-        volume,
-        turnover: Math.round(turnover * 100) / 100,
-        totalTrades,
-        // Extended Metrics
-        supplyDemand: {
-            buyVolume,
-            sellVolume,
-            ratio: Math.round(buySellRatio * 100) / 100
-        },
-        fiftyTwoWeek: {
-            high: parseFloat(security.fiftyTwoWeekHigh) || 0,
-            low: parseFloat(security.fiftyTwoWeekLow) || 0
-        },
-        lastUpdated: new Date().toISOString()
-    };
+    return transformSecurityLib(security, marketOpen, staticStockMap, isMarketOpen);
 };
 
 /**
