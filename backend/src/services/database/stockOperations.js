@@ -1,5 +1,7 @@
 /**
  * Stock Database Operations - Prisma Implementation
+ * 
+ * Refactored in Phase 7 to reduce error handling duplication
  */
 
 const { prisma } = require('./connection');
@@ -7,8 +9,40 @@ const logger = require('../utils/logger');
 const { isEquitySecurity } = require('../utils/securityFilters');
 const { normalizeStockInput, mapStockOutput } = require('../utils/dataNormalizer');
 
-// Output mapping moved to dataNormalizer.js
-// Input mapping moved to dataNormalizer.js
+// ==================== Helper Functions ====================
+
+/**
+ * Safe database operation wrapper - handles errors with consistent logging
+ * @param {Function} operation - Async function that performs the DB operation
+ * @param {any} defaultValue - Value to return on error (if not throwing)
+ * @param {string} errorMsg - Error message prefix for logging
+ * @param {boolean} shouldThrow - Whether to throw the error or return default
+ * @returns {Promise<any>}
+ */
+const safeDbOperation = async (operation, defaultValue, errorMsg, shouldThrow = false) => {
+    try {
+        return await operation();
+    } catch (error) {
+        logger.error(`${errorMsg}: ${error.message}`);
+        if (shouldThrow) throw error;
+        return defaultValue;
+    }
+};
+
+/**
+ * Fetch stocks with common pattern: query -> map to output format
+ * @param {Object} options - Prisma findMany options
+ * @param {string} errorMsg - Error message for logging
+ * @returns {Promise<Array>}
+ */
+const fetchStocksWithMapping = async (options, errorMsg) => {
+    return safeDbOperation(async () => {
+        const stocks = await prisma.stock.findMany(options);
+        return stocks.map(mapStockOutput);
+    }, [], errorMsg);
+};
+
+// ==================== Core Operations ====================
 
 const saveStocks = async (stocks) => {
     if (!Array.isArray(stocks) || stocks.length === 0) {
@@ -81,162 +115,112 @@ const getAllStocks = async ({ skip = 0, limit = 500, sortBy = 'symbol', sortOrde
 
 const getStockBySymbol = async (symbol) => {
     if (!symbol) return null;
-    try {
+    return safeDbOperation(async () => {
         const stock = await prisma.stock.findUnique({ where: { symbol: symbol.toUpperCase() } });
         return mapStockOutput(stock);
-    } catch (error) {
-        logger.error(`Error getting stock ${symbol}: ${error.message}`);
-        return null;
-    }
+    }, null, `Error getting stock ${symbol}`);
 };
 
 const searchStocks = async (query) => {
     if (!query) return [];
-    try {
-        const q = query.toString();
-        const stocks = await prisma.stock.findMany({
-            where: {
-                OR: [
-                    { symbol: { contains: q.toUpperCase() } },
-                    { companyName: { contains: q, mode: 'insensitive' } }
-                ]
-            },
-            take: 50
-        });
-        return stocks.map(mapStockOutput);
-    } catch (error) {
-        logger.error(`Error searching stocks: ${error.message}`);
-        return [];
-    }
+    return fetchStocksWithMapping({
+        where: {
+            OR: [
+                { symbol: { contains: query.toString().toUpperCase() } },
+                { companyName: { contains: query.toString(), mode: 'insensitive' } }
+            ]
+        },
+        take: 50
+    }, 'Error searching stocks');
 };
 
 const getStocksBySector = async (sector) => {
     if (!sector) return [];
-    try {
-        const stocks = await prisma.stock.findMany({ where: { sector }, orderBy: { symbol: 'asc' } });
-        return stocks.map(mapStockOutput);
-    } catch (error) {
-        logger.error(`Error getting stocks by sector: ${error.message}`);
-        return [];
-    }
+    return fetchStocksWithMapping(
+        { where: { sector }, orderBy: { symbol: 'asc' } },
+        'Error getting stocks by sector'
+    );
 };
 
 const getRecentlyUpdated = async (seconds = 30) => {
-    try {
-        const cutoff = new Date(Date.now() - seconds * 1000);
-        const stocks = await prisma.stock.findMany({
-            where: { updatedAt: { gte: cutoff } },
-            orderBy: { updatedAt: 'desc' }
-        });
-        return stocks.map(mapStockOutput);
-    } catch (error) {
-        logger.error(`Error getting recent stocks: ${error.message}`);
-        return [];
-    }
+    const cutoff = new Date(Date.now() - seconds * 1000);
+    return fetchStocksWithMapping(
+        { where: { updatedAt: { gte: cutoff } }, orderBy: { updatedAt: 'desc' } },
+        'Error getting recent stocks'
+    );
 };
 
 const getStockCount = async (includeZeroLtp = false) => {
-    try {
-        const whereClause = includeZeroLtp ? {} : { lastTradedPrice: { gt: 0 } };
-        return await prisma.stock.count({ where: whereClause });
-    } catch (error) {
-        logger.error(`Error getting stock count: ${error.message}`);
-        return 0;
-    }
+    const whereClause = includeZeroLtp ? {} : { lastTradedPrice: { gt: 0 } };
+    return safeDbOperation(
+        () => prisma.stock.count({ where: whereClause }),
+        0,
+        'Error getting stock count'
+    );
 };
 
 const getAllSectors = async () => {
-    try {
+    return safeDbOperation(async () => {
         const sectors = await prisma.stock.findMany({
             where: { sector: { not: null } },
             select: { sector: true },
             distinct: ['sector']
         });
         return sectors.map(s => s.sector).filter(Boolean).sort();
-    } catch (error) {
-        logger.error(`Error getting sectors: ${error.message}`);
-        return [];
-    }
+    }, [], 'Error getting sectors');
 };
 
 const getTopGainers = async (limit = 10) => {
-    try {
-        const stocks = await prisma.stock.findMany({
-            where: {
-                lastTradedPrice: { gt: 0 },
-                percentageChange: { not: null, gt: 0 }
-            },
-            orderBy: { percentageChange: 'desc' },
-            take: limit
-        });
-        return stocks.map(mapStockOutput);
-    } catch (error) {
-        logger.error(`Error getting top gainers: ${error.message}`);
-        return [];
-    }
+    return fetchStocksWithMapping({
+        where: {
+            lastTradedPrice: { gt: 0 },
+            percentageChange: { not: null, gt: 0 }
+        },
+        orderBy: { percentageChange: 'desc' },
+        take: limit
+    }, 'Error getting top gainers');
 };
 
 const getTopLosers = async (limit = 10) => {
-    try {
-        const stocks = await prisma.stock.findMany({
-            where: {
-                lastTradedPrice: { gt: 0 },
-                percentageChange: { not: null, lt: 0 }
-            },
-            orderBy: { percentageChange: 'asc' },
-            take: limit
-        });
-        return stocks.map(mapStockOutput);
-    } catch (error) {
-        logger.error(`Error getting top losers: ${error.message}`);
-        return [];
-    }
+    return fetchStocksWithMapping({
+        where: {
+            lastTradedPrice: { gt: 0 },
+            percentageChange: { not: null, lt: 0 }
+        },
+        orderBy: { percentageChange: 'asc' },
+        take: limit
+    }, 'Error getting top losers');
 };
 
 const getUnchangedStocks = async (limit = 10) => {
-    try {
-        const stocks = await prisma.stock.findMany({
-            where: {
-                lastTradedPrice: { gt: 0 },
-                OR: [
-                    { percentageChange: 0 },
-                    { change: 0 }
-                ]
-            },
-            take: limit
-        });
-        return stocks.map(mapStockOutput);
-    } catch (error) {
-        logger.error(`Error getting unchanged stocks: ${error.message}`);
-        return [];
-    }
+    return fetchStocksWithMapping({
+        where: {
+            lastTradedPrice: { gt: 0 },
+            OR: [
+                { percentageChange: 0 },
+                { change: 0 }
+            ]
+        },
+        take: limit
+    }, 'Error getting unchanged stocks');
 };
 
 const getTopTraded = async (limit = 10) => {
-    try {
-        const stocks = await prisma.stock.findMany({
-            where: { lastTradedPrice: { gt: 0 } },
-            orderBy: [
-                { volume: 'desc' },
-                { turnover: 'desc' }
-            ],
-            take: limit
-        });
-        return stocks.map(mapStockOutput);
-    } catch (error) {
-        logger.error(`Error getting top traded stocks: ${error.message}`);
-        return [];
-    }
+    return fetchStocksWithMapping({
+        where: { lastTradedPrice: { gt: 0 } },
+        orderBy: [
+            { volume: 'desc' },
+            { turnover: 'desc' }
+        ],
+        take: limit
+    }, 'Error getting top traded stocks');
 };
 
 const clearAllStocks = async () => {
-    try {
+    return safeDbOperation(async () => {
         const result = await prisma.stock.deleteMany();
         return { success: true, deleted: result.count };
-    } catch (error) {
-        logger.error(`Error clearing stocks: ${error.message}`);
-        throw error;
-    }
+    }, null, 'Error clearing stocks', true);
 };
 
 const deleteInactiveStocks = async () => {

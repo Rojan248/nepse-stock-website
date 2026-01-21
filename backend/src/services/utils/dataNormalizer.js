@@ -5,6 +5,83 @@
  */
 
 /**
+ * Normalize sector name to a canonical form
+ * Handles variations like "Hydro Power" vs "Hydropower", trailing 's', etc.
+ * @param {string} sectorName - Raw sector name
+ * @returns {string} Normalized sector name
+ */
+const normalizeSectorName = (sectorName) => {
+    if (!sectorName) return 'Others';
+    
+    let normalized = sectorName.trim();
+    
+    // Common sector name mappings for NEPSE
+    const sectorMappings = {
+        'hydropower': 'Hydro Power',
+        'hydro power': 'Hydro Power',
+        'hydro': 'Hydro Power',
+        'commercial banks': 'Commercial Bank',
+        'commercial bank': 'Commercial Bank',
+        'development banks': 'Development Bank',
+        'development bank': 'Development Bank',
+        'finance': 'Finance',
+        'finances': 'Finance',
+        'microfinance': 'Microfinance',
+        'micro finance': 'Microfinance',
+        'life insurance': 'Life Insurance',
+        'life insurances': 'Life Insurance',
+        'non life insurance': 'Non Life Insurance',
+        'non-life insurance': 'Non Life Insurance',
+        'manufacturing and processing': 'Manufacturing And Processing',
+        'manufacturing': 'Manufacturing And Processing',
+        'hotels and tourism': 'Hotels And Tourism',
+        'hotel and tourism': 'Hotels And Tourism',
+        'hotels': 'Hotels And Tourism',
+        'trading': 'Trading',
+        'others': 'Others',
+        'other': 'Others',
+        'mutual fund': 'Mutual Fund',
+        'mutual funds': 'Mutual Fund',
+        'investment': 'Investment',
+        'investments': 'Investment'
+    };
+    
+    const lowerName = normalized.toLowerCase();
+    if (sectorMappings[lowerName]) {
+        return sectorMappings[lowerName];
+    }
+    
+    return normalized;
+};
+
+/**
+ * Check if two sector names match (fuzzy comparison)
+ * Used for filtering stocks by sector in the frontend
+ * @param {string} stockSector - The stock's sector
+ * @param {string} filterSector - The filter sector to match against
+ * @returns {boolean} True if sectors match
+ */
+const sectorMatches = (stockSector, filterSector) => {
+    if (!stockSector || !filterSector) return false;
+    if (filterSector.toLowerCase() === 'all') return true;
+    
+    const s1 = normalizeSectorName(stockSector).toLowerCase();
+    const s2 = normalizeSectorName(filterSector).toLowerCase();
+    
+    // Exact match after normalization
+    if (s1 === s2) return true;
+    
+    // Substring match (handles partial matches)
+    if (s1.includes(s2) || s2.includes(s1)) return true;
+    
+    // Handle pluralization differences
+    const s1Base = s1.endsWith('s') ? s1.slice(0, -1) : s1;
+    const s2Base = s2.endsWith('s') ? s2.slice(0, -1) : s2;
+    
+    return s1Base === s2Base;
+};
+
+/**
  * Normalize stock input for database storage
  * Handles various input structures (flat, nested prices, nested trading)
  * @param {Object} stock - Raw stock object
@@ -97,5 +174,7 @@ const mapStockOutput = (stock) => {
 
 module.exports = {
     normalizeStockInput,
-    mapStockOutput
+    mapStockOutput,
+    normalizeSectorName,
+    sectorMatches
 };

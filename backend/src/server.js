@@ -3,10 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const helmet = require('helmet');
 const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
-const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
@@ -29,13 +27,9 @@ const PORT = process.env.PORT || 5000;
 // Trust proxy (for accurate IP logging behind reverse proxy)
 app.set('trust proxy', 1);
 
-// Security Middleware
-app.use(helmet());
-
 // Middleware
 app.use(corsMiddleware);
-app.use(globalLimiter); // Rate limiting: 100 req/min per IP
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Request logging middleware

@@ -4,6 +4,7 @@ import { getMarketSummary, getStocks, getSectors } from '../services/api';
 import StockTable from '../components/StockTable';
 import SummaryCard from '../components/SummaryCard';
 import SectorChart from '../components/SectorChart';
+import MarketBreadthCard from '../components/MarketBreadthCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TrendingBar from '../components/TrendingBar';
 import Button from '../components/ui/Button';
@@ -299,8 +300,6 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         ? marketSummary.indexChangePercent
         : undefined;
 
-    const totalBreadth = (marketStats.advanced + marketStats.declined + marketStats.unchanged) || 1;
-
     if (loading && !stocks.length) {
         return <LoadingSpinner fullPage text="Loading market data..." />;
     }
@@ -341,58 +340,12 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                     />
                 </div>
 
-                {/* Market Breadth / Comparison */}
-                {/* Market Breadth / Comparison */}
-                <div className="market-breadth" style={{ marginTop: '2rem', background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <div
-                            onClick={() => setStatusFilter(statusFilter === 'advanced' ? 'all' : 'advanced')}
-                            style={{
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                opacity: statusFilter === 'all' || statusFilter === 'advanced' ? 1 : 0.4,
-                                transform: statusFilter === 'advanced' ? 'scale(1.1)' : 'scale(1)',
-                                transition: 'all 0.2s ease'
-                            }}
-                        >
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Advanced</div>
-                            <div style={{ color: 'var(--success)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.advanced}</div>
-                        </div>
-                        <div
-                            onClick={() => setStatusFilter(statusFilter === 'declined' ? 'all' : 'declined')}
-                            style={{
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                opacity: statusFilter === 'all' || statusFilter === 'declined' ? 1 : 0.4,
-                                transform: statusFilter === 'declined' ? 'scale(1.1)' : 'scale(1)',
-                                transition: 'all 0.2s ease'
-                            }}
-                        >
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Declined</div>
-                            <div style={{ color: 'var(--danger)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.declined}</div>
-                        </div>
-                        <div
-                            onClick={() => setStatusFilter(statusFilter === 'unchanged' ? 'all' : 'unchanged')}
-                            style={{
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                opacity: statusFilter === 'all' || statusFilter === 'unchanged' ? 1 : 0.4,
-                                transform: statusFilter === 'unchanged' ? 'scale(1.1)' : 'scale(1)',
-                                transition: 'all 0.2s ease'
-                            }}
-                        >
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Unchanged</div>
-                            <div style={{ color: 'var(--color-unchanged)', fontSize: '1.5rem', fontWeight: '800' }}>{marketStats.unchanged}</div>
-                        </div>
-                    </div>
-
-                    {/* Visual Ratio Bar */}
-                    <div style={{ height: '8px', width: '100%', display: 'flex', borderRadius: '999px', overflow: 'hidden', background: '#e5e7eb' }}>
-                        <div style={{ width: `${(marketStats.advanced / totalBreadth) * 100}%`, background: 'var(--success)', height: '100%' }} />
-                        <div style={{ width: `${(marketStats.declined / totalBreadth) * 100}%`, background: 'var(--danger)', height: '100%' }} />
-                        <div style={{ width: `${(marketStats.unchanged / totalBreadth) * 100}%`, background: 'var(--color-unchanged)', height: '100%' }} />
-                    </div>
-                </div>
+                {/* Market Breadth - Now using extracted component */}
+                <MarketBreadthCard
+                    marketStats={marketStats}
+                    statusFilter={statusFilter}
+                    onFilterChange={setStatusFilter}
+                />
             </section>
 
             {/* Sector Analysis Chart */}

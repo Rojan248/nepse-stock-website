@@ -6,9 +6,6 @@ const ipoOperations = require('../database/ipoOperations');
 const marketOperations = require('../database/marketOperations');
 const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSync, MARKET_STATES } = require('../utils/marketTime');
 const watchdogService = require('../watchdog/WatchdogService');
-const { isAnyLockActive, getLockStatus } = require('../utils/updateLock');
-const { withRetry, isCircuitClosed, recordFailure, recordSuccess, getCircuitStatus } = require('../utils/asyncRetry');
-const { sendAlert, recordSyncSuccess, recordSyncFailure, sendDailyDigest, getAlertStatus } = require('../utils/alertService');
 
 /**
  * Update Scheduler
@@ -21,8 +18,6 @@ let schedulerJob = null;
 let isRunning = false;
 let lastUpdateTime = null;
 let updateCount = 0;
-let failureCount = 0;
-let consecutiveFailures = 0;
 let lastError = null;
 let currentMarketState = null;
 
@@ -56,96 +51,64 @@ const isMarketOpen = () => {
 
 
 /**
- * Core data fetch and save logic (called by performUpdate with retry wrapper)
- */
-const fetchAndSaveData = async () => {
-    // Fetch latest data
-    const data = await dataFetcher.fetchLatestData();
-
-    if (!data) {
-        throw new Error('No data received from any source');
-    }
-
-    // Validate minimum data quality
-    if (!data.stocks || data.stocks.length < 100) {
-        throw new Error(`Insufficient stock data: only ${data.stocks?.length || 0} stocks received (expected 200+)`);
-    }
-
-    // Save stocks
-    if (data.stocks && data.stocks.length > 0) {
-        await stockOperations.saveStocks(data.stocks);
-    }
-
-    // Save IPOs
-    if (data.ipos && data.ipos.length > 0) {
-        await ipoOperations.saveIPOs(data.ipos);
-    }
-
-    // Save market summary
-    if (data.marketSummary) {
-        await marketOperations.upsertMarketSummary(data.marketSummary);
-    }
-
-    // Save Top Movers
-    if (data.topTurnover || data.topTrades || data.topVolume || data.topGainers || data.topLosers) {
-        await marketOperations.saveTopMovers(
-            data.topTurnover,
-            data.topTrades,
-            data.topVolume,
-            data.topGainers,
-            data.topLosers
-        );
-    }
-
-    return data;
-};
-
-/**
- * Perform data update with retry logic and circuit breaker
+ * Perform data update
  * Fetches data and saves to database
  */
 const performUpdate = async () => {
     const startTime = Date.now();
     logger.info('Starting data update cycle...');
 
-    // Weekend handling: Still fetch data (last trading day's closing data is available)
-    // but at reduced frequency (hourly instead of every 10 seconds)
+    // Scheduler Shield: Skip updates on weekends
     const currentState = getMarketState();
     const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
-    const isWeekend = currentState === MARKET_STATES.WEEKEND;
 
-    logger.debug(`Scheduler Debug: State=${currentState}, isDev=${isDev}, isWeekend=${isWeekend}`);
+    logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDev}, NODE_ENV=${process.env.NODE_ENV}, Bypass=${isDev}`);
 
-    // Skip if Watchdog is currently correcting data (prevent race condition)
-    if (isAnyLockActive()) {
-        const lockInfo = getLockStatus();
-        logger.info(`[Scheduler] Skipping update: Watchdog lock active (owner: ${lockInfo.lockOwner}, expires in ${Math.round(lockInfo.remainingMs / 1000)}s)`);
-        return false;
-    }
-
-    // Circuit breaker check - don't hammer NEPSE if it's down
-    if (!isCircuitClosed()) {
-        logger.warn('[Scheduler] Circuit breaker is OPEN. Skipping update.');
+    if (currentState === MARKET_STATES.WEEKEND && !isDev) {
+        logger.info('Skipping update: Market is closed (WEEKEND)');
         return false;
     }
 
     try {
-        // Fetch and save with retry logic
-        const data = await withRetry(
-            fetchAndSaveData,
-            { retries: 3 }, // Fewer retries per cycle (scheduler will try again)
-            'fetchAndSaveData'
-        );
+        // Fetch latest data
+        const data = await dataFetcher.fetchLatestData();
 
-        // Update state on success
+        if (!data) {
+            logger.warn('No data received from any source');
+            lastError = 'No data received';
+            return false;
+        }
+
+        // Save stocks
+        if (data.stocks && data.stocks.length > 0) {
+            await stockOperations.saveStocks(data.stocks);
+        }
+
+        // Save IPOs
+        if (data.ipos && data.ipos.length > 0) {
+            await ipoOperations.saveIPOs(data.ipos);
+        }
+
+        // Save market summary
+        if (data.marketSummary) {
+            await marketOperations.upsertMarketSummary(data.marketSummary);
+        }
+
+        // Save Top Movers
+        if (data.topTurnover || data.topTrades || data.topVolume || data.topGainers || data.topLosers) {
+            await marketOperations.saveTopMovers(
+                data.topTurnover,
+                data.topTrades,
+                data.topVolume,
+                data.topGainers,
+                data.topLosers
+            );
+        }
+
+        // Update state
         lastUpdateTime = new Date();
         updateCount++;
-        consecutiveFailures = 0;
         lastError = null;
-
-        // Record success for alerting and circuit breaker
-        recordSuccess();
-        recordSyncSuccess();
 
         const duration = Date.now() - startTime;
         logger.info(`Update cycle completed in ${duration}ms (Source: ${data.source})`);
@@ -153,22 +116,8 @@ const performUpdate = async () => {
         return true;
 
     } catch (error) {
-        logger.error(`Update cycle failed after retries: ${error.message}`);
+        logger.error(`Update cycle failed: ${error.message}`);
         lastError = error.message;
-        failureCount++;
-        consecutiveFailures++;
-
-        // Record failure for circuit breaker and alerting
-        recordFailure();
-        recordSyncFailure();
-
-        // Send alert on failure (rate-limited)
-        await sendAlert(
-            `Sync failed: ${error.message}\nConsecutive failures: ${consecutiveFailures}`,
-            'error',
-            'sync_failure'
-        );
-
         return false;
     }
 };
@@ -232,16 +181,6 @@ const startScheduler = async () => {
         }
     });
 
-    // Schedule Daily Digest Alert at 3:30 PM (after market close)
-    schedule.scheduleJob('30 15 * * 0-4', async () => {
-        logger.info('Sending daily sync digest...');
-        try {
-            await sendDailyDigest();
-        } catch (e) {
-            logger.error(`Daily digest failed: ${e.message}`);
-        }
-    });
-
     const nst = getNSTTime();
     logger.info(`Scheduler started at ${nst.toISOString()} NST (from external time server)`);
     logger.info(`Market hours: ${MARKET_OPEN_HOUR}:${MARKET_OPEN_MINUTE.toString().padStart(2, '0')} - ${MARKET_CLOSE_HOUR}:${MARKET_CLOSE_MINUTE.toString().padStart(2, '0')} NST`);
@@ -283,17 +222,13 @@ const getUpdateStatus = () => ({
     isMarketOpen: isMarketOpen(),
     lastUpdateTime: lastUpdateTime ? lastUpdateTime.toISOString() : null,
     updateCount,
-    failureCount,
-    consecutiveFailures,
     lastError,
     currentNST: getNSTTime().toISOString(),
     marketHours: {
         open: `${MARKET_OPEN_HOUR}:${MARKET_OPEN_MINUTE.toString().padStart(2, '0')}`,
         close: `${MARKET_CLOSE_HOUR}:${MARKET_CLOSE_MINUTE.toString().padStart(2, '0')}`
     },
-    dataSource: dataFetcher.getDataSource(),
-    circuitBreaker: getCircuitStatus(),
-    alerting: getAlertStatus()
+    dataSource: dataFetcher.getDataSource()
 });
 
 /**
