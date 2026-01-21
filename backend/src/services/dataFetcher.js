@@ -6,6 +6,14 @@ const customScraper = require('./scrapers/customScraper');
 const alertService = require('./alertService');
 const logger = require('./utils/logger');
 const NEPSE_STOCKS = require('../data/nepseStocks');
+const { tryFallbackSources } = require('./fetchers/fallbackSources');
+const { isValidMarketData, isValidMarketMeta } = require('./utils/dataValidation');
+const {
+    shouldUpdateMarketData,
+    mergeMarketSummaryData,
+    isBreadthMissing,
+    applyBreadthFallback
+} = require('./utils/marketDataHelpers');
 
 // Live market meta endpoint (contains totalTransaction)
 const MARKET_OPEN_URL = 'https://nepalstock.com.np/api/nots/nepse-data/market-open';
@@ -44,9 +52,12 @@ const RETRY_DELAY = 2000; // 2 seconds
 
 /**
  * Fetch live market meta (total transactions) from NEPSE public API
+ * @returns {Promise<Object|null>} { totalTransactions, totalTurnover, totalVolume } or null
  */
 const fetchLiveMarketMeta = async () => {
-    // Try primary
+    /**
+     * Try a single NEPSE endpoint
+     */
     const tryEndpoint = async (url) => {
         try {
             const resp = await marketOpenClient.get(url);
@@ -60,90 +71,22 @@ const fetchLiveMarketMeta = async () => {
         } catch (err) {
             logger.debug(`market-open endpoint failed (${url}): ${err.message}`);
         }
-        return null; // Explicit null return on failure
+        return null;
     };
 
-    // 1. Try Primary & Alt concurrently (they are fast)
+    // 1. Try Primary & Alt NEPSE endpoints concurrently
     try {
         const primaryResult = await Promise.any([
-            tryEndpoint(MARKET_OPEN_URL).then(res => { if(!res) throw new Error('No Data'); return res; }),
-            tryEndpoint(MARKET_OPEN_ALT).then(res => { if(!res) throw new Error('No Data'); return res; })
+            tryEndpoint(MARKET_OPEN_URL).then(res => { if (!res) throw new Error('No Data'); return res; }),
+            tryEndpoint(MARKET_OPEN_ALT).then(res => { if (!res) throw new Error('No Data'); return res; })
         ]);
         if (primaryResult) return primaryResult;
     } catch (e) {
         logger.debug('Primary NEPSE endpoints failed, trying fallbacks...');
     }
 
-    // 2. Prepare Fallback Tasks (execute in parallel)
-    const fallbacks = [
-        // Merolagani
-        (async () => {
-            try {
-                const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
-                    timeout: 5000,
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-                });
-                const html = resp.data || '';
-                const match = html.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
-                if (match && match[1]) {
-                    const count = parseInt(match[1].replace(/,/g, ''), 10);
-                    if (!Number.isNaN(count) && count > 100) {
-                        logger.info(`Transaction Match Found (Merolagani): ${count}`);
-                        return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-                    }
-                }
-            } catch (err) { logger.debug(`merolagani fallback failed: ${err.message}`); }
-            throw new Error('Merolagani failed');
-        })(),
-
-        // NepseAlpha
-        (async () => {
-            try {
-                const alpha = await axios.get('https://nepsealpha.com/trading-menu', {
-                    timeout: 5000,
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-                });
-                const alphaMatch = alpha.data.match(/Transactions["']?\s*[:=]\s*["']?([0-9,]+)/i);
-                if (alphaMatch && alphaMatch[1]) {
-                    const count = parseInt(alphaMatch[1].replace(/,/g, ''), 10);
-                    if (!Number.isNaN(count) && count > 100) {
-                        logger.info(`Transaction Match Found (NepseAlpha): ${count}`);
-                        return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-                    }
-                }
-            } catch (err) { logger.debug(`nepsealpha fallback failed: ${err.message}`); }
-            throw new Error('NepseAlpha failed');
-        })(),
-
-        // ShareSansar
-        (async () => {
-            try {
-                const ss = await axios.get('https://www.sharesansar.com/market', {
-                    timeout: 5000,
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-                });
-                const ssMatch = ss.data.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);
-                if (ssMatch && ssMatch[1]) {
-                    const count = parseInt(ssMatch[1].replace(/,/g, ''), 10);
-                    if (!Number.isNaN(count) && count > 100) {
-                        logger.info(`Transaction Match Found (ShareSansar): ${count}`);
-                        return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-                    }
-                }
-            } catch (err) { logger.debug(`sharesansar fallback failed: ${err.message}`); }
-            throw new Error('ShareSansar failed');
-        })()
-    ];
-
-    // 3. Race Fallbacks
-    try {
-        const result = await Promise.any(fallbacks);
-        return result;
-    } catch (aggregateError) {
-        logger.debug('All fallback sources failed.');
-    }
-
-    return null;
+    // 2. Try fallback sources (Merolagani, NepseAlpha, ShareSansar)
+    return await tryFallbackSources();
 };
 
 /**
@@ -247,58 +190,33 @@ const syncMarketDataFromWeb = async () => {
 
         // Placeholder - do not run this tool yet until I read schema again.
 
-        // Get the latest record to merge with
+        // Get latest cached data and merge with API data
         const latest = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
+        let merged = mergeMarketSummaryData(summary, latest);
 
-        // Build merged data
-        let merged = {
-            indexValue: summary.indexValue ?? latest?.indexValue ?? null,
-            indexChange: summary.indexChange ?? latest?.indexChange ?? null,
-            indexChangePercent: summary.indexChangePercent ?? latest?.indexChangePercent ?? null,
-            totalTransactions: summary.totalTransactions ?? latest?.totalTransactions ?? null,
-            totalTurnover: summary.totalTurnover ?? latest?.totalTurnover ?? null,
-            totalVolume: summary.totalVolume ?? latest?.totalVolume ?? null,
-            activeCompanies: summary.activeCompanies ?? latest?.activeCompanies ?? null,
-            advancedCompanies: summary.advancedCompanies ?? latest?.advancedCompanies ?? null,
-            declinedCompanies: summary.declinedCompanies ?? latest?.declinedCompanies ?? null,
-            unchangedCompanies: summary.unchangedCompanies ?? latest?.unchangedCompanies ?? null,
-            timestamp: new Date()
-        };
+        // Determine if we should update based on market state and data changes
+        const { shouldUpdate, reason } = shouldUpdateMarketData(latest, merged, marketOpen);
 
-        // SMART UPDATE LOGIC:
-        // Even if market is closed, we might receive the "Final Closing" report 5-15 mins later.
-        // We only block the update if the data is IDENTICAL to what we already have.
-        const hasChanged = !latest ||
-            merged.totalTransactions !== latest.totalTransactions ||
-            merged.totalTurnover !== latest.totalTurnover ||
-            merged.totalVolume !== latest.totalVolume;
-
-        if (!marketOpen && !hasChanged) {
-            logger.debug('syncMarketDataFromWeb: Market closed & data unchanged, skipping DB write');
+        if (!shouldUpdate) {
+            logger.debug(`syncMarketDataFromWeb: ${reason}, skipping DB write`);
             return {
                 updated: false,
-                reason: 'market-closed-unchanged',
+                reason,
                 latest: latest ? { ...latest, source: 'cached-latest' } : merged
             };
-        } else if (!marketOpen && hasChanged) {
-            logger.info('syncMarketDataFromWeb: Market closed but DATA CHANGED (Closing Report detected) - Saving to DB.');
         }
 
-        // If breadth looks empty (all zero/unchanged only), try DB fallback
-        const breadthMissing = (merged.advancedCompanies ?? 0) === 0
-            && (merged.declinedCompanies ?? 0) === 0
-            && (merged.unchangedCompanies ?? 0) >= 0;
+        // Log closing report detection if market is closed but data changed
+        if (reason === 'closing-report-detected') {
+            logger.info('syncMarketDataFromWeb: Closing Report detected - Saving to DB.');
+        }
 
-        if (breadthMissing) {
+        // Apply breadth fallback if needed
+        if (isBreadthMissing(merged)) {
             const dbBreadth = await computeBreadthFromDb();
             if (dbBreadth) {
-                merged = {
-                    ...merged,
-                    advancedCompanies: dbBreadth.advanced,
-                    declinedCompanies: dbBreadth.declined,
-                    unchangedCompanies: dbBreadth.unchanged
-                };
-                logger.info(`syncMarketDataFromWeb: Applied DB breadth fallback A=${dbBreadth.advanced} D=${dbBreadth.declined} U=${dbBreadth.unchanged}`);
+                merged = applyBreadthFallback(merged, dbBreadth);
+                logger.info(`syncMarketDataFromWeb: Applied DB breadth A=${dbBreadth.advanced} D=${dbBreadth.declined} U=${dbBreadth.unchanged}`);
             }
         }
 
