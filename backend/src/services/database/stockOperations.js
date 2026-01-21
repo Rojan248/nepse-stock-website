@@ -5,84 +5,10 @@
 const { prisma } = require('./connection');
 const logger = require('../utils/logger');
 const { isEquitySecurity } = require('../utils/securityFilters');
+const { normalizeStockInput, mapStockOutput } = require('../utils/dataNormalizer');
 
-const mapStockOutput = (stock) => {
-    if (!stock) return null;
-    const ltp = stock.lastTradedPrice ?? 0;
-    const changePercent = stock.percentageChange ?? stock.changePercent ?? null;
-
-    return {
-        symbol: stock.symbol,
-        companyName: stock.companyName,
-        sector: stock.sector,
-        ltp,
-        lastTradedPrice: stock.lastTradedPrice,
-        previousClose: stock.previousClose,
-        openPrice: stock.openPrice,
-        highPrice: stock.highPrice,
-        lowPrice: stock.lowPrice,
-        volume: stock.volume,
-        totalTrades: stock.totalTrades,
-        turnover: stock.turnover,
-        change: stock.change,
-        changePercent,
-        percentageChange: changePercent,
-        prices: {
-            ltp,
-            change: stock.change,
-            changePercent
-        },
-        trading: {
-            volume: stock.volume,
-            turnover: stock.turnover,
-            totalTrades: stock.totalTrades
-        },
-        updatedAt: stock.updatedAt ? stock.updatedAt.toISOString() : undefined,
-        timestamp: stock.updatedAt ? stock.updatedAt.toISOString() : undefined
-    };
-};
-
-const mapStockInput = (stock) => {
-    // Extract base fields
-    const symbol = (stock.symbol || '').toUpperCase();
-    const companyName = stock.companyName || stock.name || symbol;
-    const sector = stock.sector || null;
-
-    // Prices can be top-level or in a 'prices' object
-    const p = stock.prices || {};
-    const lastTradedPrice = stock.lastTradedPrice ?? stock.ltp ?? stock.close ?? p.ltp ?? p.close ?? null;
-    const previousClose = stock.previousClose ?? stock.previousClosingPrice ?? p.previousClose ?? null;
-    const openPrice = stock.openPrice ?? p.open ?? null;
-    const highPrice = stock.highPrice ?? p.high ?? null;
-    const lowPrice = stock.lowPrice ?? p.low ?? null;
-
-    // Trading data can be top-level or in a 'trading' object
-    const t = stock.trading || {};
-    const volume = stock.volume ?? t.volume ?? stock.totalTradedQuantity ?? null;
-    const totalTrades = stock.totalTrades ?? t.totalTrades ?? stock.totalTradedTransactions ?? null;
-    const turnover = stock.turnover ?? t.turnover ?? stock.totalTradedValue ?? null;
-
-    // Change data
-    const change = stock.change ?? p.change ?? stock.pointChange ?? null;
-    const percentageChange = stock.percentageChange ?? stock.changePercent ?? p.changePercent ?? null;
-
-    return {
-        symbol,
-        companyName,
-        sector,
-        lastTradedPrice,
-        previousClose,
-        openPrice,
-        highPrice,
-        lowPrice,
-        volume,
-        totalTrades,
-        turnover,
-        change,
-        percentageChange,
-        updatedAt: new Date()
-    };
-};
+// Output mapping moved to dataNormalizer.js
+// Input mapping moved to dataNormalizer.js
 
 const saveStocks = async (stocks) => {
     if (!Array.isArray(stocks) || stocks.length === 0) {
@@ -101,7 +27,7 @@ const saveStocks = async (stocks) => {
         const ops = stocks
             .filter(s => s && s.symbol)
             .map((stock) => {
-                const data = mapStockInput(stock);
+                const data = normalizeStockInput(stock);
                 const existingLtp = existingMap.get(data.symbol);
                 const newLtp = data.lastTradedPrice || 0;
 
