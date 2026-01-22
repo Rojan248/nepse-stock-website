@@ -19,6 +19,13 @@ const {
     computeBreadthFromDb
 } = require('./dataEnricher');
 
+// Import market data helpers for complex conditional decomposition
+const {
+    hasValidMarketMeta,
+    parseMarketMetaResponse,
+    extractTransactionFromHTML
+} = require('./utils/marketDataHelpers');
+
 // Import historical data fetcher for re-export (backward compatibility)
 const { fetchPreviousTradingDayData } = require('./historicalDataFetcher');
 
@@ -53,21 +60,21 @@ const RETRY_DELAY = 2000; // 2 seconds
 
 /**
  * Fetch live market meta (total transactions) from NEPSE public API
+ * REFACTORED: Complex conditionals decomposed into helper functions
  */
 const fetchLiveMarketMeta = async () => {
-    // Try primary
+    // Try primary endpoint using decomposed helpers
     const tryEndpoint = async (url) => {
         const resp = await marketOpenClient.get(url);
-        const body = resp.data || {};
-        const totalTransactions = parseInt(body.totalTransaction || body.totalTransactions || body.totalTrades || 0) || null;
-        const totalTurnover = body.totalTurnover ? parseFloat(body.totalTurnover) : null;
-        const totalVolume = body.totalVolume ? parseFloat(body.totalVolume) : null;
-        if (totalTransactions !== null || totalTurnover !== null || totalVolume !== null) {
-            return { totalTransactions, totalTurnover, totalVolume };
+        const meta = parseMarketMetaResponse(resp);
+
+        if (hasValidMarketMeta(meta.totalTransactions, meta.totalTurnover, meta.totalVolume)) {
+            return meta;
         }
         return null;
     };
 
+    // Attempt primary endpoint
     try {
         const primary = await tryEndpoint(MARKET_OPEN_URL);
         if (primary) return primary;
@@ -75,6 +82,7 @@ const fetchLiveMarketMeta = async () => {
         logger.debug(`market-open primary failed: ${err.message}`);
     }
 
+    // Attempt alternate endpoint
     try {
         const alt = await tryEndpoint(MARKET_OPEN_ALT);
         if (alt) return alt;
@@ -82,24 +90,14 @@ const fetchLiveMarketMeta = async () => {
         logger.debug(`market-open alt failed: ${err.message}`);
     }
 
-    // Fallback: Merolagani HTML scrape (using robust text-pattern search)
+    // Fallback 1: Merolagani HTML scrape
     try {
         const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
             timeout: 5000,
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
         });
-        const html = resp.data || '';
-        // Robust regex: look for 'Total Transactions' followed by any tags/whitespace, then a number
-        // This handles: <th>Total Transactions</th>....<td>64,407</td> or similar patterns
-        const match = html.match(/Total\s+Transactions[^0-9]*([0-9,]+)/i);
-        if (match && match[1]) {
-            const raw = match[1].replace(/,/g, '');
-            const count = parseInt(raw, 10);
-            if (!Number.isNaN(count) && count > 0) {
-                logger.info(`Transaction Match Found (Merolagani): ${count}`);
-                return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-            }
-        }
+        const result = extractTransactionFromHTML(resp.data, (msg) => logger.info(`Merolagani: ${msg}`));
+        if (result) return result;
     } catch (err) {
         logger.debug(`merolagani fallback failed: ${err.message}`);
     }
@@ -110,14 +108,8 @@ const fetchLiveMarketMeta = async () => {
             timeout: 5000,
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
         });
-        const alphaMatch = alpha.data.match(/Transactions[^0-9]*([0-9,]+)/i);
-        if (alphaMatch && alphaMatch[1]) {
-            const count = parseInt(alphaMatch[1].replace(/,/g, ''), 10);
-            if (!Number.isNaN(count) && count > 0) {
-                logger.info(`Transaction Match Found (NepseAlpha): ${count}`);
-                return { totalTransactions: count, totalTurnover: null, totalVolume: null };
-            }
-        }
+        const result = extractTransactionFromHTML(alpha.data, (msg) => logger.info(`NepseAlpha: ${msg}`));
+        if (result) return result;
     } catch (err) {
         logger.debug(`nepsealpha fallback failed: ${err.message}`);
     }
@@ -182,26 +174,26 @@ const scrapeOfficialWebsite = async () => {
         declined: null,
         unchanged: null
     };
-    
+
     try {
         // Use nepse-api-helper library for authenticated access
         const { nepseClient, nepseAxios, createHeaders, BASE_URL } = require('nepse-api-helper');
-        
+
         logger.info('Custom Scraper: Initializing NEPSE API helper...');
         await nepseClient.initialize({ useWasm: true });
-        
+
         const token = await nepseClient.getToken();
         const headers = createHeaders(token);
-        
+
         // Fetch market summary
         logger.info('Custom Scraper: Fetching market summary...');
         const summaryResp = await nepseAxios.get(`${BASE_URL}/api/nots/market-summary`, { headers, timeout: 10000 });
-        
+
         if (summaryResp.data && Array.isArray(summaryResp.data)) {
             summaryResp.data.forEach(item => {
                 const detail = (item.detail || '').toLowerCase();
                 const value = parseFloat(item.value) || 0;
-                
+
                 if (detail.includes('turnover')) {
                     result.totalTurnover = value;
                 } else if (detail.includes('transactions')) {
@@ -214,15 +206,15 @@ const scrapeOfficialWebsite = async () => {
             });
             logger.info(`Custom Scraper: Market Summary - Tx=${result.totalTransactions}, Vol=${result.totalVolume}, Turnover=${result.totalTurnover}`);
         }
-        
+
         // Fetch NEPSE Index
         logger.info('Custom Scraper: Fetching NEPSE index...');
         const indexData = await nepseClient.getNepseIndex();
-        
+
         if (indexData && Array.isArray(indexData)) {
             // Find NEPSE Index (id 58)
             const nepseIdx = indexData.find(i => i.id === 58) || indexData.find(i => i.index && i.index.toLowerCase().includes('nepse'));
-            
+
             if (nepseIdx) {
                 result.nepseIndex = parseFloat(nepseIdx.currentValue) || null;
                 result.indexChange = parseFloat(nepseIdx.change) || null;
@@ -230,7 +222,7 @@ const scrapeOfficialWebsite = async () => {
                 logger.info(`Custom Scraper: NEPSE Index = ${result.nepseIndex}, Change = ${result.indexChangePercent}%`);
             }
         }
-        
+
         // Fetch securities to calculate advance/decline
         logger.info('Custom Scraper: Fetching securities for breadth calculation...');
         try {
@@ -284,17 +276,17 @@ const scrapeOfficialWebsite = async () => {
         } catch (secErr) {
             logger.debug(`Could not fetch securities for breadth: ${secErr.message}`);
         }
-        
+
         // Check if we got meaningful data
         if (result.totalTransactions || result.nepseIndex || result.totalTurnover) {
             logger.info(`Custom Scraper SUCCESS: Tx=${result.totalTransactions}, Index=${result.nepseIndex}`);
             return result;
         }
-        
+
     } catch (err) {
         logger.error(`Custom Scraper failed: ${err.message}`);
     }
-    
+
     logger.warn('Custom Scraper: Failed to get data');
     return null;
 };
@@ -310,15 +302,15 @@ const syncMarketDataFromWeb = async () => {
 
         // Use the custom website scraper
         const webData = await scrapeOfficialWebsite();
-        
+
         if (!webData) {
             logger.warn('syncMarketDataFromWeb: No data from website scraper');
             return { updated: false, reason: 'Scraper returned no data' };
         }
-        
+
         // Get the latest record to merge with
         const latest = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
-        
+
         // Build merged data, preferring scraped values
         let merged = {
             indexValue: webData.nepseIndex ?? latest?.indexValue ?? null,
@@ -361,18 +353,18 @@ const syncMarketDataFromWeb = async () => {
                 logger.info(`syncMarketDataFromWeb: Applied DB breadth fallback A=${dbBreadth.advanced} D=${dbBreadth.declined} U=${dbBreadth.unchanged}`);
             }
         }
-        
+
         // Only create new record if we have meaningful data
         if (merged.totalTransactions || merged.totalTurnover) {
             await prisma.marketSummary.create({ data: merged });
             logger.info(`syncMarketDataFromWeb: Updated - Tx=${merged.totalTransactions}, Turnover=${merged.totalTurnover}`);
-            return { 
-                updated: true, 
+            return {
+                updated: true,
                 source: 'custom-scraper',
-                ...merged 
+                ...merged
             };
         }
-        
+
         return { updated: false, reason: 'No meaningful data scraped' };
     } catch (error) {
         logger.error(`syncMarketDataFromWeb failed: ${error.message}`);

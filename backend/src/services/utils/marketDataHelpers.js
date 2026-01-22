@@ -86,9 +86,60 @@ const applyBreadthFallback = (summary, breadth) => {
     };
 };
 
+/**
+ * Check if we have valid market meta response
+ * Encapsulates complex conditional logic for readability
+ * @param {number|null} totalTransactions
+ * @param {number|null} totalTurnover
+ * @param {number|null} totalVolume
+ * @returns {boolean} True if any value is valid
+ */
+const hasValidMarketMeta = (totalTransactions, totalTurnover, totalVolume) => {
+    return totalTransactions !== null || totalTurnover !== null || totalVolume !== null;
+};
+
+/**
+ * Extract market meta from API response
+ * Single responsibility: parse response data
+ * @param {Object} resp - Axios response object
+ * @returns {Object} { totalTransactions, totalTurnover, totalVolume }
+ */
+const parseMarketMetaResponse = (resp) => {
+    const body = resp.data || {};
+    const totalTransactions = parseInt(body.totalTransaction || body.totalTransactions || body.totalTrades || 0) || null;
+    const totalTurnover = body.totalTurnover ? parseFloat(body.totalTurnover) : null;
+    const totalVolume = body.totalVolume ? parseFloat(body.totalVolume) : null;
+
+    return { totalTransactions, totalTurnover, totalVolume };
+};
+
+/**
+ * Extract transaction count from HTML with fallback patterns
+ * Handles both Merolagani and NepseAlpha formats
+ * @param {string} html - HTML content to parse
+ * @param {Function} logFn - Logger function for debugging
+ * @returns {Object|null} { totalTransactions, totalTurnover, totalVolume } or null
+ */
+const extractTransactionFromHTML = (html, logFn = () => { }) => {
+    const match = html.match(/Total\s+Transactions[^0-9]*([0-9,]+)/i) ||
+        html.match(/Transactions[^0-9]*([0-9,]+)/i);
+    if (match && match[1]) {
+        const raw = match[1].replace(/,/g, '');
+        const count = parseInt(raw, 10);
+        if (!Number.isNaN(count) && count > 0) {
+            logFn(`Transaction Match Found: ${count}`);
+            return { totalTransactions: count, totalTurnover: null, totalVolume: null };
+        }
+    }
+    return null;
+};
+
 module.exports = {
     shouldUpdateMarketData,
     mergeMarketSummaryData,
     isBreadthMissing,
-    applyBreadthFallback
+    applyBreadthFallback,
+    hasValidMarketMeta,
+    parseMarketMetaResponse,
+    extractTransactionFromHTML
 };
