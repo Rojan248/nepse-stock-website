@@ -77,6 +77,30 @@ const fetchSimple = async (endpoint, params = {}, defaultValue = [], errorMsg = 
     }, defaultValue, errorMsg);
 };
 
+/**
+ * Fetch and unwrap a list endpoint with count/total
+ * Standardizes response format for paginated/list data
+ * @param {string} endpoint - API endpoint
+ * @param {Object} params - Query parameters
+ * @param {string} errorMsg - Error message
+ * @param {string} listKey - specific key to look for in payload (optional)
+ * @returns {Promise<Object>} { data: [], total: 0, ...otherProps }
+ */
+const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey = null) => {
+    return safeApiCall(async () => {
+        const response = await api.get(endpoint, { params });
+        if (!response) return { data: [], total: 0 };
+        const payload = unwrapPayload(response);
+
+        // Auto-detect list array if not specified
+        const data = listKey ? payload[listKey] : (payload.data || payload.stocks || payload.ipos || []);
+        const total = payload.count || payload.total || 0;
+
+        // Return structured list response, preserving other payload props (pagination, statistics)
+        return { ...payload, data: data || [], total };
+    }, { data: [], total: 0 }, errorMsg);
+};
+
 // ==================== Stock APIs ====================
 
 /**
@@ -85,21 +109,10 @@ const fetchSimple = async (endpoint, params = {}, defaultValue = [], errorMsg = 
 export const getStocks = async (page = 1, limit = 50, sortBy = 'symbol', sortOrder = 'asc') => {
     try {
         const skip = (page - 1) * limit;
-        const response = await api.get('/stocks', {
-            params: { skip, limit, sortBy, sortOrder }
-        });
-
-        if (!response) return { stocks: [], total: 0 };
-
-        // The interceptor already unwraps response.data, so 'response' IS the data
-        // Check for 'data' array in the response (API returns { success, data, count, pagination })
-        return {
-            stocks: response.data || [],
-            total: response.count || response.total || 0,
-            pagination: response.pagination
-        };
+        const result = await fetchList('/stocks', { skip, limit, sortBy, sortOrder }, 'Failed to fetch stocks');
+        // Map standardized 'data' back to 'stocks' for component compatibility
+        return { stocks: result.data, total: result.total, pagination: result.pagination };
     } catch (error) {
-        console.error('Failed to fetch stocks:', error);
         return { stocks: [], total: 0 };
     }
 };
@@ -116,30 +129,16 @@ export const getStockBySymbol = async (symbol) => {
  */
 export const searchStocks = async (query) => {
     if (!query || query.length < 1) return { stocks: [] };
-    return safeApiCall(async () => {
-        const response = await api.get('/stocks/search', { params: { q: query } });
-        if (!response) return { stocks: [] };
-        const payload = unwrapPayload(response);
-        return {
-            stocks: payload.data || payload.stocks || [],
-            count: payload.count || payload.total || 0
-        };
-    }, { stocks: [] }, 'Failed to search stocks');
+    const result = await fetchList('/stocks/search', { q: query }, 'Failed to search stocks');
+    return { stocks: result.data, count: result.total };
 };
 
 /**
  * Get stocks by sector
  */
 export const getStocksBySector = async (sector) => {
-    return safeApiCall(async () => {
-        const response = await api.get(`/stocks/sector/${encodeURIComponent(sector)}`);
-        if (!response) return { stocks: [] };
-        const payload = unwrapPayload(response);
-        return {
-            stocks: payload.data || payload.stocks || [],
-            count: payload.count || payload.total || 0
-        };
-    }, { stocks: [] }, `Failed to fetch stocks for sector ${sector}`);
+    const result = await fetchList(`/stocks/sector/${encodeURIComponent(sector)}`, {}, `Failed to fetch stocks for sector ${sector}`);
+    return { stocks: result.data, count: result.total };
 };
 
 /**
@@ -190,17 +189,9 @@ export const getStockDepth = async (symbol) => {
  * Get all IPOs with optional status filter
  */
 export const getIPOs = async (status = null) => {
-    return safeApiCall(async () => {
-        const params = status ? { status } : {};
-        const response = await api.get('/ipos', { params });
-        if (!response) return { ipos: [], total: 0, statistics: {} };
-        const payload = unwrapPayload(response);
-        return {
-            ipos: payload.data || payload.ipos || [],
-            total: payload.count || payload.total || 0,
-            statistics: payload.statistics || payload.stats || {}
-        };
-    }, { ipos: [], total: 0, statistics: {} }, 'Failed to fetch IPOs');
+    const params = status ? { status } : {};
+    const result = await fetchList('/ipos', params, 'Failed to fetch IPOs');
+    return { ipos: result.data, total: result.total, statistics: result.statistics };
 };
 
 /**
@@ -221,15 +212,8 @@ export const getIPOByCompanyName = async (companyName) => {
  * Get IPOs by status
  */
 export const getIPOsByStatus = async (status) => {
-    return safeApiCall(async () => {
-        const response = await api.get(`/ipos/status/${status}`);
-        if (!response) return { ipos: [] };
-        const payload = unwrapPayload(response);
-        return {
-            ipos: payload.data || payload.ipos || [],
-            count: payload.count || payload.total || 0
-        };
-    }, { ipos: [] }, `Failed to fetch IPOs with status ${status}`);
+    const result = await fetchList(`/ipos/status/${status}`, {}, `Failed to fetch IPOs with status ${status}`);
+    return { ipos: result.data, count: result.total };
 };
 
 // ==================== Market APIs ====================
