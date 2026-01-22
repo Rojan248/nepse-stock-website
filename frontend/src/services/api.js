@@ -90,7 +90,10 @@ const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey 
     return safeApiCall(async () => {
         const response = await api.get(endpoint, { params });
         if (!response) return { data: [], total: 0 };
-        const payload = unwrapPayload(response);
+
+        // FIX: Use response directly as payload because interceptor already unwraps body
+        // and using unwrapPayload would strip metadata (count, etc) if 'data' property exists
+        const payload = response;
 
         // Auto-detect list array if not specified
         const data = listKey ? payload[listKey] : (payload.data || payload.stocks || payload.ipos || []);
