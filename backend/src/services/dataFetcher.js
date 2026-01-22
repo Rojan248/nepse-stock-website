@@ -404,10 +404,11 @@ const handleFetchSuccess = async (data, source) => {
  * Uses a loop-based approach to eliminate code triplication
  * @returns {Object|null} Data object or null if all sources fail
  */
-const fetchLatestData = async () => {
-    logger.info('Starting data fetch cycle...');
-
-    // Development Mode Override: Use Mock Fetcher
+/**
+ * Check for development mode override
+ * @returns {Object|null} Mock data if applicable
+ */
+const checkDevModeOverride = async () => {
     if (process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true') {
         try {
             logger.info('DEV MODE: Using Mock Fetcher for simulation...');
@@ -422,30 +423,56 @@ const fetchLatestData = async () => {
             logger.error(`Mock fetcher failed: ${error.message}`);
         }
     }
+    return null;
+};
 
-    // Fetcher configurations: [fetcher, sourceName]
-    // Loop eliminates the 3x code duplication that was causing "bumpy road" smell
+/**
+ * Attempt to fetch using a single fetcher configuration
+ * @param {Object} config - { fetcher, name }
+ * @returns {Object|null} Valid data object or null
+ */
+const attemptSingleFetcher = async ({ fetcher, name }) => {
+    try {
+        logger.debug(`Attempting ${name} fetcher...`);
+        const data = await fetcher.fetchData();
+
+        if (data && isValidData(data)) {
+            return await handleFetchSuccess(data, name);
+        }
+        logger.warn(`${name} fetcher returned invalid data, trying next...`);
+    } catch (error) {
+        logger.warn(`${name} fetcher failed: ${error.message}`);
+    }
+    return null;
+};
+
+/**
+ * Fetch latest NEPSE data using fallback strategy
+ * Priority: Mock (dev) → Library → Proxy → Custom
+ * Uses a loop-based approach to eliminate code triplication
+ * @returns {Object|null} Data object or null if all sources fail
+ */
+const fetchLatestData = async () => {
+    logger.info('Starting data fetch cycle...');
+
+    // 1. Development Mode Override
+    const devData = await checkDevModeOverride();
+    if (devData) return devData;
+
+    // 2. Fetcher Strategy
     const fetchers = [
         { fetcher: libraryFetcher, name: 'library' },
         { fetcher: proxyFetcher, name: 'proxy' },
         { fetcher: customScraper, name: 'custom' }
     ];
 
-    for (const { fetcher, name } of fetchers) {
-        try {
-            logger.debug(`Attempting ${name} fetcher...`);
-            const data = await fetcher.fetchData();
-
-            if (data && isValidData(data)) {
-                return await handleFetchSuccess(data, name);
-            }
-            logger.warn(`${name} fetcher returned invalid data, trying next...`);
-        } catch (error) {
-            logger.warn(`${name} fetcher failed: ${error.message}`);
-        }
+    // 3. Attempt Fetchers
+    for (const config of fetchers) {
+        const data = await attemptSingleFetcher(config);
+        if (data) return data;
     }
 
-    // All sources failed
+    // 4. All sources failed
     consecutiveFailures++;
     logger.error(`All data sources failed. Consecutive failures: ${consecutiveFailures}`);
     return null;
