@@ -39,55 +39,7 @@ const saveTimers = {};
 const writeLocks = {};
 const SAVE_DEBOUNCE = 2000; // 2 seconds
 
-/**
- * Generate a safe, normalized key from a company name
- * - Normalizes unicode to NFKD form
- * - Replaces non-alphanumeric characters with underscores
- * - Converts to lowercase
- * - Collapses consecutive underscores
- * - Trims leading/trailing underscores
- * @param {string} companyName - The company name to normalize
- * @param {string} fallbackId - Fallback ID if name is empty/missing
- * @param {Map} existingKeys - Map of existing keys to check for collisions
- * @returns {string} A safe, unique key
- */
-const generateSafeKey = (companyName, fallbackId = null, existingKeys = null) => {
-    if (!companyName || typeof companyName !== 'string') {
-        return fallbackId || `ipo_${Date.now()}`;
-    }
-
-    // Normalize unicode (NFKD decomposes characters)
-    let key = companyName.normalize('NFKD');
-
-    // Remove diacritical marks (combining characters)
-    key = key.replace(/[\u0300-\u036f]/g, '');
-
-    // Replace all non-alphanumeric ASCII characters with underscores
-    key = key.replace(/[^A-Za-z0-9]/g, '_');
-
-    // Convert to lowercase
-    key = key.toLowerCase();
-
-    // Collapse consecutive underscores
-    key = key.replace(/_+/g, '_');
-
-    // Trim leading/trailing underscores
-    key = key.replace(/^_+|_+$/g, '');
-
-    // If key is empty after processing, use fallback
-    if (!key) {
-        return fallbackId || `ipo_${Date.now()}`;
-    }
-
-    // Check for collisions if existingKeys map is provided
-    if (existingKeys && existingKeys.has(key)) {
-        // Append fallbackId or timestamp to make unique
-        const suffix = fallbackId || Date.now().toString(36);
-        key = `${key}_${suffix}`;
-    }
-
-    return key;
-};
+const { generateSafeKey } = require('../../utils/stringUtils');
 
 /**
  * Clear pending timer for a key
@@ -278,6 +230,48 @@ const saveAllData = () => {
 
 // ==================== Stock Operations ====================
 
+/**
+ * Helper: Merge new stock data with existing data
+ * Handles "Zero Price Shield" logic to preserve historical prices
+ */
+const mergeStockData = (existing, newStock, timestamp) => {
+    // Strip computed flags
+    const { isTopGainer, isTopLoser, ...cleanStock } = newStock;
+
+    // Validation: Check for valid LTP in new data
+    const newLtp = cleanStock.ltp || (cleanStock.prices && cleanStock.prices.ltp) || 0;
+    const hasValidLtp = newLtp > 0;
+
+    if (hasValidLtp) {
+        // Valid price: Update everything
+        return {
+            ...existing,
+            ...cleanStock,
+            updatedAt: timestamp,
+            timestamp: cleanStock.timestamp || timestamp
+        };
+    }
+
+    // Invalid/Zero price: Preserve existing price data
+    const preservedStock = {
+        ...cleanStock,
+        ltp: existing.ltp || cleanStock.ltp,
+        change: existing.change || cleanStock.change,
+        changePercent: existing.changePercent || cleanStock.changePercent,
+        prices: existing.prices || cleanStock.prices
+    };
+
+    if (existing.ltp > 0) {
+        logger.debug(`Preserving LTP for ${newStock.symbol}: New=${newLtp}, Old=${existing.ltp}`);
+    }
+
+    return {
+        ...existing,
+        ...preservedStock,
+        updatedAt: timestamp
+    };
+};
+
 const stockOps = {
     /**
      * Save/update multiple stocks
@@ -293,46 +287,10 @@ const stockOps = {
         for (const stock of stocks) {
             if (!stock.symbol) continue;
 
-            // Strip isTopGainer/isTopLoser flags - these should be computed at query time
-            const { isTopGainer, isTopLoser, ...cleanStock } = stock;
-
             const existing = store.stocks.get(stock.symbol) || {};
+            const merged = mergeStockData(existing, stock, timestamp);
 
-            // Validation Gate: Check for valid LTP
-            const newLtp = cleanStock.ltp || (cleanStock.prices && cleanStock.prices.ltp) || 0;
-            const hasValidLtp = newLtp > 0;
-
-            if (hasValidLtp) {
-                // If we have valid price, update everything
-                store.stocks.set(stock.symbol, {
-                    ...existing,
-                    ...cleanStock,
-                    updatedAt: timestamp,
-                    timestamp: cleanStock.timestamp || timestamp
-                });
-            } else {
-                // Database Shield: New data has invalid/zero price.
-                // Preserve existing price data but update other fields if available
-                const preservedStock = {
-                    ...cleanStock, // New data (might have volume adjustments even if price is 0?)
-                    // Overwrite with existing price data if present
-                    ltp: existing.ltp || cleanStock.ltp,
-                    change: existing.change || cleanStock.change,
-                    changePercent: existing.changePercent || cleanStock.changePercent,
-                    prices: existing.prices || cleanStock.prices
-                };
-
-                // If existing record had valid data, ensure we don't zero it out
-                if (existing.ltp > 0) {
-                    logger.debug(`Preserving LTP for ${stock.symbol}: New=${newLtp}, Old=${existing.ltp}`);
-                }
-
-                store.stocks.set(stock.symbol, {
-                    ...existing,
-                    ...preservedStock,
-                    updatedAt: timestamp
-                });
-            }
+            store.stocks.set(stock.symbol, merged);
             count++;
         }
 
