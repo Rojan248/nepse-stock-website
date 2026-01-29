@@ -76,11 +76,13 @@ function StockDetailPage() {
     const trading = stock.trading || {};
 
     const ltp = stock.ltp || prices.ltp || stock.close || 0;
-    const open = stock.open || prices.open || 0;
-    const high = stock.high || prices.high || 0;
-    const low = stock.low || prices.low || 0;
     const previousClose = stock.previousClose || prices.previousClose || stock.close || 0;
     const displayLtp = ltp > 0 ? ltp : previousClose;
+    
+    // Use LTP as fallback when open/high/low are 0 (data not available)
+    const open = stock.open || prices.open || stock.openPrice || displayLtp;
+    const high = stock.high || prices.high || stock.highPrice || displayLtp;
+    const low = stock.low || prices.low || stock.lowPrice || displayLtp;
 
     const volume = stock.volume || trading.volume || 0;
     const turnover = stock.turnover || trading.turnover || 0;

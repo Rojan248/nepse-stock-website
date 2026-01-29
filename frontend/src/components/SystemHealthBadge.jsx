@@ -53,7 +53,7 @@ export default function SystemHealthBadge() {
     let label = "Systems Operational";
 
     // Priority: Market Closed (weekend/post-3pm) > Offline > Circuit Breaker > Stale > Healthy
-    if (isMarketClosed && (isOffline || isCircuitOpen)) {
+    if (isMarketClosed) {
         // Show friendly "Market Closed" instead of error during non-trading hours
         badgeStyle = { ...styles.badge, ...styles.closed };
         icon = <Clock size={16} style={{ marginRight: '6px' }} />;

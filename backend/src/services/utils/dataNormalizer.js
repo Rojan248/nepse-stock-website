@@ -140,6 +140,11 @@ const mapStockOutput = (stock) => {
     if (!stock) return null;
     const ltp = stock.lastTradedPrice ?? 0;
     const changePercent = stock.percentageChange ?? stock.changePercent ?? null;
+    
+    // Use LTP as fallback when open/high/low are 0 or missing
+    const openPrice = stock.openPrice > 0 ? stock.openPrice : ltp;
+    const highPrice = stock.highPrice > 0 ? stock.highPrice : ltp;
+    const lowPrice = stock.lowPrice > 0 ? stock.lowPrice : ltp;
 
     return {
         symbol: stock.symbol,
@@ -148,9 +153,12 @@ const mapStockOutput = (stock) => {
         ltp,
         lastTradedPrice: stock.lastTradedPrice,
         previousClose: stock.previousClose,
-        openPrice: stock.openPrice,
-        highPrice: stock.highPrice,
-        lowPrice: stock.lowPrice,
+        openPrice,
+        highPrice,
+        lowPrice,
+        open: openPrice,
+        high: highPrice,
+        low: lowPrice,
         volume: stock.volume,
         totalTrades: stock.totalTrades,
         turnover: stock.turnover,
