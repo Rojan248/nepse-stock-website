@@ -69,7 +69,7 @@ const fetchTimeOffset = async (silent = false) => {
             if (!silent) {
                 logger.info(`[TimeSync] Attempting to fetch from ${source.name}...`);
             }
-            
+
             const start = Date.now();
             const response = await axios.get(source.url, { timeout: 5000 });
             const networkLatency = (Date.now() - start) / 2;
@@ -85,11 +85,11 @@ const fetchTimeOffset = async (silent = false) => {
             if (Math.abs(newOffset) > 60 * 60 * 1000) {
                 // Log but still accept if it's a reasonable timezone difference
                 if (!silent) {
-                    logger.warn(`[TimeSync] Large offset detected: ${Math.round(newOffset/1000)}s. Your system clock may be incorrect.`);
+                    logger.warn(`[TimeSync] Large offset detected: ${Math.round(newOffset / 1000)}s. Your system clock may be incorrect.`);
                 }
                 // Accept offsets up to 24 hours (in case system is set to wrong timezone)
                 if (Math.abs(newOffset) > 24 * 60 * 60 * 1000) {
-                    logger.warn(`[TimeSync] Offset too extreme (${Math.round(newOffset/1000)}s). Ignoring ${source.name} data.`);
+                    logger.warn(`[TimeSync] Offset too extreme (${Math.round(newOffset / 1000)}s). Ignoring ${source.name} data.`);
                     continue;
                 }
             }
@@ -102,7 +102,7 @@ const fetchTimeOffset = async (silent = false) => {
             if (!silent) {
                 const nepseTime = getNepseTimeComponents();
                 logger.info(`[TimeSync] ✓ Synced with ${source.name}. System clock offset: ${Math.round(systemClockOffset / 1000)}s`);
-                logger.info(`[TimeSync] Current Nepal Time: ${nepseTime.hour}:${String(nepseTime.minute).padStart(2, '0')}:${String(nepseTime.second).padStart(2, '0')} (Day: ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][nepseTime.day]})`);
+                logger.info(`[TimeSync] Current Nepal Time: ${nepseTime.hour}:${String(nepseTime.minute).padStart(2, '0')}:${String(nepseTime.second).padStart(2, '0')} (Day: ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][nepseTime.day]})`);
             }
             return true;
         } catch (error) {
@@ -112,12 +112,18 @@ const fetchTimeOffset = async (silent = false) => {
         }
     }
 
+    // All external sources failed - use system time with Intl timezone conversion
+    // This is more reliable than offset calculation as it uses the OS timezone database
     if (!silent) {
-        logger.error('[TimeSync] All external time sources failed. Using System Time (may be inaccurate).');
+        logger.warn('[TimeSync] All external time sources failed. Using system time with Intl timezone conversion.');
     }
-    
-    // Mark as synced to prevent repeated failures
+
+    // Mark as synced but with zero offset - getNepseTimeComponents will use Intl fallback
+    systemClockOffset = 0;
     initialSyncComplete = true;
+    lastSync = Date.now();
+    cacheTimestamp = Date.now();
+
     return false;
 };
 
@@ -126,18 +132,18 @@ const fetchTimeOffset = async (silent = false) => {
  */
 const ensureTimeSync = async () => {
     const now = Date.now();
-    
+
     // If never synced, do initial sync
     if (!initialSyncComplete) {
         await fetchTimeOffset(false);
         return;
     }
-    
+
     // If cache is still valid (within SYNC_INTERVAL), use cached offset
     if (now - cacheTimestamp < SYNC_INTERVAL) {
         return;
     }
-    
+
     // Time to refresh - do it silently in background
     fetchTimeOffset(true).catch(e => {
         logger.error(`[TimeSync] Background sync failed: ${e.message}`);
@@ -146,34 +152,69 @@ const ensureTimeSync = async () => {
 
 /**
  * Get current Nepal Standard Time components
- * Applies systemClockOffset + NST Offset
+ * Uses Intl.DateTimeFormat for accurate timezone conversion
+ * Falls back to manual offset calculation if Intl fails
  * @returns {Object} { hour, minute, second, day, date, month, year, timestamp }
  */
 const getNepseTimeComponents = () => {
     // Trigger background sync if needed (non-blocking)
     if (Date.now() - cacheTimestamp > SYNC_INTERVAL && initialSyncComplete) {
-        fetchTimeOffset(true).catch(() => {});
+        fetchTimeOffset(true).catch(() => { });
     }
-    
-    // 1. Get correct UTC timestamp (system time + offset)
-    const correctUtc = Date.now() + systemClockOffset;
 
-    // 2. Add NST Offset to get Nepal time
-    const nstMs = correctUtc + NST_OFFSET_MS;
+    // Use Intl.DateTimeFormat for accurate Nepal time (reliable fallback)
+    try {
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Kathmandu',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: false,
+            weekday: 'short'
+        });
 
-    // 3. Create Date object (Access via getUTCHours to see NST)
-    const nstDate = new Date(nstMs);
+        const parts = formatter.formatToParts(now);
+        const getPart = (type) => {
+            const part = parts.find(p => p.type === type);
+            return part ? parseInt(part.value, 10) || part.value : 0;
+        };
 
-    return {
-        hour: nstDate.getUTCHours(),
-        minute: nstDate.getUTCMinutes(),
-        second: nstDate.getUTCSeconds(),
-        day: nstDate.getUTCDay(), // 0 = Sunday
-        date: nstDate.getUTCDate(),
-        month: nstDate.getUTCMonth() + 1,
-        year: nstDate.getUTCFullYear(),
-        timestamp: nstMs
-    };
+        const weekdayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+        const weekdayStr = parts.find(p => p.type === 'weekday')?.value || 'Sun';
+
+        const hour = getPart('hour');
+        const minute = getPart('minute');
+        const second = getPart('second');
+        const day = weekdayMap[weekdayStr] ?? 0;
+        const date = getPart('day');
+        const month = getPart('month');
+        const year = getPart('year');
+
+        // Calculate timestamp for Nepal time
+        const nstMs = Date.now() + systemClockOffset + NST_OFFSET_MS;
+
+        return { hour, minute, second, day, date, month, year, timestamp: nstMs };
+    } catch (e) {
+        // Fallback to manual calculation if Intl fails
+        const correctUtc = Date.now() + systemClockOffset;
+        const nstMs = correctUtc + NST_OFFSET_MS;
+        const nstDate = new Date(nstMs);
+
+        return {
+            hour: nstDate.getUTCHours(),
+            minute: nstDate.getUTCMinutes(),
+            second: nstDate.getUTCSeconds(),
+            day: nstDate.getUTCDay(),
+            date: nstDate.getUTCDate(),
+            month: nstDate.getUTCMonth() + 1,
+            year: nstDate.getUTCFullYear(),
+            timestamp: nstMs
+        };
+    }
 };
 
 /**
@@ -212,7 +253,7 @@ const getNepseTimeString = () => {
 const initTimeSync = async () => {
     logger.info('[TimeSync] Initializing time synchronization...');
     const success = await fetchTimeOffset(false);
-    
+
     if (success) {
         const { hour, minute, day } = getNepseTimeComponents();
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -220,7 +261,7 @@ const initTimeSync = async () => {
     } else {
         logger.warn('[TimeSync] ⚠ Initialized with system time (external sync failed)');
     }
-    
+
     return success;
 };
 
