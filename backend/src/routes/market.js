@@ -89,7 +89,8 @@ router.get('/health', asyncHandler(async (req, res) => {
     const stockCount = await stockOperations.getStockCount();
 
     // Determine overall health status
-    const isHealthy = updateStatus.consecutiveFailures < 3 &&
+    // NOTE: consecutiveFailures is tracked in dataFetcher (fetchStatus), not scheduler (updateStatus)
+    const isHealthy = fetchStatus.consecutiveFailures < 3 &&
         stockCount > 100 &&
         !(updateStatus.circuitBreaker?.isOpen);
 
@@ -107,7 +108,7 @@ router.get('/health', asyncHandler(async (req, res) => {
             lastUpdate: updateStatus.lastUpdateTime,
             updateCount: updateStatus.updateCount,
             failureCount: updateStatus.failureCount,
-            consecutiveFailures: updateStatus.consecutiveFailures,
+            consecutiveFailures: fetchStatus.consecutiveFailures,
             lastError: updateStatus.lastError
         },
         market: {
