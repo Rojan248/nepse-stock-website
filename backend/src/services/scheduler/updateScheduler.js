@@ -28,7 +28,7 @@ const MARKET_CLOSE_HOUR = parseInt(process.env.MARKET_CLOSE_HOUR) || 15;
 const MARKET_CLOSE_MINUTE = parseInt(process.env.MARKET_CLOSE_MINUTE) || 0;
 
 // Update intervals - changed to 10 seconds for market open
-const MARKET_OPEN_INTERVAL = parseInt(process.env.NEPSE_UPDATE_INTERVAL) || 10000; // 10 seconds
+const MARKET_OPEN_INTERVAL = parseInt(process.env.NEPSE_UPDATE_INTERVAL) || 60000; // 60 seconds
 const MARKET_CLOSED_INTERVAL = 60 * 60 * 1000; // 1 hour
 
 /**
@@ -138,35 +138,24 @@ const startScheduler = async () => {
     logger.info('Starting NEPSE update scheduler...');
 
     // Initial update
-    performUpdate();
+    await performUpdate();
 
-    // Schedule updates based on market status
-    const scheduleNextUpdate = () => {
-        if (!isRunning) return;
+    // Schedule updates at FIXED intervals (regardless of execution time)
+    const marketOpen = isMarketOpen();
+    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
+    const interval = (marketOpen || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
 
-        const marketOpen = isMarketOpen();
-        const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
-        const interval = (marketOpen || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
-        const state = currentMarketState || 'UNKNOWN';
+    logger.info(`Scheduler running with fixed ${interval / 1000}s interval`);
 
-        if (marketOpen) {
-            logger.debug(`Market is OPEN (${state}). Next update in ${interval / 1000}s`);
-        } else {
-            logger.debug(`Market is CLOSED (${state}). Next update in ${interval / 60000}min`);
+    // Use setInterval for fixed timing instead of setTimeout
+    schedulerJob = setInterval(async () => {
+        if (isRunning) {
+            await performUpdate();
         }
-
-        setTimeout(async () => {
-            if (isRunning) {
-                await performUpdate();
-                scheduleNextUpdate();
-            }
-        }, interval);
-    };
-
-    scheduleNextUpdate();
+    }, interval);
 
     // Also schedule daily cleanup
-    schedulerJob = schedule.scheduleJob('0 0 * * *', async () => {
+    schedule.scheduleJob('0 0 * * *', async () => {
         logger.info('Running daily cleanup...');
         await marketOperations.cleanOldSummaries(30);
     });
@@ -200,7 +189,7 @@ const stopScheduler = () => {
     isRunning = false;
 
     if (schedulerJob) {
-        schedulerJob.cancel();
+        clearInterval(schedulerJob); // Changed from .cancel() to clearInterval
         schedulerJob = null;
     }
 

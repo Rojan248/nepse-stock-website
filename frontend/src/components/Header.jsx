@@ -22,12 +22,15 @@ function Header({ searchTerm, onSearchChange, lastUpdated }) {
     useEffect(() => {
         if (!lastUpdated) return;
 
-        // Reset secondsAgo when lastUpdated changes
-        setSecondsAgo(0);
+        const updateTimer = () => {
+            const now = new Date();
+            const updated = new Date(lastUpdated);
+            const diff = Math.floor((now - updated) / 1000);
+            setSecondsAgo(Math.max(0, diff));
+        };
 
-        const ticker = setInterval(() => {
-            setSecondsAgo(prev => prev + 1);
-        }, 1000);
+        updateTimer();
+        const ticker = setInterval(updateTimer, 1000);
 
         return () => clearInterval(ticker);
     }, [lastUpdated]);
@@ -107,7 +110,7 @@ function Header({ searchTerm, onSearchChange, lastUpdated }) {
                         </div>
                         {lastUpdated && (
                             <span className="last-updated-ticker" style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginLeft: '12px' }}>
-                                Updated: {secondsAgo}s ago
+                                Updated: {secondsAgo < 60 ? `${secondsAgo}s` : secondsAgo < 3600 ? `${Math.floor(secondsAgo / 60)}m` : `${Math.floor(secondsAgo / 3600)}h`} ago
                             </span>
                         )}
                     </div>

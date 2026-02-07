@@ -10,48 +10,56 @@
 .top-metrics-bar {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
+    gap: 16px;
+    margin-bottom: 32px;
 }
 
 .top-metric-card {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-main);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    transition: all var(--transition-normal);
+    gap: 4px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .top-metric-card:hover {
-    border-color: var(--c-black);
     transform: translateY(-4px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
 .top-metric-label {
-    font-size: 10px;
-    font-weight: 800;
-    color: var(--text-muted);
-    letter-spacing: 0.1em;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .top-metric-value {
-    font-size: 1.5rem;
-    font-weight: 900;
-    color: var(--text-primary);
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1e293b;
     line-height: 1;
 }
 
 .top-metric-value.gainers {
-    color: var(--text-primary);
+    color: #22c55e;
 }
 
 .top-metric-value.losers {
-    color: var(--text-primary);
-    opacity: 0.5;
+    color: #ef4444;
+}
+
+.top-metric-value.unchanged {
+    color: #64748b;
+}
+
+.top-metric-value.traded {
+    color: #3b82f6;
 }
 
 /* ===== Tab Switcher (Inverted Minimal) ===== */
@@ -111,21 +119,42 @@
 }
 
 .mover-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-main);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-    transition: all var(--transition-normal);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.25s ease;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .mover-card:hover {
-    border-color: var(--c-black);
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== Color-Coded Cards ===== */
+.mover-card.gainers {
+    background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
+    border-color: #86efac;
+}
+
+.mover-card.gainers:hover {
+    border-color: #22c55e;
+    box-shadow: 0 12px 24px rgba(34, 197, 94, 0.2);
+}
+
+.mover-card.losers {
+    background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+    border-color: #fecaca;
+}
+
+.mover-card.losers:hover {
+    border-color: #ef4444;
+    box-shadow: 0 12px 24px rgba(239, 68, 68, 0.2);
 }
 
 .card-header {
@@ -201,18 +230,17 @@
 }
 
 .change-row {
-    font-size: 20px;
-    font-weight: 800;
+    font-size: 18px;
+    font-weight: 700;
     letter-spacing: -0.02em;
 }
 
 .change-row .positive {
-    color: var(--text-primary);
+    color: #22c55e;
 }
 
 .change-row .negative {
-    color: var(--text-primary);
-    opacity: 0.4;
+    color: #ef4444;
 }
 
 .volume {

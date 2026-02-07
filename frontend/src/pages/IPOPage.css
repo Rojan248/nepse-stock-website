@@ -28,75 +28,84 @@
 .ipo-statistics {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-2-5);
+    gap: 16px;
+    margin-bottom: 1.5rem;
 }
 
 .stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
     text-align: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card.stat-open {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), var(--bg-card));
-    border-color: var(--color-success);
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border-color: #10b981;
 }
 
 .stat-number {
     display: block;
-    font-size: var(--font-3xl);
+    font-size: 2rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: #1e293b;
 }
 
 .stat-card.stat-open .stat-number {
-    color: var(--color-success);
+    color: #059669;
 }
 
 .stat-label {
-    font-size: var(--font-sm);
-    color: var(--text-muted);
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
 }
 
 /* ===== Status Tabs / Filter Pills ===== */
 .status-tabs {
     display: flex;
-    gap: var(--spacing-sm);
+    gap: 12px;
     overflow-x: auto;
     padding-bottom: var(--spacing-sm);
     flex-wrap: wrap;
+    margin-bottom: 1.5rem;
 }
 
 .tab-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-lg);
-    background: var(--color-bg-elevated);
-    border: 1px solid var(--color-border-light);
-    border-radius: var(--radius-full);
-    color: var(--color-text-secondary);
-    font-size: var(--font-sm);
-    font-weight: 500;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.18s ease-out;
+    transition: all 0.2s ease;
 }
 
 .tab-btn:hover {
-    background: var(--color-bg-hover);
-    border-color: var(--color-border-medium);
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
 }
 
 .tab-btn.active {
-    background: var(--color-primary);
-    border: 1px solid var(--color-primary);
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    border: 1px solid #3b82f6;
     color: white;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
 }
 
 .tab-count {
@@ -138,20 +147,20 @@
 .ipo-grid .ipo-card[status="open"]:hover {
     transform: translateY(-2px);
     border-color: var(--color-border-medium) !important;
-    box-shadow: 
+    box-shadow:
         var(--shadow-soft),
         0 0 16px rgba(34, 197, 94, 0.1) !important;
 }
 
 /* Flat elevated for other statuses */
-.ipo-grid > div {
+.ipo-grid>div {
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-md);
     transition: all 0.18s ease-out;
 }
 
-.ipo-grid > div:hover {
+.ipo-grid>div:hover {
     border-color: var(--color-border-medium);
 }
 

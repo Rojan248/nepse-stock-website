@@ -88,6 +88,10 @@ html {
 
 body {
     background-color: var(--bg-app);
+    background-image:
+        radial-gradient(circle at 15% 50%, rgba(226, 232, 240, 0.4), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(241, 245, 249, 0.4), transparent 25%);
+    background-attachment: fixed;
     color: var(--text-primary);
     font-family: var(--font-main);
     line-height: 1.5;
@@ -383,4 +387,175 @@ select:focus {
     outline: none;
     border-color: var(--primary-accent);
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+/* =========================================
+   SCROLL REVEAL ANIMATIONS
+   ========================================= */
+
+/* Timing Functions */
+:root {
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Fade Up */
+.scroll-fade {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s var(--ease-out-expo),
+        transform 0.6s var(--ease-out-expo);
+}
+
+.scroll-fade.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Slide from Left */
+.scroll-slide-left {
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: all 0.5s var(--ease-out-expo);
+}
+
+.scroll-slide-left.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Slide from Right */
+.scroll-slide-right {
+    opacity: 0;
+    transform: translateX(30px);
+    transition: all 0.5s var(--ease-out-expo);
+}
+
+.scroll-slide-right.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Scale Up */
+.scroll-scale {
+    opacity: 0;
+    transform: scale(0.92);
+    transition: all 0.5s var(--ease-out-expo);
+}
+
+.scroll-scale.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Staggered Children Animation */
+.scroll-stagger>* {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.4s var(--ease-out-expo),
+        transform 0.4s var(--ease-out-expo);
+}
+
+.scroll-stagger.visible>* {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.scroll-stagger.visible>*:nth-child(1) {
+    transition-delay: 0ms;
+}
+
+.scroll-stagger.visible>*:nth-child(2) {
+    transition-delay: 80ms;
+}
+
+.scroll-stagger.visible>*:nth-child(3) {
+    transition-delay: 160ms;
+}
+
+.scroll-stagger.visible>*:nth-child(4) {
+    transition-delay: 240ms;
+}
+
+.scroll-stagger.visible>*:nth-child(5) {
+    transition-delay: 320ms;
+}
+
+.scroll-stagger.visible>*:nth-child(6) {
+    transition-delay: 400ms;
+}
+
+/* =========================================
+   GLASSMORPHISM
+   ========================================= */
+
+/* Light Glass Card */
+.glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* Dark Glass Card */
+.glass-card-dark {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    color: #fff;
+}
+
+/* Glass Header/Navbar */
+.glass-header {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Subtle Glass Effect for Cards */
+.glass-subtle {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Frosted Glass Button */
+.glass-btn {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 10px 20px;
+    color: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.glass-btn:hover {
+    background: rgba(255, 255, 255, 0.35);
+    transform: translateY(-2px);
+}
+
+/* Accessibility - Reduce Motion */
+@media (prefers-reduced-motion: reduce) {
+
+    .scroll-fade,
+    .scroll-slide-left,
+    .scroll-slide-right,
+    .scroll-scale,
+    .scroll-stagger>* {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
 }

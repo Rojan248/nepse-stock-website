@@ -13,11 +13,13 @@ import SearchBar from '../components/SearchBar';
 import { formatNumber, formatPercent, formatTurnover, getChangeClass } from '../utils/formatting';
 import { ITEMS_PER_PAGE } from '../utils/constants';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 import { Star, ChevronDown } from 'lucide-react';
+import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 import './HomePage.css';
 
 // Live update interval - 15 seconds
-const LIVE_UPDATE_INTERVAL = 15000;
+const LIVE_UPDATE_INTERVAL = 60000;
 // Page size for fetching from server (larger batches)
 const FETCH_PAGE_SIZE = 100;
 
@@ -98,6 +100,14 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                 // Force re-render even if values are same by creating new object
                 return { ...summary, _updateId: Date.now() };
             });
+
+            // Use server timestamp for the "Updated X ago" timer
+            if (summary?.updatedAt) {
+                const updateTime = new Date(summary.updatedAt);
+                setLastUpdated(updateTime);
+                if (setGlobalLastUpdated) setGlobalLastUpdated(updateTime);
+            }
+
             if (sectorsData) {
                 setSectors(['all', ...(sectorsData || [])]);
             }
@@ -124,11 +134,7 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
             if (!mountedRef.current) return;
 
             setStocks(allStocks);
-            const now = new Date();
-            setLastUpdated(now);
-            if (setGlobalLastUpdated) {
-                setGlobalLastUpdated(now);
-            }
+            // lastUpdated is now handled by fetchMarketData using server timestamp
             // Reset to page 1 when reloading all stocks
             if (isInitial) {
                 setCurrentPage(1);
@@ -300,8 +306,13 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
         ? marketSummary.indexChangePercent
         : undefined;
 
+    // Scroll reveal hooks for sections (must be before conditional returns)
+    const { ref: sectorRef, isVisible: sectorVisible } = useScrollReveal(0.1);
+    const { ref: stocksRef, isVisible: stocksVisible } = useScrollReveal(0.1);
+
+
     if (loading && !stocks.length) {
-        return <LoadingSpinner fullPage text="Loading market data..." />;
+        return <HomePageSkeleton />;
     }
 
     return (
@@ -349,13 +360,21 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
             </section>
 
             {/* Sector Analysis Chart */}
-            <SectorChart stocks={stocks} />
+            <div
+                ref={sectorRef}
+                className={`scroll-fade ${sectorVisible ? 'visible' : ''}`}
+            >
+                <SectorChart stocks={stocks} />
+            </div>
 
             {/* Trending Stocks */}
             <TrendingBar />
 
             {/* All Stocks */}
-            <section className="stocks-section">
+            <section
+                ref={stocksRef}
+                className={`stocks-section scroll-fade ${stocksVisible ? 'visible' : ''}`}
+            >
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 section-header">
                     <h2 className="text-xl font-bold tracking-tight text-primary section-title">
                         All Stocks <span className="text-stone-400 font-normal ml-1" style={{ fontSize: '0.9em', color: 'var(--text-muted)' }}>({stocks.length})</span>

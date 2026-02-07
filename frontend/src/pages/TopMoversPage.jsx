@@ -105,7 +105,7 @@ function TopMoversPage() {
                                 const changePrefix = isPositive ? '+' : isNegative ? '−' : '';
 
                                 return (
-                                    <div key={stock.symbol} className="mover-card" onClick={() => handleStockClick(stock)}>
+                                    <div key={stock.symbol} className={`mover-card ${activeTab}`} onClick={() => handleStockClick(stock)}>
                                         <div className="card-header">
                                             <span className="symbol">{stock.symbol}</span>
                                             <span className="sector-badge">{stock.sector || 'Others'}</span>
