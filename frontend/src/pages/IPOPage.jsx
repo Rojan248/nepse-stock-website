@@ -2,8 +2,15 @@ import { useState } from 'react';
 import { useIPOs } from '../hooks/useIPOs';
 import IPOCard from '../components/IPOCard';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { IPO_STATUSES } from '../utils/constants';
 import './IPOPage.css';
+
+const STATUS_TABS = [
+    { value: 'all', label: 'ALL IPOs' },
+    { value: 'open', label: 'OPEN' },
+    { value: 'upcoming', label: 'UPCOMING' },
+    { value: 'closed', label: 'CLOSED' },
+    { value: 'completed', label: 'COMPLETED' }
+];
 
 function IPOPage() {
     const [selectedStatus, setSelectedStatus] = useState('all');
@@ -17,67 +24,57 @@ function IPOPage() {
 
     return (
         <div className="ipo-page layout-container">
-            <header className="ipo-header">
-                <h1>IPO Listings</h1>
-                <p>Browse upcoming, active, and completed Initial Public Offerings</p>
-            </header>
-
-            {/* Statistics */}
-            <section className="ipo-statistics">
-                <div className="stat-card">
-                    <span className="stat-number">{statistics.upcoming || 0}</span>
-                    <span className="stat-label">Upcoming</span>
+            {/* Top Metrics Bar - Same style as Top Movers */}
+            <section className="ipo-metrics-bar">
+                <div className="ipo-metric-card">
+                    <span className="ipo-metric-label">Upcoming</span>
+                    <span className="ipo-metric-value upcoming">{statistics.upcoming || 0}</span>
                 </div>
-                <div className="stat-card stat-open">
-                    <span className="stat-number">{statistics.open || 0}</span>
-                    <span className="stat-label">Open</span>
+                <div className="ipo-metric-card">
+                    <span className="ipo-metric-label">Open</span>
+                    <span className="ipo-metric-value open">{statistics.open || 0}</span>
                 </div>
-                <div className="stat-card">
-                    <span className="stat-number">{statistics.closed || 0}</span>
-                    <span className="stat-label">Closed</span>
+                <div className="ipo-metric-card">
+                    <span className="ipo-metric-label">Closed</span>
+                    <span className="ipo-metric-value closed">{statistics.closed || 0}</span>
                 </div>
-                <div className="stat-card">
-                    <span className="stat-number">{statistics.completed || 0}</span>
-                    <span className="stat-label">Completed</span>
+                <div className="ipo-metric-card">
+                    <span className="ipo-metric-label">Completed</span>
+                    <span className="ipo-metric-value completed">{statistics.completed || 0}</span>
                 </div>
             </section>
 
-            {/* Status Tabs */}
-            <section className="status-tabs">
-                {IPO_STATUSES.map((status) => (
+            {/* Tab Switcher - Black/White style like Top Movers */}
+            <div className="tab-switcher">
+                {STATUS_TABS.map((tab) => (
                     <button
-                        key={status.value}
-                        className={`tab-btn ${selectedStatus === status.value ? 'active' : ''}`}
-                        onClick={() => setSelectedStatus(status.value)}
+                        key={tab.value}
+                        className={selectedStatus === tab.value ? 'active' : ''}
+                        onClick={() => setSelectedStatus(tab.value)}
                     >
-                        {status.label}
-                        {status.value !== 'all' && statistics[status.value] > 0 && (
-                            <span className="tab-count">{statistics[status.value]}</span>
-                        )}
+                        {tab.label}
                     </button>
                 ))}
-            </section>
+            </div>
 
             {/* IPO Grid */}
             <section className="ipo-grid-section">
                 {error && (
-                    <div className="error-message">
-                        <p>Failed to load IPOs. Please try again later.</p>
+                    <div className="empty-state">
+                        Failed to load IPOs. Please try again.
                     </div>
                 )}
 
-                {!loading && ipos.length === 0 && (
-                    <div className="no-ipos">
-                        <span className="no-ipos-icon">📋</span>
-                        <h3>No IPOs Found</h3>
-                        <p>No {selectedStatus === 'all' ? '' : selectedStatus} IPOs available at the moment.</p>
+                {!loading && ipos.length === 0 && !error && (
+                    <div className="empty-state">
+                        No {selectedStatus === 'all' ? '' : selectedStatus + ' '}IPOs found
                     </div>
                 )}
 
                 <div className="ipo-grid">
                     {ipos.map((ipo, index) => (
                         <IPOCard
-                            key={ipo._id || index}
+                            key={ipo.id || ipo.symbol || index}
                             ipo={ipo}
                         />
                     ))}
