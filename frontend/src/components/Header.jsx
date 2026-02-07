@@ -1,50 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { getServerHealth } from '../services/api';
 import SearchBar from './SearchBar';
 import SystemHealthBadge from './SystemHealthBadge';
 import logoPrimary from '../assets/img/logo-primary.jpg';
 import './Header.css';
 
-function Header({ searchTerm, onSearchChange, lastUpdated }) {
-    const [secondsAgo, setSecondsAgo] = useState(0);
+function Header({ searchTerm, onSearchChange }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [marketStatus, setMarketStatus] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
-
-    useEffect(() => {
-        fetchStatus();
-        const interval = setInterval(fetchStatus, 30000); // Update every 30 seconds
-        return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        if (!lastUpdated) return;
-
-        const updateTimer = () => {
-            const now = new Date();
-            const updated = new Date(lastUpdated);
-            const diff = Math.floor((now - updated) / 1000);
-            setSecondsAgo(Math.max(0, diff));
-        };
-
-        updateTimer();
-        const ticker = setInterval(updateTimer, 1000);
-
-        return () => clearInterval(ticker);
-    }, [lastUpdated]);
-
-    const fetchStatus = async () => {
-        try {
-            const health = await getServerHealth();
-            if (health) {
-                setMarketStatus(health.market?.isOpen ? 'Open' : 'Closed');
-            }
-        } catch (err) {
-            console.error('Market status fetch failed');
-        }
-    };
 
     const handleSearch = (query) => {
         if (query.trim()) {
@@ -103,17 +67,7 @@ function Header({ searchTerm, onSearchChange, lastUpdated }) {
                         IPOs
                     </Link>
 
-                    <div className={`market-status ${marketStatus === 'Open' ? 'market-status--open' : 'market-status--closed'}`}>
-                        <div className="status-badge" style={{ display: 'flex', alignItems: 'center' }}>
-                            <span className="status-dot"></span>
-                            <span className="market-status__text">{marketStatus || 'Closed'}</span>
-                        </div>
-                        {lastUpdated && (
-                            <span className="last-updated-ticker" style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginLeft: '12px' }}>
-                                Updated: {secondsAgo < 60 ? `${secondsAgo}s` : secondsAgo < 3600 ? `${Math.floor(secondsAgo / 60)}m` : `${Math.floor(secondsAgo / 3600)}h`} ago
-                            </span>
-                        )}
-                    </div>
+
 
                     {/* System Health Status Badge */}
                     <SystemHealthBadge />

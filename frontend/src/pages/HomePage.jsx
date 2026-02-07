@@ -65,7 +65,7 @@ async function fetchAllStocks() {
     return allStocks;
 }
 
-function HomePage({ globalSearch, setGlobalLastUpdated }) {
+function HomePage({ globalSearch }) {
     const navigate = useNavigate();
     const [marketSummary, setMarketSummary] = useState(null);
     const [stocks, setStocks] = useState([]);
@@ -74,7 +74,7 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [lastUpdated, setLastUpdated] = useState(null);
+
     const [favorites, setFavorites] = useLocalStorage('nepse-favorites', []);
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
@@ -101,12 +101,7 @@ function HomePage({ globalSearch, setGlobalLastUpdated }) {
                 return { ...summary, _updateId: Date.now() };
             });
 
-            // Use server timestamp for the "Updated X ago" timer
-            if (summary?.updatedAt) {
-                const updateTime = new Date(summary.updatedAt);
-                setLastUpdated(updateTime);
-                if (setGlobalLastUpdated) setGlobalLastUpdated(updateTime);
-            }
+
 
             if (sectorsData) {
                 setSectors(['all', ...(sectorsData || [])]);
