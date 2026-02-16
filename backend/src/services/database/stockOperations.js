@@ -121,6 +121,19 @@ const getStockBySymbol = async (symbol) => {
     }, null, `Error getting stock ${symbol}`);
 };
 
+const getStocksBySymbols = async (symbols) => {
+    if (!symbols || symbols.length === 0) return [];
+
+    // Normalize symbols to uppercase and remove duplicates
+    const uniqueSymbols = [...new Set(symbols.map(s => s.toUpperCase()))];
+
+    return fetchStocksWithMapping({
+        where: {
+            symbol: { in: uniqueSymbols }
+        }
+    }, 'Error getting stocks by symbols');
+};
+
 const searchStocks = async (query) => {
     if (!query) return [];
     return fetchStocksWithMapping({
@@ -405,6 +418,7 @@ module.exports = {
     saveStocks,
     getAllStocks,
     getStockBySymbol,
+    getStocksBySymbols,
     searchStocks,
     getStocksBySector,
     getRecentlyUpdated,
