@@ -212,24 +212,31 @@ router.get('/trending', asyncHandler(async (req, res) => {
     // Get trending stocks from analytics
     const trending = analytics.getTrending(parseInt(limit));
 
+    // Extract symbols
+    const symbols = trending.map(t => t.symbol);
+
+    // Batch fetch stock data
+    const stocks = await stockOperations.getStocksBySymbols(symbols);
+
+    // Create a map for O(1) lookup
+    const stockMap = new Map(stocks.map(s => [s.symbol, s]));
+
     // Enrich with current stock data (price change, name)
-    const enrichedTrending = await Promise.all(
-        trending.map(async (item) => {
-            const stock = await stockOperations.getStockBySymbol(item.symbol);
+    const enrichedTrending = trending.map((item) => {
+        const stock = stockMap.get(item.symbol.toUpperCase());
 
-            if (!stock) {
-                return null;
-            }
+        if (!stock) {
+            return null;
+        }
 
-            return {
-                symbol: item.symbol,
-                name: stock.companyName || stock.symbol,
-                score: item.score,
-                change: stock.prices?.changePercent || stock.changePercent || 0,
-                ltp: stock.prices?.ltp || stock.ltp || 0
-            };
-        })
-    );
+        return {
+            symbol: item.symbol,
+            name: stock.companyName || stock.symbol,
+            score: item.score,
+            change: stock.prices?.changePercent || stock.changePercent || 0,
+            ltp: stock.prices?.ltp || stock.ltp || 0
+        };
+    });
 
     // Filter out null entries (stocks not found)
     const validTrending = enrichedTrending.filter(item => item !== null);
