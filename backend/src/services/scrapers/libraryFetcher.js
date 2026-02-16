@@ -332,9 +332,7 @@ const fetchMarketSummary = async (token) => {
 
         if (bulkIndicesRes.data && Array.isArray(bulkIndicesRes.data)) {
             bulkIndicesRes.data.forEach(idx => {
-                // Log all fields from the first index for debugging
                 if (idx.id === 58) {
-                    logger.debug(`NEPSE Index raw data: ${JSON.stringify(idx)}`);
                     // Extract breadth data - NEPSE API uses these field names
                     advancedCompanies = parseInt(idx.advance) || parseInt(idx.positive) || parseInt(idx.up) || null;
                     declinedCompanies = parseInt(idx.decline) || parseInt(idx.negative) || parseInt(idx.down) || null;
