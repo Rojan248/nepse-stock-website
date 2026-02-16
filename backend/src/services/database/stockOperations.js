@@ -325,42 +325,61 @@ const snapshotDailyMarket = async () => {
 
         let count = 0;
 
-        // 2. Fetch existing history for today to bulk process
-        const existingHistories = await prisma.marketHistory.findMany({
-            where: { date: today }
-        });
-        const historyMap = new Map(existingHistories.map(h => [h.symbol, h]));
+        // 2. Process all stocks inside a transaction for atomicity
+        await prisma.$transaction(async (tx) => {
+            // Fetch all existing history for today in one query
+            const existingHistories = await tx.marketHistory.findMany({
+                where: {
+                    date: today,
+                    symbol: { in: stocks.map(s => s.symbol) }
+                }
+            });
 
-        const creates = [];
-        const updates = [];
+            const existingMap = new Map(existingHistories.map(h => [h.symbol, h]));
+            const createData = [];
+            const updateOps = [];
 
-        for (const stock of stocks) {
-            // Precision Calculation: Ensure change and percent match the close/prevClose
-            let ltp = stock.lastTradedPrice;
-            let prev = stock.previousClose;
-            let change = stock.change;
-            let pChange = stock.percentageChange;
+            for (const stock of stocks) {
+                // Precision Calculation: Ensure change and percent match the close/prevClose
+                let ltp = stock.lastTradedPrice;
+                let prev = stock.previousClose;
+                let change = stock.change;
+                let pChange = stock.percentageChange;
 
-            // If we have both prices, force mathematical consistency
-            if (ltp && prev && prev > 0) {
-                const calcChange = ltp - prev;
-                if (Math.abs(calcChange - (change || 0)) > 0.01) {
-                    logger.debug(`[${stock.symbol}] Fixing Change: Was ${change}, Now ${calcChange.toFixed(2)}`);
-                    change = parseFloat(calcChange.toFixed(2));
+                // If we have both prices, force mathematical consistency
+                if (ltp && prev && prev > 0) {
+                    const calcChange = ltp - prev;
+                    if (Math.abs(calcChange - (change || 0)) > 0.01) {
+                        logger.debug(`[${stock.symbol}] Fixing Change: Was ${change}, Now ${calcChange.toFixed(2)}`);
+                        change = parseFloat(calcChange.toFixed(2));
+                    }
+
+                    const calcPct = (calcChange / prev) * 100;
+                    if (Math.abs(calcPct - (pChange || 0)) > 0.01) {
+                        logger.debug(`[${stock.symbol}] Fixing % Change: Was ${pChange}%, Now ${calcPct.toFixed(2)}%`);
+                        pChange = parseFloat(calcPct.toFixed(2));
+                    }
                 }
 
-                const calcPct = (calcChange / prev) * 100;
-                if (Math.abs(calcPct - (pChange || 0)) > 0.01) {
-                    logger.debug(`[${stock.symbol}] Fixing % Change: Was ${pChange}%, Now ${calcPct.toFixed(2)}%`);
-                    pChange = parseFloat(calcPct.toFixed(2));
-                }
-            }
+                const existing = existingMap.get(stock.symbol);
 
-            if (historyMap.has(stock.symbol)) {
-                const existing = historyMap.get(stock.symbol);
-                updates.push({
-                    where: { id: existing.id },
-                    data: {
+                if (existing) {
+                    updateOps.push(tx.marketHistory.update({
+                        where: { id: existing.id },
+                        data: {
+                            closePrice: ltp,
+                            highPrice: stock.highPrice,
+                            lowPrice: stock.lowPrice,
+                            volume: stock.volume,
+                            turnover: stock.turnover,
+                            change: change,
+                            percentageChange: pChange
+                        }
+                    }));
+                } else {
+                    createData.push({
+                        symbol: stock.symbol,
+                        date: today,
                         closePrice: ltp,
                         highPrice: stock.highPrice,
                         lowPrice: stock.lowPrice,
@@ -368,38 +387,20 @@ const snapshotDailyMarket = async () => {
                         turnover: stock.turnover,
                         change: change,
                         percentageChange: pChange
-                    }
-                });
-            } else {
-                creates.push({
-                    symbol: stock.symbol,
-                    date: today,
-                    closePrice: ltp,
-                    highPrice: stock.highPrice,
-                    lowPrice: stock.lowPrice,
-                    volume: stock.volume,
-                    turnover: stock.turnover,
-                    change: change,
-                    percentageChange: pChange
-                });
+                    });
+                }
+                count++;
             }
-            count++;
-        }
 
-        // 3. Execute bulk operations inside transaction
-        if (creates.length > 0 || updates.length > 0) {
-            await prisma.$transaction(async (tx) => {
-                if (creates.length > 0) {
-                    await tx.marketHistory.createMany({ data: creates });
-                }
+            // Execute bulk operations
+            if (createData.length > 0) {
+                await tx.marketHistory.createMany({ data: createData });
+            }
 
-                if (updates.length > 0) {
-                    // Update sequentially or in parallel?
-                    // Prisma allows parallel updates inside transaction
-                    await Promise.all(updates.map(u => tx.marketHistory.update(u)));
-                }
-            });
-        }
+            if (updateOps.length > 0) {
+                await Promise.all(updateOps);
+            }
+        });
 
         logger.info(`Daily snapshot completed. Processed ${count} stocks.`);
         return { success: true, count };
