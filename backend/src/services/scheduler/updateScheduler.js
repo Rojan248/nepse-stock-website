@@ -51,6 +51,52 @@ const isMarketOpen = () => {
 
 
 /**
+ * Check if the update cycle should be skipped (e.g. weekends in production)
+ * @returns {boolean} True if update should be skipped
+ */
+const shouldSkipUpdate = () => {
+    const currentState = getMarketState();
+    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
+
+    logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDev}, NODE_ENV=${process.env.NODE_ENV}`);
+
+    if (currentState === MARKET_STATES.WEEKEND && !isDev) {
+        logger.info('Skipping update: Market is closed (WEEKEND)');
+        return true;
+    }
+    return false;
+};
+
+/**
+ * Persist fetched data to database
+ * @param {Object} data - The fetched data object from dataFetcher
+ */
+const saveUpdateData = async (data) => {
+    if (data.stocks && data.stocks.length > 0) {
+        await stockOperations.saveStocks(data.stocks);
+    }
+
+    if (data.ipos && data.ipos.length > 0) {
+        await ipoOperations.saveIPOs(data.ipos);
+    }
+
+    if (data.marketSummary) {
+        await marketOperations.upsertMarketSummary(data.marketSummary);
+    }
+
+    const hasTopMovers = data.topTurnover || data.topTrades || data.topVolume || data.topGainers || data.topLosers;
+    if (hasTopMovers) {
+        await marketOperations.saveTopMovers(
+            data.topTurnover,
+            data.topTrades,
+            data.topVolume,
+            data.topGainers,
+            data.topLosers
+        );
+    }
+};
+
+/**
  * Perform data update
  * Fetches data and saves to database
  */
@@ -58,19 +104,11 @@ const performUpdate = async () => {
     const startTime = Date.now();
     logger.info('Starting data update cycle...');
 
-    // Scheduler Shield: Skip updates on weekends
-    const currentState = getMarketState();
-    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
-
-    logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDev}, NODE_ENV=${process.env.NODE_ENV}, Bypass=${isDev}`);
-
-    if (currentState === MARKET_STATES.WEEKEND && !isDev) {
-        logger.info('Skipping update: Market is closed (WEEKEND)');
+    if (shouldSkipUpdate()) {
         return false;
     }
 
     try {
-        // Fetch latest data
         const data = await dataFetcher.fetchLatestData();
 
         if (!data) {
@@ -79,40 +117,14 @@ const performUpdate = async () => {
             return false;
         }
 
-        // Save stocks
-        if (data.stocks && data.stocks.length > 0) {
-            await stockOperations.saveStocks(data.stocks);
-        }
+        await saveUpdateData(data);
 
-        // Save IPOs
-        if (data.ipos && data.ipos.length > 0) {
-            await ipoOperations.saveIPOs(data.ipos);
-        }
-
-        // Save market summary
-        if (data.marketSummary) {
-            await marketOperations.upsertMarketSummary(data.marketSummary);
-        }
-
-        // Save Top Movers
-        if (data.topTurnover || data.topTrades || data.topVolume || data.topGainers || data.topLosers) {
-            await marketOperations.saveTopMovers(
-                data.topTurnover,
-                data.topTrades,
-                data.topVolume,
-                data.topGainers,
-                data.topLosers
-            );
-        }
-
-        // Update state
         lastUpdateTime = new Date();
         updateCount++;
         lastError = null;
 
         const duration = Date.now() - startTime;
         logger.info(`Update cycle completed in ${duration}ms (Source: ${data.source})`);
-
         return true;
 
     } catch (error) {

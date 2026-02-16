@@ -12,6 +12,77 @@ const STATUS_TABS = [
     { value: 'completed', label: 'COMPLETED' }
 ];
 
+const METRIC_KEYS = [
+    { key: 'upcoming', label: 'Upcoming' },
+    { key: 'open', label: 'Open' },
+    { key: 'closed', label: 'Closed' },
+    { key: 'completed', label: 'Completed' }
+];
+
+/** Renders the four IPO status metric cards */
+function IPOMetricsBar({ statistics }) {
+    return (
+        <section className="ipo-metrics-bar">
+            {METRIC_KEYS.map(({ key, label }) => (
+                <div className="ipo-metric-card" key={key}>
+                    <span className="ipo-metric-label">{label}</span>
+                    <span className={`ipo-metric-value ${key}`}>
+                        {statistics[key] || 0}
+                    </span>
+                </div>
+            ))}
+        </section>
+    );
+}
+
+/** Renders filter tabs for IPO statuses */
+function IPOTabSwitcher({ selectedStatus, onSelect }) {
+    return (
+        <div className="tab-switcher">
+            {STATUS_TABS.map((tab) => (
+                <button
+                    key={tab.value}
+                    className={selectedStatus === tab.value ? 'active' : ''}
+                    onClick={() => onSelect(tab.value)}
+                >
+                    {tab.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/** Renders the IPO card grid with empty/error states */
+function IPOGridContent({ ipos, loading, error, selectedStatus }) {
+    if (error) {
+        return (
+            <div className="empty-state">
+                Failed to load IPOs. Please try again.
+            </div>
+        );
+    }
+
+    if (!loading && ipos.length === 0) {
+        const statusLabel = selectedStatus === 'all' ? '' : selectedStatus + ' ';
+        return (
+            <div className="empty-state">
+                No {statusLabel}IPOs found
+            </div>
+        );
+    }
+
+    return (
+        <div className="ipo-grid">
+            {ipos.map((ipo, index) => (
+                <IPOCard
+                    key={ipo.id || ipo.symbol || index}
+                    ipo={ipo}
+                />
+            ))}
+        </div>
+    );
+}
+
 function IPOPage() {
     const [selectedStatus, setSelectedStatus] = useState('all');
     const { ipos, statistics, loading, error } = useIPOs(
@@ -24,64 +95,19 @@ function IPOPage() {
 
     return (
         <div className="ipo-page layout-container">
-            {/* Top Metrics Bar - Same style as Top Movers */}
-            <section className="ipo-metrics-bar">
-                <div className="ipo-metric-card">
-                    <span className="ipo-metric-label">Upcoming</span>
-                    <span className="ipo-metric-value upcoming">{statistics.upcoming || 0}</span>
-                </div>
-                <div className="ipo-metric-card">
-                    <span className="ipo-metric-label">Open</span>
-                    <span className="ipo-metric-value open">{statistics.open || 0}</span>
-                </div>
-                <div className="ipo-metric-card">
-                    <span className="ipo-metric-label">Closed</span>
-                    <span className="ipo-metric-value closed">{statistics.closed || 0}</span>
-                </div>
-                <div className="ipo-metric-card">
-                    <span className="ipo-metric-label">Completed</span>
-                    <span className="ipo-metric-value completed">{statistics.completed || 0}</span>
-                </div>
-            </section>
-
-            {/* Tab Switcher - Black/White style like Top Movers */}
-            <div className="tab-switcher">
-                {STATUS_TABS.map((tab) => (
-                    <button
-                        key={tab.value}
-                        className={selectedStatus === tab.value ? 'active' : ''}
-                        onClick={() => setSelectedStatus(tab.value)}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* IPO Grid */}
+            <IPOMetricsBar statistics={statistics} />
+            <IPOTabSwitcher selectedStatus={selectedStatus} onSelect={setSelectedStatus} />
             <section className="ipo-grid-section">
-                {error && (
-                    <div className="empty-state">
-                        Failed to load IPOs. Please try again.
-                    </div>
-                )}
-
-                {!loading && ipos.length === 0 && !error && (
-                    <div className="empty-state">
-                        No {selectedStatus === 'all' ? '' : selectedStatus + ' '}IPOs found
-                    </div>
-                )}
-
-                <div className="ipo-grid">
-                    {ipos.map((ipo, index) => (
-                        <IPOCard
-                            key={ipo.id || ipo.symbol || index}
-                            ipo={ipo}
-                        />
-                    ))}
-                </div>
+                <IPOGridContent
+                    ipos={ipos}
+                    loading={loading}
+                    error={error}
+                    selectedStatus={selectedStatus}
+                />
             </section>
         </div>
     );
 }
 
 export default IPOPage;
+
