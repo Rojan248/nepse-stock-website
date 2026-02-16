@@ -208,8 +208,9 @@ async function seedIPOs() {
     await prisma.ipo.deleteMany({});
     console.log('  ✓ Cleared existing IPO data\n');
 
+    await prisma.ipo.createMany({ data: ipos });
+
     for (const ipo of ipos) {
-        await prisma.ipo.create({ data: ipo });
         const statusIcon = {
             open: '🟢',
             upcoming: '🟡',
