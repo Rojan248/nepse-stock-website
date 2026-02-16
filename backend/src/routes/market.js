@@ -317,13 +317,6 @@ router.get('/scrape-live', adminLimiter, requireAdminKey, asyncHandler(async (re
             result.htmlSample = html.substring(Math.max(0, txIdx - 50), txIdx + 150);
         }
 
-        // DEBUG: Log the HTML structure around "Total Transactions"
-        const totalTxIdx = html.indexOf('Total Transactions');
-        if (totalTxIdx > 0) {
-            const snippet = html.substring(totalTxIdx, totalTxIdx + 200);
-            logger.info(`HTML snippet: ${snippet}`);
-        }
-
         // Try multiple regex patterns
         // Pattern 1: Table row format
         let txMatch = html.match(/Total Transactions<\/th>\s*<td[^>]*>([0-9,]+)/i);
