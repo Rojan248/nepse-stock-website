@@ -22,18 +22,21 @@ export function useLiveData(fetchFn, interval = 15000, enabled = true) {
         const changes = new Set();
         
         if (!oldData || !newData) return changes;
+        if (newData === oldData) return changes;
         
         const compareValues = (newVal, oldVal, key) => {
+            if (newVal === oldVal) return;
+
             if (typeof newVal === 'object' && newVal !== null) {
                 if (Array.isArray(newVal)) {
                     // For arrays, compare by index
                     newVal.forEach((item, idx) => {
+                        const oldItem = oldVal?.[idx];
                         if (typeof item === 'object' && item !== null) {
                             const itemKey = item.symbol || item.id || idx;
-                            const oldItem = oldVal?.[idx];
-                            const nestedChanges = detectChanges(item, oldItem, `${key}.${itemKey}`);
-                            nestedChanges.forEach(c => changes.add(c));
-                        } else if (item !== oldVal?.[idx]) {
+                            // Recursive call
+                            compareValues(item, oldItem, `${key}.${itemKey}`);
+                        } else if (item !== oldItem) {
                             changes.add(`${key}.${idx}`);
                         }
                     });
