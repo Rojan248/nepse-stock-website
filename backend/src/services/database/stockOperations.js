@@ -325,73 +325,81 @@ const snapshotDailyMarket = async () => {
 
         let count = 0;
 
-        // 2. Process each stock inside a transaction for atomicity
-        await prisma.$transaction(async (tx) => {
-            for (const stock of stocks) {
-                // Precision Calculation: Ensure change and percent match the close/prevClose
-                let ltp = stock.lastTradedPrice;
-                let prev = stock.previousClose;
-                let change = stock.change;
-                let pChange = stock.percentageChange;
+        // 2. Fetch existing history for today to bulk process
+        const existingHistories = await prisma.marketHistory.findMany({
+            where: { date: today }
+        });
+        const historyMap = new Map(existingHistories.map(h => [h.symbol, h]));
 
-                // If we have both prices, force mathematical consistency
-                if (ltp && prev && prev > 0) {
-                    const calcChange = ltp - prev;
-                    if (Math.abs(calcChange - (change || 0)) > 0.01) {
-                        logger.debug(`[${stock.symbol}] Fixing Change: Was ${change}, Now ${calcChange.toFixed(2)}`);
-                        change = parseFloat(calcChange.toFixed(2));
-                    }
+        const creates = [];
+        const updates = [];
 
-                    const calcPct = (calcChange / prev) * 100;
-                    if (Math.abs(calcPct - (pChange || 0)) > 0.01) {
-                        logger.debug(`[${stock.symbol}] Fixing % Change: Was ${pChange}%, Now ${calcPct.toFixed(2)}%`);
-                        pChange = parseFloat(calcPct.toFixed(2));
-                    }
+        for (const stock of stocks) {
+            // Precision Calculation: Ensure change and percent match the close/prevClose
+            let ltp = stock.lastTradedPrice;
+            let prev = stock.previousClose;
+            let change = stock.change;
+            let pChange = stock.percentageChange;
+
+            // If we have both prices, force mathematical consistency
+            if (ltp && prev && prev > 0) {
+                const calcChange = ltp - prev;
+                if (Math.abs(calcChange - (change || 0)) > 0.01) {
+                    logger.debug(`[${stock.symbol}] Fixing Change: Was ${change}, Now ${calcChange.toFixed(2)}`);
+                    change = parseFloat(calcChange.toFixed(2));
                 }
 
-                // Upsert history record
-                // Note: We use findFirst/create/update logic or checking existence because
-                // composite unique constraints might not be set up on [symbol, date] for simple Upsert depending on schema details.
-                // But generally, we can try to find existing first.
+                const calcPct = (calcChange / prev) * 100;
+                if (Math.abs(calcPct - (pChange || 0)) > 0.01) {
+                    logger.debug(`[${stock.symbol}] Fixing % Change: Was ${pChange}%, Now ${calcPct.toFixed(2)}%`);
+                    pChange = parseFloat(calcPct.toFixed(2));
+                }
+            }
 
-                const existing = await tx.marketHistory.findFirst({
-                    where: {
-                        symbol: stock.symbol,
-                        date: today
+            if (historyMap.has(stock.symbol)) {
+                const existing = historyMap.get(stock.symbol);
+                updates.push({
+                    where: { id: existing.id },
+                    data: {
+                        closePrice: ltp,
+                        highPrice: stock.highPrice,
+                        lowPrice: stock.lowPrice,
+                        volume: stock.volume,
+                        turnover: stock.turnover,
+                        change: change,
+                        percentageChange: pChange
                     }
                 });
-
-                if (existing) {
-                    await tx.marketHistory.update({
-                        where: { id: existing.id },
-                        data: {
-                            closePrice: ltp,
-                            highPrice: stock.highPrice,
-                            lowPrice: stock.lowPrice,
-                            volume: stock.volume,
-                            turnover: stock.turnover,
-                            change: change,
-                            percentageChange: pChange
-                        }
-                    });
-                } else {
-                    await tx.marketHistory.create({
-                        data: {
-                            symbol: stock.symbol,
-                            date: today,
-                            closePrice: ltp,
-                            highPrice: stock.highPrice,
-                            lowPrice: stock.lowPrice,
-                            volume: stock.volume,
-                            turnover: stock.turnover,
-                            change: change,
-                            percentageChange: pChange
-                        }
-                    });
-                }
-                count++;
+            } else {
+                creates.push({
+                    symbol: stock.symbol,
+                    date: today,
+                    closePrice: ltp,
+                    highPrice: stock.highPrice,
+                    lowPrice: stock.lowPrice,
+                    volume: stock.volume,
+                    turnover: stock.turnover,
+                    change: change,
+                    percentageChange: pChange
+                });
             }
-        });
+            count++;
+        }
+
+        // 3. Execute bulk operations inside transaction
+        if (creates.length > 0 || updates.length > 0) {
+            await prisma.$transaction(async (tx) => {
+                if (creates.length > 0) {
+                    await tx.marketHistory.createMany({ data: creates });
+                }
+
+                if (updates.length > 0) {
+                    // Update sequentially or in parallel?
+                    // Prisma allows parallel updates inside transaction
+                    await Promise.all(updates.map(u => tx.marketHistory.update(u)));
+                }
+            });
+        }
 
         logger.info(`Daily snapshot completed. Processed ${count} stocks.`);
         return { success: true, count };
