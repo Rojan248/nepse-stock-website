@@ -325,8 +325,20 @@ const snapshotDailyMarket = async () => {
 
         let count = 0;
 
-        // 2. Process each stock inside a transaction for atomicity
+        // 2. Process all stocks inside a transaction for atomicity
         await prisma.$transaction(async (tx) => {
+            // Fetch all existing history for today in one query
+            const existingHistories = await tx.marketHistory.findMany({
+                where: {
+                    date: today,
+                    symbol: { in: stocks.map(s => s.symbol) }
+                }
+            });
+
+            const existingMap = new Map(existingHistories.map(h => [h.symbol, h]));
+            const createData = [];
+            const updateOps = [];
+
             for (const stock of stocks) {
                 // Precision Calculation: Ensure change and percent match the close/prevClose
                 let ltp = stock.lastTradedPrice;
@@ -349,20 +361,10 @@ const snapshotDailyMarket = async () => {
                     }
                 }
 
-                // Upsert history record
-                // Note: We use findFirst/create/update logic or checking existence because
-                // composite unique constraints might not be set up on [symbol, date] for simple Upsert depending on schema details.
-                // But generally, we can try to find existing first.
-
-                const existing = await tx.marketHistory.findFirst({
-                    where: {
-                        symbol: stock.symbol,
-                        date: today
-                    }
-                });
+                const existing = existingMap.get(stock.symbol);
 
                 if (existing) {
-                    await tx.marketHistory.update({
+                    updateOps.push(tx.marketHistory.update({
                         where: { id: existing.id },
                         data: {
                             closePrice: ltp,
@@ -373,23 +375,30 @@ const snapshotDailyMarket = async () => {
                             change: change,
                             percentageChange: pChange
                         }
-                    });
+                    }));
                 } else {
-                    await tx.marketHistory.create({
-                        data: {
-                            symbol: stock.symbol,
-                            date: today,
-                            closePrice: ltp,
-                            highPrice: stock.highPrice,
-                            lowPrice: stock.lowPrice,
-                            volume: stock.volume,
-                            turnover: stock.turnover,
-                            change: change,
-                            percentageChange: pChange
-                        }
+                    createData.push({
+                        symbol: stock.symbol,
+                        date: today,
+                        closePrice: ltp,
+                        highPrice: stock.highPrice,
+                        lowPrice: stock.lowPrice,
+                        volume: stock.volume,
+                        turnover: stock.turnover,
+                        change: change,
+                        percentageChange: pChange
                     });
                 }
                 count++;
+            }
+
+            // Execute bulk operations
+            if (createData.length > 0) {
+                await tx.marketHistory.createMany({ data: createData });
+            }
+
+            if (updateOps.length > 0) {
+                await Promise.all(updateOps);
             }
         });
 
