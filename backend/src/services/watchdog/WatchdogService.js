@@ -177,21 +177,19 @@ class WatchdogService {
             // Append to log file (or overwrite for now to keep it simple)
             // In production, maybe append to a daily log
             let logs = [];
-            if (fs.existsSync(LOG_FILE)) {
-                try {
-                    const content = fs.readFileSync(LOG_FILE, 'utf8');
-                    logs = JSON.parse(content);
-                    if (!Array.isArray(logs)) logs = [];
-                } catch (e) {
-                    // ignore corrupt file
-                }
+            try {
+                const content = await fs.promises.readFile(LOG_FILE, 'utf8');
+                logs = JSON.parse(content);
+                if (!Array.isArray(logs)) logs = [];
+            } catch (e) {
+                // ignore missing or corrupt file
             }
             
             // Keep last 50 reports
             logs.unshift(report);
             if (logs.length > 50) logs = logs.slice(0, 50);
             
-            fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+            await fs.promises.writeFile(LOG_FILE, JSON.stringify(logs, null, 2));
         } catch (error) {
             logger.error(`[Watchdog] Failed to save report: ${error.message}`);
         }
