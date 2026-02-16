@@ -130,11 +130,21 @@ const getActiveIPOs = async () => {
 const getIPOCounts = async () => {
     try {
         const statuses = ['upcoming', 'open', 'closed', 'completed'];
+        const [groupResult, total] = await Promise.all([
+            prisma.ipo.groupBy({
+                by: ['status'],
+                _count: { status: true },
+                where: { status: { in: statuses } }
+            }),
+            prisma.ipo.count()
+        ]);
+
         const counts = {};
         for (const status of statuses) {
-            counts[status] = await prisma.ipo.count({ where: { status } });
+            const found = groupResult.find(g => g.status === status);
+            counts[status] = found ? found._count.status : 0;
         }
-        counts.total = await prisma.ipo.count();
+        counts.total = total;
         return counts;
     } catch (error) {
         logger.error(`Error getting IPO counts: ${error.message}`);
