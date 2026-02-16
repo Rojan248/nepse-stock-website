@@ -1,29 +1,36 @@
 import { useState, useEffect } from 'react';
 import { Activity, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
-/**
- * SystemHealthBadge - Displays real-time system health status
- * Features:
- * - Polls /api/health every 30 seconds
- * - Shows: Operational, Circuit Breaker Active, Data Delay, or System Outage
- * - Hover tooltip with details
- */
-export default function SystemHealthBadge() {
+// ==================== Constants ====================
+
+const ICON_STYLE = { marginRight: '6px' };
+const POLL_INTERVAL = 30000;
+const STALE_THRESHOLD = 24 * 60 * 60 * 1000; // 24 hours
+
+/** Badge configurations keyed by health state */
+const HEALTH_STATES = {
+    closed: { style: 'closed', icon: Clock, label: 'Market Closed' },
+    offline: { style: 'error', icon: AlertTriangle, label: 'System Outage' },
+    circuit: { style: 'warning', icon: Activity, label: 'Circuit Breaker Active' },
+    stale: { style: 'stale', icon: Clock, label: 'Data Delay' },
+    healthy: { style: 'success', icon: CheckCircle, label: 'Systems Operational' },
+};
+
+// ==================== Hooks ====================
+
+/** Polls /api/health at a fixed interval */
+function useHealthPolling() {
     const [health, setHealth] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [isHovered, setIsHovered] = useState(false);
 
     useEffect(() => {
         const fetchHealth = async () => {
             try {
                 const res = await fetch('/api/health');
-
-                if (!res.ok) throw new Error("API Unreachable");
-
-                const data = await res.json();
-                setHealth(data);
+                if (!res.ok) throw new Error('API Unreachable');
+                setHealth(await res.json());
             } catch (err) {
-                if (import.meta.env.DEV) console.error("Health check:", err);
+                if (import.meta.env.DEV) console.error('Health check:', err);
                 setHealth(null);
             } finally {
                 setLoading(false);
@@ -31,46 +38,69 @@ export default function SystemHealthBadge() {
         };
 
         fetchHealth();
-        const interval = setInterval(fetchHealth, 30000);
+        const interval = setInterval(fetchHealth, POLL_INTERVAL);
         return () => clearInterval(interval);
     }, []);
 
-    if (loading) return <div style={styles.loadingPlaceholder}>System Check...</div>;
+    return { health, loading };
+}
 
-    // Determine State
+// ==================== Helpers ====================
+
+/**
+ * Determine the current health state from API data.
+ * Priority: Market Closed > Offline > Circuit Breaker > Stale > Healthy
+ * @returns {{ key: string, lastUpdateDate: Date|null, isCircuitOpen: boolean }}
+ */
+function getHealthState(health) {
     const isOffline = !health || health.status === 'degraded' || health.status === 'error';
-    const isCircuitOpen = health?.resilience?.circuitBreaker?.isOpen;
+    const isCircuitOpen = !!health?.resilience?.circuitBreaker?.isOpen;
     const lastUpdateDate = health?.scheduler?.lastUpdate ? new Date(health.scheduler.lastUpdate) : null;
-    const isStale = lastUpdateDate && (new Date() - lastUpdateDate > 24 * 60 * 60 * 1000);
-
-    // Check if market is closed (anything other than OPEN)
+    const isStale = lastUpdateDate && (Date.now() - lastUpdateDate > STALE_THRESHOLD);
     const marketState = health?.market?.state;
     const isMarketClosed = marketState && marketState !== 'OPEN';
 
-    // Default: Systems Operational
-    let badgeStyle = { ...styles.badge, ...styles.success };
-    let icon = <CheckCircle size={16} style={{ marginRight: '6px' }} />;
-    let label = "Systems Operational";
+    let key = 'healthy';
+    if (isMarketClosed) key = 'closed';
+    else if (isOffline) key = 'offline';
+    else if (isCircuitOpen) key = 'circuit';
+    else if (isStale) key = 'stale';
 
-    // Priority: Market Closed (weekend/post-3pm) > Offline > Circuit Breaker > Stale > Healthy
-    if (isMarketClosed) {
-        // Show friendly "Market Closed" instead of error during non-trading hours
-        badgeStyle = { ...styles.badge, ...styles.closed };
-        icon = <Clock size={16} style={{ marginRight: '6px' }} />;
-        label = "Market Closed";
-    } else if (isOffline) {
-        badgeStyle = { ...styles.badge, ...styles.error };
-        icon = <AlertTriangle size={16} style={{ marginRight: '6px' }} />;
-        label = "System Outage";
-    } else if (isCircuitOpen) {
-        badgeStyle = { ...styles.badge, ...styles.warning };
-        icon = <Activity size={16} style={{ marginRight: '6px' }} />;
-        label = "Circuit Breaker Active";
-    } else if (isStale) {
-        badgeStyle = { ...styles.badge, ...styles.stale };
-        icon = <Clock size={16} style={{ marginRight: '6px' }} />;
-        label = "Data Delay";
-    }
+    return { key, lastUpdateDate, isCircuitOpen };
+}
+
+// ==================== Sub-components ====================
+
+/** Hover tooltip showing sync time, stock count, and circuit breaker status */
+function HealthTooltip({ lastUpdateDate, stockCount, isCircuitOpen }) {
+    return (
+        <div style={styles.tooltip}>
+            <div style={styles.tooltipArrow}></div>
+            <p style={{ margin: '0 0 4px 0' }}>
+                <strong>Last Sync:</strong> {lastUpdateDate ? lastUpdateDate.toLocaleTimeString() : 'N/A'}
+            </p>
+            <p style={{ margin: 0 }}>
+                <strong>Active Stocks:</strong> {stockCount || 'N/A'}
+            </p>
+            {isCircuitOpen && (
+                <p style={{ margin: '4px 0 0 0', color: '#ffcc00' }}>⚠️ Circuit Breaker Open</p>
+            )}
+        </div>
+    );
+}
+
+// ==================== Main Component ====================
+
+export default function SystemHealthBadge() {
+    const { health, loading } = useHealthPolling();
+    const [isHovered, setIsHovered] = useState(false);
+
+    if (loading) return <div style={styles.loadingPlaceholder}>System Check...</div>;
+
+    const { key, lastUpdateDate, isCircuitOpen } = getHealthState(health);
+    const config = HEALTH_STATES[key];
+    const Icon = config.icon;
+    const badgeStyle = { ...styles.badge, ...styles[config.style] };
 
     return (
         <div
@@ -78,23 +108,15 @@ export default function SystemHealthBadge() {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {icon}
-            <span>{label}</span>
+            <Icon size={16} style={ICON_STYLE} />
+            <span>{config.label}</span>
 
-            {/* Tooltip Popup */}
             {isHovered && (
-                <div style={styles.tooltip}>
-                    <div style={styles.tooltipArrow}></div>
-                    <p style={{ margin: '0 0 4px 0' }}>
-                        <strong>Last Sync:</strong> {lastUpdateDate ? lastUpdateDate.toLocaleTimeString() : 'N/A'}
-                    </p>
-                    <p style={{ margin: 0 }}>
-                        <strong>Active Stocks:</strong> {health?.data?.stockCount || 'N/A'}
-                    </p>
-                    {isCircuitOpen && (
-                        <p style={{ margin: '4px 0 0 0', color: '#ffcc00' }}>⚠️ Circuit Breaker Open</p>
-                    )}
-                </div>
+                <HealthTooltip
+                    lastUpdateDate={lastUpdateDate}
+                    stockCount={health?.data?.stockCount}
+                    isCircuitOpen={isCircuitOpen}
+                />
             )}
         </div>
     );
@@ -171,3 +193,4 @@ const styles = {
         borderColor: 'transparent transparent #1f2937 transparent'
     }
 };
+
