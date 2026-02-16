@@ -18,21 +18,25 @@ router.post('/verify', asyncHandler(async (req, res) => {
  * Get latest verification reports
  */
 router.get('/reports', asyncHandler(async (req, res) => {
-    const fs = require('fs');
+    const fs = require('fs').promises;
     const path = require('path');
     const LOG_FILE = path.join(__dirname, '../../logs/watchdog_verification.json');
     
-    if (fs.existsSync(LOG_FILE)) {
-        const content = fs.readFileSync(LOG_FILE, 'utf8');
+    try {
+        const content = await fs.readFile(LOG_FILE, 'utf8');
         res.json({
             success: true,
             data: JSON.parse(content)
         });
-    } else {
-        res.json({
-            success: true,
-            data: []
-        });
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            res.json({
+                success: true,
+                data: []
+            });
+        } else {
+            throw error;
+        }
     }
 }));
 
