@@ -276,17 +276,6 @@ function HomePage({ globalSearch }) {
         return { advanced, declined, unchanged };
     }, [breadthFromApi, breadthFromStocks]);
 
-    // DEBUG: Log stocks state changes
-    useEffect(() => {
-        if (stocks.length > 0) {
-            console.log(`[HomePage] Total stocks in state: ${stocks.length}`);
-            console.log(`[HomePage] Filtered stocks: ${filteredStocks.length}`);
-            console.log(`[HomePage] Displaying page ${currentPage}: ${displayStocks.length} items`);
-        } else if (!loading) {
-            console.warn('[HomePage] Stocks array is empty!');
-        }
-    }, [stocks, filteredStocks, displayStocks, currentPage, loading]);
-
     // Calculate turnover for display (support fallback to summing stocks)
     let turnoverRaw = marketSummary?.totalTurnover || displayStocks.reduce((acc, stock) => acc + (parseFloat(stock.turnover) || 0), 0);
     const turnoverUnit = turnoverRaw >= 10000000 ? 'Cr' : 'L';
