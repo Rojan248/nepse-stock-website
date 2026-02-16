@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronDown, Star } from 'lucide-react';
 import { formatPrice, formatPercent, formatNumber, getChangeClass } from '../utils/formatting';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import './StockTable.css';
 import './AnimatedValue.css';
 
@@ -113,7 +114,7 @@ function StockTable({
         return 0;
     });
 
-
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     const renderMobileCards = () => {
         return (
@@ -160,11 +161,12 @@ function StockTable({
 
     return (
         <div className="stock-table-wrapper">
-            <div className="table-container desktop-table-container">
-                <table className="stock-table">
-                    <thead>
-                        <tr>
-                            <th className="star-column-header" style={{ width: '40px' }}></th>
+            {!isMobile && (
+                <div className="table-container desktop-table-container">
+                    <table className="stock-table">
+                        <thead>
+                            <tr>
+                                <th className="star-column-header" style={{ width: '40px' }}></th>
                             <th
                                 onClick={() => handleSort('symbol')}
                                 className="sortable group"
@@ -314,8 +316,9 @@ function StockTable({
                     </tbody>
                 </table>
             </div>
+            )}
 
-            {renderMobileCards()}
+            {isMobile && renderMobileCards()}
 
             {showPagination && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-4 my-8 pagination">
