@@ -2,9 +2,42 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 // ==================== Change Detection Helpers ====================
 
+/** Can we meaningfully compare two data snapshots? */
+function canCompare(newData, oldData) {
+    return newData != null && oldData != null && newData !== oldData;
+}
+
+/** Are two parsed numbers both valid and different? */
+function areDifferentNumbers(a, b) {
+    return !isNaN(a) && !isNaN(b) && a !== b;
+}
+
+/** Resolve a stable key for an array item (symbol > id > index) */
+function resolveItemKey(item, idx) {
+    if (typeof item === 'object' && item !== null) {
+        return item.symbol || item.id || idx;
+    }
+    return idx;
+}
+
+/** Recurse into array elements, comparing each by resolved key */
+function compareArrayItems(newArr, oldArr, key, changes) {
+    for (let idx = 0; idx < newArr.length; idx++) {
+        const itemKey = resolveItemKey(newArr[idx], idx);
+        compareValues(newArr[idx], oldArr?.[idx], `${key}.${itemKey}`, changes);
+    }
+}
+
+/** Recurse into plain-object keys */
+function compareObjectKeys(newObj, oldObj, key, changes) {
+    for (const k of Object.keys(newObj)) {
+        compareValues(newObj[k], oldObj?.[k], `${key}.${k}`, changes);
+    }
+}
+
 /**
  * Recursively compare two values and collect changed field paths.
- * Mutates the `changes` Set for performance.
+ * Dispatches to type-specific handlers.
  */
 function compareValues(newVal, oldVal, key, changes) {
     if (newVal === oldVal) return;
@@ -15,18 +48,9 @@ function compareValues(newVal, oldVal, key, changes) {
     }
 
     if (Array.isArray(newVal)) {
-        newVal.forEach((item, idx) => {
-            const itemKey = (typeof item === 'object' && item !== null)
-                ? (item.symbol || item.id || idx)
-                : idx;
-            compareValues(item, oldVal?.[idx], `${key}.${itemKey}`, changes);
-        });
-        return;
-    }
-
-    // Plain object — recurse into keys
-    for (const k of Object.keys(newVal)) {
-        compareValues(newVal[k], oldVal?.[k], `${key}.${k}`, changes);
+        compareArrayItems(newVal, oldVal, key, changes);
+    } else {
+        compareObjectKeys(newVal, oldVal, key, changes);
     }
 }
 
@@ -36,22 +60,20 @@ function compareValues(newVal, oldVal, key, changes) {
  */
 function detectChanges(newData, oldData, prefix = '') {
     const changes = new Set();
-    if (!oldData || !newData || newData === oldData) return changes;
+    if (!canCompare(newData, oldData)) return changes;
 
     for (const key of Object.keys(newData)) {
-        compareValues(newData[key], oldData[key], prefix ? `${prefix}.${key}` : key, changes);
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        compareValues(newData[key], oldData[key], fullKey, changes);
     }
     return changes;
 }
 
-/**
- * Determine numeric direction: 'up', 'down', or null
- */
+/** Determine numeric direction: 'up', 'down', or null */
 function getDirection(prevValue, newValue) {
     const prev = parseFloat(prevValue);
     const next = parseFloat(newValue);
-    if (isNaN(prev) || isNaN(next) || prev === next) return null;
-    return next > prev ? 'up' : 'down';
+    return areDifferentNumbers(prev, next) ? (next > prev ? 'up' : 'down') : null;
 }
 
 // ==================== Change Flash Helper ====================
@@ -74,6 +96,19 @@ function flashChanges(changes, setChangedFields, mountedRef) {
 }
 
 // ==================== useLiveData ====================
+
+/** Process a successful fetch result — detect changes and update state */
+function handleFetchResult(result, isInitial, previousDataRef, setData, setChangedFields, mountedRef) {
+    if (!mountedRef.current) return;
+
+    if (previousDataRef.current && !isInitial) {
+        const changes = detectChanges(result, previousDataRef.current);
+        flashChanges(changes, setChangedFields, mountedRef);
+    }
+
+    previousDataRef.current = result;
+    setData(result);
+}
 
 /**
  * Custom hook for live data polling with change detection
@@ -101,16 +136,7 @@ export function useLiveData(fetchFn, interval = 15000, enabled = true) {
 
         try {
             const result = await fetchFn();
-            if (!mountedRef.current) return;
-
-            // Flash changed fields on poll updates (not initial load)
-            if (previousDataRef.current && !isInitial) {
-                const changes = detectChanges(result, previousDataRef.current);
-                flashChanges(changes, setChangedFields, mountedRef);
-            }
-
-            previousDataRef.current = result;
-            setData(result);
+            handleFetchResult(result, isInitial, previousDataRef, setData, setChangedFields, mountedRef);
         } catch (err) {
             if (!mountedRef.current) return;
             setError(err.message || 'Failed to fetch data');
@@ -187,4 +213,3 @@ export function useAnimatedValue(value, key, isPolling = false) {
 }
 
 export default useLiveData;
-
