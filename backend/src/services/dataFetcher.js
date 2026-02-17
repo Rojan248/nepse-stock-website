@@ -156,6 +156,90 @@ const fixTransactionData = async () => {
     }
 };
 
+// ==================== scrapeOfficialWebsite helpers ====================
+
+/** Mapping from market summary detail keywords to result field + transform */
+const SUMMARY_FIELD_MAP = [
+    { keyword: 'turnover', field: 'totalTurnover', transform: v => v },
+    { keyword: 'transactions', field: 'totalTransactions', transform: v => Math.round(v) },
+    { keyword: 'traded shares', field: 'totalVolume', transform: v => Math.round(v) },
+    { keyword: 'scrips traded', field: 'totalScripsTraded', transform: v => Math.round(v) },
+];
+
+/** Parse market summary API array into result fields */
+function parseMarketSummaryItems(items, result) {
+    if (!items || !Array.isArray(items)) return;
+
+    for (const item of items) {
+        const detail = (item.detail || '').toLowerCase();
+        const value = parseFloat(item.value) || 0;
+        const mapping = SUMMARY_FIELD_MAP.find(m => detail.includes(m.keyword));
+        if (mapping) result[mapping.field] = mapping.transform(value);
+    }
+}
+
+/** Extract NEPSE index data from index API array */
+function parseNepseIndex(indexData, result) {
+    if (!indexData || !Array.isArray(indexData)) return;
+
+    const nepseIdx = indexData.find(i => i.id === 58)
+        || indexData.find(i => i.index && i.index.toLowerCase().includes('nepse'));
+
+    if (!nepseIdx) return;
+
+    result.nepseIndex = parseFloat(nepseIdx.currentValue) || null;
+    result.indexChange = parseFloat(nepseIdx.change) || null;
+    result.indexChangePercent = parseFloat(nepseIdx.perChange) || null;
+}
+
+/** Resolve the percentage change for a single security */
+function resolveSecurityChange(sec) {
+    const changeFields = [
+        sec.percentageChange, sec.percentChange, sec.perChange,
+        sec.changePercent, sec.change_percentage
+    ];
+    const direct = changeFields.map(v => parseFloat(v)).find(v => Number.isFinite(v));
+    if (Number.isFinite(direct)) return direct;
+
+    // Fall back to price comparison
+    const ltp = parsePrice(sec.lastTradedPrice || sec.ltp || sec.closePrice || 0);
+    const prev = parsePrice(sec.previousClose || sec.previousClosingPrice || sec.prevClose || sec.previous_close || 0);
+    if (ltp && prev) return ((ltp - prev) / prev) * 100;
+
+    return undefined;
+}
+
+/** Classify a change value into advanced/declined/unchanged bucket */
+function classifyChange(change) {
+    if (!Number.isFinite(change)) return 'unchanged';
+    if (change > 0) return 'advanced';
+    if (change < 0) return 'declined';
+    return 'unchanged';
+}
+
+/** Compute market breadth from securities array */
+function computeSecurityBreadth(securities) {
+    if (!securities || !Array.isArray(securities)) return null;
+
+    let advanced = 0, declined = 0, unchanged = 0;
+    const seen = new Set();
+
+    for (const sec of securities) {
+        const symbol = (sec.symbol || sec.securitySymbol || '').toUpperCase();
+        if (!symbol || seen.has(symbol) || !stockInfoMap.has(symbol)) continue;
+        seen.add(symbol);
+
+        const bucket = classifyChange(resolveSecurityChange(sec));
+        if (bucket === 'advanced') advanced++;
+        else if (bucket === 'declined') declined++;
+        else unchanged++;
+    }
+
+    return { advanced, declined, unchanged, totalScripsTraded: seen.size };
+}
+
+// ==================== Main scraper ====================
+
 /**
  * Custom Web Scraper - Fetches market data using nepse-api-helper library
  * This properly authenticates with NEPSE API to get real data
@@ -163,20 +247,12 @@ const fixTransactionData = async () => {
  */
 const scrapeOfficialWebsite = async () => {
     const result = {
-        nepseIndex: null,
-        indexChange: null,
-        indexChangePercent: null,
-        totalTransactions: null,
-        totalTurnover: null,
-        totalVolume: null,
-        totalScripsTraded: null,
-        advanced: null,
-        declined: null,
-        unchanged: null
+        nepseIndex: null, indexChange: null, indexChangePercent: null,
+        totalTransactions: null, totalTurnover: null, totalVolume: null,
+        totalScripsTraded: null, advanced: null, declined: null, unchanged: null
     };
 
     try {
-        // Use nepse-api-helper library for authenticated access
         const { nepseClient, nepseAxios, createHeaders, BASE_URL } = require('nepse-api-helper');
 
         logger.info('Custom Scraper: Initializing NEPSE API helper...');
@@ -185,93 +261,31 @@ const scrapeOfficialWebsite = async () => {
         const token = await nepseClient.getToken();
         const headers = createHeaders(token);
 
-        // Fetch market summary
+        // 1. Market summary
         logger.info('Custom Scraper: Fetching market summary...');
         const summaryResp = await nepseAxios.get(`${BASE_URL}/api/nots/market-summary`, { headers, timeout: 10000 });
+        parseMarketSummaryItems(summaryResp.data, result);
+        logger.info(`Custom Scraper: Market Summary - Tx=${result.totalTransactions}, Vol=${result.totalVolume}, Turnover=${result.totalTurnover}`);
 
-        if (summaryResp.data && Array.isArray(summaryResp.data)) {
-            summaryResp.data.forEach(item => {
-                const detail = (item.detail || '').toLowerCase();
-                const value = parseFloat(item.value) || 0;
-
-                if (detail.includes('turnover')) {
-                    result.totalTurnover = value;
-                } else if (detail.includes('transactions')) {
-                    result.totalTransactions = Math.round(value);
-                } else if (detail.includes('traded shares')) {
-                    result.totalVolume = Math.round(value);
-                } else if (detail.includes('scrips traded')) {
-                    result.totalScripsTraded = Math.round(value);
-                }
-            });
-            logger.info(`Custom Scraper: Market Summary - Tx=${result.totalTransactions}, Vol=${result.totalVolume}, Turnover=${result.totalTurnover}`);
-        }
-
-        // Fetch NEPSE Index
+        // 2. NEPSE Index
         logger.info('Custom Scraper: Fetching NEPSE index...');
         const indexData = await nepseClient.getNepseIndex();
-
-        if (indexData && Array.isArray(indexData)) {
-            // Find NEPSE Index (id 58)
-            const nepseIdx = indexData.find(i => i.id === 58) || indexData.find(i => i.index && i.index.toLowerCase().includes('nepse'));
-
-            if (nepseIdx) {
-                result.nepseIndex = parseFloat(nepseIdx.currentValue) || null;
-                result.indexChange = parseFloat(nepseIdx.change) || null;
-                result.indexChangePercent = parseFloat(nepseIdx.perChange) || null;
-                logger.info(`Custom Scraper: NEPSE Index = ${result.nepseIndex}, Change = ${result.indexChangePercent}%`);
-            }
+        parseNepseIndex(indexData, result);
+        if (result.nepseIndex) {
+            logger.info(`Custom Scraper: NEPSE Index = ${result.nepseIndex}, Change = ${result.indexChangePercent}%`);
         }
 
-        // Fetch securities to calculate advance/decline
+        // 3. Market breadth
         logger.info('Custom Scraper: Fetching securities for breadth calculation...');
         try {
             const securities = await nepseClient.getSecurities();
-            if (securities && Array.isArray(securities)) {
-                let advanced = 0, declined = 0, unchanged = 0;
-                const seen = new Set();
-
-                securities.forEach(sec => {
-                    const symbol = (sec.symbol || sec.securitySymbol || '').toUpperCase();
-                    if (!symbol || seen.has(symbol)) return;
-                    if (!stockInfoMap.has(symbol)) return; // Ignore instruments outside our equities list
-                    seen.add(symbol);
-
-                    // Try multiple change fields; fall back to price comparison when change is missing/zero
-                    const changeFields = [
-                        sec.percentageChange,
-                        sec.percentChange,
-                        sec.perChange,
-                        sec.changePercent,
-                        sec.change_percentage
-                    ];
-                    let change = changeFields
-                        .map(v => parseFloat(v))
-                        .find(v => Number.isFinite(v));
-
-                    if (!Number.isFinite(change)) {
-                        const ltp = parsePrice(sec.lastTradedPrice || sec.ltp || sec.closePrice || 0);
-                        const prev = parsePrice(sec.previousClose || sec.previousClosingPrice || sec.prevClose || sec.previous_close || 0);
-                        if (ltp && prev) {
-                            change = ((ltp - prev) / prev) * 100;
-                        }
-                    }
-
-                    if (Number.isFinite(change)) {
-                        if (change > 0) advanced++;
-                        else if (change < 0) declined++;
-                        else unchanged++;
-                    } else {
-                        // If still unknown, count as unchanged to keep totals aligned
-                        unchanged++;
-                    }
-                });
-
-                result.totalScripsTraded = seen.size;
-                result.advanced = advanced;
-                result.declined = declined;
-                result.unchanged = unchanged;
-                logger.info(`Custom Scraper: Breadth - Advanced=${advanced}, Declined=${declined}, Unchanged=${unchanged}`);
+            const breadth = computeSecurityBreadth(securities);
+            if (breadth) {
+                result.totalScripsTraded = breadth.totalScripsTraded;
+                result.advanced = breadth.advanced;
+                result.declined = breadth.declined;
+                result.unchanged = breadth.unchanged;
+                logger.info(`Custom Scraper: Breadth - Advanced=${breadth.advanced}, Declined=${breadth.declined}, Unchanged=${breadth.unchanged}`);
             }
         } catch (secErr) {
             logger.debug(`Could not fetch securities for breadth: ${secErr.message}`);
