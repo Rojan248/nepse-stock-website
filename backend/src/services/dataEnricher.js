@@ -28,41 +28,53 @@ const parsePrice = (value) => {
     return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+// ==================== Breadth Helpers ====================
+
+/** Candidate fields for current price */
+const CURRENT_PRICE_FIELDS = ['lastTradedPrice', 'ltp', 'close'];
+/** Candidate fields for previous close */
+const PREV_CLOSE_FIELDS = ['previousClose', 'previousClosingPrice', 'previous_close'];
+
+/** Resolve first truthy parsed price from top-level or nested prices */
+const resolvePriceField = (stock, fields, nestedKey) => {
+    for (const f of fields) {
+        const v = parsePrice(stock[f]);
+        if (v) return v;
+    }
+    if (stock.prices && nestedKey) return parsePrice(stock.prices[nestedKey]);
+    return 0;
+};
+
+/** Resolve current/last traded price from a stock record */
+const resolveCurrentPrice = (stock) => resolvePriceField(stock, CURRENT_PRICE_FIELDS, 'ltp') || resolvePriceField(stock, [], 'close');
+
+/** Resolve previous close price from a stock record */
+const resolvePrevClose = (stock) => resolvePriceField(stock, PREV_CLOSE_FIELDS, 'previousClose');
+
+/** Classify price movement into advanced/declined/unchanged */
+const classifyPriceMovement = (current, prev) => {
+    if (current === 0 || prev === 0) return 'unchanged';
+    if (current > prev) return 'advanced';
+    if (current < prev) return 'declined';
+    return 'unchanged';
+};
+
 /**
  * Calculate market breadth from stock data using robust price comparison
  * @param {Array} stocks - Array of stock objects
  * @returns {Object} { advanced, declined, unchanged }
  */
 const updateMarketBreadth = (stocks) => {
-    let advanced = 0, declined = 0, unchanged = 0;
-    
-    if (!Array.isArray(stocks)) {
-        return { advanced, declined, unchanged };
+    const counts = { advanced: 0, declined: 0, unchanged: 0 };
+    if (!Array.isArray(stocks)) return counts;
+
+    for (const stock of stocks) {
+        const bucket = classifyPriceMovement(resolveCurrentPrice(stock), resolvePrevClose(stock));
+        counts[bucket]++;
     }
-    
-    stocks.forEach(stock => {
-        const current = parsePrice(
-            stock.lastTradedPrice || stock.ltp || stock.close || 
-            stock.prices?.ltp || stock.prices?.close
-        );
-        const prev = parsePrice(
-            stock.previousClose || stock.previousClosingPrice || 
-            stock.previous_close || stock.prices?.previousClose
-        );
-        
-        if (current === 0 || prev === 0) {
-            unchanged++;
-        } else if (current > prev) {
-            advanced++;
-        } else if (current < prev) {
-            declined++;
-        } else {
-            unchanged++;
-        }
-    });
-    
-    logger.debug(`Market Breadth: Advanced=${advanced}, Declined=${declined}, Unchanged=${unchanged}`);
-    return { advanced, declined, unchanged };
+
+    logger.debug(`Market Breadth: Advanced=${counts.advanced}, Declined=${counts.declined}, Unchanged=${counts.unchanged}`);
+    return counts;
 };
 
 /**
@@ -71,35 +83,35 @@ const updateMarketBreadth = (stocks) => {
  * @param {Array} stocks - Array of stock objects
  * @returns {Array} Enriched stock array
  */
+/** Check if a stock's companyName is missing or placeholder */
+const needsCompanyName = (stock, symbol) =>
+    !stock.companyName ||
+    stock.companyName.startsWith('COM') ||
+    stock.companyName === symbol ||
+    stock.companyName.length < 3;
+
+/** Check if a stock's sector should be replaced from static mapping */
+const needsSectorFix = (sector) =>
+    sector === 'Others' || sector === 'NEPSE Index';
+
+/** Enrich a single stock with name/sector from static mapping if needed */
+const enrichSingleStock = (stock) => {
+    const symbol = (stock.symbol || '').toUpperCase();
+    const info = stockInfoMap.get(symbol);
+    if (!info) return stock;
+
+    if (needsCompanyName(stock, symbol)) {
+        return { ...stock, companyName: info.name, sector: needsSectorFix(stock.sector) ? info.sector : stock.sector };
+    }
+    if (needsSectorFix(stock.sector)) {
+        return { ...stock, sector: info.sector };
+    }
+    return stock;
+};
+
 const enrichStocksWithNames = (stocks) => {
     if (!Array.isArray(stocks)) return stocks;
-
-    return stocks.map(stock => {
-        const symbol = (stock.symbol || '').toUpperCase();
-        const stockInfo = stockInfoMap.get(symbol);
-
-        const needsName = !stock.companyName ||
-            stock.companyName.startsWith('COM') ||
-            stock.companyName === symbol ||
-            stock.companyName.length < 3;
-
-        if (stockInfo && needsName) {
-            return {
-                ...stock,
-                companyName: stockInfo.name,
-                sector: stock.sector === 'Others' ? stockInfo.sector : stock.sector
-            };
-        }
-
-        if (stockInfo && (stock.sector === 'Others' || stock.sector === 'NEPSE Index')) {
-            return {
-                ...stock,
-                sector: stockInfo.sector
-            };
-        }
-
-        return stock;
-    });
+    return stocks.map(enrichSingleStock);
 };
 
 /**
@@ -108,54 +120,64 @@ const enrichStocksWithNames = (stocks) => {
  * @param {Object} existingSummary - Existing market summary from API (may have index data)
  * @returns {Object} Enhanced market summary
  */
-const calculateMarketSummary = (stocks, existingSummary = {}) => {
-    if (!Array.isArray(stocks) || stocks.length === 0) {
-        return existingSummary;
+/** Candidate fields for trade count on a single stock */
+const TRADE_COUNT_FIELDS = ['totalTrades'];
+const TRADE_COUNT_NESTED = ['totalTrades', 'trades', 'noOfTransactions'];
+
+/** Resolve a stock's volume from top-level or nested trading */
+const resolveVolume = (stock) => parsePrice(stock.volume || stock.trading?.volume);
+
+/** Resolve a stock's turnover from top-level or nested trading */
+const resolveTurnover = (stock) => parsePrice(stock.turnover || stock.trading?.turnover);
+
+/** Resolve a stock's trade count from multiple candidate fields */
+const resolveTrades = (stock) => {
+    for (const f of TRADE_COUNT_FIELDS) { const v = parsePrice(stock[f]); if (v) return v; }
+    if (stock.trading) {
+        for (const f of TRADE_COUNT_NESTED) { const v = parsePrice(stock.trading[f]); if (v) return v; }
     }
+    return parsePrice(stock.noOfTransactions);
+};
 
-    let calcTurnover = 0;
-    let calcVolume = 0;
-    let calcTrades = 0;
-    let tradedCompanies = 0;
+/** Accumulate trading totals from an array of stocks */
+const accumulateTradingTotals = (stocks) => {
+    let turnover = 0, volume = 0, trades = 0, tradedCompanies = 0;
+    for (const stock of stocks) {
+        const vol = resolveVolume(stock);
+        volume += vol;
+        turnover += resolveTurnover(stock);
+        trades += resolveTrades(stock);
+        if (vol > 0) tradedCompanies++;
+    }
+    return { turnover, volume, trades, tradedCompanies };
+};
 
-    stocks.forEach(stock => {
-        const volume = parsePrice(stock.volume || stock.trading?.volume);
-        const turnover = parsePrice(stock.turnover || stock.trading?.turnover);
-        const trades = parsePrice(
-            stock.totalTrades
-            || stock.trading?.totalTrades
-            || stock.trading?.trades
-            || stock.trading?.noOfTransactions
-            || stock.noOfTransactions
-        );
+/** Use existing value if truthy, otherwise fall back to calculated value */
+const preferExisting = (existing, calculated) => existing || calculated || 0;
 
-        calcTurnover += turnover;
-        calcVolume += volume;
-        calcTrades += trades;
+/** Build the final summary object merging existing API data with calculated values */
+const buildSummaryResult = (existingSummary, calc, breadth) => ({
+    ...existingSummary,
+    indexValue: existingSummary.indexValue || null,
+    indexChange: existingSummary.indexChange || null,
+    indexChangePercent: existingSummary.indexChangePercent || null,
+    totalTurnover: preferExisting(existingSummary.totalTurnover, calc.turnover),
+    totalVolume: preferExisting(existingSummary.totalVolume, calc.volume),
+    totalTransactions: (existingSummary.totalTransactions && existingSummary.totalTransactions > 0)
+        ? existingSummary.totalTransactions
+        : (calc.trades || 0),
+    activeCompanies: preferExisting(existingSummary.activeCompanies, calc.tradedCompanies),
+    advancedCompanies: preferExisting(existingSummary.advancedCompanies, breadth.advanced),
+    declinedCompanies: preferExisting(existingSummary.declinedCompanies, breadth.declined),
+    unchangedCompanies: preferExisting(existingSummary.unchangedCompanies, breadth.unchanged),
+    timestamp: new Date().toISOString()
+});
 
-        if (volume > 0) {
-            tradedCompanies++;
-        }
-    });
-
+const calculateMarketSummary = (stocks, existingSummary = {}) => {
+    if (!Array.isArray(stocks) || stocks.length === 0) return existingSummary;
+    const calc = accumulateTradingTotals(stocks);
     const breadth = updateMarketBreadth(stocks);
-
-    return {
-        ...existingSummary,
-        indexValue: existingSummary.indexValue || null,
-        indexChange: existingSummary.indexChange || null,
-        indexChangePercent: existingSummary.indexChangePercent || null,
-        totalTurnover: existingSummary.totalTurnover || calcTurnover || 0,
-        totalVolume: existingSummary.totalVolume || calcVolume || 0,
-        totalTransactions: (existingSummary.totalTransactions && existingSummary.totalTransactions > 0)
-            ? existingSummary.totalTransactions
-            : (calcTrades || 0),
-        activeCompanies: existingSummary.activeCompanies || tradedCompanies || 0,
-        advancedCompanies: existingSummary.advancedCompanies || breadth.advanced || 0,
-        declinedCompanies: existingSummary.declinedCompanies || breadth.declined || 0,
-        unchangedCompanies: existingSummary.unchangedCompanies || breadth.unchanged || 0,
-        timestamp: new Date().toISOString()
-    };
+    return buildSummaryResult(existingSummary, calc, breadth);
 };
 
 /**
@@ -165,28 +187,27 @@ const calculateMarketSummary = (stocks, existingSummary = {}) => {
  * @param {function} fetchLiveMarketMeta - Function to fetch live market meta
  * @returns {Object} Enriched data object
  */
+/** Patch totalTransactions/totalTurnover/totalVolume from live meta if still missing */
+const patchMissingTotals = (summary, liveMeta) => ({
+    ...summary,
+    totalTransactions: summary.totalTransactions || liveMeta.totalTransactions || 0,
+    totalTurnover: summary.totalTurnover || liveMeta.totalTurnover || summary.totalTurnover,
+    totalVolume: summary.totalVolume || liveMeta.totalVolume || summary.totalVolume
+});
+
 const enrichAndFinalize = async (data, fetchLiveMarketMeta) => {
     if (!data) return data;
-    
-    // Enrich stocks with proper company names and sectors
+
     data.stocks = enrichStocksWithNames(data.stocks);
-    
-    // Calculate/enhance market summary from stock data
     data.marketSummary = calculateMarketSummary(data.stocks, data.marketSummary);
-    
-    // Patch missing totals from live meta endpoint
+
     if (fetchLiveMarketMeta) {
         const liveMeta = await fetchLiveMarketMeta();
         if (liveMeta) {
-            data.marketSummary = {
-                ...data.marketSummary,
-                totalTransactions: data.marketSummary.totalTransactions || liveMeta.totalTransactions || 0,
-                totalTurnover: data.marketSummary.totalTurnover || liveMeta.totalTurnover || data.marketSummary.totalTurnover,
-                totalVolume: data.marketSummary.totalVolume || liveMeta.totalVolume || data.marketSummary.totalVolume
-            };
+            data.marketSummary = patchMissingTotals(data.marketSummary, liveMeta);
         }
     }
-    
+
     return data;
 };
 
@@ -214,6 +235,17 @@ const isKnownSymbol = (symbol) => {
  * @param {Object} prisma - Prisma client instance
  * @returns {Object|null} { advanced, declined, unchanged } or null on error
  */
+/** Derive breadth from raw price comparison when percentageChange counts are all zero */
+const deriveBreadthFromPrices = (stocks) => {
+    const counts = { advanced: 0, declined: 0, unchanged: 0 };
+    for (const s of stocks) {
+        const ltp = parsePrice(s.lastTradedPrice ?? s.ltp ?? 0);
+        const prev = parsePrice(s.previousClose ?? 0);
+        counts[classifyPriceMovement(ltp, prev)]++;
+    }
+    return counts;
+};
+
 const computeBreadthFromDb = async (prisma) => {
     try {
         const [advanced, declined, unchanged] = await Promise.all([
@@ -222,28 +254,12 @@ const computeBreadthFromDb = async (prisma) => {
             prisma.stock.count({ where: { OR: [{ percentageChange: 0 }, { percentageChange: null }] } })
         ]);
 
-        // If all counts are zero/unchanged, derive breadth from price comparison
-        if (advanced === 0 && declined === 0) {
+        const noMeaningfulCounts = advanced === 0 && declined === 0;
+        if (noMeaningfulCounts) {
             const stocks = await prisma.stock.findMany({
                 select: { lastTradedPrice: true, ltp: true, previousClose: true }
             });
-
-            let adv = 0, dec = 0, unc = 0;
-            stocks.forEach(s => {
-                const ltp = parsePrice(s.lastTradedPrice ?? s.ltp ?? 0);
-                const prev = parsePrice(s.previousClose ?? 0);
-                if (ltp === 0 || prev === 0) {
-                    unc++;
-                } else if (ltp > prev) {
-                    adv++;
-                } else if (ltp < prev) {
-                    dec++;
-                } else {
-                    unc++;
-                }
-            });
-
-            return { advanced: adv, declined: dec, unchanged: unc };
+            return deriveBreadthFromPrices(stocks);
         }
 
         return { advanced, declined, unchanged };
