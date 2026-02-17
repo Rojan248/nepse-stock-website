@@ -116,6 +116,16 @@ const extractChangeFields = (stock, prices) => ({
     percentageChange: toFloat(resolveField(stock.percentageChange, stock.changePercent, prices.changePercent)),
 });
 
+/** Extract identity fields (symbol, name, sector) with fallbacks */
+const extractIdentityFields = (stock) => {
+    const symbol = (stock.symbol || '').toUpperCase();
+    return {
+        symbol,
+        companyName: stock.companyName || stock.name || symbol,
+        sector: stock.sector || null,
+    };
+};
+
 /**
  * Normalize stock input for database storage
  * Handles various input structures (flat, nested prices, nested trading)
@@ -125,15 +135,14 @@ const extractChangeFields = (stock, prices) => ({
 const normalizeStockInput = (stock) => {
     if (!stock) return null;
 
-    const symbol = (stock.symbol || '').toUpperCase();
+    const prices = stock.prices || {};
+    const trading = stock.trading || {};
 
     return {
-        symbol,
-        companyName: stock.companyName || stock.name || symbol,
-        sector: stock.sector || null,
-        ...extractPriceFields(stock, stock.prices || {}),
-        ...extractTradingFields(stock, stock.trading || {}),
-        ...extractChangeFields(stock, stock.prices || {}),
+        ...extractIdentityFields(stock),
+        ...extractPriceFields(stock, prices),
+        ...extractTradingFields(stock, trading),
+        ...extractChangeFields(stock, prices),
         updatedAt: new Date()
     };
 };
