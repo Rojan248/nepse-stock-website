@@ -221,13 +221,10 @@ router.get('/trending', asyncHandler(async (req, res) => {
     // Create a map for O(1) lookup
     const stockMap = new Map(stocks.map(s => [s.symbol, s]));
 
-    // Enrich with current stock data (price change, name)
-    const enrichedTrending = trending.map((item) => {
+    // Enrich with current stock data, skipping unknown symbols
+    const validTrending = trending.flatMap((item) => {
         const stock = stockMap.get(item.symbol.toUpperCase());
-
-        if (!stock) {
-            return null;
-        }
+        if (!stock) return [];
 
         return {
             symbol: item.symbol,
@@ -237,9 +234,6 @@ router.get('/trending', asyncHandler(async (req, res) => {
             ltp: stock.prices?.ltp || stock.ltp || 0
         };
     });
-
-    // Filter out null entries (stocks not found)
-    const validTrending = enrichedTrending.filter(item => item !== null);
 
     res.json({
         success: true,
@@ -374,22 +368,22 @@ router.get('/scrape-live', adminLimiter, requireAdminKey, asyncHandler(async (re
     });
 }));
 
-/**
- * Format uptime to human readable string
- */
+/** Time units for uptime formatting (largest first) */
+const TIME_UNITS = [
+    { divisor: 86400, suffix: 'd' },
+    { divisor: 3600, suffix: 'h' },
+    { divisor: 60, suffix: 'm' },
+    { divisor: 1, suffix: 's' }
+];
+
+/** Format uptime seconds to human-readable string (e.g. "2d 5h 30m 12s") */
 function formatUptime(seconds) {
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    const parts = [];
-    if (days > 0) parts.push(`${days}d`);
-    if (hours > 0) parts.push(`${hours}h`);
-    if (minutes > 0) parts.push(`${minutes}m`);
-    parts.push(`${secs}s`);
-
-    return parts.join(' ');
+    return TIME_UNITS.reduce((parts, { divisor, suffix }) => {
+        const value = Math.floor(seconds / divisor);
+        seconds %= divisor;
+        if (value > 0 || suffix === 's') parts.push(`${value}${suffix}`);
+        return parts;
+    }, []).join(' ');
 }
 
 module.exports = router;
