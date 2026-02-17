@@ -3,28 +3,96 @@
  * Functions to transform raw API responses to standardized format
  */
 
+// ==================== Shared Parse Utilities ====================
+
+/** First valid float from candidates, or 0 */
+const toF = (...vals) => {
+    for (const v of vals) {
+        const n = parseFloat(v);
+        if (!isNaN(n)) return n;
+    }
+    return 0;
+};
+
+/** First valid int from candidates, or 0 */
+const toI = (...vals) => {
+    for (const v of vals) {
+        const n = parseInt(v, 10);
+        if (!isNaN(n)) return n;
+    }
+    return 0;
+};
+
+/** First truthy string from candidates, or fallback */
+const str = (fallback, ...vals) => {
+    for (const v of vals) {
+        if (v) return v;
+    }
+    return fallback;
+};
+
+/** Parse a date from the first truthy candidate, or null */
+const optionalDate = (...vals) => {
+    for (const v of vals) {
+        if (v) return new Date(v);
+    }
+    return null;
+};
+
+// ==================== Stock Field Extractors ====================
+
+/** Resolve stock identity fields from any source format */
+const stockIdentity = (s) => ({
+    symbol: str('', s.symbol, s.securitySymbol, s.scrip),
+    companyName: str('', s.securityName, s.companyName, s.name),
+    sector: str('Others', s.sector, s.instrumentType, s.sectorName),
+});
+
+/** Resolve stock price fields (generic multi-source) */
+const stockPrices = (s) => ({
+    open: toF(s.openPrice, s.open),
+    high: toF(s.highPrice, s.high),
+    low: toF(s.lowPrice, s.low),
+    close: toF(s.closePrice, s.close),
+    ltp: toF(s.lastTradedPrice, s.ltp, s.close),
+});
+
+/** Resolve stock trading fields */
+const stockTrading = (s) => ({
+    volume: toI(s.totalTradedQuantity, s.volume, s.qty),
+    turnover: toF(s.totalTradedValue, s.turnover, s.amount),
+    noOfTransactions: toI(s.totalTrades, s.noOfTransactions),
+});
+
+/** Resolve stock change fields */
+const stockChange = (s) => ({
+    change: toF(s.pointChange, s.change, s.diff),
+    changePercent: toF(s.percentageChange, s.perChange, s.changePercent),
+    previousClose: toF(s.previousClose, s.previousDayClosePrice),
+});
+
+// ==================== Transform Functions ====================
+
 /**
  * Transform NepAlpha stock data to standard format
  * @param {Object} item - Raw NepAlpha stock item
  * @returns {Object} Standardized stock object
  */
 const transformNepAlphaStock = (item) => ({
-    symbol: item.symbol || item.securitySymbol || '',
-    companyName: item.securityName || item.companyName || '',
-    sector: item.sectorName || item.sector || 'Others',
+    ...stockIdentity(item),
     prices: {
-        open: parseFloat(item.openPrice) || 0,
-        high: parseFloat(item.highPrice) || 0,
-        low: parseFloat(item.lowPrice) || 0,
-        ltp: parseFloat(item.lastTradedPrice) || parseFloat(item.closePrice) || 0,
-        previousClose: parseFloat(item.previousClose) || parseFloat(item.previousDayClosePrice) || 0,
-        change: parseFloat(item.pointChange) || 0,
-        changePercent: parseFloat(item.percentageChange) || 0
+        open: toF(item.openPrice),
+        high: toF(item.highPrice),
+        low: toF(item.lowPrice),
+        ltp: toF(item.lastTradedPrice, item.closePrice),
+        previousClose: toF(item.previousClose, item.previousDayClosePrice),
+        change: toF(item.pointChange),
+        changePercent: toF(item.percentageChange),
     },
     trading: {
-        volume: parseInt(item.totalTradedQuantity) || 0,
-        turnover: parseFloat(item.totalTradedValue) || 0,
-        totalTrades: parseInt(item.totalTrades) || 0
+        volume: toI(item.totalTradedQuantity),
+        turnover: toF(item.totalTradedValue),
+        totalTrades: toI(item.totalTrades),
     },
     lastUpdated: new Date().toISOString()
 });
@@ -35,23 +103,11 @@ const transformNepAlphaStock = (item) => ({
  * @returns {Object} Standardized stock object
  */
 const transformStock = (stock) => ({
-    symbol: stock.symbol || stock.securitySymbol || stock.scrip || '',
-    companyName: stock.securityName || stock.companyName || stock.name || '',
-    sector: stock.sector || stock.instrumentType || stock.sectorName || 'Others',
-    prices: {
-        open: parseFloat(stock.openPrice) || parseFloat(stock.open) || 0,
-        high: parseFloat(stock.highPrice) || parseFloat(stock.high) || 0,
-        low: parseFloat(stock.lowPrice) || parseFloat(stock.low) || 0,
-        close: parseFloat(stock.closePrice) || parseFloat(stock.close) || 0,
-        ltp: parseFloat(stock.lastTradedPrice) || parseFloat(stock.ltp) || parseFloat(stock.close) || 0
-    },
-    volume: parseInt(stock.totalTradedQuantity) || parseInt(stock.volume) || parseInt(stock.qty) || 0,
-    turnover: parseFloat(stock.totalTradedValue) || parseFloat(stock.turnover) || parseFloat(stock.amount) || 0,
-    noOfTransactions: parseInt(stock.totalTrades) || parseInt(stock.noOfTransactions) || 0,
-    change: parseFloat(stock.pointChange) || parseFloat(stock.change) || parseFloat(stock.diff) || 0,
-    changePercent: parseFloat(stock.percentageChange) || parseFloat(stock.perChange) || parseFloat(stock.changePercent) || 0,
-    previousClose: parseFloat(stock.previousClose) || parseFloat(stock.previousDayClosePrice) || 0,
-    marketCap: parseFloat(stock.marketCapitalization) || parseFloat(stock.marketCap) || 0,
+    ...stockIdentity(stock),
+    prices: stockPrices(stock),
+    ...stockTrading(stock),
+    ...stockChange(stock),
+    marketCap: toF(stock.marketCapitalization, stock.marketCap),
     timestamp: new Date().toISOString()
 });
 
@@ -61,24 +117,48 @@ const transformStock = (stock) => ({
  * @returns {Object} Standardized stock object
  */
 const transformShareSansarStock = (item) => ({
-    symbol: item.symbol || '',
-    companyName: item.companyName || item.name || '',
-    sector: item.sector || 'Others',
+    symbol: str('', item.symbol),
+    companyName: str('', item.companyName, item.name),
+    sector: str('Others', item.sector),
     prices: {
-        open: parseFloat(item.open) || 0,
-        high: parseFloat(item.high) || 0,
-        low: parseFloat(item.low) || 0,
-        ltp: parseFloat(item.ltp) || parseFloat(item.close) || 0,
-        previousClose: parseFloat(item.previousClose) || 0,
-        change: parseFloat(item.change) || 0,
-        changePercent: parseFloat(item.percentChange) || 0
+        open: toF(item.open),
+        high: toF(item.high),
+        low: toF(item.low),
+        ltp: toF(item.ltp, item.close),
+        previousClose: toF(item.previousClose),
+        change: toF(item.change),
+        changePercent: toF(item.percentChange),
     },
     trading: {
-        volume: parseInt(item.volume) || 0,
-        turnover: parseFloat(item.turnover) || 0,
-        totalTrades: parseInt(item.trades) || 0
+        volume: toI(item.volume),
+        turnover: toF(item.turnover),
+        totalTrades: toI(item.trades),
     },
     lastUpdated: new Date().toISOString()
+});
+
+// ==================== Market Summary ====================
+
+/** Resolve index-related market fields */
+const marketIndex = (m) => ({
+    indexValue: toF(m.index, m.nepseIndex),
+    indexChange: toF(m.change, m.pointChange),
+    indexChangePercent: toF(m.perChange, m.percentChange),
+});
+
+/** Resolve market aggregate fields */
+const marketAggregates = (m) => ({
+    totalTransactions: toI(m.totalTransactions),
+    totalTurnover: toF(m.totalTurnover),
+    totalVolume: toI(m.totalVolume),
+});
+
+/** Resolve market breadth fields */
+const marketBreadth = (m) => ({
+    activeCompanies: toI(m.tradedScrip),
+    advancedCompanies: toI(m.positive),
+    declinedCompanies: toI(m.negative),
+    unchangedCompanies: toI(m.neutral),
 });
 
 /**
@@ -87,21 +167,16 @@ const transformShareSansarStock = (item) => ({
  * @returns {Object} Standardized market summary
  */
 const transformMarketSummary = (data) => {
-    const marketInfo = data.marketOpen || data.market || data;
+    const m = data.marketOpen || data.market || data;
     return {
-        indexValue: parseFloat(marketInfo.index) || parseFloat(marketInfo.nepseIndex) || 0,
-        indexChange: parseFloat(marketInfo.change) || parseFloat(marketInfo.pointChange) || 0,
-        indexChangePercent: parseFloat(marketInfo.perChange) || parseFloat(marketInfo.percentChange) || 0,
-        totalTransactions: parseInt(marketInfo.totalTransactions) || 0,
-        totalTurnover: parseFloat(marketInfo.totalTurnover) || 0,
-        totalVolume: parseInt(marketInfo.totalVolume) || 0,
-        activeCompanies: parseInt(marketInfo.tradedScrip) || 0,
-        advancedCompanies: parseInt(marketInfo.positive) || 0,
-        declinedCompanies: parseInt(marketInfo.negative) || 0,
-        unchangedCompanies: parseInt(marketInfo.neutral) || 0,
+        ...marketIndex(m),
+        ...marketAggregates(m),
+        ...marketBreadth(m),
         timestamp: new Date().toISOString()
     };
 };
+
+// ==================== IPO ====================
 
 /**
  * Map IPO status string to standard format
@@ -110,12 +185,38 @@ const transformMarketSummary = (data) => {
  */
 const mapIPOStatus = (status) => {
     if (!status) return 'upcoming';
-    const statusLower = status.toLowerCase();
-    if (statusLower.includes('open')) return 'open';
-    if (statusLower.includes('close')) return 'closed';
-    if (statusLower.includes('complete') || statusLower.includes('allot')) return 'completed';
+    const s = status.toLowerCase();
+    if (s.includes('open')) return 'open';
+    if (s.includes('close')) return 'closed';
+    if (s.includes('complete') || s.includes('allot')) return 'completed';
     return 'upcoming';
 };
+
+/** Extract IPO identity fields */
+const ipoIdentity = (ipo) => ({
+    companyName: str('', ipo.companyName, ipo.name),
+    sector: str('Others', ipo.sector, ipo.instrumentType),
+    shareManager: str('', ipo.shareRegistrar, ipo.shareManager),
+    issueManager: str('', ipo.issueManager),
+});
+
+/** Extract IPO date fields */
+const ipoDates = (ipo) => ({
+    announcement: optionalDate(ipo.announcementDate),
+    applicationOpen: optionalDate(ipo.openDate, ipo.issueOpenDate),
+    applicationClose: optionalDate(ipo.closeDate, ipo.issueCloseDate),
+    resultDate: optionalDate(ipo.resultDate),
+    allotmentDate: optionalDate(ipo.allotmentDate),
+});
+
+/** Extract IPO share/subscription fields */
+const ipoShares = (ipo) => ({
+    totalShares: toI(ipo.totalShares, ipo.units),
+    minimumShares: toI(ipo.minUnit, ipo.minUnits) || 10,
+    maximumShares: toI(ipo.maxUnit, ipo.maxUnits),
+    issuedShares: toI(ipo.issuedShares),
+    subscriptionRatio: toF(ipo.subscriptionTimes, ipo.subscriptionRatio),
+});
 
 /**
  * Transform IPO data to standard format
@@ -123,27 +224,14 @@ const mapIPOStatus = (status) => {
  * @returns {Object} Standardized IPO object
  */
 const transformIPO = (ipo) => ({
-    companyName: ipo.companyName || ipo.name || '',
-    sector: ipo.sector || ipo.instrumentType || 'Others',
-    shareManager: ipo.shareRegistrar || ipo.shareManager || '',
-    issueManager: ipo.issueManager || '',
+    ...ipoIdentity(ipo),
     priceRange: {
-        min: parseFloat(ipo.pricePerUnit) || parseFloat(ipo.minPrice) || 100,
-        max: parseFloat(ipo.pricePerUnit) || parseFloat(ipo.maxPrice) || 100
+        min: toF(ipo.pricePerUnit, ipo.minPrice) || 100,
+        max: toF(ipo.pricePerUnit, ipo.maxPrice) || 100,
     },
-    totalShares: parseInt(ipo.totalShares) || parseInt(ipo.units) || 0,
-    status: mapIPOStatus(ipo.status || ipo.ipoStatus || ''),
-    dates: {
-        announcement: ipo.announcementDate ? new Date(ipo.announcementDate) : null,
-        applicationOpen: ipo.openDate || ipo.issueOpenDate ? new Date(ipo.openDate || ipo.issueOpenDate) : null,
-        applicationClose: ipo.closeDate || ipo.issueCloseDate ? new Date(ipo.closeDate || ipo.issueCloseDate) : null,
-        resultDate: ipo.resultDate ? new Date(ipo.resultDate) : null,
-        allotmentDate: ipo.allotmentDate ? new Date(ipo.allotmentDate) : null
-    },
-    subscriptionRatio: parseFloat(ipo.subscriptionTimes) || parseFloat(ipo.subscriptionRatio) || 0,
-    minimumShares: parseInt(ipo.minUnit) || parseInt(ipo.minUnits) || 10,
-    maximumShares: parseInt(ipo.maxUnit) || parseInt(ipo.maxUnits) || 0,
-    issuedShares: parseInt(ipo.issuedShares) || 0,
+    status: mapIPOStatus(str('', ipo.status, ipo.ipoStatus)),
+    dates: ipoDates(ipo),
+    ...ipoShares(ipo),
     timestamp: new Date().toISOString()
 });
 
