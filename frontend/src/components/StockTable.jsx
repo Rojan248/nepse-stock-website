@@ -16,17 +16,33 @@ function detectDirection(prevNum, newNum) {
     return null;
 }
 
+/** Resolve first truthy value from candidate fields on an object */
+const resolveFirst = (obj, fields, fallback = 0) => {
+    for (const f of fields) {
+        const v = f.includes('.') ? f.split('.').reduce((o, k) => o?.[k], obj) : obj[f];
+        if (v !== undefined && v !== null) return v;
+    }
+    return fallback;
+};
+
+/** Field resolution config: [outputKey, candidateFields, fallback] */
+const FIELD_MAP = [
+    ['symbol', ['symbol', '_id'], ''],
+    ['ltp', ['ltp', 'prices.ltp', 'close'], 0],
+    ['change', ['change', 'prices.change'], 0],
+    ['changePercent', ['changePercent', 'prices.changePercent'], 0],
+    ['companyName', ['companyName', 'name', 'symbol'], ''],
+    ['sector', ['sector'], 'Others'],
+    ['volume', ['volume', 'trading.volume'], 0],
+];
+
 /** Resolve common stock fields from various API shapes */
 function resolveStockFields(stock) {
-    return {
-        symbol: stock.symbol || stock._id,
-        ltp: stock.ltp || stock.prices?.ltp || stock.close || 0,
-        change: stock.change ?? stock.prices?.change ?? 0,
-        changePercent: stock.changePercent ?? stock.prices?.changePercent ?? 0,
-        companyName: stock.companyName || stock.name || stock.symbol,
-        sector: stock.sector || 'Others',
-        volume: stock.volume || stock.trading?.volume || 0,
-    };
+    const result = {};
+    for (const [key, fields, fallback] of FIELD_MAP) {
+        result[key] = resolveFirst(stock, fields, fallback);
+    }
+    return result;
 }
 
 /** Get sign prefix for a change value */
@@ -294,25 +310,39 @@ function StockTable({
         setSortConfig({ key, direction });
     };
 
+    /** Resolve the sort value for a stock, handling nested fields */
+    const resolveSortValue = (stock, key) => {
+        if (key === 'ltp') return stock.ltp || stock.prices?.ltp || 0;
+        return stock[key];
+    };
+
     const sortedStocks = [...stocks].sort((a, b) => {
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
-
-        if (sortConfig.key === 'ltp') {
-            aVal = a.ltp || a.prices?.ltp || 0;
-            bVal = b.ltp || b.prices?.ltp || 0;
-        }
-
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        const aVal = resolveSortValue(a, sortConfig.key);
+        const bVal = resolveSortValue(b, sortConfig.key);
+        const dir = sortConfig.direction === 'asc' ? 1 : -1;
+        if (aVal < bVal) return -dir;
+        if (aVal > bVal) return dir;
         return 0;
     });
 
     const isMobile = useMediaQuery('(max-width: 768px)');
 
+    const shouldShowPagination = showPagination && totalPages > 1;
+
     return (
         <div className="stock-table-wrapper">
-            {!isMobile && (
+            {isMobile ? (
+                <div className="mobile-card-container">
+                    {sortedStocks.map((stock) => (
+                        <MobileStockCard
+                            key={stock.symbol || stock._id}
+                            stock={stock}
+                            onRowClick={onRowClick}
+                            getPreviousValue={getPreviousValue}
+                        />
+                    ))}
+                </div>
+            ) : (
                 <div className="table-container desktop-table-container">
                     <table className="stock-table">
                         <thead>
@@ -343,20 +373,7 @@ function StockTable({
                 </div>
             )}
 
-            {isMobile && (
-                <div className="mobile-card-container">
-                    {sortedStocks.map((stock) => (
-                        <MobileStockCard
-                            key={stock.symbol || stock._id}
-                            stock={stock}
-                            onRowClick={onRowClick}
-                            getPreviousValue={getPreviousValue}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {showPagination && totalPages > 1 && (
+            {shouldShowPagination && (
                 <PaginationControls
                     currentPage={currentPage}
                     totalPages={totalPages}
