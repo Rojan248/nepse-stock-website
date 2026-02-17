@@ -228,6 +228,12 @@ const fetchSecuritiesWithPrices = async (token, companyList) => {
 
 // ==================== fetchMissingSecurities Helpers ====================
 
+/** Resolve first truthy numeric field from an object, defaulting to fallback */
+const mcsField = (mcs, fields, fallback = 0) => {
+    for (const f of fields) { if (mcs[f]) return mcs[f]; }
+    return fallback;
+};
+
 /** Map raw security detail API response to trade-stat compatible shape */
 function mapSecurityDetail(data) {
     const mcs = data.securityMcsData;
@@ -235,15 +241,15 @@ function mapSecurityDetail(data) {
     return {
         symbol: info.symbol,
         securityName: info.securityName,
-        lastTradedPrice: mcs.lastTradedPrice || mcs.closePrice || 0,
+        lastTradedPrice: mcsField(mcs, ['lastTradedPrice', 'closePrice']),
         previousClose: mcs.previousClose || 0,
         openPrice: mcs.openPrice || 0,
         highPrice: mcs.highPrice || 0,
         lowPrice: mcs.lowPrice || 0,
         totalTradeQuantity: mcs.totalTradeQuantity || 0,
-        totalTradeValue: 0, // No turnover if not traded
+        totalTradeValue: 0,
         totalTrades: mcs.totalTrades || 0,
-        percentageChange: 0, // Assumed 0 if not traded today
+        percentageChange: 0,
         lastUpdatedDateTime: mcs.lastUpdatedDateTime
     };
 }
@@ -339,12 +345,21 @@ function transformDatewiseIndex(idx) {
     };
 }
 
+/** Resolve first parseable int from a list of field candidates */
+const resolveInt = (obj, fields) => {
+    for (const f of fields) {
+        const v = parseInt(obj[f], 10);
+        if (!isNaN(v)) return v;
+    }
+    return null;
+};
+
 /** Extract market breadth (advance/decline/unchanged) from NEPSE main index */
 function extractBreadth(idx) {
     return {
-        advancedCompanies: parseInt(idx.advance) || parseInt(idx.positive) || parseInt(idx.up) || null,
-        declinedCompanies: parseInt(idx.decline) || parseInt(idx.negative) || parseInt(idx.down) || null,
-        unchangedCompanies: parseInt(idx.unchanged) || parseInt(idx.neutral) || parseInt(idx.noChange) || null
+        advancedCompanies: resolveInt(idx, ['advance', 'positive', 'up']),
+        declinedCompanies: resolveInt(idx, ['decline', 'negative', 'down']),
+        unchangedCompanies: resolveInt(idx, ['unchanged', 'neutral', 'noChange'])
     };
 }
 
@@ -356,30 +371,27 @@ const SUMMARY_DETAIL_MAP = [
     ['scrips traded', 'totalScripsTraded', (v) => Math.round(parseFloat(v) || 0)],
 ];
 
+/** Classify a single summary item, returning { field, value } or null */
+function classifySummaryItem(detail, rawValue) {
+    // Market cap (exclude float market cap)
+    if (detail.includes('market capitalization') && !detail.includes('float')) {
+        return { field: 'totalMarketCap', value: parseFloat(rawValue) || 0 };
+    }
+    for (const [keyword, field, parser] of SUMMARY_DETAIL_MAP) {
+        if (detail.includes(keyword)) return { field, value: parser(rawValue) };
+    }
+    return null;
+}
+
 /** Parse market summary items from the summary API response */
 function parseSummaryItems(data) {
     const result = { totalTurnover: 0, totalTransactions: 0, totalVolume: 0, totalScripsTraded: 0, totalMarketCap: 0 };
-
     if (!data || !Array.isArray(data)) return result;
 
     for (const item of data) {
-        const detail = (item.detail || '').toLowerCase();
-        const value = parseFloat(item.value) || 0;
-
-        // Market cap has special logic (exclude float market cap)
-        if (detail.includes('market capitalization') && !detail.includes('float')) {
-            result.totalMarketCap = value;
-            continue;
-        }
-
-        for (const [keyword, field, parser] of SUMMARY_DETAIL_MAP) {
-            if (detail.includes(keyword)) {
-                result[field] = parser(item.value);
-                break;
-            }
-        }
+        const classified = classifySummaryItem((item.detail || '').toLowerCase(), item.value);
+        if (classified) result[classified.field] = classified.value;
     }
-
     return result;
 }
 
@@ -391,10 +403,45 @@ function hasIndexData(res) {
 /**
  * Fetch market summary and all indices from NEPSE
  */
+const DEFAULT_BREADTH = { advancedCompanies: null, declinedCompanies: null, unchangedCompanies: null };
+const ALL_INDEX_IDS = [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67];
+
+/** Process bulk indices response into a map + breadth */
+function processBulkIndices(data) {
+    const indicesMap = new Map();
+    let breadth = { ...DEFAULT_BREADTH };
+    if (!Array.isArray(data)) return { indicesMap, breadth };
+
+    for (const idx of data) {
+        if (idx.id === 58) breadth = extractBreadth(idx);
+        indicesMap.set(idx.id, transformIndexEntry(idx));
+    }
+    return { indicesMap, breadth };
+}
+
+/** Fetch and fill any missing indices via datewise endpoint */
+async function fetchMissingIndices(indicesMap, headers, today) {
+    const missingIds = ALL_INDEX_IDS.filter(id => !indicesMap.has(id));
+    if (missingIds.length === 0) return;
+
+    const responses = await Promise.all(
+        missingIds.map(id =>
+            nepseAxios.get(`${BASE_URL}/api/nots/datewise-indices?indexId=${id}&startDate=${today}&endDate=${today}`, { headers, httpsAgent: nepseHttpsAgent })
+                .catch(() => ({ data: [] }))
+        )
+    );
+
+    for (const res of responses) {
+        if (hasIndexData(res)) {
+            const idx = res.data[0];
+            indicesMap.set(idx.indexId, transformDatewiseIndex(idx));
+        }
+    }
+}
+
 const fetchMarketSummary = async (token) => {
     try {
         const headers = createHeaders(token);
-        const allIndexIds = [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67];
         const today = new Date().toISOString().split('T')[0];
 
         const [bulkIndicesRes, summaryResponse] = await Promise.all([
@@ -402,36 +449,8 @@ const fetchMarketSummary = async (token) => {
             nepseAxios.get(`${BASE_URL}/api/nots/market-summary`, { headers, httpsAgent: nepseHttpsAgent }).catch(() => null)
         ]);
 
-        // Process bulk indices and extract breadth from NEPSE main index (id=58)
-        const indicesMap = new Map();
-        let breadth = { advancedCompanies: null, declinedCompanies: null, unchangedCompanies: null };
-
-        if (bulkIndicesRes.data && Array.isArray(bulkIndicesRes.data)) {
-            for (const idx of bulkIndicesRes.data) {
-                if (idx.id === 58) {
-                    breadth = extractBreadth(idx);
-                    logger.info(`Breadth from NEPSE: A=${breadth.advancedCompanies}, D=${breadth.declinedCompanies}, U=${breadth.unchangedCompanies}`);
-                }
-                indicesMap.set(idx.id, transformIndexEntry(idx));
-            }
-        }
-
-        // Fetch missing indices in parallel
-        const missingIds = allIndexIds.filter(id => !indicesMap.has(id));
-        if (missingIds.length > 0) {
-            const missingPromises = missingIds.map(id =>
-                nepseAxios.get(`${BASE_URL}/api/nots/datewise-indices?indexId=${id}&startDate=${today}&endDate=${today}`, { headers, httpsAgent: nepseHttpsAgent })
-                    .catch(() => ({ data: [] }))
-            );
-
-            const missingResponses = await Promise.all(missingPromises);
-            for (const res of missingResponses) {
-                if (hasIndexData(res)) {
-                    const idx = res.data[0];
-                    indicesMap.set(idx.indexId, transformDatewiseIndex(idx));
-                }
-            }
-        }
+        const { indicesMap, breadth } = processBulkIndices(bulkIndicesRes.data);
+        await fetchMissingIndices(indicesMap, headers, today);
 
         const indices = Array.from(indicesMap.values());
         const nepseIndex = indices.find(idx => idx.id === 58) || indices[0];
