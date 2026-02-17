@@ -94,6 +94,28 @@ const sectorMatches = (stockSector, filterSector) => {
     return stripTrailingS(s1) === stripTrailingS(s2);
 };
 
+/** Extract price-related fields from stock + nested prices object */
+const extractPriceFields = (stock, prices) => ({
+    lastTradedPrice: toFloat(resolveField(stock.lastTradedPrice, stock.ltp, stock.close, prices.ltp, prices.close)),
+    previousClose: toFloat(resolveField(stock.previousClose, stock.previousClosingPrice, prices.previousClose)),
+    openPrice: toFloat(resolveField(stock.openPrice, prices.open)),
+    highPrice: toFloat(resolveField(stock.highPrice, prices.high)),
+    lowPrice: toFloat(resolveField(stock.lowPrice, prices.low)),
+});
+
+/** Extract trading-related fields from stock + nested trading object */
+const extractTradingFields = (stock, trading) => ({
+    volume: toInt(resolveField(stock.volume, trading.volume, stock.totalTradedQuantity)),
+    totalTrades: toInt(resolveField(stock.totalTrades, trading.totalTrades, stock.totalTradedTransactions)),
+    turnover: toFloat(resolveField(stock.turnover, trading.turnover, stock.totalTradedValue)),
+});
+
+/** Extract change-related fields from stock + nested prices object */
+const extractChangeFields = (stock, prices) => ({
+    change: toFloat(resolveField(stock.change, prices.change, stock.pointChange)),
+    percentageChange: toFloat(resolveField(stock.percentageChange, stock.changePercent, prices.changePercent)),
+});
+
 /**
  * Normalize stock input for database storage
  * Handles various input structures (flat, nested prices, nested trading)
@@ -103,23 +125,15 @@ const sectorMatches = (stockSector, filterSector) => {
 const normalizeStockInput = (stock) => {
     if (!stock) return null;
 
-    const p = stock.prices || {};
-    const t = stock.trading || {};
+    const symbol = (stock.symbol || '').toUpperCase();
 
     return {
-        symbol: (stock.symbol || '').toUpperCase(),
-        companyName: stock.companyName || stock.name || (stock.symbol || '').toUpperCase(),
+        symbol,
+        companyName: stock.companyName || stock.name || symbol,
         sector: stock.sector || null,
-        lastTradedPrice: toFloat(resolveField(stock.lastTradedPrice, stock.ltp, stock.close, p.ltp, p.close)),
-        previousClose: toFloat(resolveField(stock.previousClose, stock.previousClosingPrice, p.previousClose)),
-        openPrice: toFloat(resolveField(stock.openPrice, p.open)),
-        highPrice: toFloat(resolveField(stock.highPrice, p.high)),
-        lowPrice: toFloat(resolveField(stock.lowPrice, p.low)),
-        volume: toInt(resolveField(stock.volume, t.volume, stock.totalTradedQuantity)),
-        totalTrades: toInt(resolveField(stock.totalTrades, t.totalTrades, stock.totalTradedTransactions)),
-        turnover: toFloat(resolveField(stock.turnover, t.turnover, stock.totalTradedValue)),
-        change: toFloat(resolveField(stock.change, p.change, stock.pointChange)),
-        percentageChange: toFloat(resolveField(stock.percentageChange, stock.changePercent, p.changePercent)),
+        ...extractPriceFields(stock, stock.prices || {}),
+        ...extractTradingFields(stock, stock.trading || {}),
+        ...extractChangeFields(stock, stock.prices || {}),
         updatedAt: new Date()
     };
 };
