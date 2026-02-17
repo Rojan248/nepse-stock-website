@@ -226,6 +226,28 @@ const fetchSecuritiesWithPrices = async (token, companyList) => {
     }
 };
 
+// ==================== fetchMissingSecurities Helpers ====================
+
+/** Map raw security detail API response to trade-stat compatible shape */
+function mapSecurityDetail(data) {
+    const mcs = data.securityMcsData;
+    const info = data.securityData;
+    return {
+        symbol: info.symbol,
+        securityName: info.securityName,
+        lastTradedPrice: mcs.lastTradedPrice || mcs.closePrice || 0,
+        previousClose: mcs.previousClose || 0,
+        openPrice: mcs.openPrice || 0,
+        highPrice: mcs.highPrice || 0,
+        lowPrice: mcs.lowPrice || 0,
+        totalTradeQuantity: mcs.totalTradeQuantity || 0,
+        totalTradeValue: 0, // No turnover if not traded
+        totalTrades: mcs.totalTrades || 0,
+        percentageChange: 0, // Assumed 0 if not traded today
+        lastUpdatedDateTime: mcs.lastUpdatedDateTime
+    };
+}
+
 /**
  * Fetch detailed data for a list of companies using security/{id}
  * Done in batches to control concurrency
@@ -239,8 +261,6 @@ const fetchMissingSecurities = async (companies, token) => {
         const chunk = companies.slice(i, i + CONCURRENCY_LIMIT);
         const chunkPromises = chunk.map(async (company) => {
             try {
-                // Fetch individual security details
-                // Uses: /api/nots/security/{id}
                 const res = await nepseAxios.get(`${BASE_URL}/api/nots/security/${company.id}`, {
                     headers,
                     httpsAgent: nepseHttpsAgent
@@ -248,25 +268,7 @@ const fetchMissingSecurities = async (companies, token) => {
 
                 const data = res.data;
                 if (!data || !data.securityMcsData) return null;
-
-                // Map to 'securityDailyTradeStat' structure so transformSecurity can handle it
-                const mcs = data.securityMcsData;
-                const info = data.securityData;
-
-                return {
-                    symbol: info.symbol,
-                    securityName: info.securityName,
-                    lastTradedPrice: mcs.lastTradedPrice || mcs.closePrice || 0,
-                    previousClose: mcs.previousClose || 0,
-                    openPrice: mcs.openPrice || 0,
-                    highPrice: mcs.highPrice || 0,
-                    lowPrice: mcs.lowPrice || 0,
-                    totalTradeQuantity: mcs.totalTradeQuantity || 0,
-                    totalTradeValue: 0, // No turnover if not traded
-                    totalTrades: mcs.totalTrades || 0,
-                    percentageChange: 0, // Assumed 0 if not traded today
-                    lastUpdatedDateTime: mcs.lastUpdatedDateTime
-                };
+                return mapSecurityDetail(data);
             } catch (error) {
                 logger.warn(`Failed to fetch details for ${company.symbol} (${company.id}): ${error.message}`);
                 return null;
@@ -297,10 +299,94 @@ const isMarketOpen = () => {
 };
 
 // Wrap the imported transformSecurity to pass required dependencies
-// Wrap the imported transformSecurity to pass required dependencies
 const transformSecurity = (security, marketOpen = null) => {
     return transformSecurityLib(security, marketOpen, staticStockMap, isMarketOpen);
 };
+
+// ==================== fetchMarketSummary Helpers ====================
+
+const toF = (v) => parseFloat(v) || 0;
+const toI = (v) => parseInt(v, 10) || null;
+
+/** Transform a raw bulk index entry to standard shape */
+function transformIndexEntry(idx) {
+    return {
+        id: idx.id,
+        name: idx.index,
+        value: toF(idx.currentValue),
+        change: toF(idx.change),
+        changePercent: toF(idx.perChange),
+        high: toF(idx.high),
+        low: toF(idx.low),
+        previousClose: toF(idx.previousClose),
+        advance: toI(idx.advance),
+        decline: toI(idx.decline),
+        unchanged: toI(idx.unchanged)
+    };
+}
+
+/** Transform a datewise index response entry to standard shape */
+function transformDatewiseIndex(idx) {
+    return {
+        id: idx.indexId,
+        name: idx.index,
+        value: parseFloat(idx.indexValue) || parseFloat(idx.closeValue) || 0,
+        change: toF(idx.change),
+        changePercent: toF(idx.perChange),
+        high: toF(idx.highValue),
+        low: toF(idx.lowValue),
+        previousClose: toF(idx.previousClose)
+    };
+}
+
+/** Extract market breadth (advance/decline/unchanged) from NEPSE main index */
+function extractBreadth(idx) {
+    return {
+        advancedCompanies: parseInt(idx.advance) || parseInt(idx.positive) || parseInt(idx.up) || null,
+        declinedCompanies: parseInt(idx.decline) || parseInt(idx.negative) || parseInt(idx.down) || null,
+        unchangedCompanies: parseInt(idx.unchanged) || parseInt(idx.neutral) || parseInt(idx.noChange) || null
+    };
+}
+
+/** Summary detail label → field name mapping */
+const SUMMARY_DETAIL_MAP = [
+    ['turnover', 'totalTurnover', parseFloat],
+    ['transaction', 'totalTransactions', (v) => Math.round(parseFloat(v) || 0)],
+    ['traded shares', 'totalVolume', (v) => Math.round(parseFloat(v) || 0)],
+    ['scrips traded', 'totalScripsTraded', (v) => Math.round(parseFloat(v) || 0)],
+];
+
+/** Parse market summary items from the summary API response */
+function parseSummaryItems(data) {
+    const result = { totalTurnover: 0, totalTransactions: 0, totalVolume: 0, totalScripsTraded: 0, totalMarketCap: 0 };
+
+    if (!data || !Array.isArray(data)) return result;
+
+    for (const item of data) {
+        const detail = (item.detail || '').toLowerCase();
+        const value = parseFloat(item.value) || 0;
+
+        // Market cap has special logic (exclude float market cap)
+        if (detail.includes('market capitalization') && !detail.includes('float')) {
+            result.totalMarketCap = value;
+            continue;
+        }
+
+        for (const [keyword, field, parser] of SUMMARY_DETAIL_MAP) {
+            if (detail.includes(keyword)) {
+                result[field] = parser(item.value);
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+/** Check if a datewise-indices response has valid data */
+function hasIndexData(res) {
+    return res.data && Array.isArray(res.data) && res.data.length > 0;
+}
 
 /**
  * Fetch market summary and all indices from NEPSE
@@ -308,59 +394,30 @@ const transformSecurity = (security, marketOpen = null) => {
 const fetchMarketSummary = async (token) => {
     try {
         const headers = createHeaders(token);
-
-        // All known Index IDs from NEPSE
         const allIndexIds = [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67];
         const today = new Date().toISOString().split('T')[0];
 
-        // Fetch index data and market summary
-        // We fetch indices in broad groups/individually if needed to ensure all 17 are covered
-        // Most sub-indices are available via /api/nots/datewise-indices
         const [bulkIndicesRes, summaryResponse] = await Promise.all([
             nepseAxios.get(`${BASE_URL}/api/nots/nepse-index`, { headers, httpsAgent: nepseHttpsAgent }).catch(() => ({ data: [] })),
             nepseAxios.get(`${BASE_URL}/api/nots/market-summary`, { headers, httpsAgent: nepseHttpsAgent }).catch(() => null)
         ]);
 
-        // Create a map to store unique indices
+        // Process bulk indices and extract breadth from NEPSE main index (id=58)
         const indicesMap = new Map();
-
-        // Process bulk indices (usually returns 4)
-        // Also extract market breadth data (advance/decline/unchanged) from NEPSE index
-        let advancedCompanies = null;
-        let declinedCompanies = null;
-        let unchangedCompanies = null;
+        let breadth = { advancedCompanies: null, declinedCompanies: null, unchangedCompanies: null };
 
         if (bulkIndicesRes.data && Array.isArray(bulkIndicesRes.data)) {
-            bulkIndicesRes.data.forEach(idx => {
+            for (const idx of bulkIndicesRes.data) {
                 if (idx.id === 58) {
-                    // Extract breadth data - NEPSE API uses these field names
-                    advancedCompanies = parseInt(idx.advance) || parseInt(idx.positive) || parseInt(idx.up) || null;
-                    declinedCompanies = parseInt(idx.decline) || parseInt(idx.negative) || parseInt(idx.down) || null;
-                    unchangedCompanies = parseInt(idx.unchanged) || parseInt(idx.neutral) || parseInt(idx.noChange) || null;
-                    logger.info(`Breadth from NEPSE: A=${advancedCompanies}, D=${declinedCompanies}, U=${unchangedCompanies}`);
+                    breadth = extractBreadth(idx);
+                    logger.info(`Breadth from NEPSE: A=${breadth.advancedCompanies}, D=${breadth.declinedCompanies}, U=${breadth.unchangedCompanies}`);
                 }
-
-                indicesMap.set(idx.id, {
-                    id: idx.id,
-                    name: idx.index,
-                    value: parseFloat(idx.currentValue) || 0,
-                    change: parseFloat(idx.change) || 0,
-                    changePercent: parseFloat(idx.perChange) || 0,
-                    high: parseFloat(idx.high) || 0,
-                    low: parseFloat(idx.low) || 0,
-                    previousClose: parseFloat(idx.previousClose) || 0,
-                    // Include breadth data if available
-                    advance: parseInt(idx.advance) || null,
-                    decline: parseInt(idx.decline) || null,
-                    unchanged: parseInt(idx.unchanged) || null
-                });
-            });
+                indicesMap.set(idx.id, transformIndexEntry(idx));
+            }
         }
 
-        // Identify missing IDs
-        const missingIds = allIndexIds.filter(id => !indicesMap.has(id));
-
         // Fetch missing indices in parallel
+        const missingIds = allIndexIds.filter(id => !indicesMap.has(id));
         if (missingIds.length > 0) {
             const missingPromises = missingIds.map(id =>
                 nepseAxios.get(`${BASE_URL}/api/nots/datewise-indices?indexId=${id}&startDate=${today}&endDate=${today}`, { headers, httpsAgent: nepseHttpsAgent })
@@ -368,47 +425,17 @@ const fetchMarketSummary = async (token) => {
             );
 
             const missingResponses = await Promise.all(missingPromises);
-            missingResponses.forEach(res => {
-                if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+            for (const res of missingResponses) {
+                if (hasIndexData(res)) {
                     const idx = res.data[0];
-                    indicesMap.set(idx.indexId, {
-                        id: idx.indexId,
-                        name: idx.index,
-                        value: parseFloat(idx.indexValue) || parseFloat(idx.closeValue) || 0,
-                        change: parseFloat(idx.change) || 0,
-                        changePercent: parseFloat(idx.perChange) || 0,
-                        high: parseFloat(idx.highValue) || 0,
-                        low: parseFloat(idx.lowValue) || 0,
-                        previousClose: parseFloat(idx.previousClose) || 0
-                    });
+                    indicesMap.set(idx.indexId, transformDatewiseIndex(idx));
                 }
-            });
+            }
         }
 
         const indices = Array.from(indicesMap.values());
-
-        // Find main NEPSE index for the root summary
         const nepseIndex = indices.find(idx => idx.id === 58) || indices[0];
-
-        // Parse market summary data
-        let totalTurnover = 0;
-        let totalTransactions = 0;
-        let totalVolume = 0;
-        let totalScripsTraded = 0;
-        let totalMarketCap = 0;
-
-        if (summaryResponse?.data && Array.isArray(summaryResponse.data)) {
-            summaryResponse.data.forEach(item => {
-                const detail = (item.detail || '').toLowerCase();
-                const value = parseFloat(item.value) || 0;
-
-                if (detail.includes('turnover')) totalTurnover = value;
-                else if (detail.includes('transaction')) totalTransactions = Math.round(value);
-                else if (detail.includes('traded shares')) totalVolume = Math.round(value);
-                else if (detail.includes('scrips traded')) totalScripsTraded = Math.round(value);
-                else if (detail.includes('market capitalization') && !detail.includes('float')) totalMarketCap = value;
-            });
-        }
+        const summary = parseSummaryItems(summaryResponse?.data);
 
         const isOpen = isMarketActive();
         const state = require('../utils/marketTime').getMarketState();
@@ -419,15 +446,10 @@ const fetchMarketSummary = async (token) => {
             indexValue: nepseIndex.value,
             indexChange: nepseIndex.change,
             indexChangePercent: nepseIndex.changePercent,
-            indices, // ALL indices included here
-            totalTransactions,
-            totalTurnover,
-            totalVolume,
-            totalMarketCap,
-            activeCompanies: totalScripsTraded,
-            advancedCompanies,
-            declinedCompanies,
-            unchangedCompanies,
+            indices,
+            ...summary,
+            activeCompanies: summary.totalScripsTraded,
+            ...breadth,
             timestamp: new Date().toISOString()
         };
 
@@ -437,17 +459,34 @@ const fetchMarketSummary = async (token) => {
     }
 };
 
+// ==================== fetchTopMovers Helpers ====================
+
+/** Endpoint lookup table for top-movers types */
+const MOVER_ENDPOINTS = {
+    turnover: '/api/nots/top-ten/turnover',
+    trade: '/api/nots/top-ten/trade',
+    volume: '/api/nots/top-ten/volume'
+};
+
+/** Transform a raw top-mover item to standard shape */
+function transformMoverItem(item) {
+    return {
+        symbol: item.symbol,
+        companyName: item.securityName || item.name,
+        ltp: parseFloat(item.closingPrice) || parseFloat(item.lastTradedPrice) || 0,
+        turnover: parseFloat(item.turnover) || 0,
+        volume: parseInt(item.shareTraded) || parseInt(item.totalTradedQuantity) || 0,
+        trades: parseInt(item.noOfTransactions) || 0
+    };
+}
+
 /**
  * Fetch top gainers or losers
  */
 const fetchTopMovers = async (token, type) => {
     try {
         const headers = createHeaders(token);
-        const endpoint = type === 'turnover'
-            ? '/api/nots/top-ten/turnover'
-            : type === 'trade'
-                ? '/api/nots/top-ten/trade'
-                : '/api/nots/top-ten/volume';
+        const endpoint = MOVER_ENDPOINTS[type] || MOVER_ENDPOINTS.volume;
 
         const response = await nepseAxios.get(`${BASE_URL}${endpoint}`, {
             headers,
@@ -458,14 +497,7 @@ const fetchTopMovers = async (token, type) => {
             return [];
         }
 
-        return response.data.map(item => ({
-            symbol: item.symbol,
-            companyName: item.securityName || item.name,
-            ltp: parseFloat(item.closingPrice) || parseFloat(item.lastTradedPrice) || 0,
-            turnover: parseFloat(item.turnover) || 0,
-            volume: parseInt(item.shareTraded) || parseInt(item.totalTradedQuantity) || 0,
-            trades: parseInt(item.noOfTransactions) || 0
-        }));
+        return response.data.map(transformMoverItem);
 
     } catch (error) {
         logger.debug(`Error fetching top ${type}: ${error.message}`);
