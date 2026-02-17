@@ -9,6 +9,8 @@ const { notFoundHandler, errorHandler, validationErrorHandler } = require('./mid
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
 const { initScheduler } = require('./services/scheduler');
+const helmet = require('helmet');
+const { globalLimiter } = require('./middleware/rateLimiter');
 
 // Import routes
 const stocksRouter = require('./routes/stocks');
@@ -28,6 +30,19 @@ const PORT = process.env.PORT || 5000;
 app.set('trust proxy', 1);
 
 // Middleware
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https://api.nepsealpha.com"],
+        },
+    },
+}));
+app.use(globalLimiter);
 app.use(corsMiddleware);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -164,7 +179,9 @@ const startServer = async () => {
     }
 };
 
-// Start the server
-startServer();
+// Start the server if run directly
+if (require.main === module) {
+    startServer();
+}
 
 module.exports = app;
