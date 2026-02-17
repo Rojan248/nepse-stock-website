@@ -201,6 +201,18 @@ router.get('/time-sync-status', asyncHandler(async (req, res) => {
     });
 }));
 
+/** Enrich a single trending item with current stock data */
+function enrichTrendingItem(item, stock) {
+    const prices = stock.prices || {};
+    return {
+        symbol: item.symbol,
+        name: stock.companyName || stock.symbol,
+        score: item.score,
+        change: prices.changePercent ?? stock.changePercent ?? 0,
+        ltp: prices.ltp ?? stock.ltp ?? 0
+    };
+}
+
 /**
  * GET /api/trending
  * Get trending stocks based on user activity
@@ -225,14 +237,7 @@ router.get('/trending', asyncHandler(async (req, res) => {
     const validTrending = trending.flatMap((item) => {
         const stock = stockMap.get(item.symbol.toUpperCase());
         if (!stock) return [];
-
-        return {
-            symbol: item.symbol,
-            name: stock.companyName || stock.symbol,
-            score: item.score,
-            change: stock.prices?.changePercent || stock.changePercent || 0,
-            ltp: stock.prices?.ltp || stock.ltp || 0
-        };
+        return enrichTrendingItem(item, stock);
     });
 
     res.json({
