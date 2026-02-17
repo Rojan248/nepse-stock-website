@@ -43,6 +43,38 @@ const nepseClient = axios.create({
     headers: BROWSER_HEADERS
 });
 
+// ==================== Shared Helpers ====================
+
+/** Resolve first truthy float from candidate field names */
+const resolveFloat = (obj, fields) => {
+    for (const f of fields) {
+        const v = parseFloat(obj[f]);
+        if (!isNaN(v) && v !== 0) return v;
+    }
+    return 0;
+};
+
+/** Resolve first truthy int from candidate field names */
+const resolveInt = (obj, fields) => {
+    for (const f of fields) {
+        const v = parseInt(obj[f], 10);
+        if (!isNaN(v) && v !== 0) return v;
+    }
+    return 0;
+};
+
+/** Resolve first truthy string from candidate field names */
+const resolveStr = (obj, fields, fallback = '') => {
+    for (const f of fields) {
+        if (obj[f]) return obj[f];
+    }
+    return fallback;
+};
+
+/** Check whether a scraper result contains usable stock data */
+const hasValidStockData = (result) =>
+    result && result.stocks && result.stocks.length > 0;
+
 /**
  * Main Fetch Function
  */
@@ -52,7 +84,7 @@ const fetchData = async () => {
     // Strategy 1: NEPSE Public Endpoints
     try {
         const publicData = await fetchFromNEPSEPublic();
-        if (publicData && publicData.stocks && publicData.stocks.length > 0) {
+        if (hasValidStockData(publicData)) {
             logger.info(`✓ Custom scraper: Got ${publicData.stocks.length} stocks from NEPSE public API`);
             return publicData;
         }
@@ -63,7 +95,7 @@ const fetchData = async () => {
     // Strategy 2: Alternative Sources (Merolagani)
     try {
         const altData = await fetchFromAlternativeSources();
-        if (altData && altData.stocks && altData.stocks.length > 0) {
+        if (hasValidStockData(altData)) {
             logger.info(`✓ Custom scraper: Got ${altData.stocks.length} stocks from Alternative Source`);
             return altData;
         }
@@ -71,8 +103,6 @@ const fetchData = async () => {
         logger.debug(`Custom scraper: Alternative sources failed: ${error.message}`);
     }
 
-    // No more simulated data fallback - only use real scraped data
-    // If all sources fail, return null and let the caller handle it
     logger.warn('Custom scraper: All real sources failed. No fallback data available.');
     return null;
 };
@@ -98,14 +128,7 @@ const fetchFromNEPSEPublic = async () => {
             if (data.content) data = data.content;
 
             if (Array.isArray(data) && data.length > 0) {
-                const stocks = data.map(transformNEPSEStock);
-                return {
-                    stocks,
-                    ipos: [],
-                    marketSummary: null, // Will be calculated by dataFetcher
-                    source: 'nepse-public-fallback',
-                    timestamp: new Date().toISOString()
-                };
+                return buildScraperResult(data.map(transformNEPSEStock), 'nepse-public-fallback');
             }
         } catch (error) {
             // Ssh, it's a fallback
@@ -114,48 +137,93 @@ const fetchFromNEPSEPublic = async () => {
     return null;
 };
 
+/** Resolve identity fields from NEPSE stock item */
+const resolveNEPSEIdentity = (item) => {
+    const symbol = resolveStr(item, ['symbol', 'securitySymbol', 'scrip']);
+    return {
+        symbol,
+        companyName: resolveStr(item, ['securityName', 'companyName', 'name'], symbol),
+        sector: resolveStr(item, ['sectorName', 'sector', 'instrumentType'], 'Others')
+    };
+};
+
+/** Resolve price fields and derived change values */
+const resolveNEPSEPrices = (item) => {
+    const ltp = resolveFloat(item, ['lastTradedPrice', 'closePrice', 'ltp']);
+    const prevClose = resolveFloat(item, ['previousClose', 'previousDayClosePrice']);
+    const change = parseFloat(item.pointChange) || (ltp - prevClose) || 0;
+    const changePercent = parseFloat(item.percentageChange) || (prevClose ? (change / prevClose * 100) : 0);
+    return {
+        ltp,
+        open: resolveFloat(item, ['openPrice', 'open']),
+        high: resolveFloat(item, ['highPrice', 'high']),
+        low: resolveFloat(item, ['lowPrice', 'low']),
+        previousClose: prevClose,
+        change: Math.round(change * 100) / 100,
+        changePercent: Math.round(changePercent * 100) / 100
+    };
+};
+
+/** Resolve trading volume fields */
+const resolveNEPSETrading = (item) => ({
+    volume: resolveInt(item, ['totalTradedQuantity', 'volume']),
+    turnover: resolveFloat(item, ['totalTradedValue', 'turnover']),
+    totalTrades: resolveInt(item, ['totalTrades', 'noOfTransactions'])
+});
+
+/** Resolve 52-week range fields */
+const resolveNEPSE52Week = (item) => ({
+    high: resolveFloat(item, ['fiftyTwoWeekHigh']),
+    low: resolveFloat(item, ['fiftyTwoWeekLow'])
+});
+
 /**
  * Transform NEPSE API stock data to standard format
  */
-const transformNEPSEStock = (item) => {
-    const symbol = item.symbol || item.securitySymbol || item.scrip || '';
-    const ltp = parseFloat(item.lastTradedPrice) || parseFloat(item.closePrice) || parseFloat(item.ltp) || 0;
-    const prevClose = parseFloat(item.previousClose) || parseFloat(item.previousDayClosePrice) || 0;
-    const change = parseFloat(item.pointChange) || (ltp - prevClose) || 0;
-    const changePercent = parseFloat(item.percentageChange) || (prevClose ? (change / prevClose * 100) : 0);
+const transformNEPSEStock = (item) => ({
+    ...resolveNEPSEIdentity(item),
+    prices: resolveNEPSEPrices(item),
+    trading: resolveNEPSETrading(item),
+    fiftyTwoWeek: resolveNEPSE52Week(item),
+    lastUpdated: new Date().toISOString()
+});
 
-    return {
-        symbol,
-        companyName: item.securityName || item.companyName || item.name || symbol,
-        sector: item.sectorName || item.sector || item.instrumentType || 'Others',
-        prices: {
-            ltp,
-            open: parseFloat(item.openPrice) || parseFloat(item.open) || 0,
-            high: parseFloat(item.highPrice) || parseFloat(item.high) || 0,
-            low: parseFloat(item.lowPrice) || parseFloat(item.low) || 0,
-            previousClose: prevClose,
-            change: Math.round(change * 100) / 100,
-            changePercent: Math.round(changePercent * 100) / 100
-        },
-        trading: {
-            volume: parseInt(item.totalTradedQuantity) || parseInt(item.volume) || 0,
-            turnover: parseFloat(item.totalTradedValue) || parseFloat(item.turnover) || 0,
-            totalTrades: parseInt(item.totalTrades) || parseInt(item.noOfTransactions) || 0
-        },
-        fiftyTwoWeek: {
-            high: parseFloat(item.fiftyTwoWeekHigh) || 0,
-            low: parseFloat(item.fiftyTwoWeekLow) || 0
-        },
-        lastUpdated: new Date().toISOString()
-    };
-};
+/** Transform a single Merolagani item to standard stock format */
+const transformMerolaganiStock = (item) => ({
+    symbol: resolveStr(item, ['s', 'symbol']),
+    companyName: resolveStr(item, ['n', 'name']),
+    sector: item.sector || 'Others',
+    prices: {
+        ltp: resolveFloat(item, ['l', 'ltp']),
+        open: resolveFloat(item, ['o']),
+        high: resolveFloat(item, ['h']),
+        low: resolveFloat(item, ['lo']),
+        previousClose: resolveFloat(item, ['pc']),
+        change: resolveFloat(item, ['c']),
+        changePercent: resolveFloat(item, ['cp'])
+    },
+    trading: {
+        volume: resolveInt(item, ['v']),
+        turnover: resolveFloat(item, ['t']),
+        totalTrades: 0
+    },
+    lastUpdated: new Date().toISOString()
+});
+
+/** Build a standard scraper result envelope */
+const buildScraperResult = (stocks, source) => ({
+    stocks,
+    ipos: [],
+    marketSummary: null,
+    source,
+    timestamp: new Date().toISOString()
+});
 
 /**
  * Fetch from alternative data sources (Merolagani)
  */
 const fetchFromAlternativeSources = async () => {
     try {
-        // Merolagani Handler
         const response = await axios.get('https://merolagani.com/handlers/weaboradataaborahandler.ashx', {
             params: { type: 'get_live_market' },
             timeout: TIMEOUT,
@@ -164,38 +232,11 @@ const fetchFromAlternativeSources = async () => {
             }
         });
 
-        if (response.data && Array.isArray(response.data)) {
-            const stocks = response.data.map(item => ({
-                symbol: item.s || item.symbol || '',
-                companyName: item.n || item.name || '',
-                sector: item.sector || 'Others',
-                prices: {
-                    ltp: parseFloat(item.l) || parseFloat(item.ltp) || 0,
-                    open: parseFloat(item.o) || 0,
-                    high: parseFloat(item.h) || 0,
-                    low: parseFloat(item.lo) || 0,
-                    previousClose: parseFloat(item.pc) || 0,
-                    change: parseFloat(item.c) || 0,
-                    changePercent: parseFloat(item.cp) || 0
-                },
-                trading: {
-                    volume: parseInt(item.v) || 0,
-                    turnover: parseFloat(item.t) || 0,
-                    totalTrades: 0 // Merolagani simple feed doesn't have trades count
-                },
-                lastUpdated: new Date().toISOString()
-            }));
+        const isValidArray = response.data && Array.isArray(response.data);
+        if (!isValidArray) return null;
 
-            if (stocks.length > 0) {
-                return {
-                    stocks,
-                    ipos: [],
-                    marketSummary: null,
-                    source: 'merolagani-fallback',
-                    timestamp: new Date().toISOString()
-                };
-            }
-        }
+        const stocks = response.data.map(transformMerolaganiStock);
+        return stocks.length > 0 ? buildScraperResult(stocks, 'merolagani-fallback') : null;
     } catch (error) {
         // Silent fail
     }
