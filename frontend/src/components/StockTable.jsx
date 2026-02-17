@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronDown, Star } from 'lucide-react';
 import { formatPrice, formatPercent, formatNumber, getChangeClass } from '../utils/formatting';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useSortedStocks } from '../hooks/useSortedStocks';
+import { usePreviousStockValues } from '../hooks/usePreviousStockValues';
 import './StockTable.css';
 import './AnimatedValue.css';
 
@@ -261,6 +263,59 @@ function PaginationControls({ currentPage, totalPages, onPageChange }) {
     );
 }
 
+/** Resolve a unique key for a stock */
+const getStockKey = (stock) => stock.symbol || stock._id;
+
+/** Mobile card list view */
+function MobileStockView({ sortedStocks, onRowClick, getPreviousValue }) {
+    return (
+        <div className="mobile-card-container">
+            {sortedStocks.map((stock) => (
+                <MobileStockCard
+                    key={getStockKey(stock)}
+                    stock={stock}
+                    onRowClick={onRowClick}
+                    getPreviousValue={getPreviousValue}
+                />
+            ))}
+        </div>
+    );
+}
+
+/** Desktop table view */
+function DesktopStockView({ sortedStocks, sortConfig, handleSort, isPolling, onRowClick, getPreviousValue, favorites, onToggleFavorite }) {
+    return (
+        <div className="table-container desktop-table-container">
+            <table className="stock-table">
+                <thead>
+                    <tr>
+                        <th className="star-column-header" style={{ width: '40px' }}></th>
+                        {SORTABLE_COLUMNS.slice(0, 2).map(col => (
+                            <SortableHeader key={col.key} col={col} sortConfig={sortConfig} onSort={handleSort} />
+                        ))}
+                        <th>Sector</th>
+                        {SORTABLE_COLUMNS.slice(2).map(col => (
+                            <SortableHeader key={col.key} col={col} sortConfig={sortConfig} onSort={handleSort} />
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className={isPolling ? 'polling' : ''}>
+                    {sortedStocks.map((stock) => (
+                        <StockRow
+                            key={getStockKey(stock)}
+                            stock={stock}
+                            onRowClick={onRowClick}
+                            getPreviousValue={getPreviousValue}
+                            favorites={favorites}
+                            onToggleFavorite={onToggleFavorite}
+                        />
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 // ==================== StockTable ====================
 
 function StockTable({
@@ -276,102 +331,25 @@ function StockTable({
     favorites = [],
     onToggleFavorite
 }) {
-    const [sortConfig, setSortConfig] = useState({ key: 'symbol', direction: 'asc' });
-
-    // Create a map of previous stock values for comparison
-    const prevStockMap = useRef(new Map());
-
-    useEffect(() => {
-        const newMap = new Map();
-        stocks.forEach(stock => {
-            newMap.set(stock.symbol, {
-                ltp: stock.ltp,
-                change: stock.change,
-                changePercent: stock.changePercent,
-                volume: stock.volume
-            });
-        });
-
-        // Store current as previous for next update
-        setTimeout(() => {
-            prevStockMap.current = newMap;
-        }, 600); // After animation completes
-    }, [stocks]);
-
-    const getPreviousValue = useCallback((symbol, field) => {
-        return prevStockMap.current.get(symbol)?.[field];
-    }, []);
-
-    const handleSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    /** Resolve the sort value for a stock, handling nested fields */
-    const resolveSortValue = (stock, key) => {
-        if (key === 'ltp') return stock.ltp || stock.prices?.ltp || 0;
-        return stock[key];
-    };
-
-    const sortedStocks = [...stocks].sort((a, b) => {
-        const aVal = resolveSortValue(a, sortConfig.key);
-        const bVal = resolveSortValue(b, sortConfig.key);
-        const dir = sortConfig.direction === 'asc' ? 1 : -1;
-        if (aVal < bVal) return -dir;
-        if (aVal > bVal) return dir;
-        return 0;
-    });
-
+    const { sortedStocks, sortConfig, handleSort } = useSortedStocks(stocks);
+    const getPreviousValue = usePreviousStockValues(stocks);
     const isMobile = useMediaQuery('(max-width: 768px)');
-
     const shouldShowPagination = showPagination && totalPages > 1;
+
+    const ViewComponent = isMobile ? MobileStockView : DesktopStockView;
 
     return (
         <div className="stock-table-wrapper">
-            {isMobile ? (
-                <div className="mobile-card-container">
-                    {sortedStocks.map((stock) => (
-                        <MobileStockCard
-                            key={stock.symbol || stock._id}
-                            stock={stock}
-                            onRowClick={onRowClick}
-                            getPreviousValue={getPreviousValue}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className="table-container desktop-table-container">
-                    <table className="stock-table">
-                        <thead>
-                            <tr>
-                                <th className="star-column-header" style={{ width: '40px' }}></th>
-                                {SORTABLE_COLUMNS.slice(0, 2).map(col => (
-                                    <SortableHeader key={col.key} col={col} sortConfig={sortConfig} onSort={handleSort} />
-                                ))}
-                                <th>Sector</th>
-                                {SORTABLE_COLUMNS.slice(2).map(col => (
-                                    <SortableHeader key={col.key} col={col} sortConfig={sortConfig} onSort={handleSort} />
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className={isPolling ? 'polling' : ''}>
-                            {sortedStocks.map((stock) => (
-                                <StockRow
-                                    key={stock.symbol || stock._id}
-                                    stock={stock}
-                                    onRowClick={onRowClick}
-                                    getPreviousValue={getPreviousValue}
-                                    favorites={favorites}
-                                    onToggleFavorite={onToggleFavorite}
-                                />
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+            <ViewComponent
+                sortedStocks={sortedStocks}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                isPolling={isPolling}
+                onRowClick={onRowClick}
+                getPreviousValue={getPreviousValue}
+                favorites={favorites}
+                onToggleFavorite={onToggleFavorite}
+            />
 
             {shouldShowPagination && (
                 <PaginationControls
