@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getServerHealth, getStockDepth } from '../services/api';
 import { useStockDetail } from '../hooks/useStocks';
 import { useStocks } from '../hooks/useStocks';
@@ -12,24 +12,31 @@ import './StockDetailPage.css';
 
 // ==================== Shared Helpers ====================
 
+/** Resolve first truthy value from top-level stock fields, then nested source */
+const resolveFirst = (stock, fields, nested, nestedKey) => {
+    for (const f of fields) { if (stock[f]) return stock[f]; }
+    if (nested && nestedKey && nested[nestedKey]) return nested[nestedKey];
+    return 0;
+};
+
 /** Resolve common stock price fields from various API shapes */
 function resolveStockPrices(stock) {
     const prices = stock.prices || {};
     const trading = stock.trading || {};
 
-    const ltp = stock.ltp || prices.ltp || stock.close || 0;
-    const previousClose = stock.previousClose || prices.previousClose || stock.close || 0;
+    const ltp = resolveFirst(stock, ['ltp'], prices, 'ltp') || stock.close || 0;
+    const previousClose = resolveFirst(stock, ['previousClose'], prices, 'previousClose') || stock.close || 0;
     const displayLtp = ltp > 0 ? ltp : previousClose;
 
     return {
         ltp,
         previousClose,
         displayLtp,
-        open: stock.open || prices.open || stock.openPrice || displayLtp,
-        high: stock.high || prices.high || stock.highPrice || displayLtp,
-        low: stock.low || prices.low || stock.lowPrice || displayLtp,
-        volume: stock.volume || trading.volume || 0,
-        turnover: stock.turnover || trading.turnover || 0,
+        open: resolveFirst(stock, ['open', 'openPrice'], prices, 'open') || displayLtp,
+        high: resolveFirst(stock, ['high', 'highPrice'], prices, 'high') || displayLtp,
+        low: resolveFirst(stock, ['low', 'lowPrice'], prices, 'low') || displayLtp,
+        volume: resolveFirst(stock, ['volume'], trading, 'volume'),
+        turnover: resolveFirst(stock, ['turnover'], trading, 'turnover'),
         change: stock.change ?? prices.change ?? 0,
         changePercent: stock.changePercent ?? prices.changePercent ?? 0,
     };
@@ -181,6 +188,57 @@ function RelatedStocks({ relatedStocks, sector, navigate }) {
     );
 }
 
+/** Renders the active tab's content */
+function TabContent({ activeTab, p, relatedStocks, sector, navigate, symbol, depthData, depthLoading }) {
+    if (activeTab === 'overview') {
+        return (
+            <>
+                <KeyMetrics p={p} />
+                <PriceSummary p={p} />
+                <RelatedStocks relatedStocks={relatedStocks} sector={sector} navigate={navigate} />
+            </>
+        );
+    }
+    if (activeTab === 'depth') {
+        return <MarketDepth symbol={symbol} data={depthData} loading={depthLoading} />;
+    }
+    return <Floorsheet symbol={symbol} data={depthData} loading={depthLoading} />;
+}
+
+// ==================== Custom Hooks ====================
+
+/** Periodically checks server health status */
+function useHealthCheck(intervalMs = 30000) {
+    const [status, setStatus] = useState(null);
+    useEffect(() => {
+        const check = async () => {
+            const health = await getServerHealth();
+            setStatus(health?.status === 'ok' ? 'healthy' : 'degraded');
+        };
+        check();
+        const id = setInterval(check, intervalMs);
+        return () => clearInterval(id);
+    }, [intervalMs]);
+    return status;
+}
+
+/** Lazily fetches depth data when a depth-related tab is active */
+function useDepthData(activeTab, symbol) {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        if (!needsDepthFetch(activeTab, data, symbol)) return;
+        const fetchDepth = async () => {
+            setLoading(true);
+            try { setData(await getStockDepth(symbol)); }
+            catch (err) { console.error('Failed to fetch depth:', err); }
+            finally { setLoading(false); }
+        };
+        fetchDepth();
+    }, [activeTab, symbol, data]);
+    return { data, loading };
+}
+
 // ==================== StockDetailPage ====================
 
 function StockDetailPage() {
@@ -188,40 +246,15 @@ function StockDetailPage() {
     const navigate = useNavigate();
     const { stock, loading, error } = useStockDetail(symbol);
     const { stocks } = useStocks(1, 100);
-    const [healthStatus, setHealthStatus] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
-    const [depthData, setDepthData] = useState(null);
-    const [depthLoading, setDepthLoading] = useState(false);
 
-    useEffect(() => {
-        const checkHealth = async () => {
-            const health = await getServerHealth();
-            setHealthStatus(health?.status === 'ok' ? 'healthy' : 'degraded');
-        };
-        checkHealth();
-        const interval = setInterval(checkHealth, 30000);
-        return () => clearInterval(interval);
-    }, []);
+    useHealthCheck();
+    const { data: depthData, loading: depthLoading } = useDepthData(activeTab, symbol);
 
-    useEffect(() => {
-        if (!needsDepthFetch(activeTab, depthData, symbol)) return;
-        const fetchDepth = async () => {
-            setDepthLoading(true);
-            try {
-                const data = await getStockDepth(symbol);
-                setDepthData(data);
-            } catch (err) {
-                console.error('Failed to fetch depth:', err);
-            } finally {
-                setDepthLoading(false);
-            }
-        };
-        fetchDepth();
-    }, [activeTab, symbol, depthData]);
-
-    const relatedStocks = stocks
-        .filter(s => s.sector === stock?.sector && s.symbol !== stock?.symbol)
-        .slice(0, 5);
+    const relatedStocks = useMemo(
+        () => stocks.filter(s => s.sector === stock?.sector && s.symbol !== stock?.symbol).slice(0, 5),
+        [stocks, stock?.sector, stock?.symbol]
+    );
 
     if (loading) {
         return <LoadingSpinner fullPage text="Loading stock details..." />;
@@ -256,19 +289,16 @@ function StockDetailPage() {
                 <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
                 <div className="sdp__tab-content">
-                    {activeTab === 'overview' && (
-                        <>
-                            <KeyMetrics p={p} />
-                            <PriceSummary p={p} />
-                            <RelatedStocks relatedStocks={relatedStocks} sector={stock.sector} navigate={navigate} />
-                        </>
-                    )}
-                    {activeTab === 'depth' && (
-                        <MarketDepth symbol={symbol} data={depthData} loading={depthLoading} />
-                    )}
-                    {activeTab === 'floorsheet' && (
-                        <Floorsheet symbol={symbol} data={depthData} loading={depthLoading} />
-                    )}
+                    <TabContent
+                        activeTab={activeTab}
+                        p={p}
+                        relatedStocks={relatedStocks}
+                        sector={stock.sector}
+                        navigate={navigate}
+                        symbol={symbol}
+                        depthData={depthData}
+                        depthLoading={depthLoading}
+                    />
                 </div>
             </div>
         </div>
