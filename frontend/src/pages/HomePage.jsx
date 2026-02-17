@@ -23,47 +23,205 @@ const LIVE_UPDATE_INTERVAL = 60000;
 // Page size for fetching from server (larger batches)
 const FETCH_PAGE_SIZE = 100;
 
-/**
- * Fetch ALL stocks from the server by looping through pages.
- * Returns a single array containing all stocks.
- */
-async function fetchAllStocks() {
-    let page = 1;
-    let allStocks = [];
-    let hasMore = true;
+// ==================== Data Fetching ====================
 
-    while (hasMore) {
-        const response = await getStocks(page, FETCH_PAGE_SIZE);
-
-        // response is already unwrapped by axios interceptor
-        // API returns { data: [...], count, pagination }
-        const items = response?.stocks || response?.data || [];
-
-        if (!items || items.length === 0) {
-            hasMore = false;
-        } else {
-            allStocks = allStocks.concat(items);
-            page += 1;
-
-            // Stop if returned fewer items than requested
-            if (items.length < FETCH_PAGE_SIZE) {
-                hasMore = false;
-            }
-        }
-    }
-
-    console.log('Loaded total stocks:', allStocks.length);
-
-    if (allStocks.length < 200) {
-        console.warn(
-            'Suspiciously low total stock count (expected ~270 for NEPSE):',
-            allStocks.length
-        );
-        console.warn('Sample response:', allStocks.slice(0, 5));
-    }
-
-    return allStocks;
+/** Fetch a single page of stocks from the API */
+async function fetchPage(page) {
+    const res = await getStocks(page, FETCH_PAGE_SIZE);
+    return res?.stocks || res?.data || [];
 }
+
+/** Fetch ALL stocks by paginating through the API */
+async function fetchAllStocks() {
+    let all = [], page = 1, batch;
+    do {
+        batch = await fetchPage(page++);
+        all = all.concat(batch);
+    } while (batch.length >= FETCH_PAGE_SIZE);
+    return all;
+}
+
+// ==================== Filter Helpers ====================
+
+/** Fuzzy sector match with plural normalization */
+function matchesSector(stock, sector) {
+    if (!stock.sector) return false;
+    const s = stock.sector.toLowerCase().trim();
+    const f = sector.toLowerCase().trim();
+    if (s === f || s.includes(f) || f.includes(s)) return true;
+    const s1 = s.endsWith('s') ? s.slice(0, -1) : s;
+    const s2 = f.endsWith('s') ? f.slice(0, -1) : f;
+    return s1 === s2;
+}
+
+/** Filter stock by change direction */
+function matchesStatus(stock, status) {
+    const change = stock.change || stock.prices?.change || 0;
+    if (status === 'advanced') return change > 0;
+    if (status === 'declined') return change < 0;
+    if (status === 'unchanged') return change === 0;
+    return true;
+}
+
+/** Filter stock by symbol or company name search */
+function matchesSearch(stock, query) {
+    const symbol = (stock.symbol || '').toLowerCase();
+    const name = (stock.companyName || '').toLowerCase();
+    return symbol.includes(query) || name.includes(query);
+}
+
+/** Apply all active filters to a stock list */
+function applyFilters(stocks, { selectedSector, statusFilter, globalSearch, showFavoritesOnly, favorites }) {
+    let result = stocks;
+    if (selectedSector !== 'all') {
+        result = result.filter(s => matchesSector(s, selectedSector));
+    }
+    if (statusFilter !== 'all') {
+        result = result.filter(s => matchesStatus(s, statusFilter));
+    }
+    if (globalSearch && globalSearch.trim()) {
+        const q = globalSearch.toLowerCase().trim();
+        result = result.filter(s => matchesSearch(s, q));
+    }
+    if (showFavoritesOnly) {
+        result = result.filter(s => favorites.includes(s.symbol));
+    }
+    return result;
+}
+
+// ==================== Display Helpers ====================
+
+/** Format raw turnover into { value, unit } */
+function formatTurnoverDisplay(raw) {
+    if (raw >= 10000000) {
+        return { value: (raw / 10000000).toFixed(2), unit: 'Cr' };
+    }
+    return { value: (raw / 100000).toFixed(2), unit: 'L' };
+}
+
+/** Get stock's change percent, resolving nested shapes */
+function getChangePercent(stock) {
+    return stock.changePercent || stock.prices?.changePercent || 0;
+}
+
+// ==================== Custom Hooks ====================
+
+/** Computes market breadth from API data with stock-derived fallback */
+function useMarketBreadth(stocks, marketSummary) {
+    return useMemo(() => {
+        const fromApi = {
+            advanced: marketSummary?.advancedCompanies ?? null,
+            declined: marketSummary?.declinedCompanies ?? null,
+            unchanged: marketSummary?.unchangedCompanies ?? null
+        };
+
+        if (fromApi.advanced !== null) return fromApi;
+
+        if (!stocks || stocks.length === 0) {
+            return { advanced: 0, declined: 0, unchanged: 0 };
+        }
+
+        return {
+            advanced: stocks.filter(s => getChangePercent(s) > 0).length,
+            declined: stocks.filter(s => getChangePercent(s) < 0).length,
+            unchanged: stocks.filter(s => getChangePercent(s) === 0).length
+        };
+    }, [stocks, marketSummary]);
+}
+
+// ==================== Sub-Components ====================
+
+/** Market summary cards section */
+function MarketSummarySection({ marketSummary, marketStats, statusFilter, onStatusChange }) {
+    const turnoverRaw = marketSummary?.totalTurnover || 0;
+    const turnover = formatTurnoverDisplay(turnoverRaw);
+
+    const indexValueDisplay = Number.isFinite(marketSummary?.indexValue)
+        ? marketSummary.indexValue.toFixed(2)
+        : '--';
+    const indexChangePercent = Number.isFinite(marketSummary?.indexChangePercent)
+        ? marketSummary.indexChangePercent
+        : undefined;
+
+    return (
+        <section className="market-overview">
+            <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 className="section-title text-2xl" style={{ margin: 0 }}>Market Summary</h2>
+            </div>
+            <div className="market-cards">
+                <SummaryCard
+                    label="NEPSE Index"
+                    value={indexValueDisplay}
+                    change={indexChangePercent}
+                    valueKey="nepse-index"
+                />
+                <div className="summary-card">
+                    <div className="summary-label">TURNOVER</div>
+                    <div className="summary-value" style={{ display: 'flex', alignItems: 'baseline', columnGap: '6px' }}>
+                        <span className="currency-symbol" style={{ fontSize: '0.6em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Rs</span>
+                        <span className="number">{turnover.value}</span>
+                        <span className="unit" style={{ fontSize: '0.6em', color: 'var(--text-secondary)' }}>{turnover.unit}</span>
+                    </div>
+                </div>
+                <SummaryCard
+                    label="Transactions"
+                    value={formatNumber(marketSummary?.totalTransactions)}
+                    valueKey="transactions"
+                />
+                <SummaryCard
+                    label="Volume"
+                    value={formatNumber(marketSummary?.totalVolume)}
+                    valueKey="volume"
+                />
+            </div>
+            <MarketBreadthCard
+                marketStats={marketStats}
+                statusFilter={statusFilter}
+                onFilterChange={onStatusChange}
+            />
+        </section>
+    );
+}
+
+/** Toolbar with watchlist toggle and sector filter */
+function StocksToolbar({ stockCount, showFavoritesOnly, setShowFavoritesOnly, favorites, sectors, selectedSector, setSelectedSector }) {
+    return (
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 section-header">
+            <h2 className="text-xl font-bold tracking-tight text-primary section-title">
+                All Stocks <span className="text-stone-400 font-normal ml-1" style={{ fontSize: '0.9em', color: 'var(--text-muted)' }}>({stockCount})</span>
+            </h2>
+            <div className="flex items-center gap-3 w-full md:w-auto filters">
+                <button
+                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    className={`watchlist-btn ${showFavoritesOnly ? 'active' : ''}`}
+                >
+                    <div className="icon-container">
+                        <svg className="star-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                        <svg className="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </div>
+                    <span className="btn-label">{showFavoritesOnly ? 'Added' : 'Watchlist'}</span>
+                    {favorites.length > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${showFavoritesOnly ? 'bg-amber-200 text-amber-900' : 'bg-stone-100 text-stone-500'}`}>
+                            {favorites.length}
+                        </span>
+                    )}
+                </button>
+                <Select
+                    value={selectedSector}
+                    onChange={(e) => setSelectedSector(e.target.value)}
+                    options={[{ label: 'ALL SECTORS', value: 'all' }, ...sectors.map(s => ({ label: s, value: s }))]}
+                    placeholder="ALL SECTORS"
+                />
+            </div>
+        </div>
+    );
+}
+
+// ==================== HomePage ====================
 
 function HomePage({ globalSearch }) {
     const navigate = useNavigate();
@@ -79,12 +237,10 @@ function HomePage({ globalSearch }) {
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
 
-    // Refs for cleanup and tracking
     const mountedRef = useRef(true);
     const marketIntervalRef = useRef(null);
     const stocksIntervalRef = useRef(null);
 
-    // Fetch market summary data
     const fetchMarketData = useCallback(async (isInitial = false) => {
         if (!mountedRef.current) return;
 
@@ -96,12 +252,7 @@ function HomePage({ globalSearch }) {
 
             if (!mountedRef.current) return;
 
-            setMarketSummary(prev => {
-                // Force re-render even if values are same by creating new object
-                return { ...summary, _updateId: Date.now() };
-            });
-
-
+            setMarketSummary(prev => ({ ...summary, _updateId: Date.now() }));
 
             if (sectorsData) {
                 setSectors(['all', ...(sectorsData || [])]);
@@ -115,185 +266,62 @@ function HomePage({ globalSearch }) {
         }
     }, []);
 
-    // Fetch ALL stocks (loops through pages)
     const loadAllStocks = useCallback(async (isInitial = false) => {
         if (!mountedRef.current) return;
 
         try {
-            if (isInitial) {
-                setLoading(true);
-            }
-
+            if (isInitial) setLoading(true);
             const allStocks = await fetchAllStocks();
-
             if (!mountedRef.current) return;
-
             setStocks(allStocks);
-            // lastUpdated is now handled by fetchMarketData using server timestamp
-            // Reset to page 1 when reloading all stocks
-            if (isInitial) {
-                setCurrentPage(1);
-            }
+            if (isInitial) setCurrentPage(1);
         } catch (err) {
             console.error('Failed to fetch stocks:', err);
-            // Keep existing stocks on error - don't clear them
         } finally {
-            if (mountedRef.current) {
-                setLoading(false);
-            }
+            if (mountedRef.current) setLoading(false);
         }
     }, []);
 
-    // Initial data fetch
     useEffect(() => {
         mountedRef.current = true;
-
-        // Initial fetch
         fetchMarketData(true);
         loadAllStocks(true);
 
-        // Setup polling intervals
-        marketIntervalRef.current = setInterval(() => {
-            fetchMarketData(false);
-        }, LIVE_UPDATE_INTERVAL);
+        marketIntervalRef.current = setInterval(() => fetchMarketData(false), LIVE_UPDATE_INTERVAL);
+        stocksIntervalRef.current = setInterval(() => loadAllStocks(false), LIVE_UPDATE_INTERVAL);
 
-        stocksIntervalRef.current = setInterval(() => {
-            loadAllStocks(false);
-        }, LIVE_UPDATE_INTERVAL);
-
-        // Cleanup on unmount
         return () => {
             mountedRef.current = false;
-            if (marketIntervalRef.current) {
-                clearInterval(marketIntervalRef.current);
-            }
-            if (stocksIntervalRef.current) {
-                clearInterval(stocksIntervalRef.current);
-            }
+            if (marketIntervalRef.current) clearInterval(marketIntervalRef.current);
+            if (stocksIntervalRef.current) clearInterval(stocksIntervalRef.current);
         };
     }, [fetchMarketData, loadAllStocks]);
 
-    // Reset page to 1 when sector filter or globalSearch changes
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [selectedSector, globalSearch, statusFilter]);
+    useEffect(() => { setCurrentPage(1); }, [selectedSector, globalSearch, statusFilter]);
 
-    const handleStockClick = (stock) => {
-        navigate(`/stock/${stock.symbol}`);
-    };
+    const handleStockClick = (stock) => navigate(`/stock/${stock.symbol}`);
 
     const toggleFavorite = useCallback((symbol) => {
-        setFavorites(prev => {
-            if (prev.includes(symbol)) {
-                return prev.filter(s => s !== symbol);
-            }
-            return [...prev, symbol];
-        });
+        setFavorites(prev => prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol]);
     }, [setFavorites]);
 
-    // Client-side filtering by sector AND globalSearch query
-    const filteredStocks = useMemo(() => {
-        let result = stocks;
+    // Filtering — uses extracted helpers
+    const filteredStocks = useMemo(() =>
+        applyFilters(stocks, { selectedSector, statusFilter, globalSearch, showFavoritesOnly, favorites }),
+        [stocks, selectedSector, globalSearch, showFavoritesOnly, favorites, statusFilter]
+    );
 
-        // Filter by sector
-        if (selectedSector !== 'all') {
-            result = result.filter(stock => {
-                if (!stock.sector) return false;
-
-                const stockSector = stock.sector.toLowerCase().trim();
-                const filterSector = selectedSector.toLowerCase().trim();
-
-                if (stockSector === filterSector) return true;
-                if (stockSector.includes(filterSector) || filterSector.includes(stockSector)) return true;
-
-                const s1 = stockSector.endsWith('s') ? stockSector.slice(0, -1) : stockSector;
-                const s2 = filterSector.endsWith('s') ? filterSector.slice(0, -1) : filterSector;
-
-                return s1 === s2;
-            });
-        }
-
-        // Filter by status (Advanced/Declined/Unchanged)
-        if (statusFilter !== 'all') {
-            result = result.filter(stock => {
-                const change = stock.change || stock.prices?.change || 0;
-                if (statusFilter === 'advanced') return change > 0;
-                if (statusFilter === 'declined') return change < 0;
-                if (statusFilter === 'unchanged') return change === 0;
-                return true;
-            });
-        }
-
-        // Filter by search query (symbol or company name)
-        if (globalSearch && globalSearch.trim()) {
-            const query = globalSearch.toLowerCase().trim();
-            result = result.filter(stock => {
-                const symbol = (stock.symbol || '').toLowerCase();
-                const name = (stock.companyName || '').toLowerCase();
-                return symbol.includes(query) || name.includes(query);
-            });
-        }
-
-        // Filter by favorites
-        if (showFavoritesOnly) {
-            result = result.filter(stock => favorites.includes(stock.symbol));
-        }
-
-        return result;
-    }, [stocks, selectedSector, globalSearch, showFavoritesOnly, favorites, statusFilter]);
-
-    // Client-side pagination
     const totalPages = Math.max(1, Math.ceil(filteredStocks.length / ITEMS_PER_PAGE));
 
     const displayStocks = useMemo(() => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        const end = start + ITEMS_PER_PAGE;
-        return filteredStocks.slice(start, end);
+        return filteredStocks.slice(start, start + ITEMS_PER_PAGE);
     }, [filteredStocks, currentPage]);
 
-    // Market breadth from API (preferred when provided by backend)
-    const breadthFromApi = useMemo(() => ({
-        advanced: marketSummary?.advancedCompanies ?? null,
-        declined: marketSummary?.declinedCompanies ?? null,
-        unchanged: marketSummary?.unchangedCompanies ?? null
-    }), [marketSummary]);
+    const marketStats = useMarketBreadth(stocks, marketSummary);
 
-    // Market breadth derived from stocks (fallback)
-    const breadthFromStocks = useMemo(() => {
-        if (!stocks || stocks.length === 0) return { advanced: 0, declined: 0, unchanged: 0 };
-        return {
-            advanced: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) > 0).length,
-            declined: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) < 0).length,
-            unchanged: stocks.filter(s => (s.changePercent || s.prices?.changePercent || 0) === 0).length
-        };
-    }, [stocks]);
-
-    // Use API breadth when available, otherwise fall back to stock-derived values
-    const marketStats = useMemo(() => {
-        const advanced = breadthFromApi.advanced ?? breadthFromStocks.advanced;
-        const declined = breadthFromApi.declined ?? breadthFromStocks.declined;
-        const unchanged = breadthFromApi.unchanged ?? breadthFromStocks.unchanged;
-        return { advanced, declined, unchanged };
-    }, [breadthFromApi, breadthFromStocks]);
-
-    // Calculate turnover for display (support fallback to summing stocks)
-    let turnoverRaw = marketSummary?.totalTurnover || displayStocks.reduce((acc, stock) => acc + (parseFloat(stock.turnover) || 0), 0);
-    const turnoverUnit = turnoverRaw >= 10000000 ? 'Cr' : 'L';
-    const turnoverValue = turnoverRaw >= 10000000
-        ? (turnoverRaw / 10000000).toFixed(2)
-        : (turnoverRaw / 100000).toFixed(2);
-
-    const indexValueDisplay = Number.isFinite(marketSummary?.indexValue)
-        ? marketSummary.indexValue.toFixed(2)
-        : '--';
-    const indexChangePercent = Number.isFinite(marketSummary?.indexChangePercent)
-        ? marketSummary.indexChangePercent
-        : undefined;
-
-    // Scroll reveal hooks for sections (must be before conditional returns)
     const { ref: sectorRef, isVisible: sectorVisible } = useScrollReveal(0.1);
     const { ref: stocksRef, isVisible: stocksVisible } = useScrollReveal(0.1);
-
 
     if (loading && !stocks.length) {
         return <HomePageSkeleton />;
@@ -301,105 +329,29 @@ function HomePage({ globalSearch }) {
 
     return (
         <div className="home-page layout-container">
-            {/* Market Summary */}
-            <section className="market-overview">
-                <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 className="section-title text-2xl" style={{ margin: 0 }}>Market Summary</h2>
-                </div>
-                <div className="market-cards">
-                    <SummaryCard
-                        label="NEPSE Index"
-                        value={indexValueDisplay}
-                        change={indexChangePercent}
-                        valueKey="nepse-index"
-                    />
-                    <div className="summary-card">
-                        <div className="summary-label">
-                            TURNOVER
-                        </div>
-                        <div className="summary-value" style={{ display: 'flex', alignItems: 'baseline', columnGap: '6px' }}>
-                            <span className="currency-symbol" style={{ fontSize: '0.6em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Rs</span>
-                            <span className="number">{turnoverValue}</span>
-                            <span className="unit" style={{ fontSize: '0.6em', color: 'var(--text-secondary)' }}>{turnoverUnit}</span>
-                        </div>
-                    </div>
-                    <SummaryCard
-                        label="Transactions"
-                        value={formatNumber(marketSummary?.totalTransactions)}
-                        valueKey="transactions"
-                    />
-                    <SummaryCard
-                        label="Volume"
-                        value={formatNumber(marketSummary?.totalVolume)}
-                        valueKey="volume"
-                    />
-                </div>
+            <MarketSummarySection
+                marketSummary={marketSummary}
+                marketStats={marketStats}
+                statusFilter={statusFilter}
+                onStatusChange={setStatusFilter}
+            />
 
-                {/* Market Breadth - Now using extracted component */}
-                <MarketBreadthCard
-                    marketStats={marketStats}
-                    statusFilter={statusFilter}
-                    onFilterChange={setStatusFilter}
-                />
-            </section>
-
-            {/* Sector Analysis Chart */}
-            <div
-                ref={sectorRef}
-                className={`scroll-fade ${sectorVisible ? 'visible' : ''}`}
-            >
+            <div ref={sectorRef} className={`scroll-fade ${sectorVisible ? 'visible' : ''}`}>
                 <SectorChart stocks={stocks} />
             </div>
 
-            {/* Trending Stocks */}
             <TrendingBar />
 
-            {/* All Stocks */}
-            <section
-                ref={stocksRef}
-                className={`stocks-section scroll-fade ${stocksVisible ? 'visible' : ''}`}
-            >
-                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 section-header">
-                    <h2 className="text-xl font-bold tracking-tight text-primary section-title">
-                        All Stocks <span className="text-stone-400 font-normal ml-1" style={{ fontSize: '0.9em', color: 'var(--text-muted)' }}>({stocks.length})</span>
-                    </h2>
-
-                    <div className="flex items-center gap-3 w-full md:w-auto filters">
-                        {/* Animated Watchlist Button */}
-                        <button
-                            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            className={`watchlist-btn ${showFavoritesOnly ? 'active' : ''}`}
-                        >
-                            <div className="icon-container">
-                                {/* Star Icon */}
-                                <svg className="star-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
-
-                                {/* Check Icon */}
-                                <svg className="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                            </div>
-
-                            <span className="btn-label">{showFavoritesOnly ? 'Added' : 'Watchlist'}</span>
-
-                            {favorites.length > 0 && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${showFavoritesOnly ? 'bg-amber-200 text-amber-900' : 'bg-stone-100 text-stone-500'}`}>
-                                    {favorites.length}
-                                </span>
-                            )}
-                        </button>
-
-                        {/* Rigorous Sector Select */}
-                        <Select
-                            value={selectedSector}
-                            onChange={(e) => setSelectedSector(e.target.value)}
-                            options={[{ label: 'ALL SECTORS', value: 'all' }, ...sectors.map(s => ({ label: s, value: s }))]}
-                            placeholder="ALL SECTORS"
-                        />
-                    </div>
-                </div>
+            <section ref={stocksRef} className={`stocks-section scroll-fade ${stocksVisible ? 'visible' : ''}`}>
+                <StocksToolbar
+                    stockCount={stocks.length}
+                    showFavoritesOnly={showFavoritesOnly}
+                    setShowFavoritesOnly={setShowFavoritesOnly}
+                    favorites={favorites}
+                    sectors={sectors}
+                    selectedSector={selectedSector}
+                    setSelectedSector={setSelectedSector}
+                />
                 <StockTable
                     stocks={displayStocks}
                     onRowClick={handleStockClick}
@@ -411,26 +363,23 @@ function HomePage({ globalSearch }) {
                     favorites={favorites}
                     onToggleFavorite={toggleFavorite}
                 />
-            </section >
+            </section>
 
-            {/* Error toast (non-blocking) */}
-            {
-                error && (
-                    <div className="error-toast">
-                        <span>{error}</span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            buttonClass="circle"
-                            onClick={() => setError(null)}
-                            aria-label="Close error"
-                        >
-                            ×
-                        </Button>
-                    </div>
-                )
-            }
-        </div >
+            {error && (
+                <div className="error-toast">
+                    <span>{error}</span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        buttonClass="circle"
+                        onClick={() => setError(null)}
+                        aria-label="Close error"
+                    >
+                        ×
+                    </Button>
+                </div>
+            )}
+        </div>
     );
 }
 
