@@ -189,13 +189,17 @@ function parseMarketSummaryItems(items, result) {
     }
 }
 
+/** Find the NEPSE main index entry (id=58 or name match) */
+function findNepseEntry(indexData) {
+    if (!Array.isArray(indexData)) return null;
+    return indexData.find(i => i.id === 58)
+        || indexData.find(i => (i.index || '').toLowerCase().includes('nepse'))
+        || null;
+}
+
 /** Extract NEPSE index data from index API array */
 function parseNepseIndex(indexData, result) {
-    if (!indexData || !Array.isArray(indexData)) return;
-
-    const nepseIdx = indexData.find(i => i.id === 58)
-        || indexData.find(i => i.index && i.index.toLowerCase().includes('nepse'));
-
+    const nepseIdx = findNepseEntry(indexData);
     if (!nepseIdx) return;
 
     result.nepseIndex = parseFloat(nepseIdx.currentValue) || null;
@@ -203,21 +207,34 @@ function parseNepseIndex(indexData, result) {
     result.indexChangePercent = parseFloat(nepseIdx.perChange) || null;
 }
 
+/** Candidate field names for percentage change */
+const CHANGE_FIELDS = ['percentageChange', 'percentChange', 'perChange', 'changePercent', 'change_percentage'];
+
+/** Candidate field names for last traded price */
+const LTP_FIELDS = ['lastTradedPrice', 'ltp', 'closePrice'];
+
+/** Candidate field names for previous close */
+const PREV_FIELDS = ['previousClose', 'previousClosingPrice', 'prevClose', 'previous_close'];
+
+/** Resolve first finite numeric value from candidate fields */
+function resolveFirstFinite(obj, fields) {
+    for (const f of fields) {
+        const v = parseFloat(obj[f]);
+        if (Number.isFinite(v)) return v;
+    }
+    return undefined;
+}
+
+/** Compute change % from LTP and previous close */
+function computeFromPrices(sec) {
+    const ltp = parsePrice(resolveFirstFinite(sec, LTP_FIELDS) || 0);
+    const prev = parsePrice(resolveFirstFinite(sec, PREV_FIELDS) || 0);
+    return (ltp && prev) ? ((ltp - prev) / prev) * 100 : undefined;
+}
+
 /** Resolve the percentage change for a single security */
 function resolveSecurityChange(sec) {
-    const changeFields = [
-        sec.percentageChange, sec.percentChange, sec.perChange,
-        sec.changePercent, sec.change_percentage
-    ];
-    const direct = changeFields.map(v => parseFloat(v)).find(v => Number.isFinite(v));
-    if (Number.isFinite(direct)) return direct;
-
-    // Fall back to price comparison
-    const ltp = parsePrice(sec.lastTradedPrice || sec.ltp || sec.closePrice || 0);
-    const prev = parsePrice(sec.previousClose || sec.previousClosingPrice || sec.prevClose || sec.previous_close || 0);
-    if (ltp && prev) return ((ltp - prev) / prev) * 100;
-
-    return undefined;
+    return resolveFirstFinite(sec, CHANGE_FIELDS) ?? computeFromPrices(sec);
 }
 
 /** Classify a change value into advanced/declined/unchanged bucket */
@@ -228,25 +245,31 @@ function classifyChange(change) {
     return 'unchanged';
 }
 
+/** Extract uppercase symbol from a security record */
+function resolveSymbol(sec) {
+    return (sec.symbol || sec.securitySymbol || '').toUpperCase();
+}
+
+/** Check if a symbol is a known equity and hasn't been counted yet */
+function isNewKnownEquity(symbol, seen) {
+    return symbol && !seen.has(symbol) && stockInfoMap.has(symbol);
+}
+
 /** Compute market breadth from securities array */
 function computeSecurityBreadth(securities) {
-    if (!securities || !Array.isArray(securities)) return null;
+    if (!Array.isArray(securities)) return null;
 
-    let advanced = 0, declined = 0, unchanged = 0;
+    const counts = { advanced: 0, declined: 0, unchanged: 0 };
     const seen = new Set();
 
     for (const sec of securities) {
-        const symbol = (sec.symbol || sec.securitySymbol || '').toUpperCase();
-        if (!symbol || seen.has(symbol) || !stockInfoMap.has(symbol)) continue;
+        const symbol = resolveSymbol(sec);
+        if (!isNewKnownEquity(symbol, seen)) continue;
         seen.add(symbol);
-
-        const bucket = classifyChange(resolveSecurityChange(sec));
-        if (bucket === 'advanced') advanced++;
-        else if (bucket === 'declined') declined++;
-        else unchanged++;
+        counts[classifyChange(resolveSecurityChange(sec))]++;
     }
 
-    return { advanced, declined, unchanged, totalScripsTraded: seen.size };
+    return { ...counts, totalScripsTraded: seen.size };
 }
 
 // ==================== Main scraper ====================
@@ -302,8 +325,8 @@ const scrapeOfficialWebsite = async () => {
             logger.debug(`Could not fetch securities for breadth: ${secErr.message}`);
         }
 
-        // Check if we got meaningful data
-        if (result.totalTransactions || result.nepseIndex || result.totalTurnover) {
+        const hasMeaningfulData = result.totalTransactions || result.nepseIndex || result.totalTurnover;
+        if (hasMeaningfulData) {
             logger.info(`Custom Scraper SUCCESS: Tx=${result.totalTransactions}, Index=${result.nepseIndex}`);
             return result;
         }
