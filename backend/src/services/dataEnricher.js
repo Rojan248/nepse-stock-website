@@ -130,14 +130,17 @@ const resolveVolume = (stock) => parsePrice(stock.volume || stock.trading?.volum
 /** Resolve a stock's turnover from top-level or nested trading */
 const resolveTurnover = (stock) => parsePrice(stock.turnover || stock.trading?.turnover);
 
-/** Resolve a stock's trade count from multiple candidate fields */
-const resolveTrades = (stock) => {
-    for (const f of TRADE_COUNT_FIELDS) { const v = parsePrice(stock[f]); if (v) return v; }
-    if (stock.trading) {
-        for (const f of TRADE_COUNT_NESTED) { const v = parsePrice(stock.trading[f]); if (v) return v; }
-    }
-    return parsePrice(stock.noOfTransactions);
+/** Resolve first truthy parsePrice from an object's fields */
+const firstTruthyPrice = (obj, fields) => {
+    for (const f of fields) { const v = parsePrice(obj[f]); if (v) return v; }
+    return 0;
 };
+
+/** Resolve a stock's trade count from top-level then nested trading fields */
+const resolveTrades = (stock) =>
+    firstTruthyPrice(stock, TRADE_COUNT_FIELDS)
+    || firstTruthyPrice(stock.trading || {}, TRADE_COUNT_NESTED)
+    || parsePrice(stock.noOfTransactions);
 
 /** Accumulate trading totals from an array of stocks */
 const accumulateTradingTotals = (stocks) => {
