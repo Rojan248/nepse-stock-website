@@ -58,71 +58,95 @@ let consecutiveFailures = 0;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
+// ==================== Market Meta Fetching ====================
+
+const SCRAPE_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' };
+
+/** Data-driven list of market meta sources to try in priority order */
+const MARKET_META_SOURCES = [
+    {
+        name: 'market-open-primary',
+        fetch: () => marketOpenClient.get(MARKET_OPEN_URL),
+        parse: (resp) => {
+            const meta = parseMarketMetaResponse(resp);
+            return hasValidMarketMeta(meta.totalTransactions, meta.totalTurnover, meta.totalVolume) ? meta : null;
+        }
+    },
+    {
+        name: 'market-open-alt',
+        fetch: () => marketOpenClient.get(MARKET_OPEN_ALT),
+        parse: (resp) => {
+            const meta = parseMarketMetaResponse(resp);
+            return hasValidMarketMeta(meta.totalTransactions, meta.totalTurnover, meta.totalVolume) ? meta : null;
+        }
+    },
+    {
+        name: 'merolagani',
+        fetch: () => axios.get('https://merolagani.com/MarketSummary.aspx', { timeout: 5000, headers: SCRAPE_HEADERS }),
+        parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`Merolagani: ${msg}`))
+    },
+    {
+        name: 'nepsealpha',
+        fetch: () => axios.get('https://nepsealpha.com/trading-menu', { timeout: 5000, headers: SCRAPE_HEADERS }),
+        parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`NepseAlpha: ${msg}`))
+    }
+];
+
 /**
  * Fetch live market meta (total transactions) from NEPSE public API
- * REFACTORED: Complex conditionals decomposed into helper functions
+ * Tries multiple sources in priority order
  */
 const fetchLiveMarketMeta = async () => {
-    // Try primary endpoint using decomposed helpers
-    const tryEndpoint = async (url) => {
-        const resp = await marketOpenClient.get(url);
-        const meta = parseMarketMetaResponse(resp);
-
-        if (hasValidMarketMeta(meta.totalTransactions, meta.totalTurnover, meta.totalVolume)) {
-            return meta;
+    for (const source of MARKET_META_SOURCES) {
+        try {
+            const resp = await source.fetch();
+            const result = source.parse(resp);
+            if (result) return result;
+        } catch (err) {
+            logger.debug(`${source.name} failed: ${err.message}`);
         }
-        return null;
-    };
-
-    // Attempt primary endpoint
-    try {
-        const primary = await tryEndpoint(MARKET_OPEN_URL);
-        if (primary) return primary;
-    } catch (err) {
-        logger.debug(`market-open primary failed: ${err.message}`);
     }
-
-    // Attempt alternate endpoint
-    try {
-        const alt = await tryEndpoint(MARKET_OPEN_ALT);
-        if (alt) return alt;
-    } catch (err) {
-        logger.debug(`market-open alt failed: ${err.message}`);
-    }
-
-    // Fallback 1: Merolagani HTML scrape
-    try {
-        const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
-            timeout: 5000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-        });
-        const result = extractTransactionFromHTML(resp.data, (msg) => logger.info(`Merolagani: ${msg}`));
-        if (result) return result;
-    } catch (err) {
-        logger.debug(`merolagani fallback failed: ${err.message}`);
-    }
-
-    // Fallback 2: NepseAlpha
-    try {
-        const alpha = await axios.get('https://nepsealpha.com/trading-menu', {
-            timeout: 5000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
-        });
-        const result = extractTransactionFromHTML(alpha.data, (msg) => logger.info(`NepseAlpha: ${msg}`));
-        if (result) return result;
-    } catch (err) {
-        logger.debug(`nepsealpha fallback failed: ${err.message}`);
-    }
-
     return null;
 };
+
+// ==================== Market Summary Merging ====================
+
+const { prisma } = require('./database/connection');
+const { isMarketActive } = require('./utils/marketTime');
+
+/** Field mappings for merging scraped data → DB market summary */
+const MARKET_SUMMARY_FIELDS = [
+    ['indexValue', 'nepseIndex'],
+    ['indexChange', 'indexChange'],
+    ['indexChangePercent', 'indexChangePercent'],
+    ['totalTransactions', 'totalTransactions'],
+    ['totalTurnover', 'totalTurnover'],
+    ['totalVolume', 'totalVolume'],
+    ['activeCompanies', 'totalScripsTraded'],
+    ['advancedCompanies', 'advanced'],
+    ['declinedCompanies', 'declined'],
+    ['unchangedCompanies', 'unchanged'],
+];
+
+/**
+ * Merge scraped data with latest DB record, preferring scraped values.
+ * @param {Object} scraped - New data (keys may differ from DB columns)
+ * @param {Object|null} latest - Latest DB record to fall back on
+ * @param {Object} [overrides] - Extra fields to force-set (e.g. totalTransactions)
+ * @returns {Object} Merged market summary ready for DB insertion
+ */
+function mergeMarketSummary(scraped, latest, overrides = {}) {
+    const merged = { timestamp: new Date() };
+    for (const [dbField, srcField] of MARKET_SUMMARY_FIELDS) {
+        merged[dbField] = scraped?.[srcField] ?? latest?.[dbField] ?? null;
+    }
+    return { ...merged, ...overrides };
+}
 
 /**
  * Force refresh of transaction count from the live market-open endpoint
  * Persists into latest market summary via Prisma
  */
-const { prisma } = require('./database/connection');
-const { isMarketActive } = require('./utils/marketTime');
 const fixTransactionData = async () => {
     try {
         const meta = await fetchLiveMarketMeta();
@@ -131,21 +155,8 @@ const fixTransactionData = async () => {
             return { updated: false };
         }
 
-        // Insert a new market summary row with updated totals, preserving latest other fields if present
         const latest = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
-        const merged = {
-            indexValue: latest?.indexValue ?? null,
-            indexChange: latest?.indexChange ?? null,
-            indexChangePercent: latest?.indexChangePercent ?? null,
-            totalTransactions: meta.totalTransactions,
-            totalTurnover: meta.totalTurnover ?? latest?.totalTurnover ?? null,
-            totalVolume: meta.totalVolume ?? latest?.totalVolume ?? null,
-            activeCompanies: latest?.activeCompanies ?? null,
-            advancedCompanies: latest?.advancedCompanies ?? null,
-            declinedCompanies: latest?.declinedCompanies ?? null,
-            unchangedCompanies: latest?.unchangedCompanies ?? null,
-            timestamp: new Date()
-        };
+        const merged = mergeMarketSummary(meta, latest, { totalTransactions: meta.totalTransactions });
 
         await prisma.marketSummary.create({ data: merged });
         logger.info(`fixTransactionData: updated totalTransactions=${meta.totalTransactions}`);
@@ -305,6 +316,28 @@ const scrapeOfficialWebsite = async () => {
     return null;
 };
 
+/** Check if market breadth data is effectively empty */
+function isBreadthMissing(merged) {
+    return (merged.advancedCompanies ?? 0) === 0
+        && (merged.declinedCompanies ?? 0) === 0;
+}
+
+/** Try to fill missing breadth from DB stock changes */
+async function applyBreadthFallback(merged) {
+    if (!isBreadthMissing(merged)) return merged;
+
+    const dbBreadth = await computeBreadthFromDb(prisma);
+    if (!dbBreadth) return merged;
+
+    logger.info(`syncMarketDataFromWeb: Applied DB breadth fallback A=${dbBreadth.advanced} D=${dbBreadth.declined} U=${dbBreadth.unchanged}`);
+    return {
+        ...merged,
+        advancedCompanies: dbBreadth.advanced,
+        declinedCompanies: dbBreadth.declined,
+        unchangedCompanies: dbBreadth.unchanged
+    };
+}
+
 /**
  * Sync all market data from web scraping - comprehensive update
  * Fetches transactions, turnover, volume, index data and saves to database
@@ -312,74 +345,31 @@ const scrapeOfficialWebsite = async () => {
  */
 const syncMarketDataFromWeb = async () => {
     try {
-        const marketOpen = isMarketActive();
-
-        // Use the custom website scraper
         const webData = await scrapeOfficialWebsite();
-
         if (!webData) {
             logger.warn('syncMarketDataFromWeb: No data from website scraper');
             return { updated: false, reason: 'Scraper returned no data' };
         }
 
-        // Get the latest record to merge with
         const latest = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
+        let merged = mergeMarketSummary(webData, latest);
 
-        // Build merged data, preferring scraped values
-        let merged = {
-            indexValue: webData.nepseIndex ?? latest?.indexValue ?? null,
-            indexChange: webData.indexChange ?? latest?.indexChange ?? null,
-            indexChangePercent: webData.indexChangePercent ?? latest?.indexChangePercent ?? null,
-            totalTransactions: webData.totalTransactions ?? latest?.totalTransactions ?? null,
-            totalTurnover: webData.totalTurnover ?? latest?.totalTurnover ?? null,
-            totalVolume: webData.totalVolume ?? latest?.totalVolume ?? null,
-            activeCompanies: webData.totalScripsTraded ?? latest?.activeCompanies ?? null,
-            advancedCompanies: webData.advanced ?? latest?.advancedCompanies ?? null,
-            declinedCompanies: webData.declined ?? latest?.declinedCompanies ?? null,
-            unchangedCompanies: webData.unchanged ?? latest?.unchangedCompanies ?? null,
-            timestamp: new Date()
-        };
-
-        // If market is closed, do NOT overwrite the DB; return the latest stored snapshot (last open day)
-        if (!marketOpen) {
+        // If market is closed, return cached snapshot without writing
+        if (!isMarketActive()) {
             logger.info('syncMarketDataFromWeb: Market closed, keeping last stored market summary');
-            return {
-                updated: false,
-                reason: 'market-closed',
-                latest: latest ? { ...latest, source: 'cached-latest' } : merged
-            };
+            return { updated: false, reason: 'market-closed', latest: latest ? { ...latest, source: 'cached-latest' } : merged };
         }
 
-        // If breadth looks empty (all zero/unchanged only), try DB fallback
-        const breadthMissing = (merged.advancedCompanies ?? 0) === 0
-            && (merged.declinedCompanies ?? 0) === 0
-            && (merged.unchangedCompanies ?? 0) >= 0;
+        merged = await applyBreadthFallback(merged);
 
-        if (breadthMissing) {
-            const dbBreadth = await computeBreadthFromDb(prisma);
-            if (dbBreadth) {
-                merged = {
-                    ...merged,
-                    advancedCompanies: dbBreadth.advanced,
-                    declinedCompanies: dbBreadth.declined,
-                    unchangedCompanies: dbBreadth.unchanged
-                };
-                logger.info(`syncMarketDataFromWeb: Applied DB breadth fallback A=${dbBreadth.advanced} D=${dbBreadth.declined} U=${dbBreadth.unchanged}`);
-            }
+        // Only persist if we have meaningful data
+        if (!merged.totalTransactions && !merged.totalTurnover) {
+            return { updated: false, reason: 'No meaningful data scraped' };
         }
 
-        // Only create new record if we have meaningful data
-        if (merged.totalTransactions || merged.totalTurnover) {
-            await prisma.marketSummary.create({ data: merged });
-            logger.info(`syncMarketDataFromWeb: Updated - Tx=${merged.totalTransactions}, Turnover=${merged.totalTurnover}`);
-            return {
-                updated: true,
-                source: 'custom-scraper',
-                ...merged
-            };
-        }
-
-        return { updated: false, reason: 'No meaningful data scraped' };
+        await prisma.marketSummary.create({ data: merged });
+        logger.info(`syncMarketDataFromWeb: Updated - Tx=${merged.totalTransactions}, Turnover=${merged.totalTurnover}`);
+        return { updated: true, source: 'custom-scraper', ...merged };
     } catch (error) {
         logger.error(`syncMarketDataFromWeb failed: ${error.message}`);
         return { updated: false, error: error.message };
