@@ -43,15 +43,18 @@ async function fetchAllStocks() {
 
 // ==================== Filter Helpers ====================
 
+/** Check if two strings match exactly or one contains the other */
+const exactOrSubstringMatch = (a, b) => a === b || a.includes(b) || b.includes(a);
+
+/** Strip trailing 's' for plural normalization */
+const stripPlural = (s) => s.endsWith('s') ? s.slice(0, -1) : s;
+
 /** Fuzzy sector match with plural normalization */
 function matchesSector(stock, sector) {
     if (!stock.sector) return false;
     const s = stock.sector.toLowerCase().trim();
     const f = sector.toLowerCase().trim();
-    if (s === f || s.includes(f) || f.includes(s)) return true;
-    const s1 = s.endsWith('s') ? s.slice(0, -1) : s;
-    const s2 = f.endsWith('s') ? f.slice(0, -1) : f;
-    return s1 === s2;
+    return exactOrSubstringMatch(s, f) || stripPlural(s) === stripPlural(f);
 }
 
 /** Filter stock by change direction */
@@ -127,6 +130,91 @@ function useMarketBreadth(stocks, marketSummary) {
             unchanged: stocks.filter(s => getChangePercent(s) === 0).length
         };
     }, [stocks, marketSummary]);
+}
+
+/** Fetches and auto-refreshes market summary + sectors */
+function useMarketData() {
+    const [marketSummary, setMarketSummary] = useState(null);
+    const [sectors, setSectors] = useState([]);
+    const [error, setError] = useState(null);
+    const mountedRef = useRef(true);
+    const intervalRef = useRef(null);
+
+    const fetchMarket = useCallback(async (isInitial = false) => {
+        if (!mountedRef.current) return;
+        try {
+            const [summary, sectorsData] = await Promise.all([
+                getMarketSummary(),
+                isInitial ? getSectors() : Promise.resolve(null)
+            ]);
+            if (!mountedRef.current) return;
+            setMarketSummary({ ...summary, _updateId: Date.now() });
+            if (sectorsData) setSectors(['all', ...(sectorsData || [])]);
+            setError(null);
+        } catch (err) {
+            console.error('Failed to fetch market data:', err);
+            if (mountedRef.current) setError('Failed to update market data');
+        }
+    }, []);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        fetchMarket(true);
+        intervalRef.current = setInterval(() => fetchMarket(false), LIVE_UPDATE_INTERVAL);
+        return () => {
+            mountedRef.current = false;
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, [fetchMarket]);
+
+    return { marketSummary, sectors, error, setError };
+}
+
+/** Fetches and auto-refreshes all stocks */
+function useStockData() {
+    const [stocks, setStocks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const mountedRef = useRef(true);
+    const intervalRef = useRef(null);
+
+    const loadAll = useCallback(async (isInitial = false) => {
+        if (!mountedRef.current) return;
+        try {
+            if (isInitial) setLoading(true);
+            const allStocks = await fetchAllStocks();
+            if (mountedRef.current) setStocks(allStocks);
+        } catch (err) {
+            console.error('Failed to fetch stocks:', err);
+        } finally {
+            if (mountedRef.current) setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        loadAll(true);
+        intervalRef.current = setInterval(() => loadAll(false), LIVE_UPDATE_INTERVAL);
+        return () => {
+            mountedRef.current = false;
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, [loadAll]);
+
+    return { stocks, loading };
+}
+
+/** Derives filtered + paginated stock list from raw stocks and filter state */
+function useFilteredStocks(stocks, filters, currentPage) {
+    const filtered = useMemo(
+        () => applyFilters(stocks, filters),
+        [stocks, filters.selectedSector, filters.globalSearch, filters.showFavoritesOnly, filters.favorites, filters.statusFilter]
+    );
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    const display = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filtered.slice(start, start + ITEMS_PER_PAGE);
+    }, [filtered, currentPage]);
+    return { filtered, display, totalPages };
 }
 
 // ==================== Sub-Components ====================
@@ -225,77 +313,14 @@ function StocksToolbar({ stockCount, showFavoritesOnly, setShowFavoritesOnly, fa
 
 function HomePage({ globalSearch }) {
     const navigate = useNavigate();
-    const [marketSummary, setMarketSummary] = useState(null);
-    const [stocks, setStocks] = useState([]);
-    const [sectors, setSectors] = useState([]);
+    const { marketSummary, sectors, error, setError } = useMarketData();
+    const { stocks, loading } = useStockData();
+
     const [selectedSector, setSelectedSector] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
     const [favorites, setFavorites] = useLocalStorage('nepse-favorites', []);
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
-
-    const mountedRef = useRef(true);
-    const marketIntervalRef = useRef(null);
-    const stocksIntervalRef = useRef(null);
-
-    const fetchMarketData = useCallback(async (isInitial = false) => {
-        if (!mountedRef.current) return;
-
-        try {
-            const [summary, sectorsData] = await Promise.all([
-                getMarketSummary(),
-                isInitial ? getSectors() : Promise.resolve(null)
-            ]);
-
-            if (!mountedRef.current) return;
-
-            setMarketSummary(prev => ({ ...summary, _updateId: Date.now() }));
-
-            if (sectorsData) {
-                setSectors(['all', ...(sectorsData || [])]);
-            }
-            setError(null);
-        } catch (err) {
-            console.error('Failed to fetch market data:', err);
-            if (mountedRef.current) {
-                setError('Failed to update market data');
-            }
-        }
-    }, []);
-
-    const loadAllStocks = useCallback(async (isInitial = false) => {
-        if (!mountedRef.current) return;
-
-        try {
-            if (isInitial) setLoading(true);
-            const allStocks = await fetchAllStocks();
-            if (!mountedRef.current) return;
-            setStocks(allStocks);
-            if (isInitial) setCurrentPage(1);
-        } catch (err) {
-            console.error('Failed to fetch stocks:', err);
-        } finally {
-            if (mountedRef.current) setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        mountedRef.current = true;
-        fetchMarketData(true);
-        loadAllStocks(true);
-
-        marketIntervalRef.current = setInterval(() => fetchMarketData(false), LIVE_UPDATE_INTERVAL);
-        stocksIntervalRef.current = setInterval(() => loadAllStocks(false), LIVE_UPDATE_INTERVAL);
-
-        return () => {
-            mountedRef.current = false;
-            if (marketIntervalRef.current) clearInterval(marketIntervalRef.current);
-            if (stocksIntervalRef.current) clearInterval(stocksIntervalRef.current);
-        };
-    }, [fetchMarketData, loadAllStocks]);
 
     useEffect(() => { setCurrentPage(1); }, [selectedSector, globalSearch, statusFilter]);
 
@@ -305,19 +330,8 @@ function HomePage({ globalSearch }) {
         setFavorites(prev => prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol]);
     }, [setFavorites]);
 
-    // Filtering — uses extracted helpers
-    const filteredStocks = useMemo(() =>
-        applyFilters(stocks, { selectedSector, statusFilter, globalSearch, showFavoritesOnly, favorites }),
-        [stocks, selectedSector, globalSearch, showFavoritesOnly, favorites, statusFilter]
-    );
-
-    const totalPages = Math.max(1, Math.ceil(filteredStocks.length / ITEMS_PER_PAGE));
-
-    const displayStocks = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredStocks.slice(start, start + ITEMS_PER_PAGE);
-    }, [filteredStocks, currentPage]);
-
+    const filters = { selectedSector, statusFilter, globalSearch, showFavoritesOnly, favorites };
+    const { display: displayStocks, totalPages } = useFilteredStocks(stocks, filters, currentPage);
     const marketStats = useMarketBreadth(stocks, marketSummary);
 
     const { ref: sectorRef, isVisible: sectorVisible } = useScrollReveal(0.1);
