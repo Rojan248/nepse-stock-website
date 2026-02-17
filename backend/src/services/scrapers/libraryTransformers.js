@@ -41,6 +41,24 @@ const sanitizeSymbol = (symbol) => {
     return symbol.toString().trim().replace(/[^\w]/g, '').toUpperCase();
 };
 
+/** Compute overnight (display) change and percent from LTP vs prevClose */
+const computeOvernightChange = (ltp, prevClose) => {
+    const change = ltp - prevClose;
+    const percent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+    return { change, percent };
+};
+
+/** Resolve display change values, preferring API percent when available */
+const computeDisplayChange = (prevClose, apiPercentChange, overnight) => {
+    if (isNaN(apiPercentChange)) {
+        return { displayChange: overnight.change, displayChangePercent: overnight.percent };
+    }
+    const displayChange = prevClose > 0
+        ? prevClose * (apiPercentChange / 100)
+        : overnight.change;
+    return { displayChange, displayChangePercent: apiPercentChange };
+};
+
 /**
  * Calculate price change values
  * @param {number} ltp - Last traded price
@@ -50,19 +68,9 @@ const sanitizeSymbol = (symbol) => {
  * @returns {Object} Change calculations
  */
 const calculatePriceChanges = (ltp, prevClose, open, apiPercentChange) => {
-    const hasApiChange = !isNaN(apiPercentChange);
+    const overnight = computeOvernightChange(ltp, prevClose);
+    const { displayChange, displayChangePercent } = computeDisplayChange(prevClose, apiPercentChange, overnight);
 
-    // Calculate overnight change (LTP vs previous close)
-    const overnightChange = ltp - prevClose;
-    const overnightChangePercent = prevClose > 0 ? (overnightChange / prevClose) * 100 : 0;
-
-    // Use API percentageChange if valid, otherwise use calculated overnight change
-    const displayChangePercent = hasApiChange ? apiPercentChange : overnightChangePercent;
-    const displayChange = hasApiChange
-        ? (prevClose > 0 ? prevClose * (apiPercentChange / 100) : overnightChange)
-        : overnightChange;
-
-    // Calculate intraday change
     const intradayChange = ltp - open;
     const intradayChangePercent = open > 0 ? (intradayChange / open) * 100 : 0;
 
@@ -71,8 +79,8 @@ const calculatePriceChanges = (ltp, prevClose, open, apiPercentChange) => {
         displayChangePercent: round2(displayChangePercent),
         intradayChange: round2(intradayChange),
         intradayChangePercent: round2(intradayChangePercent),
-        overnightChange: round2(overnightChange),
-        overnightChangePercent: round2(overnightChangePercent)
+        overnightChange: round2(overnight.change),
+        overnightChangePercent: round2(overnight.percent)
     };
 };
 
@@ -163,8 +171,11 @@ const resolveLtp = (security, prevClose, staticStockMap, symbol) => {
     return ltp;
 };
 
-/** Build the price/change/52-week fields from a security */
-const buildPriceFields = (security, ltp, prevClose, open, changes) => ({
+/** Build the price/change/52-week fields from a security
+ * @param {Object} security - Raw security object
+ * @param {Object} prices - { ltp, prevClose, open, changes }
+ */
+const buildPriceFields = (security, { ltp, prevClose, open, changes }) => ({
     ltp,
     open,
     high: parseFloat(security.highPrice) || ltp,
@@ -185,6 +196,14 @@ const buildPriceFields = (security, ltp, prevClose, open, changes) => ({
 
 // ── Transform security ──────────────────────────────────────────────
 
+/** Resolve the display name for a security */
+const resolveCompanyName = (security, rawSymbol) =>
+    security.securityName || security.name || rawSymbol;
+
+/** Resolve effective market-open status */
+const resolveMarketOpen = (marketOpen, isMarketOpenFn) =>
+    marketOpen !== null ? marketOpen : isMarketOpenFn();
+
 const transformSecurity = (security, marketOpen, staticStockMap, isMarketOpenFn) => {
     if (!security) return null;
 
@@ -201,11 +220,11 @@ const transformSecurity = (security, marketOpen, staticStockMap, isMarketOpenFn)
     return {
         symbol,
         originalSymbol: rawSymbol,
-        companyName: security.securityName || security.name || rawSymbol,
+        companyName: resolveCompanyName(security, rawSymbol),
         sector,
         sectorId,
-        ...buildPriceFields(security, ltp, prevClose, open, changes),
-        isMarketOpen: marketOpen !== null ? marketOpen : isMarketOpenFn(),
+        ...buildPriceFields(security, { ltp, prevClose, open, changes }),
+        isMarketOpen: resolveMarketOpen(marketOpen, isMarketOpenFn),
         ...extractTradingMetrics(security, ltp),
         lastUpdated: new Date().toISOString()
     };
