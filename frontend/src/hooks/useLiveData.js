@@ -95,20 +95,56 @@ function flashChanges(changes, setChangedFields, mountedRef) {
     return () => clearTimeout(timer);
 }
 
-// ==================== useLiveData ====================
+// ==================== Fetch Helpers ====================
+
+/**
+ * @typedef {Object} LiveDataCtx
+ * @property {React.MutableRefObject} previousDataRef
+ * @property {React.MutableRefObject} mountedRef
+ * @property {Function} setData
+ * @property {Function} setChangedFields
+ * @property {Function} setIsLoading
+ * @property {Function} setIsPolling
+ * @property {Function} setError
+ */
 
 /** Process a successful fetch result — detect changes and update state */
-function handleFetchResult(result, isInitial, previousDataRef, setData, setChangedFields, mountedRef) {
-    if (!mountedRef.current) return;
+function handleFetchResult(result, isInitial, ctx) {
+    if (!ctx.mountedRef.current) return;
 
-    if (previousDataRef.current && !isInitial) {
-        const changes = detectChanges(result, previousDataRef.current);
-        flashChanges(changes, setChangedFields, mountedRef);
+    if (ctx.previousDataRef.current && !isInitial) {
+        const changes = detectChanges(result, ctx.previousDataRef.current);
+        flashChanges(changes, ctx.setChangedFields, ctx.mountedRef);
     }
 
-    previousDataRef.current = result;
-    setData(result);
+    ctx.previousDataRef.current = result;
+    ctx.setData(result);
 }
+
+/** Execute a single fetch cycle, setting loading/error state around the call */
+async function executeFetch(fetchFn, isInitial, ctx) {
+    if (!ctx.mountedRef.current) return;
+
+    if (isInitial) ctx.setIsLoading(true);
+    else ctx.setIsPolling(true);
+    ctx.setError(null);
+
+    try {
+        const result = await fetchFn();
+        handleFetchResult(result, isInitial, ctx);
+    } catch (err) {
+        if (!ctx.mountedRef.current) return;
+        ctx.setError(err.message || 'Failed to fetch data');
+        console.error('Live data fetch error:', err);
+    } finally {
+        if (ctx.mountedRef.current) {
+            ctx.setIsLoading(false);
+            ctx.setIsPolling(false);
+        }
+    }
+}
+
+// ==================== useLiveData ====================
 
 /**
  * Custom hook for live data polling with change detection
@@ -127,26 +163,10 @@ export function useLiveData(fetchFn, interval = 15000, enabled = true) {
     const intervalRef = useRef(null);
     const mountedRef = useRef(true);
 
-    const fetchData = useCallback(async (isInitial = false) => {
-        if (!mountedRef.current) return;
-
-        if (isInitial) setIsLoading(true);
-        else setIsPolling(true);
-        setError(null);
-
-        try {
-            const result = await fetchFn();
-            handleFetchResult(result, isInitial, previousDataRef, setData, setChangedFields, mountedRef);
-        } catch (err) {
-            if (!mountedRef.current) return;
-            setError(err.message || 'Failed to fetch data');
-            console.error('Live data fetch error:', err);
-        } finally {
-            if (mountedRef.current) {
-                setIsLoading(false);
-                setIsPolling(false);
-            }
-        }
+    const fetchData = useCallback((isInitial = false) => {
+        /** @type {LiveDataCtx} */
+        const ctx = { previousDataRef, mountedRef, setData, setChangedFields, setIsLoading, setIsPolling, setError };
+        return executeFetch(fetchFn, isInitial, ctx);
     }, [fetchFn]);
 
     const refresh = useCallback(() => fetchData(false), [fetchData]);
