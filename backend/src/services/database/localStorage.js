@@ -170,46 +170,35 @@ const saveFileImmediate = (key, data) => {
     }
 };
 
+/** Load an array from file into a Map using a key extractor */
+const loadMapEntries = (filePath, map, keyFn) => {
+    const data = loadFile(filePath, []);
+    if (!Array.isArray(data)) return;
+    for (const item of data) {
+        const key = keyFn(item);
+        if (key) map.set(key, item);
+    }
+};
+
 /**
  * Initialize local storage - load all data from disk
  */
 const initializeLocalStorage = () => {
     ensureDataDir();
 
-    // Load stocks
-    const stocksData = loadFile(FILES.stocks, []);
-    if (Array.isArray(stocksData)) {
-        stocksData.forEach(stock => {
-            if (stock.symbol) {
-                store.stocks.set(stock.symbol, stock);
-            }
-        });
-    }
+    loadMapEntries(FILES.stocks, store.stocks, s => s.symbol);
     logger.info(`Loaded ${store.stocks.size} stocks from local storage`);
 
-    // Load market summary
     store.marketSummary = loadFile(FILES.marketSummary, null);
     logger.info(`Loaded market summary: ${store.marketSummary ? 'yes' : 'no'}`);
 
-    // Load market history
     store.marketHistory = loadFile(FILES.marketHistory, []);
     logger.info(`Loaded ${store.marketHistory.length} market history records`);
 
-    // Load IPOs
-    const iposData = loadFile(FILES.ipos, []);
-    if (Array.isArray(iposData)) {
-        iposData.forEach(ipo => {
-            const key = generateSafeKey(ipo.companyName, ipo.id, store.ipos);
-            if (key) {
-                store.ipos.set(key, ipo);
-            }
-        });
-    }
-    // Load Top Movers
+    loadMapEntries(FILES.ipos, store.ipos, ipo => generateSafeKey(ipo.companyName, ipo.id, store.ipos));
+
     store.topMovers = loadFile(FILES.topMovers, {
-        turnover: [],
-        trade: [],
-        volume: []
+        turnover: [], trade: [], volume: []
     });
     logger.info(`Loaded top movers: ${store.topMovers.updatedAt ? 'yes' : 'no'}`);
 
@@ -234,42 +223,43 @@ const saveAllData = () => {
  * Helper: Merge new stock data with existing data
  * Handles "Zero Price Shield" logic to preserve historical prices
  */
+/** Resolve the LTP from a stock, checking nested prices */
+const resolveNewLtp = (stock) => stock.ltp || (stock.prices && stock.prices.ltp) || 0;
+
+/** Build a stock with preserved existing prices when new LTP is invalid */
+const preserveExistingPrices = (existing, cleanStock) => ({
+    ...cleanStock,
+    ltp: existing.ltp || cleanStock.ltp,
+    change: existing.change || cleanStock.change,
+    changePercent: existing.changePercent || cleanStock.changePercent,
+    prices: existing.prices || cleanStock.prices
+});
+
+/**
+ * Helper: Merge new stock data with existing data
+ * Handles "Zero Price Shield" logic to preserve historical prices
+ */
 const mergeStockData = (existing, newStock, timestamp) => {
-    // Strip computed flags
     const { isTopGainer, isTopLoser, ...cleanStock } = newStock;
+    const hasValidLtp = resolveNewLtp(cleanStock) > 0;
 
-    // Validation: Check for valid LTP in new data
-    const newLtp = cleanStock.ltp || (cleanStock.prices && cleanStock.prices.ltp) || 0;
-    const hasValidLtp = newLtp > 0;
-
-    if (hasValidLtp) {
-        // Valid price: Update everything
-        return {
-            ...existing,
-            ...cleanStock,
-            updatedAt: timestamp,
-            timestamp: cleanStock.timestamp || timestamp
-        };
-    }
-
-    // Invalid/Zero price: Preserve existing price data
-    const preservedStock = {
-        ...cleanStock,
-        ltp: existing.ltp || cleanStock.ltp,
-        change: existing.change || cleanStock.change,
-        changePercent: existing.changePercent || cleanStock.changePercent,
-        prices: existing.prices || cleanStock.prices
-    };
-
-    if (existing.ltp > 0) {
-        logger.debug(`Preserving LTP for ${newStock.symbol}: New=${newLtp}, Old=${existing.ltp}`);
-    }
+    const source = hasValidLtp ? cleanStock : preserveExistingPrices(existing, cleanStock);
 
     return {
         ...existing,
-        ...preservedStock,
-        updatedAt: timestamp
+        ...source,
+        updatedAt: timestamp,
+        timestamp: cleanStock.timestamp || timestamp
     };
+};
+
+/** Resolve LTP from nested stock shape */
+const resolveLtp = (stock) => stock.ltp || (stock.prices && stock.prices.ltp) || 0;
+
+/** Compare two values for sorting */
+const compareValues = (a, b, dir) => {
+    if (typeof a === 'string') return dir * a.localeCompare(b);
+    return dir * ((a || 0) - (b || 0));
 };
 
 const stockOps = {
@@ -306,26 +296,13 @@ const stockOps = {
     getAllStocks: ({ skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 1, includeZeroLtp = true } = {}) => {
         let stocks = Array.from(store.stocks.values());
 
-        // Filter out zero LTP stocks unless requested
         if (!includeZeroLtp) {
-            stocks = stocks.filter(stock => {
-                const ltp = stock.ltp || (stock.prices && stock.prices.ltp) || 0;
-                return ltp > 0;
-            });
+            stocks = stocks.filter(s => resolveLtp(s) > 0);
         }
 
-        // Sort
         const direction = sortOrder === -1 || sortOrder === 'desc' ? -1 : 1;
-        stocks.sort((a, b) => {
-            const aVal = a[sortBy] || '';
-            const bVal = b[sortBy] || '';
-            if (typeof aVal === 'string') {
-                return direction * aVal.localeCompare(bVal);
-            }
-            return direction * ((aVal || 0) - (bVal || 0));
-        });
+        stocks.sort((a, b) => compareValues(a[sortBy] || '', b[sortBy] || '', direction));
 
-        // Paginate
         return stocks.slice(skip, skip + limit);
     },
 
@@ -459,9 +436,12 @@ const stockOps = {
      */
     deleteInactiveStocks: () => {
         let deleteCount = 0;
+        const isInactive = (stock) => {
+            const ltp = resolveLtp(stock);
+            return !ltp;
+        };
         store.stocks.forEach((stock, symbol) => {
-            const ltp = stock.ltp || (stock.prices && stock.prices.ltp) || 0;
-            if (ltp === 0 || ltp === null || ltp === undefined) {
+            if (isInactive(stock)) {
                 store.stocks.delete(symbol);
                 deleteCount++;
             }
@@ -596,7 +576,7 @@ const marketOps = {
     /**
      * Save top movers lists
      */
-    saveTopMovers: (turnover, trade, volume, gainers, losers) => {
+    saveTopMovers: ({ turnover, trade, volume, gainers, losers } = {}) => {
         store.topMovers = {
             turnover: turnover || [],
             trade: trade || [],
@@ -629,6 +609,14 @@ const marketOps = {
 };
 
 // ==================== IPO Operations ====================
+
+/** Search store.ipos for first entry matching a predicate(value, key) */
+const findIPOEntry = (predicate) => {
+    for (const [k, v] of store.ipos) {
+        if (predicate(v, k)) return { id: k, ...v };
+    }
+    return null;
+};
 
 const ipoOps = {
     /**
@@ -688,28 +676,18 @@ const ipoOps = {
      */
     getIPOByCompanyName: (companyName) => {
         const key = generateSafeKey(companyName);
-        const ipo = store.ipos.get(key);
 
-        if (ipo) {
-            return { id: key, ...ipo };
-        }
+        // 1. Direct key lookup
+        const direct = store.ipos.get(key);
+        if (direct) return { id: key, ...direct };
 
-        // Search by field (fallback for exact match)
-        for (const [k, v] of store.ipos) {
-            if (v.companyName === companyName) {
-                return { id: k, ...v };
-            }
-        }
+        // 2. Exact field match
+        const byField = findIPOEntry(v => v.companyName === companyName);
+        if (byField) return byField;
 
-        // Search by normalized key match (partial)
+        // 3. Partial key match
         const keyLower = key.toLowerCase();
-        for (const [k, v] of store.ipos) {
-            if (k.includes(keyLower) || keyLower.includes(k)) {
-                return { id: k, ...v };
-            }
-        }
-
-        return null;
+        return findIPOEntry((v, k) => k.includes(keyLower) || keyLower.includes(k));
     },
 
     /**

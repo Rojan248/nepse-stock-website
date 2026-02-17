@@ -122,7 +122,7 @@ let topMovers = {
     updatedAt: null
 };
 
-const saveTopMovers = async (turnover, trade, volume, gainers, losers) => {
+const saveTopMovers = async ({ turnover, trade, volume, gainers, losers } = {}) => {
     try {
         topMovers = {
             turnover: turnover || [],

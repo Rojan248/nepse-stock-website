@@ -29,6 +29,89 @@ const safeDbOperation = async (operation, defaultValue, errorMsg, shouldThrow = 
     }
 };
 
+/** Check whether the existing price should be preserved (incoming LTP is zero) */
+const shouldPreservePrice = (existingLtp, newLtp) =>
+    existingLtp && existingLtp > 0 && newLtp === 0;
+
+/** Build the Prisma operation for a single stock save (upsert or timestamp-only update) */
+const buildStockSaveOp = (data, existingMap) => {
+    const existingLtp = existingMap.get(data.symbol);
+    const newLtp = data.lastTradedPrice || 0;
+
+    if (shouldPreservePrice(existingLtp, newLtp)) {
+        logger.debug(`[${data.symbol}] Preserving existing LTP=${existingLtp} (incoming LTP=0)`);
+        return prisma.stock.update({
+            where: { symbol: data.symbol },
+            data: { updatedAt: new Date() }
+        });
+    }
+
+    return prisma.stock.upsert({
+        where: { symbol: data.symbol },
+        update: data,
+        create: data
+    });
+};
+
+/** Recalculate change & percentageChange to ensure mathematical consistency */
+const ensurePriceConsistency = (stock) => {
+    const ltp = stock.lastTradedPrice;
+    const prev = stock.previousClose;
+    let change = stock.change;
+    let pChange = stock.percentageChange;
+
+    const canRecalculate = ltp && prev && prev > 0;
+    if (!canRecalculate) return { change, pChange };
+
+    const calcChange = ltp - prev;
+    const changeDeviates = Math.abs(calcChange - (change || 0)) > 0.01;
+    if (changeDeviates) {
+        logger.debug(`[${stock.symbol}] Fixing Change: Was ${change}, Now ${calcChange.toFixed(2)}`);
+        change = parseFloat(calcChange.toFixed(2));
+    }
+
+    const calcPct = (calcChange / prev) * 100;
+    const pctDeviates = Math.abs(calcPct - (pChange || 0)) > 0.01;
+    if (pctDeviates) {
+        logger.debug(`[${stock.symbol}] Fixing % Change: Was ${pChange}%, Now ${calcPct.toFixed(2)}%`);
+        pChange = parseFloat(calcPct.toFixed(2));
+    }
+
+    return { change, pChange };
+};
+
+/** Build the history data object for a single stock snapshot */
+const buildHistoryRecord = (stock, today) => {
+    const { change, pChange } = ensurePriceConsistency(stock);
+    return {
+        symbol: stock.symbol,
+        date: today,
+        closePrice: stock.lastTradedPrice,
+        highPrice: stock.highPrice,
+        lowPrice: stock.lowPrice,
+        volume: stock.volume,
+        turnover: stock.turnover,
+        change,
+        percentageChange: pChange
+    };
+};
+
+/** Categorize a stock into create or update for the daily snapshot */
+const categorizeStockForSnapshot = (stock, today, existingMap, createData, updateOps, tx) => {
+    const record = buildHistoryRecord(stock, today);
+    const existing = existingMap.get(stock.symbol);
+
+    if (existing) {
+        const { symbol, date, ...updateFields } = record;
+        updateOps.push(tx.marketHistory.update({
+            where: { id: existing.id },
+            data: updateFields
+        }));
+    } else {
+        createData.push(record);
+    }
+};
+
 /**
  * Fetch stocks with common pattern: query -> map to output format
  * @param {Object} options - Prisma findMany options
@@ -50,7 +133,6 @@ const saveStocks = async (stocks) => {
     }
 
     try {
-        // First, get all existing stocks that we're about to update
         const symbols = stocks.filter(s => s && s.symbol).map(s => s.symbol.toUpperCase());
         const existingStocks = await prisma.stock.findMany({
             where: { symbol: { in: symbols } },
@@ -60,28 +142,7 @@ const saveStocks = async (stocks) => {
 
         const ops = stocks
             .filter(s => s && s.symbol)
-            .map((stock) => {
-                const data = normalizeStockInput(stock);
-                const existingLtp = existingMap.get(data.symbol);
-                const newLtp = data.lastTradedPrice || 0;
-
-                // If existing stock has valid price and new data has zero price,
-                // preserve the existing price data (don't overwrite with zeros)
-                if (existingLtp && existingLtp > 0 && newLtp === 0) {
-                    logger.debug(`[${data.symbol}] Preserving existing LTP=${existingLtp} (incoming LTP=0)`);
-                    // Only update timestamp, not the price
-                    return prisma.stock.update({
-                        where: { symbol: data.symbol },
-                        data: { updatedAt: new Date() }
-                    });
-                }
-
-                return prisma.stock.upsert({
-                    where: { symbol: data.symbol },
-                    update: data,
-                    create: data
-                });
-            });
+            .map((stock) => buildStockSaveOp(normalizeStockInput(stock), existingMap));
 
         await prisma.$transaction(ops);
         return { success: true, count: ops.length };
@@ -323,7 +384,6 @@ const deleteNonEquitySecurities = async () => {
 const snapshotDailyMarket = async () => {
     logger.info('Starting End-of-Day Market Snapshot...');
     try {
-        // 1. Fetch all valid stocks
         const stocks = await prisma.stock.findMany({
             where: { lastTradedPrice: { gt: 0 } }
         });
@@ -334,13 +394,9 @@ const snapshotDailyMarket = async () => {
         }
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to start of day
+        today.setHours(0, 0, 0, 0);
 
-        let count = 0;
-
-        // 2. Process all stocks inside a transaction for atomicity
         await prisma.$transaction(async (tx) => {
-            // Fetch all existing history for today in one query
             const existingHistories = await tx.marketHistory.findMany({
                 where: {
                     date: today,
@@ -353,70 +409,19 @@ const snapshotDailyMarket = async () => {
             const updateOps = [];
 
             for (const stock of stocks) {
-                // Precision Calculation: Ensure change and percent match the close/prevClose
-                let ltp = stock.lastTradedPrice;
-                let prev = stock.previousClose;
-                let change = stock.change;
-                let pChange = stock.percentageChange;
-
-                // If we have both prices, force mathematical consistency
-                if (ltp && prev && prev > 0) {
-                    const calcChange = ltp - prev;
-                    if (Math.abs(calcChange - (change || 0)) > 0.01) {
-                        logger.debug(`[${stock.symbol}] Fixing Change: Was ${change}, Now ${calcChange.toFixed(2)}`);
-                        change = parseFloat(calcChange.toFixed(2));
-                    }
-
-                    const calcPct = (calcChange / prev) * 100;
-                    if (Math.abs(calcPct - (pChange || 0)) > 0.01) {
-                        logger.debug(`[${stock.symbol}] Fixing % Change: Was ${pChange}%, Now ${calcPct.toFixed(2)}%`);
-                        pChange = parseFloat(calcPct.toFixed(2));
-                    }
-                }
-
-                const existing = existingMap.get(stock.symbol);
-
-                if (existing) {
-                    updateOps.push(tx.marketHistory.update({
-                        where: { id: existing.id },
-                        data: {
-                            closePrice: ltp,
-                            highPrice: stock.highPrice,
-                            lowPrice: stock.lowPrice,
-                            volume: stock.volume,
-                            turnover: stock.turnover,
-                            change: change,
-                            percentageChange: pChange
-                        }
-                    }));
-                } else {
-                    createData.push({
-                        symbol: stock.symbol,
-                        date: today,
-                        closePrice: ltp,
-                        highPrice: stock.highPrice,
-                        lowPrice: stock.lowPrice,
-                        volume: stock.volume,
-                        turnover: stock.turnover,
-                        change: change,
-                        percentageChange: pChange
-                    });
-                }
-                count++;
+                categorizeStockForSnapshot(stock, today, existingMap, createData, updateOps, tx);
             }
 
-            // Execute bulk operations
             if (createData.length > 0) {
                 await tx.marketHistory.createMany({ data: createData });
             }
-
             if (updateOps.length > 0) {
                 await Promise.all(updateOps);
             }
         });
 
-        logger.info(`Daily snapshot completed. Processed ${count} stocks.`);
-        return { success: true, count };
+        logger.info(`Daily snapshot completed. Processed ${stocks.length} stocks.`);
+        return { success: true, count: stocks.length };
     } catch (error) {
         logger.error(`Error in snapshotDailyMarket: ${error.message}`);
         throw error;

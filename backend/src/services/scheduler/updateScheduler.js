@@ -86,13 +86,13 @@ const saveUpdateData = async (data) => {
 
     const hasTopMovers = data.topTurnover || data.topTrades || data.topVolume || data.topGainers || data.topLosers;
     if (hasTopMovers) {
-        await marketOperations.saveTopMovers(
-            data.topTurnover,
-            data.topTrades,
-            data.topVolume,
-            data.topGainers,
-            data.topLosers
-        );
+        await marketOperations.saveTopMovers({
+            turnover: data.topTurnover,
+            trade: data.topTrades,
+            volume: data.topVolume,
+            gainers: data.topGainers,
+            losers: data.topLosers
+        });
     }
 };
 
