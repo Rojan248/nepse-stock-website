@@ -10,6 +10,179 @@ import { MarketDepth, Floorsheet } from '../components/depth';
 import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass } from '../utils/formatting';
 import './StockDetailPage.css';
 
+// ==================== Shared Helpers ====================
+
+/** Resolve common stock price fields from various API shapes */
+function resolveStockPrices(stock) {
+    const prices = stock.prices || {};
+    const trading = stock.trading || {};
+
+    const ltp = stock.ltp || prices.ltp || stock.close || 0;
+    const previousClose = stock.previousClose || prices.previousClose || stock.close || 0;
+    const displayLtp = ltp > 0 ? ltp : previousClose;
+
+    return {
+        ltp,
+        previousClose,
+        displayLtp,
+        open: stock.open || prices.open || stock.openPrice || displayLtp,
+        high: stock.high || prices.high || stock.highPrice || displayLtp,
+        low: stock.low || prices.low || stock.lowPrice || displayLtp,
+        volume: stock.volume || trading.volume || 0,
+        turnover: stock.turnover || trading.turnover || 0,
+        change: stock.change ?? prices.change ?? 0,
+        changePercent: stock.changePercent ?? prices.changePercent ?? 0,
+    };
+}
+
+/** Format a change value with direction symbol */
+function formatChangeDisplay(change, changePercent) {
+    const sym = change >= 0 ? '▲' : '▼';
+    const sign = change >= 0 ? '+' : '';
+    return `${sym} ${sign}${change.toFixed(2)} (${formatPercent(changePercent)})`;
+}
+
+/** Check if depth data needs to be loaded */
+function needsDepthFetch(activeTab, depthData, symbol) {
+    const isDepthTab = activeTab === 'depth' || activeTab === 'floorsheet';
+    return isDepthTab && !depthData && !!symbol;
+}
+
+// ==================== Tab Config ====================
+
+const TABS = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'depth', label: 'Market Depth' },
+    { key: 'floorsheet', label: 'Floorsheet' },
+];
+
+// ==================== Sub-Components ====================
+
+/** Tab navigation bar */
+function TabBar({ activeTab, onTabChange }) {
+    return (
+        <div className="sdp__tabs">
+            {TABS.map(tab => (
+                <button
+                    key={tab.key}
+                    className={`sdp__tab ${activeTab === tab.key ? 'active' : ''}`}
+                    onClick={() => onTabChange(tab.key)}
+                >
+                    {tab.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/** Stock header card with price and change */
+function StockHeader({ stock, p, navigate }) {
+    return (
+        <section className="sdp__header">
+            <div className="sdp__header-left">
+                <div className="sdp__symbol-row">
+                    <h1 className="sdp__symbol">{stock.symbol}</h1>
+                    <span className="sdp__sector">{stock.sector || 'Others'}</span>
+                </div>
+                <h2 className="sdp__company">{stock.companyName}</h2>
+            </div>
+            <div className="sdp__header-right">
+                <span className="sdp__price">{formatPrice(p.displayLtp)}</span>
+                <span className={`sdp__change ${getChangeClass(p.change)}`}>
+                    {formatChangeDisplay(p.change, p.changePercent)}
+                </span>
+                <span className="sdp__updated">
+                    Updated {formatTimestamp(stock.timestamp || stock.updatedAt)}
+                </span>
+            </div>
+        </section>
+    );
+}
+
+/** Key metrics grid (Open, High, Low, Prev Close, Volume, Turnover) */
+const METRICS = [
+    { label: 'Open', field: 'open', format: formatPrice },
+    { label: 'High', field: 'high', format: formatPrice, cls: 'sdp__metric-value--up' },
+    { label: 'Low', field: 'low', format: formatPrice, cls: 'sdp__metric-value--down' },
+    { label: 'Prev Close', field: 'previousClose', format: formatPrice },
+    { label: 'Volume', field: 'volume', format: formatNumber },
+    { label: 'Turnover', field: 'turnover', format: formatTurnover },
+];
+
+function KeyMetrics({ p }) {
+    return (
+        <section className="sdp__metrics">
+            <h3 className="sdp__section-title">Key Metrics</h3>
+            <div className="sdp__metrics-grid">
+                {METRICS.map(m => (
+                    <div className="sdp__metric" key={m.label}>
+                        <span className="sdp__metric-label">{m.label}</span>
+                        <span className={`sdp__metric-value ${m.cls || ''}`}>{m.format(p[m.field])}</span>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+/** Day range indicator */
+function PriceSummary({ p }) {
+    const rangePercent = p.high !== p.low ? ((p.displayLtp - p.low) / (p.high - p.low)) * 100 : 50;
+    return (
+        <section className="sdp__summary">
+            <h3 className="sdp__section-title">Price Summary</h3>
+            <div className="sdp__range-stack">
+                <span className="sdp__range-label">Day Range</span>
+                <div className="sdp__range-values">
+                    <span className="sdp__range-min">{formatPrice(p.low)}</span>
+                    <span className="sdp__range-max">{formatPrice(p.high)}</span>
+                </div>
+                <div className="sdp__range-track">
+                    <div className="sdp__range-indicator" style={{ left: `${rangePercent}%` }}></div>
+                </div>
+                <div className="sdp__range-current">
+                    Current: <strong>{formatPrice(p.displayLtp)}</strong>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/** Single related stock row */
+function RelatedStockRow({ s, navigate }) {
+    const change = s.change ?? 0;
+    const changePercent = s.changePercent ?? 0;
+    const ltp = s.ltp || s.close || 0;
+
+    return (
+        <div className="sdp__related-row" onClick={() => navigate(`/stock/${s.symbol}`)}>
+            <span className="sdp__related-symbol">{s.symbol}</span>
+            <span className="sdp__related-name">{s.companyName}</span>
+            <span className="sdp__related-ltp">{formatPrice(ltp)}</span>
+            <span className={`sdp__related-change ${getChangeClass(change)}`}>
+                {formatChangeDisplay(change, changePercent)}
+            </span>
+        </div>
+    );
+}
+
+/** Related stocks section */
+function RelatedStocks({ relatedStocks, sector, navigate }) {
+    if (relatedStocks.length === 0) return null;
+    return (
+        <section className="sdp__related">
+            <h3 className="sdp__section-title">Related in {sector}</h3>
+            <div className="sdp__related-table">
+                {relatedStocks.map(s => (
+                    <RelatedStockRow key={s.symbol} s={s} navigate={navigate} />
+                ))}
+            </div>
+        </section>
+    );
+}
+
+// ==================== StockDetailPage ====================
+
 function StockDetailPage() {
     const { symbol } = useParams();
     const navigate = useNavigate();
@@ -30,22 +203,20 @@ function StockDetailPage() {
         return () => clearInterval(interval);
     }, []);
 
-    // Lazy load depth data when tab is selected
     useEffect(() => {
-        if ((activeTab === 'depth' || activeTab === 'floorsheet') && !depthData && symbol) {
-            const fetchDepth = async () => {
-                setDepthLoading(true);
-                try {
-                    const data = await getStockDepth(symbol);
-                    setDepthData(data);
-                } catch (err) {
-                    console.error('Failed to fetch depth:', err);
-                } finally {
-                    setDepthLoading(false);
-                }
-            };
-            fetchDepth();
-        }
+        if (!needsDepthFetch(activeTab, depthData, symbol)) return;
+        const fetchDepth = async () => {
+            setDepthLoading(true);
+            try {
+                const data = await getStockDepth(symbol);
+                setDepthData(data);
+            } catch (err) {
+                console.error('Failed to fetch depth:', err);
+            } finally {
+                setDepthLoading(false);
+            }
+        };
+        fetchDepth();
     }, [activeTab, symbol, depthData]);
 
     const relatedStocks = stocks
@@ -72,168 +243,29 @@ function StockDetailPage() {
         );
     }
 
-    const prices = stock.prices || {};
-    const trading = stock.trading || {};
-
-    const ltp = stock.ltp || prices.ltp || stock.close || 0;
-    const previousClose = stock.previousClose || prices.previousClose || stock.close || 0;
-    const displayLtp = ltp > 0 ? ltp : previousClose;
-    
-    // Use LTP as fallback when open/high/low are 0 (data not available)
-    const open = stock.open || prices.open || stock.openPrice || displayLtp;
-    const high = stock.high || prices.high || stock.highPrice || displayLtp;
-    const low = stock.low || prices.low || stock.lowPrice || displayLtp;
-
-    const volume = stock.volume || trading.volume || 0;
-    const turnover = stock.turnover || trading.turnover || 0;
-
-    const changeVal = stock.change !== undefined ? stock.change : (prices.change || 0);
-    const changePercentVal = stock.changePercent !== undefined ? stock.changePercent : (prices.changePercent || 0);
-    const changeClass = getChangeClass(changeVal);
-    const changeSymbol = changeVal >= 0 ? '▲' : '▼';
-
-    const rangePercent = high !== low ? ((displayLtp - low) / (high - low)) * 100 : 50;
+    const p = resolveStockPrices(stock);
 
     return (
         <div className="sdp">
             <div className="sdp__container">
-                {/* Back Button */}
                 <button className="sdp__back" onClick={() => navigate('/')}>
                     ← Back to All Stocks
                 </button>
 
-                {/* Stock Info Card */}
-                <section className="sdp__header">
-                    <div className="sdp__header-left">
-                        <div className="sdp__symbol-row">
-                            <h1 className="sdp__symbol">{stock.symbol}</h1>
-                            <span className="sdp__sector">{stock.sector || 'Others'}</span>
-                        </div>
-                        <h2 className="sdp__company">{stock.companyName}</h2>
-                    </div>
-                    <div className="sdp__header-right">
-                        <span className="sdp__price">{formatPrice(displayLtp)}</span>
-                        <span className={`sdp__change ${changeClass}`}>
-                            {changeSymbol} {changeVal >= 0 ? '+' : ''}{changeVal.toFixed(2)} ({formatPercent(changePercentVal)})
-                        </span>
-                        <span className="sdp__updated">
-                            Updated {formatTimestamp(stock.timestamp || stock.updatedAt)}
-                        </span>
-                    </div>
-                </section>
+                <StockHeader stock={stock} p={p} navigate={navigate} />
+                <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-                {/* Tab Navigation */}
-                <div className="sdp__tabs">
-                    <button
-                        className={`sdp__tab ${activeTab === 'overview' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('overview')}
-                    >
-                        Overview
-                    </button>
-                    <button
-                        className={`sdp__tab ${activeTab === 'depth' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('depth')}
-                    >
-                        Market Depth
-                    </button>
-                    <button
-                        className={`sdp__tab ${activeTab === 'floorsheet' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('floorsheet')}
-                    >
-                        Floorsheet
-                    </button>
-                </div>
-
-                {/* Tab Content */}
                 <div className="sdp__tab-content">
                     {activeTab === 'overview' && (
                         <>
-                            {/* Key Metrics - 3 columns × 2 rows */}
-                            <section className="sdp__metrics">
-                                <h3 className="sdp__section-title">Key Metrics</h3>
-                                <div className="sdp__metrics-grid">
-                                    <div className="sdp__metric">
-                                        <span className="sdp__metric-label">Open</span>
-                                        <span className="sdp__metric-value">{formatPrice(open)}</span>
-                                    </div>
-                                    <div className="sdp__metric">
-                                        <span className="sdp__metric-label">High</span>
-                                        <span className="sdp__metric-value sdp__metric-value--up">{formatPrice(high)}</span>
-                                    </div>
-                                    <div className="sdp__metric">
-                                        <span className="sdp__metric-label">Low</span>
-                                        <span className="sdp__metric-value sdp__metric-value--down">{formatPrice(low)}</span>
-                                    </div>
-                                    <div className="sdp__metric">
-                                        <span className="sdp__metric-label">Prev Close</span>
-                                        <span className="sdp__metric-value">{formatPrice(previousClose)}</span>
-                                    </div>
-                                    <div className="sdp__metric">
-                                        <span className="sdp__metric-label">Volume</span>
-                                        <span className="sdp__metric-value">{formatNumber(volume)}</span>
-                                    </div>
-                                    <div className="sdp__metric">
-                                        <span className="sdp__metric-label">Turnover</span>
-                                        <span className="sdp__metric-value">{formatTurnover(turnover)}</span>
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* Price Summary - Vertical Stack Layout */}
-                            <section className="sdp__summary">
-                                <h3 className="sdp__section-title">Price Summary</h3>
-                                <div className="sdp__range-stack">
-                                    <span className="sdp__range-label">Day Range</span>
-                                    <div className="sdp__range-values">
-                                        <span className="sdp__range-min">{formatPrice(low)}</span>
-                                        <span className="sdp__range-max">{formatPrice(high)}</span>
-                                    </div>
-                                    <div className="sdp__range-track">
-                                        <div className="sdp__range-indicator" style={{ left: `${rangePercent}%` }}></div>
-                                    </div>
-                                    <div className="sdp__range-current">
-                                        Current: <strong>{formatPrice(displayLtp)}</strong>
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* Related Stocks */}
-                            {relatedStocks.length > 0 && (
-                                <section className="sdp__related">
-                                    <h3 className="sdp__section-title">Related in {stock.sector}</h3>
-                                    <div className="sdp__related-table">
-                                        {relatedStocks.map((s) => {
-                                            const sChangeVal = s.change !== undefined ? s.change : 0;
-                                            const sChangePercent = s.changePercent !== undefined ? s.changePercent : 0;
-                                            const sChangeClass = getChangeClass(sChangeVal);
-                                            const sChangeSymbol = sChangeVal >= 0 ? '▲' : '▼';
-                                            const sLtp = s.ltp || s.close || 0;
-
-                                            return (
-                                                <div
-                                                    key={s.symbol}
-                                                    className="sdp__related-row"
-                                                    onClick={() => navigate(`/stock/${s.symbol}`)}
-                                                >
-                                                    <span className="sdp__related-symbol">{s.symbol}</span>
-                                                    <span className="sdp__related-name">{s.companyName}</span>
-                                                    <span className="sdp__related-ltp">{formatPrice(sLtp)}</span>
-                                                    <span className={`sdp__related-change ${sChangeClass}`}>
-                                                        {sChangeSymbol} {sChangeVal >= 0 ? '+' : ''}{sChangeVal.toFixed(2)} ({formatPercent(sChangePercent)})
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-                            )}
+                            <KeyMetrics p={p} />
+                            <PriceSummary p={p} />
+                            <RelatedStocks relatedStocks={relatedStocks} sector={stock.sector} navigate={navigate} />
                         </>
                     )}
-
                     {activeTab === 'depth' && (
                         <MarketDepth symbol={symbol} data={depthData} loading={depthLoading} />
                     )}
-
                     {activeTab === 'floorsheet' && (
                         <Floorsheet symbol={symbol} data={depthData} loading={depthLoading} />
                     )}
@@ -244,4 +276,3 @@ function StockDetailPage() {
 }
 
 export default StockDetailPage;
-
