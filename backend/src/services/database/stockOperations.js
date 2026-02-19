@@ -290,6 +290,40 @@ const getTopTraded = async (limit = 10) => {
     }, 'Error getting top traded stocks');
 };
 
+const getTopTurnover = async (limit = 10) => {
+    return fetchStocksWithMapping({
+        where: { lastTradedPrice: { gt: 0 } },
+        orderBy: { turnover: 'desc' },
+        take: limit
+    }, 'Error getting top turnover stocks');
+};
+
+const getTopVolume = async (limit = 10) => {
+    return fetchStocksWithMapping({
+        where: { lastTradedPrice: { gt: 0 } },
+        orderBy: { volume: 'desc' },
+        take: limit
+    }, 'Error getting top volume stocks');
+};
+
+const getTopTransactions = async (limit = 10) => {
+    return fetchStocksWithMapping({
+        where: { lastTradedPrice: { gt: 0 } },
+        orderBy: { totalTrades: 'desc' },
+        take: limit
+    }, 'Error getting top transaction stocks');
+};
+
+const getLastStockUpdateTime = async () => {
+    return safeDbOperation(async () => {
+        const stock = await prisma.stock.findFirst({
+            orderBy: { updatedAt: 'desc' },
+            select: { updatedAt: true }
+        });
+        return stock ? stock.updatedAt.toISOString() : null;
+    }, null, 'Error getting last stock update time');
+};
+
 const clearAllStocks = async () => {
     return safeDbOperation(async () => {
         const result = await prisma.stock.deleteMany();
@@ -442,6 +476,10 @@ module.exports = {
     getTopLosers,
     getUnchangedStocks,
     getTopTraded,
+    getTopTurnover,
+    getTopVolume,
+    getTopTransactions,
+    getLastStockUpdateTime,
     clearAllStocks,
     deleteInactiveStocks,
     cleanupInactiveStocks,
