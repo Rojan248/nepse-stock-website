@@ -9,10 +9,19 @@ app.use('/api/stocks', stocksRouter);
 
 // Mock the stock operations
 jest.mock('../../src/services/database/stockOperations', () => ({
-    getAllStocks: jest.fn().mockResolvedValue([
-        global.testUtils.mockStock,
-        { ...global.testUtils.mockStock, symbol: 'TEST2', companyName: 'Test Company 2' }
-    ]),
+    getAllStocks: jest.fn().mockImplementation(({ compact } = {}) => {
+        const stocks = [
+            global.testUtils.mockStock,
+            { ...global.testUtils.mockStock, symbol: 'TEST2', companyName: 'Test Company 2' }
+        ];
+        if (compact) {
+            return Promise.resolve(stocks.map(s => {
+                const { prices, trading, lastTradedPrice, openPrice, highPrice, lowPrice, percentageChange, timestamp, ...rest } = s;
+                return rest;
+            }));
+        }
+        return Promise.resolve(stocks);
+    }),
     getStockBySymbol: jest.fn().mockImplementation((symbol) => {
         if (symbol === 'TEST') return Promise.resolve(global.testUtils.mockStock);
         return Promise.resolve(null);
@@ -56,6 +65,17 @@ describe('Stock API Endpoints', () => {
             expect(res.body).toHaveProperty('data');
             expect(res.body).toHaveProperty('count');
         });
+
+        it('should return compact response when requested', async () => {
+            const res = await request(app).get('/api/stocks?compact=true');
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            const stock = res.body.data[0];
+            expect(stock).toHaveProperty('ltp');
+            expect(stock).not.toHaveProperty('prices');
+            expect(stock).not.toHaveProperty('lastTradedPrice');
+            expect(stock).not.toHaveProperty('trading');
+        });
     });
 
     describe('GET /api/stocks/:symbol', () => {
@@ -77,6 +97,7 @@ describe('Stock API Endpoints', () => {
             const stock = res.body.data;
             expect(stock).toHaveProperty('symbol');
             expect(stock).toHaveProperty('companyName');
+            expect(stock).toHaveProperty('ltp');
             expect(stock).toHaveProperty('prices');
             expect(stock).toHaveProperty('volume');
         });

@@ -152,7 +152,7 @@ const normalizeStockInput = (stock) => {
  * @param {Object} stock - Database stock entity
  * @returns {Object|null} Standardized API response object
  */
-const mapStockOutput = (stock) => {
+const mapStockOutput = (stock, compact = false) => {
     if (!stock) return null;
 
     const ltp = stock.lastTradedPrice ?? 0;
@@ -162,16 +162,12 @@ const mapStockOutput = (stock) => {
     const lowPrice = priceOrFallback(stock.lowPrice, ltp);
     const timestamp = stock.updatedAt ? stock.updatedAt.toISOString() : undefined;
 
-    return {
+    const base = {
         symbol: stock.symbol,
         companyName: stock.companyName,
         sector: stock.sector,
         ltp,
-        lastTradedPrice: stock.lastTradedPrice,
         previousClose: stock.previousClose,
-        openPrice,
-        highPrice,
-        lowPrice,
         open: openPrice,
         high: highPrice,
         low: lowPrice,
@@ -180,10 +176,22 @@ const mapStockOutput = (stock) => {
         turnover: stock.turnover,
         change: stock.change,
         changePercent,
+        updatedAt: timestamp
+    };
+
+    if (compact) {
+        return base;
+    }
+
+    return {
+        ...base,
+        lastTradedPrice: stock.lastTradedPrice,
+        openPrice,
+        highPrice,
+        lowPrice,
         percentageChange: changePercent,
         prices: { ltp, change: stock.change, changePercent },
         trading: { volume: stock.volume, turnover: stock.turnover, totalTrades: stock.totalTrades },
-        updatedAt: timestamp,
         timestamp
     };
 };
