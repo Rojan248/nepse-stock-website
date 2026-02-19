@@ -28,6 +28,34 @@ const nepseHttpsAgent = new https.Agent({
 });
 
 /**
+ * Safely insert an item into a sorted array of top K elements
+ * @param {Array} arr - The sorted array to insert into
+ * @param {Object} item - The item to insert
+ * @param {number} k - Maximum number of elements to keep
+ * @param {Function} compareFn - Comparison function (should return < 0 if item is better than arr[i])
+ */
+function insertSorted(arr, item, k, compareFn) {
+    if (arr.length < k) {
+        arr.push(item);
+        // Standard insertion sort for small array
+        let i = arr.length - 2;
+        while (i >= 0 && compareFn(item, arr[i]) < 0) {
+            arr[i + 1] = arr[i];
+            i--;
+        }
+        arr[i + 1] = item;
+    } else if (compareFn(item, arr[k - 1]) < 0) {
+        // Only if item is better than the current worst element
+        let i = k - 2;
+        while (i >= 0 && compareFn(item, arr[i]) < 0) {
+            arr[i + 1] = arr[i];
+            i--;
+        }
+        arr[i + 1] = item;
+    }
+}
+
+/**
  * Initialize the NEPSE library
  */
 const initializeLibrary = async () => {
@@ -111,18 +139,24 @@ const fetchData = async () => {
             return null;
         }
 
-        // Compute rankings from the full securities list (more robust than individual endpoints)
-        const sortedByTurnover = [...securities].sort((a, b) => b.turnover - a.turnover).slice(0, 50);
-        const sortedByTrades = [...securities].sort((a, b) => b.totalTrades - a.totalTrades).slice(0, 50);
-        const sortedByVolume = [...securities].sort((a, b) => b.volume - a.volume).slice(0, 50);
-        const sortedByGains = [...securities]
-            .filter(s => s.volume > 0) // Only include traded stocks for gainers/losers
-            .sort((a, b) => b.changePercent - a.changePercent)
-            .slice(0, 50);
-        const sortedByLoss = [...securities]
-            .filter(s => s.volume > 0)
-            .sort((a, b) => a.changePercent - b.changePercent)
-            .slice(0, 50);
+        // Compute rankings from the full securities list in a single pass (O(N*K) where K=50)
+        // This is more efficient than O(5 * N log N) for N~500, K=50
+        const sortedByTurnover = [];
+        const sortedByTrades = [];
+        const sortedByVolume = [];
+        const sortedByGains = [];
+        const sortedByLoss = [];
+
+        for (const s of securities) {
+            insertSorted(sortedByTurnover, s, 50, (a, b) => b.turnover - a.turnover);
+            insertSorted(sortedByTrades, s, 50, (a, b) => b.totalTrades - a.totalTrades);
+            insertSorted(sortedByVolume, s, 50, (a, b) => b.volume - a.volume);
+
+            if (s.volume > 0) {
+                insertSorted(sortedByGains, s, 50, (a, b) => b.changePercent - a.changePercent);
+                insertSorted(sortedByLoss, s, 50, (a, b) => a.changePercent - b.changePercent);
+            }
+        }
 
         const result = {
             stocks: securities,
