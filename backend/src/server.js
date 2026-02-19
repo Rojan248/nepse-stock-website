@@ -1,10 +1,12 @@
 require('dotenv').config();
 
 const express = require('express');
+const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
+const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
@@ -26,6 +28,24 @@ const PORT = process.env.PORT || 5000;
 
 // Trust proxy (for accurate IP logging behind reverse proxy)
 app.set('trust proxy', 1);
+
+// Security Middleware
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'"],
+            upgradeInsecureRequests: [],
+        },
+    },
+}));
+
+// Rate Limiting
+app.use(globalLimiter);
 
 // Middleware
 app.use(corsMiddleware);
@@ -165,6 +185,8 @@ const startServer = async () => {
 };
 
 // Start the server
-startServer();
+if (require.main === module) {
+    startServer();
+}
 
 module.exports = app;
