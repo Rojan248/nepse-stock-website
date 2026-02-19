@@ -159,12 +159,24 @@ const startScheduler = async () => {
 
     logger.info(`Scheduler running with fixed ${interval / 1000}s interval`);
 
-    // Use setInterval for fixed timing instead of setTimeout
-    schedulerJob = setInterval(async () => {
-        if (isRunning) {
-            await performUpdate();
-        }
-    }, interval);
+    // Use recursive setTimeout to prevent overlapping updates (race condition)
+    const scheduleNext = () => {
+        if (!isRunning) return;
+
+        schedulerJob = setTimeout(async () => {
+            if (isRunning) {
+                try {
+                    await performUpdate();
+                } catch (error) {
+                    logger.error(`Scheduled update failed: ${error.message}`);
+                } finally {
+                    scheduleNext();
+                }
+            }
+        }, interval);
+    };
+
+    scheduleNext();
 
     // Also schedule daily cleanup
     schedule.scheduleJob('0 0 * * *', async () => {
@@ -201,7 +213,7 @@ const stopScheduler = () => {
     isRunning = false;
 
     if (schedulerJob) {
-        clearInterval(schedulerJob); // Changed from .cancel() to clearInterval
+        clearTimeout(schedulerJob);
         schedulerJob = null;
     }
 
