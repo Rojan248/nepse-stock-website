@@ -27,6 +27,16 @@ const nepseHttpsAgent = new https.Agent({
     timeout: TIMEOUT
 });
 
+/** Shift elements right from startIdx and place item at its sorted position */
+function shiftAndInsert(arr, item, startIdx, compareFn) {
+    let i = startIdx;
+    while (i >= 0 && compareFn(item, arr[i]) < 0) {
+        arr[i + 1] = arr[i];
+        i--;
+    }
+    arr[i + 1] = item;
+}
+
 /**
  * Safely insert an item into a sorted array of top K elements
  * @param {Array} arr - The sorted array to insert into
@@ -37,21 +47,9 @@ const nepseHttpsAgent = new https.Agent({
 function insertSorted(arr, item, k, compareFn) {
     if (arr.length < k) {
         arr.push(item);
-        // Standard insertion sort for small array
-        let i = arr.length - 2;
-        while (i >= 0 && compareFn(item, arr[i]) < 0) {
-            arr[i + 1] = arr[i];
-            i--;
-        }
-        arr[i + 1] = item;
+        shiftAndInsert(arr, item, arr.length - 2, compareFn);
     } else if (compareFn(item, arr[k - 1]) < 0) {
-        // Only if item is better than the current worst element
-        let i = k - 2;
-        while (i >= 0 && compareFn(item, arr[i]) < 0) {
-            arr[i + 1] = arr[i];
-            i--;
-        }
-        arr[i + 1] = item;
+        shiftAndInsert(arr, item, k - 2, compareFn);
     }
 }
 
@@ -106,29 +104,49 @@ const initializeLibrary = async () => {
     }
 };
 
+/** Ensure the NEPSE library is initialized, returning true if ready */
+async function ensureInitialized() {
+    if (isInitialized) return true;
+    const initialized = await initializeLibrary();
+    if (!initialized) logger.debug('Library not available, returning null');
+    return initialized;
+}
+
+/** Ranking definitions: [resultKey, compareFn, filterFn?] */
+const RANKING_DEFS = [
+    ['topTurnover',  (a, b) => b.turnover - a.turnover],
+    ['topTrades',    (a, b) => b.totalTrades - a.totalTrades],
+    ['topVolume',    (a, b) => b.volume - a.volume],
+    ['topGainers',   (a, b) => b.changePercent - a.changePercent, (s) => s.volume > 0],
+    ['topLosers',    (a, b) => a.changePercent - b.changePercent, (s) => s.volume > 0],
+];
+
+/** Compute top-K rankings across multiple dimensions in a single O(N*K) pass */
+function computeRankings(securities, k = 50) {
+    const lists = Object.fromEntries(RANKING_DEFS.map(([name]) => [name, []]));
+    for (const s of securities) {
+        for (const [name, compareFn, filterFn] of RANKING_DEFS) {
+            if (!filterFn || filterFn(s)) {
+                insertSorted(lists[name], s, k, compareFn);
+            }
+        }
+    }
+    return lists;
+}
+
 /**
  * Fetch all stock data using the library
  * @returns {Object|null} Standardized data object or null on failure
  */
 const fetchData = async () => {
     try {
-        // Initialize if not already done
-        if (!isInitialized) {
-            const initialized = await initializeLibrary();
-            if (!initialized) {
-                logger.debug('Library not available, returning null');
-                return null;
-            }
-        }
+        if (!await ensureInitialized()) return null;
 
         logger.info('Fetching data using NEPSE API Helper library...');
 
         const token = await nepseClient.getToken();
-
-        // Fetch company list first (needed by fetchSecuritiesWithPrices)
         const companyList = await fetchCompanyList(token);
 
-        // Fetch securities and market summary in parallel
         const [securities, marketSummary] = await Promise.all([
             fetchSecuritiesWithPrices(token, companyList),
             fetchMarketSummary(token)
@@ -139,34 +157,11 @@ const fetchData = async () => {
             return null;
         }
 
-        // Compute rankings from the full securities list in a single pass (O(N*K) where K=50)
-        // This is more efficient than O(5 * N log N) for N~500, K=50
-        const sortedByTurnover = [];
-        const sortedByTrades = [];
-        const sortedByVolume = [];
-        const sortedByGains = [];
-        const sortedByLoss = [];
-
-        for (const s of securities) {
-            insertSorted(sortedByTurnover, s, 50, (a, b) => b.turnover - a.turnover);
-            insertSorted(sortedByTrades, s, 50, (a, b) => b.totalTrades - a.totalTrades);
-            insertSorted(sortedByVolume, s, 50, (a, b) => b.volume - a.volume);
-
-            if (s.volume > 0) {
-                insertSorted(sortedByGains, s, 50, (a, b) => b.changePercent - a.changePercent);
-                insertSorted(sortedByLoss, s, 50, (a, b) => a.changePercent - b.changePercent);
-            }
-        }
-
         const result = {
             stocks: securities,
             ipos: [],
             marketSummary,
-            topTurnover: sortedByTurnover,
-            topTrades: sortedByTrades,
-            topVolume: sortedByVolume,
-            topGainers: sortedByGains,
-            topLosers: sortedByLoss,
+            ...computeRankings(securities),
             source: 'nepse-api-helper',
             timestamp: new Date().toISOString()
         };
@@ -176,7 +171,6 @@ const fetchData = async () => {
 
     } catch (error) {
         logger.error(`Library fetcher error: ${error.message}`);
-        // Reset initialization state to allow retry
         isInitialized = false;
         return null;
     }
