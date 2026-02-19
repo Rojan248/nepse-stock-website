@@ -4,6 +4,12 @@ const logger = require('../services/utils/logger');
 /**
  * Rate Limiting Middleware
  * Protects against DoS attacks and API abuse
+ *
+ * NOTE: All limiters use the default in-memory store, which is suitable for
+ * single-instance deployments. For multi-process or clustered environments,
+ * replace with a shared store (e.g., rate-limit-redis) so counters are
+ * consistent across instances.
+ * TODO: Switch to Redis-backed store when scaling beyond a single process.
  */
 
 // Global rate limiter: 100 requests per minute per IP

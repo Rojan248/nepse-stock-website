@@ -160,16 +160,24 @@ const { isEquitySecurity } = require('../utils/securityFilters');
 /**
  * Fetch all securities with price data from NEPSE
  */
-const fetchSecuritiesWithPrices = async (token, companyList) => {
+const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) => {
     try {
-        const headers = createHeaders(token);
+        const createHeadersFn = runtimeDeps.createHeadersFn || createHeaders;
+        const nepseAxiosClient = runtimeDeps.nepseAxiosClient || nepseAxios;
+        const baseUrl = runtimeDeps.baseUrl || BASE_URL;
+        const httpsAgent = runtimeDeps.httpsAgent || nepseHttpsAgent;
+        const transformSecurityFn = runtimeDeps.transformSecurityFn || transformSecurity;
+        const isEquitySecurityFn = runtimeDeps.isEquitySecurityFn || isEquitySecurity;
+        const fetchMissingSecuritiesFn = runtimeDeps.fetchMissingSecuritiesFn || fetchMissingSecurities;
+
+        const headers = createHeadersFn(token);
 
         // Optimize: Fetch ONLY Sector 58 (NEPSE Index) which contains ALL traded securities
         // This avoids making 17+ parallel requests which triggers NEPSE firewall/rate-limiting
         const fetchPromises = [
-            nepseAxios.get(`${BASE_URL}/api/nots/securityDailyTradeStat/58`, {
+            nepseAxiosClient.get(`${baseUrl}/api/nots/securityDailyTradeStat/58`, {
                 headers,
-                httpsAgent: nepseHttpsAgent,
+                httpsAgent,
                 timeout: 10000
             }).catch(err => {
                 logger.error(`Error fetching Main Sector 58: ${err.message}`);
@@ -205,16 +213,16 @@ const fetchSecuritiesWithPrices = async (token, companyList) => {
         logger.info(`Found ${missingCompanies.length} active stocks missing from trade report. Fetching details...`);
 
         // Fetch details for missing stocks in batches
-        const missingSecurities = await fetchMissingSecurities(missingCompanies, token);
+        const missingSecurities = await fetchMissingSecuritiesFn(missingCompanies, token);
         const allSecurities = [...mergedSecurities, ...missingSecurities];
 
         logger.info(`Total securities after merging: ${allSecurities.length}`);
 
         // Transform to our standard format and filter to stocks only
         const transformed = allSecurities
-            .map(security => transformSecurity(security))
+            .map(security => transformSecurityFn(security))
             .filter(s => s !== null)
-            .filter(s => isEquitySecurity(s)); // Exclude MFs, bonds, debentures
+            .filter(s => isEquitySecurityFn(s)); // Exclude MFs, bonds, debentures
 
         logger.info(`Filtered to ${transformed.length} equity securities (excluded mutual funds, bonds, debentures)`);
 
@@ -544,5 +552,8 @@ const fetchCompanyList = async (token) => {
 module.exports = {
     fetchData,
     initializeLibrary,
-    isEquitySecurity
+    isEquitySecurity,
+    __test__: {
+        fetchSecuritiesWithPrices
+    }
 };

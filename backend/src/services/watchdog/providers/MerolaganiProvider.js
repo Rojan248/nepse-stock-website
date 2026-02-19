@@ -20,7 +20,7 @@ class MerolaganiProvider {
             // Note: This is fragile and depends on their HTML structure
             
             // Debug: Log start of response
-            logger.debug(`[Watchdog] Merolagani response start: ${data.substring(0, 200)}`);
+            // logger.info(`[Watchdog] Merolagani response start: ${data.substring(0, 200)}`);
 
             const result = {
                 source: this.name,
