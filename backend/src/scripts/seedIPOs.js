@@ -221,12 +221,14 @@ async function seedIPOs() {
     }
 
     // Get counts
-    const counts = {
-        open: await prisma.ipo.count({ where: { status: 'open' } }),
-        upcoming: await prisma.ipo.count({ where: { status: 'upcoming' } }),
-        closed: await prisma.ipo.count({ where: { status: 'closed' } }),
-        completed: await prisma.ipo.count({ where: { status: 'completed' } })
-    };
+    const [open, upcoming, closed, completed] = await Promise.all([
+        prisma.ipo.count({ where: { status: 'open' } }),
+        prisma.ipo.count({ where: { status: 'upcoming' } }),
+        prisma.ipo.count({ where: { status: 'closed' } }),
+        prisma.ipo.count({ where: { status: 'completed' } })
+    ]);
+
+    const counts = { open, upcoming, closed, completed };
 
     console.log('\n📊 IPO Statistics:');
     console.log(`   Open:      ${counts.open}`);
