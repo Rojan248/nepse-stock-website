@@ -206,18 +206,20 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
 
         const headers = createHeadersFn(token);
 
-        // Optimize: Fetch ONLY Sector 58 (NEPSE Index) which contains ALL traded securities
-        // This avoids making 17+ parallel requests which triggers NEPSE firewall/rate-limiting
-        const fetchPromises = [
-            nepseAxiosClient.get(`${baseUrl}/api/nots/securityDailyTradeStat/58`, {
+        // Strategy: Fetch from sectors configured in ALL_SECTORS (libraryConfig.js).
+        // Default remains Sector 58 (contains all traded securities), which minimizes
+        // concurrent requests and helps avoid NEPSE rate-limiting.
+        // Expand ALL_SECTORS with caution: each sector adds one parallel request.
+        const fetchPromises = ALL_SECTORS.map(sectorId =>
+            nepseAxiosClient.get(`${baseUrl}/api/nots/securityDailyTradeStat/${sectorId}`, {
                 headers,
                 httpsAgent,
                 timeout: 10000
             }).catch(err => {
-                logger.error(`Error fetching Main Sector 58: ${err.message}`);
+                logger.error(`Error fetching Sector ${sectorId}: ${err.message}`);
                 return { data: [] };
             })
-        ];
+        );
 
 
         const responses = await Promise.all(fetchPromises);

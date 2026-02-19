@@ -9,7 +9,6 @@ const libraryFetcher = require('../../src/services/scrapers/libraryFetcher');
 
 describe('Library Fetcher', () => {
     const { fetchSecuritiesWithPrices } = libraryFetcher.__test__;
-
     const mockHeaders = { Authorization: 'Bearer mock-token' };
 
     afterEach(() => {
