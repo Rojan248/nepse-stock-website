@@ -19,6 +19,7 @@ let nepseAxios = null;
 let createHeaders = null;
 let BASE_URL = null;
 let isInitialized = false;
+let initializationPromise = null;
 
 // Custom HTTPS agent for NEPSE requests only
 const nepseHttpsAgent = new https.Agent({
@@ -104,10 +105,16 @@ const initializeLibrary = async () => {
     }
 };
 
-/** Ensure the NEPSE library is initialized, returning true if ready */
+/** Ensure the NEPSE library is initialized, returning true if ready.
+ *  Coalesces concurrent calls into a single initializeLibrary invocation. */
 async function ensureInitialized() {
     if (isInitialized) return true;
-    const initialized = await initializeLibrary();
+    if (!initializationPromise) {
+        initializationPromise = initializeLibrary().finally(() => {
+            initializationPromise = null;
+        });
+    }
+    const initialized = await initializationPromise;
     if (!initialized) logger.debug('Library not available, returning null');
     return initialized;
 }
@@ -172,6 +179,7 @@ const fetchData = async () => {
     } catch (error) {
         logger.error(`Library fetcher error: ${error.message}`);
         isInitialized = false;
+        initializationPromise = null;
         return null;
     }
 };
