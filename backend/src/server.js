@@ -29,24 +29,6 @@ const PORT = process.env.PORT || 5000;
 // Trust proxy (for accurate IP logging behind reverse proxy)
 app.set('trust proxy', 1);
 
-// Security Middleware
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:"],
-            connectSrc: ["'self'"],
-            upgradeInsecureRequests: [],
-        },
-    },
-}));
-
-// Rate Limiting
-app.use(globalLimiter);
-
 // Middleware
 app.use(helmet());
 app.use(corsMiddleware);
@@ -186,7 +168,7 @@ const startServer = async () => {
     }
 };
 
-// Start the server
+// Start the server if run directly
 if (require.main === module) {
     startServer();
 }
