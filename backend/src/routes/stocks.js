@@ -17,13 +17,14 @@ const analytics = require('../services/analytics');
  * Get all stocks with optional pagination
  */
 router.get('/', asyncHandler(async (req, res) => {
-    const { skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 'asc' } = req.query;
+    const { skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 'asc', compact } = req.query;
 
     const stocks = await stockOperations.getAllStocks({
         skip: parseInt(skip),
         limit: parseInt(limit),
         sortBy,
-        sortOrder: sortOrder === 'desc' ? -1 : 1
+        sortOrder: sortOrder === 'desc' ? -1 : 1,
+        compact: compact === 'true'
     });
 
     const count = await stockOperations.getStockCount();

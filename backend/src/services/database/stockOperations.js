@@ -152,7 +152,7 @@ const saveStocks = async (stocks) => {
     }
 };
 
-const getAllStocks = async ({ skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 1, includeZeroLtp = true } = {}) => {
+const getAllStocks = async ({ skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 1, includeZeroLtp = true, compact = false } = {}) => {
     try {
         const orderField = ['symbol', 'companyName', 'percentageChange', 'lastTradedPrice', 'turnover', 'volume'].includes(sortBy)
             ? sortBy
@@ -167,7 +167,7 @@ const getAllStocks = async ({ skip = 0, limit = 500, sortBy = 'symbol', sortOrde
             orderBy: { [orderField]: sortOrder === -1 || sortOrder === 'desc' ? 'desc' : 'asc' }
         });
 
-        return stocks.map(mapStockOutput);
+        return stocks.map(s => mapStockOutput(s, compact));
     } catch (error) {
         logger.error(`Error getting stocks: ${error.message}`);
         return [];
