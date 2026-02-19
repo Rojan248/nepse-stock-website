@@ -16,14 +16,16 @@ jest.mock('../src/services/scheduler', () => ({
     initScheduler: jest.fn()
 }));
 
-// Mock routers to avoid deep dependency issues
-const mockRouter = express.Router();
-mockRouter.get('/', (req, res) => res.json({ success: true }));
+const createMockRouter = () => {
+    const router = express.Router();
+    router.get('/', (req, res) => res.json({ success: true }));
+    return router;
+};
 
-jest.mock('../src/routes/stocks', () => mockRouter);
-jest.mock('../src/routes/ipos', () => mockRouter);
-jest.mock('../src/routes/market', () => mockRouter);
-jest.mock('../src/routes/watchdog', () => mockRouter);
+jest.mock('../src/routes/stocks', () => createMockRouter());
+jest.mock('../src/routes/ipos', () => createMockRouter());
+jest.mock('../src/routes/market', () => createMockRouter());
+jest.mock('../src/routes/watchdog', () => createMockRouter());
 
 // Import the app
 const app = require('../src/server');
