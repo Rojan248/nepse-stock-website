@@ -33,13 +33,11 @@ const app = require('../src/server');
 describe('Security Headers', () => {
     it('should have Content-Security-Policy header', async () => {
         const res = await request(app).get('/api/stocks');
-        // This is expected to fail before the fix
         expect(res.headers['content-security-policy']).toBeDefined();
     });
 
     it('should have RateLimit headers', async () => {
         const res = await request(app).get('/api/stocks');
-        // This is expected to fail before the fix
         // express-rate-limit sets X-RateLimit-* or RateLimit-* headers
         // Note: globalLimiter is configured with standardHeaders: true (Draft-6/7)
         // which returns RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset
