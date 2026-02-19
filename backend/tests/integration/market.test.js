@@ -50,6 +50,19 @@ jest.mock('../../src/services/dataFetcher', () => ({
     })
 }));
 
+jest.mock('../../src/services/database/connection', () => ({
+    prisma: {
+        stock: {
+            findFirst: jest.fn().mockResolvedValue({
+                updatedAt: new Date()
+            })
+        }
+    },
+    connectDB: jest.fn().mockResolvedValue(true),
+    disconnectDB: jest.fn().mockResolvedValue(true),
+    isConnected: jest.fn().mockReturnValue(true)
+}));
+
 describe('Market API Endpoints', () => {
     describe('GET /api/market-summary', () => {
         it('should return market summary', async () => {
@@ -115,13 +128,11 @@ describe('Market API Endpoints', () => {
         });
 
         it('should allow requests with valid admin key', async () => {
-            // Prisma is used in this route, so we might need to mock it if it's not already
             const res = await request(app).get('/api/health/extended')
                 .set('x-admin-key', 'test-admin-key');
 
-            // Depending on prisma mock state, this might return 200 or 500
-            // But 401 should definitely be gone
-            expect(res.status).not.toBe(401);
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
         });
     });
 
