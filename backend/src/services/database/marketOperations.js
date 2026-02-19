@@ -4,6 +4,7 @@
 
 const { prisma } = require('./connection');
 const logger = require('../utils/logger');
+const stockOperations = require('./stockOperations');
 
 const mapSummaryOutput = (summary) => {
     if (!summary) return null;
@@ -112,34 +113,55 @@ const cleanOldSummaries = async (daysToKeep = 7) => {
     }
 };
 
-// Top movers are kept in-memory for now; can be persisted in DB later if needed
-let topMovers = {
-    turnover: [],
-    trade: [],
-    volume: [],
-    gainers: [],
-    losers: [],
-    updatedAt: null
+// Top movers are now derived directly from the Stock table for durability
+// This ensures single source of truth and persistence across restarts
+
+const saveTopMovers = async () => {
+    // Deprecated: Top movers are now derived directly from the Stock table
+    // ensuring durability and single source of truth.
+    // Keeping this function signature to avoid breaking callers, but it's a no-op.
+    logger.debug('saveTopMovers called but is deprecated (using DB derivation)');
+    return { success: true };
 };
 
-const saveTopMovers = async ({ turnover, trade, volume, gainers, losers } = {}) => {
+const getTopMovers = async () => {
     try {
-        topMovers = {
+        const [
+            turnover,
+            trade,
+            volume,
+            gainers,
+            losers,
+            updatedAt
+        ] = await Promise.all([
+            stockOperations.getTopTurnover(10),
+            stockOperations.getTopTransactions(10),
+            stockOperations.getTopVolume(10),
+            stockOperations.getTopGainers(10),
+            stockOperations.getTopLosers(10),
+            stockOperations.getLastStockUpdateTime()
+        ]);
+
+        return {
             turnover: turnover || [],
             trade: trade || [],
             volume: volume || [],
             gainers: gainers || [],
             losers: losers || [],
-            updatedAt: new Date().toISOString()
+            updatedAt: updatedAt || new Date().toISOString()
         };
-        return { success: true };
     } catch (error) {
-        logger.error(`Error saving top movers: ${error.message}`);
-        return { success: false };
+        logger.error(`Error getting top movers: ${error.message}`);
+        return {
+            turnover: [],
+            trade: [],
+            volume: [],
+            gainers: [],
+            losers: [],
+            updatedAt: null
+        };
     }
 };
-
-const getTopMovers = async () => topMovers;
 
 const getMarketStats = async () => {
     try {
