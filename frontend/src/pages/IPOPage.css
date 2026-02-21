@@ -4,8 +4,7 @@
     display: flex;
     flex-direction: column;
     padding-bottom: 64px;
-    background-color: #f8fafc;
-    /* Slightly better grey */
+    background-color: var(--bg-app);
     min-height: 100vh;
 }
 
@@ -18,20 +17,21 @@
 }
 
 .ipo-metric-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
     padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 8px;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .ipo-metric-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-md);
+    border-color: #cbd5e1;
 }
 
 .ipo-metric-label {
@@ -51,21 +51,20 @@
 }
 
 .ipo-metric-value.upcoming {
-    color: #d97706;
+    color: #f59e0b;
+    /* Amber 500 - Vibrant */
 }
 
 .ipo-metric-value.open {
-    color: #16a34a;
+    color: var(--success);
 }
 
 .ipo-metric-value.closed {
-    color: #64748b;
+    color: var(--text-muted);
 }
 
-/* Visible gray */
-/* Subtle for closed */
 .ipo-metric-value.completed {
-    color: #2563eb;
+    color: var(--primary-accent);
 }
 
 /* ===== Tab Switcher - Segmented Control Style ===== */

@@ -2,7 +2,7 @@
     display: flex;
     flex-direction: column;
     padding-bottom: var(--space-12);
-    background-color: var(--bg-primary);
+    background-color: var(--bg-app);
     min-height: 100vh;
 }
 
@@ -15,20 +15,21 @@
 }
 
 .top-metric-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border: 1px solid #e2e8f0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
     border-radius: 12px;
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .top-metric-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
+    border-color: #cbd5e1;
 }
 
 .top-metric-label {
@@ -47,11 +48,11 @@
 }
 
 .top-metric-value.gainers {
-    color: #22c55e;
+    color: var(--success);
 }
 
 .top-metric-value.losers {
-    color: #ef4444;
+    color: var(--danger);
 }
 
 .top-metric-value.unchanged {
@@ -59,7 +60,7 @@
 }
 
 .top-metric-value.traded {
-    color: #3b82f6;
+    color: var(--primary-accent);
 }
 
 /* ===== Tab Switcher (Inverted Minimal) ===== */
@@ -119,8 +120,8 @@
 }
 
 .mover-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border: 1px solid #e2e8f0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
     border-radius: 12px;
     padding: 20px;
     transition: all 0.25s ease;
@@ -128,23 +129,24 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .mover-card:hover {
     transform: translateY(-6px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-lg);
+    border-color: #cbd5e1;
 }
 
 /* ===== Color-Coded Cards ===== */
 .mover-card.gainers {
-    background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
-    border-color: #86efac;
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    border-color: #bbf7d0;
 }
 
 .mover-card.gainers:hover {
-    border-color: #22c55e;
-    box-shadow: 0 12px 24px rgba(34, 197, 94, 0.2);
+    border-color: var(--success);
+    box-shadow: 0 12px 24px rgba(0, 230, 118, 0.15);
 }
 
 .mover-card.losers {
@@ -153,8 +155,8 @@
 }
 
 .mover-card.losers:hover {
-    border-color: #ef4444;
-    box-shadow: 0 12px 24px rgba(239, 68, 68, 0.2);
+    border-color: var(--danger);
+    box-shadow: 0 12px 24px rgba(255, 23, 68, 0.15);
 }
 
 .card-header {
@@ -236,11 +238,11 @@
 }
 
 .change-row .positive {
-    color: #22c55e;
+    color: var(--success);
 }
 
 .change-row .negative {
-    color: #ef4444;
+    color: var(--danger);
 }
 
 .volume {
