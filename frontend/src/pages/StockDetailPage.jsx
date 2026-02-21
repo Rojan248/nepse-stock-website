@@ -68,7 +68,7 @@ const TABS = [
 /** Tab navigation bar */
 function TabBar({ activeTab, onTabChange }) {
     return (
-        <div className="sdp__tabs">
+        <div className="sdp__tabs sdp-animate-fade-in sdp-stagger-2">
             {TABS.map(tab => (
                 <button
                     key={tab.key}
@@ -85,7 +85,7 @@ function TabBar({ activeTab, onTabChange }) {
 /** Stock header card with price and change */
 function StockHeader({ stock, p, navigate }) {
     return (
-        <section className="sdp__header">
+        <section className="sdp__header sdp-animate-fade-in sdp-stagger-1">
             <div className="sdp__header-left">
                 <div className="sdp__symbol-row">
                     <h1 className="sdp__symbol">{stock.symbol}</h1>
@@ -118,7 +118,7 @@ const METRICS = [
 
 function KeyMetrics({ p }) {
     return (
-        <section className="sdp__metrics">
+        <section className="sdp__metrics sdp-animate-fade-in sdp-stagger-3">
             <h3 className="sdp__section-title">Key Metrics</h3>
             <div className="sdp__metrics-grid">
                 {METRICS.map(m => (
@@ -136,7 +136,7 @@ function KeyMetrics({ p }) {
 function PriceSummary({ p }) {
     const rangePercent = p.high !== p.low ? ((p.displayLtp - p.low) / (p.high - p.low)) * 100 : 50;
     return (
-        <section className="sdp__summary">
+        <section className="sdp__summary sdp-animate-fade-in sdp-stagger-4">
             <h3 className="sdp__section-title">Price Summary</h3>
             <div className="sdp__range-stack">
                 <span className="sdp__range-label">Day Range</span>
@@ -177,7 +177,7 @@ function RelatedStockRow({ s, navigate }) {
 function RelatedStocks({ relatedStocks, sector, navigate }) {
     if (relatedStocks.length === 0) return null;
     return (
-        <section className="sdp__related">
+        <section className="sdp__related sdp-animate-fade-in sdp-stagger-5">
             <h3 className="sdp__section-title">Related in {sector}</h3>
             <div className="sdp__related-table">
                 {relatedStocks.map(s => (
@@ -200,9 +200,17 @@ function TabContent({ activeTab, p, relatedStocks, sector, navigate, symbol, dep
         );
     }
     if (activeTab === 'depth') {
-        return <MarketDepth symbol={symbol} data={depthData} loading={depthLoading} />;
+        return (
+            <div className="sdp-animate-fade-in">
+                <MarketDepth symbol={symbol} data={depthData} loading={depthLoading} />
+            </div>
+        );
     }
-    return <Floorsheet symbol={symbol} data={depthData} loading={depthLoading} />;
+    return (
+        <div className="sdp-animate-fade-in">
+            <Floorsheet symbol={symbol} data={depthData} loading={depthLoading} />
+        </div>
+    );
 }
 
 // ==================== Custom Hooks ====================

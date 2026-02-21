@@ -43,11 +43,18 @@
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
-    background: var(--bg-secondary);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border: 1px solid var(--border-main);
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     padding: var(--space-6);
     margin-bottom: var(--space-6);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sdp__header:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
 
 .sdp__header-left {
@@ -73,9 +80,9 @@
 .sdp__sector {
     font-size: 0.75rem;
     padding: 0.25rem 0.75rem;
-    background: #e5e5e5;
-    color: #666;
-    border-radius: 99px;
+    background: #dbeafe;
+    color: #2563eb;
+    border-radius: 9999px;
     text-transform: uppercase;
     font-weight: 600;
     letter-spacing: 0.02em;
@@ -140,36 +147,36 @@
    TAB NAVIGATION
    ======================================== */
 .sdp__tabs {
-    display: flex;
-    gap: 0.25rem;
-    margin-bottom: 1.5rem;
-    background: #F5F5F4;
-    padding: 0.25rem;
-    border-radius: var(--radius-md);
+    display: inline-flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    background: #f1f5f9;
+    padding: 0.375rem;
+    border-radius: 9999px;
     width: fit-content;
 }
 
 .sdp__tab {
-    padding: 0.625rem 1.25rem;
-    font-size: 0.8rem;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: #64748b;
     background: transparent;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: 9999px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s ease;
 }
 
 .sdp__tab:hover {
-    color: var(--text-primary);
-    background: rgba(0, 0, 0, 0.04);
+    color: #0f172a;
+    background: #e2e8f0;
 }
 
 .sdp__tab.active {
-    background: #FFFFFF;
-    color: var(--text-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .sdp__tab-content {
@@ -190,19 +197,21 @@
 }
 
 .sdp__metric {
-    background: var(--bg-primary);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border: 1px solid var(--border-main);
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     padding: var(--space-4);
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
 }
 
 .sdp__metric:hover {
-    border-color: #d0d0d0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-4px);
+    border-color: #cbd5e1;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
 .sdp__metric-label {
@@ -231,11 +240,18 @@
    PRICE SUMMARY (Compact Horizontal)
    ======================================== */
 .sdp__summary {
-    background: #ffffff;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border: 1px solid #e5e5e5;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sdp__summary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
 }
 
 /* Vertical Stack Layout */
@@ -283,6 +299,19 @@
     border-radius: 50%;
     border: 3px solid #fff;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    animation: rangeGlow 2s ease-in-out infinite;
+}
+
+@keyframes rangeGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0px rgba(0, 0, 0, 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+    }
 }
 
 .sdp__range-current {
@@ -301,10 +330,11 @@
    RELATED STOCKS SECTION
    ======================================== */
 .sdp__related {
-    background: #fff;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border: 1px solid #e5e5e5;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .sdp__related-table {
@@ -317,12 +347,12 @@
     grid-template-columns: 100px 1fr 120px 160px;
     align-items: center;
     gap: 1rem;
-    padding: 1rem 0.5rem;
+    padding: 1rem 0.75rem;
     border-bottom: 1px solid #f0f0f0;
     cursor: pointer;
-    transition: background 0.15s ease;
-    border-radius: 4px;
-    margin: 0 -0.5rem;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, box-shadow 0.2s ease;
+    border-radius: 8px;
+    margin: 0 -0.75rem;
 }
 
 .sdp__related-row:last-child {
@@ -330,7 +360,12 @@
 }
 
 .sdp__related-row:hover {
-    background: #f5f5f5;
+    background: #ffffff;
+    transform: scale(1.01) translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-bottom-color: transparent;
+    z-index: 1;
+    position: relative;
 }
 
 .sdp__related-symbol {
@@ -505,4 +540,44 @@
         grid-row: 2;
         font-size: 0.75rem;
     }
+}
+
+/* ========================================
+   ANIMATION CLASSES
+   ======================================== */
+@keyframes sdpFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.sdp-animate-fade-in {
+    opacity: 0;
+    animation: sdpFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sdp-stagger-1 {
+    animation-delay: 0ms;
+}
+
+.sdp-stagger-2 {
+    animation-delay: 100ms;
+}
+
+.sdp-stagger-3 {
+    animation-delay: 200ms;
+}
+
+.sdp-stagger-4 {
+    animation-delay: 300ms;
+}
+
+.sdp-stagger-5 {
+    animation-delay: 400ms;
 }
