@@ -31,8 +31,9 @@ jest.mock('../../src/services/utils/logger', () => ({
 }));
 
 // Mock rate limiter to avoid 429 during tests
+const mockAdminLimiter = jest.fn((req, res, next) => next());
 jest.mock('../../src/middleware/rateLimiter', () => ({
-    adminLimiter: (req, res, next) => next(),
+    adminLimiter: mockAdminLimiter,
     searchLimiter: (req, res, next) => next(),
     globalLimiter: (req, res, next) => next()
 }));
@@ -48,14 +49,20 @@ app.use('/api/watchdog', watchdogRouter);
 
 describe('Watchdog API Security', () => {
     // Ensure admin key is set for tests
-    const ADMIN_KEY = process.env.ADMIN_API_KEY || 'test-admin-key';
+    const ADMIN_KEY = 'test-admin-key';
+
+    beforeAll(() => {
+        process.env.ADMIN_API_KEY = ADMIN_KEY;
+    });
+
+    afterAll(() => {
+        delete process.env.ADMIN_API_KEY;
+    });
 
     describe('POST /api/watchdog/verify', () => {
         it('should reject requests without admin key', async () => {
             const res = await request(app).post('/api/watchdog/verify');
 
-            // Should be 401, but currently 200 (VULNERABILITY)
-            // We assert what we WANT (401), so this test should fail initially
             expect(res.status).toBe(401);
             expect(res.body.success).toBe(false);
         });
@@ -69,14 +76,13 @@ describe('Watchdog API Security', () => {
         });
 
         it('should allow requests with valid admin key', async () => {
-            // Note: Since the endpoint is currently insecure, this will pass with 200.
-            // After fix, it should still pass with 200 (because we provide the key).
             const res = await request(app).post('/api/watchdog/verify')
                 .set('x-admin-key', ADMIN_KEY);
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
             expect(res.body.data.status).toBe('OK');
+            expect(mockAdminLimiter).toHaveBeenCalled();
         });
     });
 
@@ -93,6 +99,7 @@ describe('Watchdog API Security', () => {
                 .set('x-admin-key', 'wrong-key');
 
             expect(res.status).toBe(401);
+            expect(res.body.success).toBe(false);
         });
 
         it('should allow requests with valid admin key', async () => {

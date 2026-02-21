@@ -24,7 +24,7 @@ jest.mock('../../src/services/database/stockOperations', () => ({
 }));
 
 jest.mock('../../src/services/scheduler/updateScheduler', () => ({
-    getUpdateStatus: jest.fn().mockReturnValue({
+    getUpdateStatus: jest.fn().mockImplementation(() => ({
         isRunning: true,
         isMarketOpen: false,
         lastUpdateTime: new Date().toISOString(),
@@ -36,26 +36,37 @@ jest.mock('../../src/services/scheduler/updateScheduler', () => ({
         marketHours: { open: '10:00', close: '15:00' },
         circuitBreaker: { isOpen: false, consecutiveFailures: 0 },
         alerting: { enabled: false }
-    }),
+    })),
     forceUpdate: jest.fn().mockResolvedValue(true)
 }));
 
 jest.mock('../../src/services/dataFetcher', () => ({
     getDataSource: jest.fn().mockReturnValue('proxy'),
-    getFetchStatus: jest.fn().mockReturnValue({
+    getFetchStatus: jest.fn().mockImplementation(() => ({
         dataSource: 'proxy',
         lastUpdateTime: new Date().toISOString(),
         consecutiveFailures: 0,
         isHealthy: true
-    })
+    }))
 }));
 
 jest.mock('../../src/services/database/connection', () => ({
     prisma: {
         stock: {
-            findFirst: jest.fn().mockResolvedValue({
-                updatedAt: new Date()
-            })
+            findFirst: jest.fn().mockImplementation(() =>
+                Promise.resolve({ updatedAt: new Date() })
+            ),
+            findMany: jest.fn().mockResolvedValue([]),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            upsert: jest.fn(),
+            count: jest.fn().mockResolvedValue(0)
+        },
+        marketSummary: {
+            findFirst: jest.fn(),
+            findMany: jest.fn().mockResolvedValue([]),
+            create: jest.fn()
         }
     },
     connectDB: jest.fn().mockResolvedValue(true),

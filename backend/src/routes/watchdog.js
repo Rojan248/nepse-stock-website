@@ -4,6 +4,10 @@ const watchdogService = require('../services/watchdog/WatchdogService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
 const { adminLimiter } = require('../middleware/rateLimiter');
+const fs = require('fs').promises;
+const path = require('path');
+
+const LOG_FILE = path.join(__dirname, '../../logs/watchdog_verification.json');
 
 /**
  * Trigger a manual verification
@@ -20,10 +24,6 @@ router.post('/verify', adminLimiter, requireAdminKey, asyncHandler(async (req, r
  * Get latest verification reports
  */
 router.get('/reports', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
-    const fs = require('fs').promises;
-    const path = require('path');
-    const LOG_FILE = path.join(__dirname, '../../logs/watchdog_verification.json');
-    
     try {
         const content = await fs.readFile(LOG_FILE, 'utf8');
         res.json({
