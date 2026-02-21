@@ -6,31 +6,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-    /* ===== DYNAMIC FINTECH PALETTE ===== */
-    --bg-app: #f8fafc;
-    --bg-card: #FFFFFF;
+    /* ===== VIBRANT AURORA GLASSMORPHISM PALETTE ===== */
+    /* Backgrounds */
+    --bg-app: #0f172a;
+    /* Fallback deep slate */
+    --bg-card: rgba(255, 255, 255, 0.05);
+    /* Transparent glass base */
 
-    --text-primary: #1e293b;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
+    /* Text */
+    --text-primary: #ffffff;
+    /* Crisp white for contrast against dark/vibrant bg */
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    /* Frosted text */
+    --text-muted: rgba(255, 255, 255, 0.5);
 
-    --border-subtle: #f1f5f9;
-    --border-main: #e2e8f0;
+    /* Borders */
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-main: rgba(255, 255, 255, 0.15);
 
-    --primary-accent: #4f46e5;
-    /* Rich Indigo Accent */
+    /* Accents */
+    --primary-accent: #06b6d4;
+    /* Vivid Cyan */
 
-    --success: #10b981;
-    /* Vibrant Emerald */
-    --danger: #ef4444;
-    /* Striking Red */
-    --color-unchanged: #64748b;
+    /* Semantics (Neon) */
+    --success: #34d399;
+    /* Neon Emerald */
+    --danger: #fb7185;
+    /* Neon Rose */
+    --color-unchanged: rgba(255, 255, 255, 0.5);
 
-    --bg-positive-subtle: #ecfdf5;
-    --bg-negative-subtle: #fef2f2;
+    /* Subtle Semantic Backgrounds (Glassy) */
+    --bg-positive-subtle: rgba(52, 211, 153, 0.1);
+    --bg-negative-subtle: rgba(251, 113, 133, 0.1);
 
-    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-main: 'Inter',
+        system-ui,
+        -apple-system,
+        sans-serif;
+    --font-mono: 'JetBrains Mono',
+        monospace;
 
     /* Spacing System */
     --space-1: 4px;
@@ -56,10 +70,10 @@
     --radius-full: 9999px;
 
     /* Shadows */
-    --shadow-premium: 0 1px 3px rgba(0, 0, 0, 0.05);
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-premium: 0 4px 30px rgba(0, 0, 0, 0.1);
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.3);
 
     /* Transitions */
     --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -67,8 +81,8 @@
 
     --container-max: 1400px;
 
-    /* Carafe System (Re-mapped to Slate for harmony) */
-    --color-carafe: #0f172a;
+    /* Carafe System (Re-mapped to Glass) */
+    --color-carafe: rgba(255, 255, 255, 0.15);
 }
 
 /* Reset & Base Styles */
@@ -83,11 +97,30 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Animated Aurora Background */
+@keyframes aurora {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
 body {
     background-color: var(--bg-app);
     background-image:
-        radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.04), transparent 30%),
-        radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.03), transparent 30%);
+        radial-gradient(at 0% 0%, #4c1d95 0px, transparent 50%),
+        radial-gradient(at 100% 0%, #c026d3 0px, transparent 50%),
+        radial-gradient(at 100% 100%, #06b6d4 0px, transparent 50%),
+        radial-gradient(at 0% 100%, #1e3a8a 0px, transparent 50%);
+    background-size: 200% 200%;
+    animation: aurora 15s ease infinite;
     background-attachment: fixed;
     color: var(--text-primary);
     font-family: var(--font-main);
@@ -125,25 +158,28 @@ body {
     white-space: nowrap;
 }
 
-/* Watchlist Toggle - Inactive (Ghost) */
+/* Watchlist Toggle - Inactive (Glassy) */
 .btn-watchlist {
-    background: #FFFFFF;
-    border: 1px solid #E7E5E4;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
     color: var(--text-secondary);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-watchlist:hover {
-    background: #FAFAF9;
-    border-color: #D6D3D1;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-main);
+    color: var(--text-primary);
 }
 
 /* Watchlist Toggle - Active (Solid Carafe/Slate) */
 .btn-watchlist.active {
-    background: var(--color-carafe);
-    border-color: var(--color-carafe);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
     color: #FAFAFA;
-    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Sector Select - Matching Style */
@@ -156,22 +192,29 @@ body {
 .sector-select {
     appearance: none;
     -webkit-appearance: none;
-    background: #FFFFFF;
-    border: 1px solid #E7E5E4;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
     color: var(--text-primary);
     padding-right: 36px !important;
-    /* Space for Chevron */
     min-width: 180px;
 }
 
 .sector-select:hover {
-    border-color: #D6D3D1;
+    border-color: var(--border-main);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .sector-select:focus {
-    border-color: var(--color-carafe);
+    border-color: var(--primary-accent);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
+    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3);
+}
+
+.sector-select option {
+    background: #0f172a;
+    color: #ffffff;
 }
 
 /* Clean up old styles if necessary, or keep for other buttons */
@@ -260,11 +303,11 @@ h4 {
 }
 
 .bg-white {
-    background-color: #ffffff;
+    background-color: var(--bg-card);
 }
 
 .bg-gray-50 {
-    background-color: #f9fafb;
+    background-color: rgba(255, 255, 255, 0.02);
 }
 
 .text-xs {
@@ -286,7 +329,7 @@ h4 {
 }
 
 .bg-stone-200 {
-    background-color: #e7e5e4;
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .border-subtle {
@@ -294,7 +337,7 @@ h4 {
 }
 
 .hover\:bg-gray-50:hover {
-    background-color: #f9fafb;
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 .focus\:outline-none:focus {
@@ -327,15 +370,15 @@ h4 {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-accent) 0%, #4338ca 100%);
+    background: linear-gradient(135deg, var(--primary-accent) 0%, #0284c7 100%);
     color: white;
     border: none;
-    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 12px -1px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 8px 16px rgba(6, 182, 212, 0.5);
 }
 
 .btn-secondary {
@@ -349,31 +392,34 @@ h4 {
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
-    background: white;
-    border: 1px solid #E7E5E4;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     font-weight: 500;
-    color: #44403C;
+    color: var(--text-secondary);
     transition: all 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-premium:hover {
-    border-color: #A8A29E;
-    background: #FAFAF9;
+    border-color: var(--border-main);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
 }
 
 .btn-premium.active {
-    background: #FFFBEB;
-    border-color: #D97706;
-    color: #92400E;
+    background: rgba(255, 255, 255, 0.2);
+    border-color: var(--primary-accent);
+    color: var(--text-primary);
 }
 
-/* Forms */
 input,
 select {
-    background: var(--bg-card);
-    border: 1px solid var(--border-main);
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-subtle);
     padding: 0.6rem 1rem;
     border-radius: var(--radius-md);
     color: var(--text-primary);
@@ -385,7 +431,24 @@ input:focus,
 select:focus {
     outline: none;
     border-color: var(--primary-accent);
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3);
+}
+
+/* Glass table styles override */
+table th {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-secondary) !important;
+    border-bottom: 1px solid var(--border-main) !important;
+}
+
+table tr,
+table td {
+    border-bottom: 1px solid var(--border-subtle) !important;
+    color: var(--text-primary) !important;
+}
+
+table tr:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
 }
 
 /* =========================================
