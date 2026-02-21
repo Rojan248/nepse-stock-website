@@ -16,6 +16,8 @@ NEPSE_STOCKS.forEach(stock => {
     });
 });
 
+const { isMarketActive } = require('./utils/marketTime');
+
 /**
  * Safe price parser - handles strings with commas, null, undefined, NaN
  * @param {any} value - Value to parse as price
@@ -61,10 +63,18 @@ const classifyPriceMovement = (current, prev) => {
 
 /**
  * Calculate market breadth from stock data using robust price comparison
+ * ONLY calculates if market is active to avoid false movements when closed
  * @param {Array} stocks - Array of stock objects
- * @returns {Object} { advanced, declined, unchanged }
+ * @returns {Object|null} { advanced, declined, unchanged } or null if closed
  */
 const updateMarketBreadth = (stocks) => {
+    // PREVENT FALSE BREADTHS: Only calculate price-based breadth dynamically if market is open.
+    // If closed, return null so that the dataFetcher relies safely on computeBreadthFromDb.
+    if (!isMarketActive()) {
+        logger.debug('Market closed: skipping dynamic price-based breadth calculation.');
+        return { advanced: null, declined: null, unchanged: null };
+    }
+
     const counts = { advanced: 0, declined: 0, unchanged: 0 };
     if (!Array.isArray(stocks)) return counts;
 
