@@ -91,11 +91,11 @@
 
 /* Price Change Colors */
 .stock-card-change.price-up {
-    color: var(--color-positive);
+    color: var(--success);
 }
 
 .stock-card-change.price-down {
-    color: var(--color-negative);
+    color: var(--danger);
 }
 
 .stock-card-change.price-unchanged {

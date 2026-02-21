@@ -48,17 +48,13 @@
 }
 
 .summary-badge.price-up {
-    background-color: #f0fdf4;
-    /* bg-green-50 */
-    color: #15803d;
-    /* text-green-700 */
+    background-color: var(--bg-positive-subtle);
+    color: var(--success);
 }
 
 .summary-badge.price-down {
-    background-color: #fef2f2;
-    /* bg-red-50 */
-    color: #b91c1c;
-    /* text-red-700 */
+    background-color: var(--bg-negative-subtle);
+    color: var(--danger);
 }
 
 .summary-badge.price-unchanged {

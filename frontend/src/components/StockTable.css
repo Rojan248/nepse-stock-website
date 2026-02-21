@@ -22,8 +22,8 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-secondary);
-    background: #FAFAFA;
-    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-main);
     white-space: nowrap;
     vertical-align: middle;
 }
@@ -64,7 +64,7 @@
 }
 
 .clickable-row:hover td {
-    background-color: #F5F5F4;
+    background-color: var(--bg-app);
 }
 
 /* Financial Cells - Monospace & Right Aligned */
@@ -132,14 +132,14 @@
 
 .change-pill.positive,
 .change-percent-badge.positive {
-    background-color: #f0fdf4;
-    color: #15803d;
+    background-color: var(--bg-positive-subtle);
+    color: var(--success);
 }
 
 .change-pill.negative,
 .change-percent-badge.negative {
-    background-color: #fef2f2;
-    color: #b91c1c;
+    background-color: var(--bg-negative-subtle);
+    color: var(--danger);
 }
 
 /* Specific Column Widths (with Star column) */
@@ -223,7 +223,7 @@
 
 .pagination button:hover:not(:disabled) {
     background: var(--bg-app);
-    border-color: var(--text-primary);
+    border-color: var(--primary-accent);
 }
 
 .pagination button:disabled {

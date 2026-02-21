@@ -1,24 +1,23 @@
 /* ===== IPO Card - Premium 'Class UI' Design ===== */
 
 .ipo-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
     padding: 24px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     cursor: pointer;
     display: flex;
     flex-direction: column;
     gap: 12px;
     position: relative;
     overflow: hidden;
-    /* Sophisticated shadow */
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    box-shadow: var(--shadow-sm);
 }
 
 .ipo-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    box-shadow: var(--shadow-lg);
     border-color: #cbd5e1;
 }
 
@@ -39,7 +38,7 @@
 }
 
 .ipo-card.open:hover::before {
-    background: #22c55e;
+    background: var(--success);
 }
 
 .ipo-card.upcoming:hover::before {
@@ -47,11 +46,11 @@
 }
 
 .ipo-card.closed:hover::before {
-    background: #ef4444;
+    background: var(--danger);
 }
 
 .ipo-card.completed:hover::before {
-    background: #3b82f6;
+    background: var(--primary-accent);
 }
 
 /* Refined Header */
@@ -132,19 +131,19 @@
 }
 
 .ipo-card .status-text.open {
-    color: #16a34a;
+    color: var(--success);
 }
 
 .ipo-card .status-text.upcoming {
-    color: #d97706;
+    color: #f59e0b;
 }
 
 .ipo-card .status-text.closed {
-    color: #dc2626;
+    color: var(--danger);
 }
 
 .ipo-card .status-text.completed {
-    color: #2563eb;
+    color: var(--primary-accent);
 }
 
 .ipo-card .units-text {

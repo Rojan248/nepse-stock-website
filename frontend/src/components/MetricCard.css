@@ -1,26 +1,21 @@
-/* Metric Card Design - Light Gray + White */
 .metric-card {
     min-height: 140px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-light);
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
     border-radius: 12px;
     padding: 1.75rem;
-    /* Increased padding */
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     transition: all 200ms ease;
     position: relative;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    /* Subtle default shadow */
+    box-shadow: var(--shadow-sm);
 }
 
 .metric-card:hover {
-    border-color: var(--border-medium);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    /* Stronger hover shadow */
+    border-color: #cbd5e1;
+    box-shadow: var(--shadow-md);
     transform: translateY(-3px);
-    /* More noticeable lift */
 }
 
 /* Typography */
@@ -61,8 +56,8 @@
 }
 
 .metric-card__change--positive {
-    background: var(--color-positive-bg);
-    color: var(--color-positive-text);
+    background: var(--bg-positive-subtle);
+    color: var(--success);
 }
 
 .metric-card__change--positive::before {
@@ -72,8 +67,8 @@
 }
 
 .metric-card__change--negative {
-    background: var(--color-negative-bg);
-    color: var(--color-negative-text);
+    background: var(--bg-negative-subtle);
+    color: var(--danger);
 }
 
 .metric-card__change--negative::before {

@@ -89,13 +89,13 @@
 }
 
 .trending-change.positive {
-    background-color: #f0fdf4;
-    color: #15803d;
+    background-color: var(--bg-positive-subtle);
+    color: var(--success);
 }
 
 .trending-change.negative {
-    background-color: #fef2f2;
-    color: #b91c1c;
+    background-color: var(--bg-negative-subtle);
+    color: var(--danger);
 }
 
 /* Mobile responsiveness */
