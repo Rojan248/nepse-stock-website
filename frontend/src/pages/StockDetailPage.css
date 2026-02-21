@@ -72,7 +72,7 @@
 .sdp__symbol {
     font-size: 2rem;
     font-weight: 900;
-    color: var(--c-black);
+    color: var(--text-primary);
     margin: 0;
     line-height: 1;
 }
@@ -90,8 +90,8 @@
 
 .sdp__company {
     font-size: 1.125rem;
-    font-weight: 400;
-    color: #666;
+    font-weight: 500;
+    color: var(--text-secondary);
     margin: 0;
 }
 
@@ -106,7 +106,7 @@
 .sdp__price {
     font-size: 2rem;
     font-weight: 900;
-    color: var(--c-black);
+    color: var(--text-primary);
     line-height: 1;
 }
 
@@ -129,7 +129,7 @@
 
 .sdp__updated {
     font-size: 0.875rem;
-    color: #999;
+    color: var(--text-muted);
     margin-top: 0.25rem;
 }
 
@@ -139,7 +139,7 @@
 .sdp__section-title {
     font-size: 1.125rem;
     font-weight: 700;
-    color: #000;
+    color: var(--text-primary);
     margin: 0 0 1rem 0;
 }
 
@@ -217,7 +217,7 @@
 .sdp__metric-label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #666;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
@@ -264,7 +264,7 @@
 .sdp__range-label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .sdp__range-values {
@@ -277,7 +277,7 @@
 .sdp__range-max {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: #000;
+    color: var(--text-primary);
 }
 
 .sdp__range-track {
@@ -295,7 +295,7 @@
     transform: translate(-50%, -50%);
     width: 18px;
     height: 18px;
-    background: #000;
+    background: var(--text-primary);
     border-radius: 50%;
     border: 3px solid #fff;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -317,12 +317,12 @@
 .sdp__range-current {
     text-align: center;
     font-size: 0.9375rem;
-    color: #666;
+    color: var(--text-secondary);
     margin-top: 0.5rem;
 }
 
 .sdp__range-current strong {
-    color: #000;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -371,12 +371,12 @@
 .sdp__related-symbol {
     font-size: 1rem;
     font-weight: 700;
-    color: #000;
+    color: var(--text-primary);
 }
 
 .sdp__related-name {
     font-size: 0.875rem;
-    color: #666;
+    color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -385,7 +385,7 @@
 .sdp__related-ltp {
     font-size: 1rem;
     font-weight: 700;
-    color: #000;
+    color: var(--text-primary);
     text-align: right;
 }
 
