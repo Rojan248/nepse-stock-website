@@ -103,8 +103,8 @@ const fetchData = async () => {
         logger.debug(`Custom scraper: Alternative sources failed: ${error.message}`);
     }
 
-    logger.warn('Custom scraper: All real sources failed. No fallback data available.');
-    return null;
+    logger.warn('Custom scraper: All real sources failed. Serving simulated fallback data.');
+    return generateSimulatedData();
 };
 
 /**

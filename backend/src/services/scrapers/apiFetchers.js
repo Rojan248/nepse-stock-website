@@ -5,6 +5,7 @@
 
 const axios = require('axios');
 const https = require('https');
+const cheerio = require('cheerio');
 const logger = require('../utils/logger');
 const { TIMEOUT, HEADERS } = require('./proxyConfig');
 const { transformNepAlphaStock, transformShareSansarStock, transformMarketSummary, transformStock } = require('./apiTransformers');
@@ -67,15 +68,40 @@ const fetchFromShareSansar = async () => {
 
         const response = await client.get('https://www.sharesansar.com/live-trading');
 
-        if (response.data && typeof response.data === 'object' && response.data.data) {
-            const stocks = response.data.data.map(transformShareSansarStock);
-            return {
-                stocks,
-                ipos: [],
-                marketSummary: null,
-                source: 'sharesansar',
-                timestamp: new Date().toISOString()
-            };
+        if (response.data && typeof response.data === 'string') {
+            const $ = cheerio.load(response.data);
+            const rows = $('table tbody tr');
+
+            if (rows.length > 0) {
+                const stocks = [];
+                rows.each((i, el) => {
+                    const cells = $(el).find('td');
+                    if (cells.length > 0) {
+                        const rawItem = {
+                            symbol: $(cells[1]).text().trim(),
+                            ltp: $(cells[2]).text().replace(/,/g, '').trim(),
+                            change: $(cells[4]).text().replace(/,/g, '').trim(),
+                            percentChange: $(cells[5]).text().replace(/,/g, '').trim(),
+                            open: $(cells[6]).text().replace(/,/g, '').trim(),
+                            high: $(cells[7]).text().replace(/,/g, '').trim(),
+                            low: $(cells[8]).text().replace(/,/g, '').trim(),
+                            volume: $(cells[9]).text().replace(/,/g, '').trim(),
+                            previousClose: $(cells[10]).text().replace(/,/g, '').trim()
+                        };
+                        if (rawItem.symbol && rawItem.ltp !== '') {
+                            stocks.push(transformShareSansarStock(rawItem));
+                        }
+                    }
+                });
+
+                return {
+                    stocks,
+                    ipos: [],
+                    marketSummary: null,
+                    source: 'sharesansar',
+                    timestamp: new Date().toISOString()
+                };
+            }
         }
     } catch (error) {
         logger.debug(`ShareSansar fetch failed: ${error.message}`);
