@@ -1,0 +1,106 @@
+{
+  "summaries": [
+    {
+      "timestamp": "2026-02-21T15:10:34.615Z",
+      "advancedCompanies": 0,
+      "declinedCompanies": 0,
+      "unchangedCompanies": 0,
+      "totalTransactions": 83075
+    },
+    {
+      "timestamp": "2026-02-21T15:09:52.688Z",
+      "advancedCompanies": 186,
+      "declinedCompanies": 210,
+      "unchangedCompanies": 0,
+      "totalTransactions": 106064
+    },
+    {
+      "timestamp": "2026-02-21T15:08:49.564Z",
+      "advancedCompanies": 0,
+      "declinedCompanies": 0,
+      "unchangedCompanies": 0,
+      "totalTransactions": 83075
+    },
+    {
+      "timestamp": "2026-02-21T15:07:45.349Z",
+      "advancedCompanies": 213,
+      "declinedCompanies": 182,
+      "unchangedCompanies": 1,
+      "totalTransactions": 105118
+    },
+    {
+      "timestamp": "2026-02-21T15:06:42.491Z",
+      "advancedCompanies": 0,
+      "declinedCompanies": 0,
+      "unchangedCompanies": 0,
+      "totalTransactions": 83075
+    },
+    {
+      "timestamp": "2026-02-21T15:05:39.742Z",
+      "advancedCompanies": 189,
+      "declinedCompanies": 206,
+      "unchangedCompanies": 1,
+      "totalTransactions": 108581
+    },
+    {
+      "timestamp": "2026-02-21T15:04:36.729Z",
+      "advancedCompanies": 193,
+      "declinedCompanies": 203,
+      "unchangedCompanies": 0,
+      "totalTransactions": 101180
+    },
+    {
+      "timestamp": "2026-02-21T15:03:33.881Z",
+      "advancedCompanies": 197,
+      "declinedCompanies": 199,
+      "unchangedCompanies": 0,
+      "totalTransactions": 105596
+    },
+    {
+      "timestamp": "2026-02-21T15:02:30.788Z",
+      "advancedCompanies": 198,
+      "declinedCompanies": 198,
+      "unchangedCompanies": 0,
+      "totalTransactions": 103547
+    },
+    {
+      "timestamp": "2026-02-21T15:01:27.757Z",
+      "advancedCompanies": 0,
+      "declinedCompanies": 0,
+      "unchangedCompanies": 0,
+      "totalTransactions": 83075
+    }
+  ],
+  "stocks": [
+    {
+      "symbol": "UNHPL",
+      "change": -12.1,
+      "percentageChange": -2.44,
+      "updatedAt": "2026-02-21T15:10:34.987Z"
+    },
+    {
+      "symbol": "UPCL",
+      "change": -4.4,
+      "percentageChange": -1.17,
+      "updatedAt": "2026-02-21T15:10:34.987Z"
+    },
+    {
+      "symbol": "USHEC",
+      "change": -4,
+      "percentageChange": -0.86,
+      "updatedAt": "2026-02-21T15:10:34.987Z"
+    },
+    {
+      "symbol": "USLB",
+      "change": -9,
+      "percentageChange": -0.62,
+      "updatedAt": "2026-02-21T15:10:34.987Z"
+    },
+    {
+      "symbol": "VLBS",
+      "change": 10,
+      "percentageChange": 1.33,
+      "updatedAt": "2026-02-21T15:10:34.987Z"
+    }
+  ]
+}
