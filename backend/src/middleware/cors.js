@@ -28,15 +28,15 @@ const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = getOrigins();
 
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        // STRICT MODE: In production, we block no-origin requests unless explicitly configured otherwise
+        // Allow requests with no origin (browser navigation, mobile apps, curl, health checks)
         if (!origin) {
-            if (process.env.NODE_ENV !== 'production') {
-                logger.debug('[CORS] Request without Origin header (Allowed in Dev)');
-                return callback(null, true);
-            }
-            logger.warn('[CORS] Blocked request without Origin header');
-            return callback(new Error('Not allowed by CORS'));
+            logger.debug('[CORS] Request without Origin header (Allowed)');
+            return callback(null, true);
+        }
+
+        // Wildcard: allow all origins when CORS_ORIGIN=*
+        if (allowedOrigins.includes('*')) {
+            return callback(null, true);
         }
 
         if (allowedOrigins.indexOf(origin) !== -1) {
