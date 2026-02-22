@@ -152,16 +152,16 @@ const startScheduler = async () => {
     // Initial update
     await performUpdate();
 
-    // Schedule updates at FIXED intervals (regardless of execution time)
-    const marketOpen = isMarketOpen();
+    // Evaluate base configuration
     const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
-    const interval = (marketOpen || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
-
-    logger.info(`Scheduler running with fixed ${interval / 1000}s interval`);
 
     // Use recursive setTimeout to prevent overlapping updates (race condition)
     const scheduleNext = () => {
         if (!isRunning) return;
+
+        // Dynamically evaluate interval based on current market state
+        const marketOpen = isMarketOpen();
+        const interval = (marketOpen || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
 
         schedulerJob = setTimeout(async () => {
             if (isRunning) {

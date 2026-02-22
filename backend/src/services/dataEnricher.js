@@ -168,6 +168,9 @@ const accumulateTradingTotals = (stocks) => {
 /** Use existing value if truthy, otherwise fall back to calculated value */
 const preferExisting = (existing, calculated) => existing || calculated || 0;
 
+/** Strongly prefer mathematically calculated value if available (real-time). Fallback to API if skipped. */
+const preferCalculated = (calculated, existing) => (calculated !== null && calculated !== undefined) ? calculated : (existing || 0);
+
 /** Build the final summary object merging existing API data with calculated values */
 const buildSummaryResult = (existingSummary, calc, breadth) => ({
     ...existingSummary,
@@ -180,9 +183,13 @@ const buildSummaryResult = (existingSummary, calc, breadth) => ({
         ? existingSummary.totalTransactions
         : (calc.trades || 0),
     activeCompanies: preferExisting(existingSummary.activeCompanies, calc.tradedCompanies),
-    advancedCompanies: preferExisting(existingSummary.advancedCompanies, breadth.advanced),
-    declinedCompanies: preferExisting(existingSummary.declinedCompanies, breadth.declined),
-    unchangedCompanies: preferExisting(existingSummary.unchangedCompanies, breadth.unchanged),
+    // Breadth assignments intentionally use preferCalculated to prioritize live-calculated values 
+    // during market hours, falling back to API values when updateMarketBreadth returns null.
+    // This creates an intentional asymmetry with totals fields (turnover, volume) which use 
+    // preferExisting to preserve API totals.
+    advancedCompanies: preferCalculated(breadth.advanced, existingSummary.advancedCompanies),
+    declinedCompanies: preferCalculated(breadth.declined, existingSummary.declinedCompanies),
+    unchangedCompanies: preferCalculated(breadth.unchanged, existingSummary.unchangedCompanies),
     timestamp: new Date().toISOString()
 });
 
