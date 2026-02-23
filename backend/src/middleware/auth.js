@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const logger = require('../services/utils/logger');
 
 /**
@@ -19,9 +20,15 @@ const requireAdminKey = (req, res, next) => {
         });
     }
 
-    // Constant-time comparison to prevent timing attacks (simple string match is usually fine here, but explicit is better)
-    if (apiKey === configuredKey) {
-        return next();
+    // Constant-time comparison to prevent timing attacks
+    // Use SHA-256 hashing to ensure fixed length for timingSafeEqual
+    if (apiKey && typeof apiKey === 'string') {
+        const inputHash = crypto.createHash('sha256').update(apiKey).digest();
+        const storedHash = crypto.createHash('sha256').update(configuredKey).digest();
+
+        if (crypto.timingSafeEqual(inputHash, storedHash)) {
+            return next();
+        }
     }
 
     logger.warn(`Unauthorized admin access attempt from ${req.ip}`);
