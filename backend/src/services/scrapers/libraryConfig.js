@@ -6,8 +6,8 @@
 // Request configuration
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
-const CONCURRENCY_LIMIT = 20;
-const TIMEOUT = 4000;
+const CONCURRENCY_LIMIT = 5;
+const TIMEOUT = 8000;
 
 // Sector ID mapping from NEPSE API
 const SECTOR_IDS = {

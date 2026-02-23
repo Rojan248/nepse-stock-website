@@ -77,16 +77,18 @@ const fetchFromShareSansar = async () => {
                 rows.each((i, el) => {
                     const cells = $(el).find('td');
                     if (cells.length > 0) {
+                        // ShareSansar table columns (as of 2026):
+                        // 0:S.No | 1:Symbol | 2:LTP | 3:Point Change | 4:% Change | 5:Open | 6:High | 7:Low | 8:Volume | 9:Prev. Close
                         const rawItem = {
                             symbol: $(cells[1]).text().trim(),
                             ltp: $(cells[2]).text().replace(/,/g, '').trim(),
-                            change: $(cells[4]).text().replace(/,/g, '').trim(),
-                            percentChange: $(cells[5]).text().replace(/,/g, '').trim(),
-                            open: $(cells[6]).text().replace(/,/g, '').trim(),
-                            high: $(cells[7]).text().replace(/,/g, '').trim(),
-                            low: $(cells[8]).text().replace(/,/g, '').trim(),
-                            volume: $(cells[9]).text().replace(/,/g, '').trim(),
-                            previousClose: $(cells[10]).text().replace(/,/g, '').trim()
+                            change: $(cells[3]).text().replace(/,/g, '').trim(),
+                            percentChange: $(cells[4]).text().replace(/,/g, '').trim(),
+                            open: $(cells[5]).text().replace(/,/g, '').trim(),
+                            high: $(cells[6]).text().replace(/,/g, '').trim(),
+                            low: $(cells[7]).text().replace(/,/g, '').trim(),
+                            volume: $(cells[8]).text().replace(/,/g, '').trim(),
+                            previousClose: $(cells[9]).text().replace(/,/g, '').trim()
                         };
                         if (rawItem.symbol && rawItem.ltp !== '') {
                             stocks.push(transformShareSansarStock(rawItem));

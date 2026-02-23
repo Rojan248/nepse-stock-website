@@ -98,9 +98,9 @@ const sectorMatches = (stockSector, filterSector) => {
 const extractPriceFields = (stock, prices) => ({
     lastTradedPrice: toFloat(resolveField(stock.lastTradedPrice, stock.ltp, stock.close, prices.ltp, prices.close)),
     previousClose: toFloat(resolveField(stock.previousClose, stock.previousClosingPrice, prices.previousClose)),
-    openPrice: toFloat(resolveField(stock.openPrice, prices.open)),
-    highPrice: toFloat(resolveField(stock.highPrice, prices.high)),
-    lowPrice: toFloat(resolveField(stock.lowPrice, prices.low)),
+    openPrice: toFloat(resolveField(stock.openPrice, stock.open, prices.open)),
+    highPrice: toFloat(resolveField(stock.highPrice, stock.high, prices.high)),
+    lowPrice: toFloat(resolveField(stock.lowPrice, stock.low, prices.low)),
 });
 
 /** Extract trading-related fields from stock + nested trading object */
@@ -138,13 +138,15 @@ const normalizeStockInput = (stock) => {
     const prices = stock.prices || {};
     const trading = stock.trading || {};
 
-    return {
+    const result = {
         ...extractIdentityFields(stock),
         ...extractPriceFields(stock, prices),
         ...extractTradingFields(stock, trading),
         ...extractChangeFields(stock, prices),
         updatedAt: new Date()
     };
+
+    return result;
 };
 
 /**

@@ -462,26 +462,19 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @returns {Object} The enriched data
  */
 const handleFetchSuccess = async (data, source) => {
-    // If the scraper completely failed to return a summary, or returned one with missing/null breadths
-    // (which NEPSE official API does when offline), patch it from our last known good database record.
+    // If the scraper completely failed to return a summary, recover non-breadth fields from DB.
+    // Breadth (advance/decline/unchanged) is always recalculated from live stock data
+    // by enrichAndFinalize → updateMarketBreadth, so we do NOT patch breadth from DB here.
     const isMissingSummary = !data.marketSummary;
-    const isMissingBreadth = data.marketSummary && (data.marketSummary.advancedCompanies == null || data.marketSummary.advancedCompanies === 0);
 
-    if (isMissingSummary || isMissingBreadth) {
+    if (isMissingSummary) {
         try {
             const { prisma } = require('./database/connection');
             const latestSummary = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' }, take: 1 });
-
-            if (isMissingSummary) {
-                data.marketSummary = latestSummary || {};
-            } else if (latestSummary) {
-                data.marketSummary.advancedCompanies = data.marketSummary.advancedCompanies || latestSummary.advancedCompanies || 0;
-                data.marketSummary.declinedCompanies = data.marketSummary.declinedCompanies || latestSummary.declinedCompanies || 0;
-                data.marketSummary.unchangedCompanies = data.marketSummary.unchangedCompanies || latestSummary.unchangedCompanies || 0;
-            }
+            data.marketSummary = latestSummary || {};
         } catch (e) {
             logger.debug(`Failed to load DB fallback summary in fetch success: ${e.message}`);
-            if (isMissingSummary) data.marketSummary = {};
+            data.marketSummary = {};
         }
     }
     await enrichAndFinalize(data, fetchLiveMarketMeta);

@@ -330,9 +330,9 @@ const fetchMissingSecurities = async (companies, token) => {
         const chunkResults = await Promise.all(chunkPromises);
         results.push(...chunkResults.filter(r => r !== null));
 
-        // precise delay between chunks
+        // delay between chunks to avoid NEPSE rate-limiting
         if (i + CONCURRENCY_LIMIT < companies.length) {
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 500));
         }
     }
 

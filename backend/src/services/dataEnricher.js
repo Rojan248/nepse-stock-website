@@ -68,15 +68,11 @@ const classifyPriceMovement = (current, prev) => {
  * @returns {Object|null} { advanced, declined, unchanged } or null if closed
  */
 const updateMarketBreadth = (stocks) => {
-    // PREVENT FALSE BREADTHS: Only calculate price-based breadth dynamically if market is open.
-    // If closed, return null so that the dataFetcher relies safely on computeBreadthFromDb.
-    if (!isMarketActive()) {
-        logger.debug('Market closed: skipping dynamic price-based breadth calculation.');
-        return { advanced: null, declined: null, unchanged: null };
-    }
-
+    // Always calculate breadth from stock price data when stocks are available.
+    // This ensures the market summary reflects the day's actual advance/decline/unchanged
+    // even when the server starts after market hours or during weekends.
     const counts = { advanced: 0, declined: 0, unchanged: 0 };
-    if (!Array.isArray(stocks)) return counts;
+    if (!Array.isArray(stocks) || stocks.length === 0) return counts;
 
     for (const stock of stocks) {
         const bucket = classifyPriceMovement(resolveCurrentPrice(stock), resolvePrevClose(stock));
