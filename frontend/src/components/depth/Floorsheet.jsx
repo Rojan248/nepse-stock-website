@@ -19,7 +19,7 @@ function Floorsheet({ symbol, data, loading }) {
     if (!data || !data.floorsheet || data.floorsheet.length === 0) {
         return (
             <div className="floorsheet-empty">
-                <span>No recent trades available</span>
+                <span>No recent trades available (Market may be closed)</span>
             </div>
         );
     }
@@ -30,7 +30,7 @@ function Floorsheet({ symbol, data, loading }) {
         <div className="floorsheet">
             <div className="floorsheet-header">
                 <span className="floorsheet-title">Recent Trades</span>
-                <span className="floorsheet-source">{data.source === 'mock' ? '(Demo Data)' : '(Live)'}</span>
+                <span className="floorsheet-source">{data?.source === 'mock' ? '(Demo Data)' : '(Live)'}</span>
             </div>
 
             <div className="floorsheet-table-wrapper">

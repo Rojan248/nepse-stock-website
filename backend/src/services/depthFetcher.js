@@ -72,36 +72,55 @@ async function fetchRealDepth(symbol) {
         const token = await nepseClient.getToken();
         const headers = createHeaders(token);
 
-        // Fetch market depth (top bids/asks)
-        // Note: NEPSE API endpoint may vary; adjust as needed
-        const depthResponse = await nepseAxios.get(`${BASE_URL}/api/nots/market-depth/${symbol}`, {
-            headers,
-            timeout: 5000
-        });
+        // 1. Fetch Company List to map symbol to company ID
+        const companiesRes = await nepseAxios.get(`${BASE_URL}/api/nots/company/list`, { headers, timeout: 5000 });
+        const company = companiesRes?.data?.find(c => c.symbol === symbol.toUpperCase());
 
-        // Fetch floorsheet (recent trades)
-        const floorResponse = await nepseAxios.get(`${BASE_URL}/api/nots/floorsheet/${symbol}`, {
-            headers,
-            timeout: 5000
-        });
+        if (!company) {
+            throw new Error(`Company ID not found for symbol ${symbol}`);
+        }
 
-        const depthData = depthResponse.data || {};
-        const floorData = floorResponse.data || [];
+        const companyId = company.id;
 
-        // Transform to our format
-        const buy = (depthData.buyMarketDepth || []).slice(0, 5).map(d => ({
+        // 2. Fetch Market Depth
+        let depthData = { marketDepth: { buyMarketDepthList: [], sellMarketDepthList: [] } };
+        try {
+            const depthResponse = await nepseAxios.get(`${BASE_URL}/api/nots/nepse-data/marketdepth/${companyId}`, { headers, timeout: 5000 });
+
+            if (depthResponse.data?.marketDepth) {
+                depthData.marketDepth = depthResponse.data.marketDepth;
+            } else if (depthResponse.data?.buyMarketDepthList || depthResponse.data?.sellMarketDepthList) {
+                depthData.marketDepth = depthResponse.data;
+            } else {
+                logger.warn(`Unrecognized market depth response shape for ${symbol}: ${JSON.stringify(depthResponse.data)}`);
+            }
+        } catch (e) {
+            logger.warn(`Failed to fetch real depth for ${symbol}: ${e.message}`);
+        }
+
+        // 3. Fetch Floorsheet (Gracefully fail if endpoint is changed/unknown)
+        let floorData = [];
+        try {
+            const floorResponse = await nepseAxios.get(`${BASE_URL}/api/nots/floorsheet?companyId=${companyId}`, { headers, timeout: 5000 });
+            floorData = floorResponse.data || [];
+        } catch (e) {
+            logger.debug(`Floorsheet endpoint unavailable for ${symbol}`);
+        }
+
+        // Transform to our standard format
+        const buy = (depthData.marketDepth?.buyMarketDepthList || depthData.buyMarketDepthList || depthData.buyMarketDepth || []).slice(0, 5).map(d => ({
             orders: d.orderCount || d.orders || 0,
             quantity: d.quantity || d.qty || 0,
-            rate: d.rate || d.price || 0
+            rate: d.rate || d.price || d.orderRate || 0
         }));
 
-        const sell = (depthData.sellMarketDepth || []).slice(0, 5).map(d => ({
-            rate: d.rate || d.price || 0,
+        const sell = (depthData.marketDepth?.sellMarketDepthList || depthData.sellMarketDepthList || depthData.sellMarketDepth || []).slice(0, 5).map(d => ({
+            rate: d.rate || d.price || d.orderRate || 0,
             quantity: d.quantity || d.qty || 0,
             orders: d.orderCount || d.orders || 0
         }));
 
-        const floorsheet = (floorData || []).slice(0, 20).map(t => ({
+        const floorsheet = (floorData.floorsheets?.content || floorData || []).slice(0, 20).map(t => ({
             transId: t.contractId || t.transactionId || 0,
             buyerBroker: t.buyerMemberId || t.buyerBroker || 'N/A',
             sellerBroker: t.sellerMemberId || t.sellerBroker || 'N/A',
@@ -140,19 +159,20 @@ async function getDepth(symbol) {
 
     let data;
 
-    // Use mock data in development mode (weekends)
-    if (process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true') {
-        logger.info(`Using MOCK depth data for ${upperSymbol}`);
-        data = generateMockDepth(upperSymbol);
-    } else {
-        try {
-            data = await fetchRealDepth(upperSymbol);
-        } catch (error) {
-            // Fallback to mock on error
-            logger.warn(`Falling back to mock depth for ${upperSymbol}`);
-            data = generateMockDepth(upperSymbol);
-            data.source = 'mock-fallback';
+    // User explicitly requested real data. Attempt to fetch real data first even in development.
+    try {
+        data = await fetchRealDepth(upperSymbol);
+
+        // If the arrays are empty, the market is closed or NEPSE is not processing depth right now.
+        // We will return empty arrays to accurately reflect real data status.
+        if (!data.marketDepth.buy.length && !data.marketDepth.sell.length && !data.floorsheet.length) {
+            logger.info(`Real depth data for ${upperSymbol} returned empty (market closed).`);
+            data.source = 'live-empty';
         }
+    } catch (error) {
+        // Fallback to empty on hard error (e.g. NEPSE offline)
+        logger.warn(`API Error. Falling back to empty object for ${upperSymbol}`);
+        data = { marketDepth: { buy: [], sell: [] }, floorsheet: [], source: 'error-fallback', timestamp: new Date().toISOString() };
     }
 
     // Save to cache
