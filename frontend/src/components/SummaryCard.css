@@ -69,3 +69,21 @@
         font-size: 1.75rem;
     }
 }
+
+/* Turnover Specific */
+.turnover-value {
+    display: flex;
+    align-items: baseline;
+    column-gap: 6px;
+}
+
+.turnover-currency {
+    font-size: 0.6em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.turnover-unit {
+    font-size: 0.6em;
+    color: var(--text-secondary);
+}

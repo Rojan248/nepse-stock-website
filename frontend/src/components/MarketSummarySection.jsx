@@ -13,7 +13,7 @@ function formatTurnoverDisplay(raw) {
 
 /** Market summary cards section */
 export default function MarketSummarySection({ marketSummary, marketStats, statusFilter, onStatusChange }) {
-    const turnoverRaw = marketSummary?.totalTurnover || 0;
+    const turnoverRaw = marketSummary?.totalTurnover ?? 0;
     const turnover = formatTurnoverDisplay(turnoverRaw);
 
     const indexValueDisplay = Number.isFinite(marketSummary?.indexValue)
@@ -25,7 +25,7 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
 
     return (
         <section className="market-overview">
-            <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="section-header" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
                 <h2 className="section-title text-2xl" style={{ margin: 0 }}>Market Summary</h2>
             </div>
             <div className="market-cards">
@@ -37,10 +37,10 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
                 />
                 <div className="summary-card">
                     <div className="summary-label">TURNOVER</div>
-                    <div className="summary-value" style={{ display: 'flex', alignItems: 'baseline', columnGap: '6px' }}>
-                        <span className="currency-symbol" style={{ fontSize: '0.6em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>₹</span>
+                    <div className="summary-value turnover-value">
+                        <span className="currency-symbol turnover-currency">₹</span>
                         <span className="number">{turnover.value}</span>
-                        <span className="unit" style={{ fontSize: '0.6em', color: 'var(--text-secondary)' }}>{turnover.unit}</span>
+                        <span className="unit turnover-unit">{turnover.unit}</span>
                     </div>
                 </div>
                 <SummaryCard

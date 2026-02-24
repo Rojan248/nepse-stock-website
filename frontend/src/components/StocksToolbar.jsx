@@ -6,11 +6,11 @@ export default function StocksToolbar({ stockCount, showFavoritesOnly, setShowFa
     return (
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 section-header">
             <h2 className="text-xl font-bold tracking-tight text-primary section-title">
-                All Stocks <span className="text-stone-400 font-normal ml-1" style={{ fontSize: '0.9em', color: 'var(--text-muted)' }}>({stockCount})</span>
+                All Stocks <span className="font-normal ml-1 text-[color:var(--text-muted)]" style={{ fontSize: '0.9em' }}>({stockCount})</span>
             </h2>
             <div className="flex items-center gap-3 w-full md:w-auto filters">
                 <button
-                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    onClick={() => setShowFavoritesOnly(prev => !prev)}
                     className={`watchlist-btn ${showFavoritesOnly ? 'active' : ''}`}
                     aria-pressed={showFavoritesOnly}
                     aria-label={showFavoritesOnly ? `Showing ${favorites?.length || 0} favorites` : `Show all stocks, ${favorites?.length || 0} favorites available`}
