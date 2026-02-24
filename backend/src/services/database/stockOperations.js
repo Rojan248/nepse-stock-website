@@ -97,7 +97,7 @@ const buildHistoryRecord = (stock, today) => {
 };
 
 /** Categorize a stock into create or update for the daily snapshot */
-const categorizeStockForSnapshot = (stock, today, existingMap, createData, updateOps, tx) => {
+const categorizeStockForSnapshot = ({ stock, today, existingMap, createData, updateOps, tx }) => {
     const record = buildHistoryRecord(stock, today);
     const existing = existingMap.get(stock.symbol);
 
@@ -244,26 +244,31 @@ const getAllSectors = async () => {
     }, [], 'Error getting sectors');
 };
 
-const getTopGainers = async (limit = 10) => {
+/** Helper to fetch top stocks by various criteria */
+const fetchTopStocks = async (extraWhere, orderBy, limit, errorMsg) => {
     return fetchStocksWithMapping({
-        where: {
-            lastTradedPrice: { gt: 0 },
-            percentageChange: { not: null, gt: 0 }
-        },
-        orderBy: { percentageChange: 'desc' },
+        where: { lastTradedPrice: { gt: 0 }, ...extraWhere },
+        orderBy,
         take: limit
-    }, 'Error getting top gainers');
+    }, errorMsg);
+};
+
+const getTopGainers = async (limit = 10) => {
+    return fetchTopStocks(
+        { percentageChange: { not: null, gt: 0 } },
+        { percentageChange: 'desc' },
+        limit,
+        'Error getting top gainers'
+    );
 };
 
 const getTopLosers = async (limit = 10) => {
-    return fetchStocksWithMapping({
-        where: {
-            lastTradedPrice: { gt: 0 },
-            percentageChange: { not: null, lt: 0 }
-        },
-        orderBy: { percentageChange: 'asc' },
-        take: limit
-    }, 'Error getting top losers');
+    return fetchTopStocks(
+        { percentageChange: { not: null, lt: 0 } },
+        { percentageChange: 'asc' },
+        limit,
+        'Error getting top losers'
+    );
 };
 
 const getUnchangedStocks = async (limit = 10) => {
@@ -280,30 +285,20 @@ const getUnchangedStocks = async (limit = 10) => {
 };
 
 const getTopTraded = async (limit = 10) => {
-    return fetchStocksWithMapping({
-        where: { lastTradedPrice: { gt: 0 } },
-        orderBy: [
-            { volume: 'desc' },
-            { turnover: 'desc' }
-        ],
-        take: limit
-    }, 'Error getting top traded stocks');
+    return fetchTopStocks(
+        {},
+        [{ volume: 'desc' }, { turnover: 'desc' }],
+        limit,
+        'Error getting top traded stocks'
+    );
 };
 
 const getTopTurnover = async (limit = 10) => {
-    return fetchStocksWithMapping({
-        where: { lastTradedPrice: { gt: 0 } },
-        orderBy: { turnover: 'desc' },
-        take: limit
-    }, 'Error getting top turnover stocks');
+    return fetchTopStocks({}, { turnover: 'desc' }, limit, 'Error getting top turnover stocks');
 };
 
 const getTopVolume = async (limit = 10) => {
-    return fetchStocksWithMapping({
-        where: { lastTradedPrice: { gt: 0 } },
-        orderBy: { volume: 'desc' },
-        take: limit
-    }, 'Error getting top volume stocks');
+    return fetchTopStocks({}, { volume: 'desc' }, limit, 'Error getting top volume stocks');
 };
 
 const getTopTransactions = async (limit = 10) => {
@@ -443,7 +438,7 @@ const snapshotDailyMarket = async () => {
             const updateOps = [];
 
             for (const stock of stocks) {
-                categorizeStockForSnapshot(stock, today, existingMap, createData, updateOps, tx);
+                categorizeStockForSnapshot({ stock, today, existingMap, createData, updateOps, tx });
             }
 
             if (createData.length > 0) {

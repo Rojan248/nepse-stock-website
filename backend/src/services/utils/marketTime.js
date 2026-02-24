@@ -30,6 +30,38 @@ const MARKET_CLOSE_MINUTE = parseInt(process.env.MARKET_CLOSE_MINUTE) || 0;
 // Track if initial sync has completed
 let initialSyncComplete = false;
 
+const validateAndSetOffset = (accurateUtc, sourceName, silent) => {
+    const systemTime = Date.now();
+    const newOffset = accurateUtc - systemTime;
+
+    if (Math.abs(newOffset) > 60 * 60 * 1000) {
+        if (!silent) logger.warn(`[TimeSync] Large offset detected: ${Math.round(newOffset / 1000)}s. Your system clock may be incorrect.`);
+        if (Math.abs(newOffset) > 24 * 60 * 60 * 1000) {
+            logger.warn(`[TimeSync] Offset too extreme (${Math.round(newOffset / 1000)}s). Ignoring ${sourceName} data.`);
+            return false;
+        }
+    }
+
+    systemClockOffset = newOffset;
+    lastSync = Date.now();
+    cacheTimestamp = Date.now();
+    initialSyncComplete = true;
+    return true;
+};
+
+const tryFetchTimeSource = async (source, silent) => {
+    try {
+        if (!silent) logger.info(`[TimeSync] Attempting to fetch from ${source.name}...`);
+        const start = Date.now();
+        const response = await axios.get(source.url, { timeout: 5000 });
+        const networkLatency = (Date.now() - start) / 2;
+        return { success: true, serverUtcTime: source.parse(response.data), networkLatency };
+    } catch (error) {
+        if (!silent) logger.warn(`[TimeSync] Failed to fetch from ${source.name}: ${error.message}`);
+        return { success: false };
+    }
+};
+
 /**
  * Fetch time from external reliable sources and calculate offset
  * @param {boolean} silent - If true, suppress info logs
@@ -40,22 +72,12 @@ const fetchTimeOffset = async (silent = false) => {
         {
             name: 'WorldTimeAPI-Kathmandu',
             url: 'http://worldtimeapi.org/api/timezone/Asia/Kathmandu',
-            parse: (data) => {
-                // WorldTimeAPI returns utc_datetime which is the accurate UTC time
-                // We use this to calculate offset from system time
-                return new Date(data.utc_datetime).getTime();
-            }
+            parse: (data) => new Date(data.utc_datetime).getTime()
         },
         {
             name: 'TimeAPI-Kathmandu',
             url: 'https://timeapi.io/api/Time/current/zone?timeZone=Asia/Kathmandu',
-            parse: (data) => {
-                // TimeAPI returns dateTime in Nepal time, convert to UTC
-                // The dateTime is in format "2024-12-15T11:45:30" (Nepal time)
-                const nepalTime = new Date(data.dateTime).getTime();
-                // Subtract NST offset to get UTC
-                return nepalTime - NST_OFFSET_MS;
-            }
+            parse: (data) => new Date(data.dateTime).getTime() - NST_OFFSET_MS
         },
         {
             name: 'WorldTimeAPI-UTC',
@@ -65,50 +87,17 @@ const fetchTimeOffset = async (silent = false) => {
     ];
 
     for (const source of sources) {
-        try {
-            if (!silent) {
-                logger.info(`[TimeSync] Attempting to fetch from ${source.name}...`);
-            }
+        const result = await tryFetchTimeSource(source, silent);
+        if (!result.success) continue;
 
-            const start = Date.now();
-            const response = await axios.get(source.url, { timeout: 5000 });
-            const networkLatency = (Date.now() - start) / 2;
-
-            // All sources now return UTC time after parsing
-            const serverUtcTime = source.parse(response.data);
-            const accurateUtc = serverUtcTime + networkLatency;
-            const systemTime = Date.now();
-            const newOffset = accurateUtc - systemTime;
-
-            // Sanity Check: If offset is > 1 hour, likely API error or system clock issue
-            // This is expected if your system clock is significantly wrong
-            if (Math.abs(newOffset) > 60 * 60 * 1000) {
-                // Log but still accept if it's a reasonable timezone difference
-                if (!silent) {
-                    logger.warn(`[TimeSync] Large offset detected: ${Math.round(newOffset / 1000)}s. Your system clock may be incorrect.`);
-                }
-                // Accept offsets up to 24 hours (in case system is set to wrong timezone)
-                if (Math.abs(newOffset) > 24 * 60 * 60 * 1000) {
-                    logger.warn(`[TimeSync] Offset too extreme (${Math.round(newOffset / 1000)}s). Ignoring ${source.name} data.`);
-                    continue;
-                }
-            }
-
-            systemClockOffset = newOffset;
-            lastSync = Date.now();
-            cacheTimestamp = Date.now();
-            initialSyncComplete = true;
-
+        const accurateUtc = result.serverUtcTime + result.networkLatency;
+        if (validateAndSetOffset(accurateUtc, source.name, silent)) {
             if (!silent) {
                 const nepseTime = getNepseTimeComponents();
                 logger.info(`[TimeSync] ✓ Synced with ${source.name}. System clock offset: ${Math.round(systemClockOffset / 1000)}s`);
                 logger.info(`[TimeSync] Current Nepal Time: ${nepseTime.hour}:${String(nepseTime.minute).padStart(2, '0')}:${String(nepseTime.second).padStart(2, '0')} (Day: ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][nepseTime.day]})`);
             }
             return true;
-        } catch (error) {
-            if (!silent) {
-                logger.warn(`[TimeSync] Failed to fetch from ${source.name}: ${error.message}`);
-            }
         }
     }
 
@@ -150,70 +139,67 @@ const ensureTimeSync = async () => {
     });
 };
 
+const getIntlNepalTime = () => {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kathmandu',
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false, weekday: 'short'
+    });
+
+    const parts = formatter.formatToParts(new Date());
+    const getPart = (type) => {
+        const part = parts.find(p => p.type === type);
+        return part ? parseInt(part.value, 10) || part.value : 0;
+    };
+
+    const weekdayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+    const weekdayStr = parts.find(p => p.type === 'weekday')?.value || 'Sun';
+
+    const nstMs = Date.now() + systemClockOffset + NST_OFFSET_MS;
+
+    return {
+        hour: getPart('hour'),
+        minute: getPart('minute'),
+        second: getPart('second'),
+        day: weekdayMap[weekdayStr] ?? 0,
+        date: getPart('day'),
+        month: getPart('month'),
+        year: getPart('year'),
+        timestamp: nstMs
+    };
+};
+
+const getFallbackNepalTime = () => {
+    const correctUtc = Date.now() + systemClockOffset;
+    const nstMs = correctUtc + NST_OFFSET_MS;
+    const nstDate = new Date(nstMs);
+
+    return {
+        hour: nstDate.getUTCHours(),
+        minute: nstDate.getUTCMinutes(),
+        second: nstDate.getUTCSeconds(),
+        day: nstDate.getUTCDay(),
+        date: nstDate.getUTCDate(),
+        month: nstDate.getUTCMonth() + 1,
+        year: nstDate.getUTCFullYear(),
+        timestamp: nstMs
+    };
+};
+
 /**
  * Get current Nepal Standard Time components
- * Uses Intl.DateTimeFormat for accurate timezone conversion
- * Falls back to manual offset calculation if Intl fails
  * @returns {Object} { hour, minute, second, day, date, month, year, timestamp }
  */
 const getNepseTimeComponents = () => {
-    // Trigger background sync if needed (non-blocking)
     if (Date.now() - cacheTimestamp > SYNC_INTERVAL && initialSyncComplete) {
         fetchTimeOffset(true).catch(() => { });
     }
 
-    // Use Intl.DateTimeFormat for accurate Nepal time (reliable fallback)
     try {
-        const now = new Date();
-        const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Asia/Kathmandu',
-            year: 'numeric',
-            month: 'numeric',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: 'numeric',
-            second: 'numeric',
-            hour12: false,
-            weekday: 'short'
-        });
-
-        const parts = formatter.formatToParts(now);
-        const getPart = (type) => {
-            const part = parts.find(p => p.type === type);
-            return part ? parseInt(part.value, 10) || part.value : 0;
-        };
-
-        const weekdayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
-        const weekdayStr = parts.find(p => p.type === 'weekday')?.value || 'Sun';
-
-        const hour = getPart('hour');
-        const minute = getPart('minute');
-        const second = getPart('second');
-        const day = weekdayMap[weekdayStr] ?? 0;
-        const date = getPart('day');
-        const month = getPart('month');
-        const year = getPart('year');
-
-        // Calculate timestamp for Nepal time
-        const nstMs = Date.now() + systemClockOffset + NST_OFFSET_MS;
-
-        return { hour, minute, second, day, date, month, year, timestamp: nstMs };
+        return getIntlNepalTime();
     } catch (e) {
-        // Fallback to manual calculation if Intl fails
-        const correctUtc = Date.now() + systemClockOffset;
-        const nstMs = correctUtc + NST_OFFSET_MS;
-        const nstDate = new Date(nstMs);
-
-        return {
-            hour: nstDate.getUTCHours(),
-            minute: nstDate.getUTCMinutes(),
-            second: nstDate.getUTCSeconds(),
-            day: nstDate.getUTCDay(),
-            date: nstDate.getUTCDate(),
-            month: nstDate.getUTCMonth() + 1,
-            year: nstDate.getUTCFullYear(),
-            timestamp: nstMs
-        };
+        return getFallbackNepalTime();
     }
 };
 

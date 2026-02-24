@@ -22,7 +22,7 @@ function needsCorrection(report, localData) {
 }
 
 /** Add a discrepancy when two metric values differ beyond a threshold % */
-function addDiscrepancyIfMismatch(report, localValue, externalValue, metricName, sourceName, threshold = 1.0) {
+function addDiscrepancyIfMismatch({ report, localValue, externalValue, metricName, sourceName, threshold = 1.0 }) {
     if (!externalValue || !localValue) return;
     const diff = Math.abs(externalValue - localValue);
     const pct = (diff / localValue) * 100;
@@ -119,7 +119,7 @@ class WatchdogService {
             const summary = await prisma.marketSummary.findFirst({
                 orderBy: { timestamp: 'desc' }
             });
-            
+
             if (!summary) return null;
 
             return {
@@ -160,8 +160,8 @@ class WatchdogService {
 
         const m = external.find(e => e.source === 'Merolagani');
         if (m && m.data) {
-            addDiscrepancyIfMismatch(report, local.data.totalTurnover, m.data.totalTurnover, 'Turnover', 'Merolagani');
-            addDiscrepancyIfMismatch(report, local.data.totalTransactions, m.data.totalTransactions, 'Transactions', 'Merolagani');
+            addDiscrepancyIfMismatch({ report, localValue: local.data.totalTurnover, externalValue: m.data.totalTurnover, metricName: 'Turnover', sourceName: 'Merolagani' });
+            addDiscrepancyIfMismatch({ report, localValue: local.data.totalTransactions, externalValue: m.data.totalTransactions, metricName: 'Transactions', sourceName: 'Merolagani' });
         }
 
         return report;
@@ -177,10 +177,10 @@ class WatchdogService {
             } catch (e) {
                 // ignore missing or corrupt file
             }
-            
+
             logs.unshift(report);
             if (logs.length > 50) logs = logs.slice(0, 50);
-            
+
             await fs.promises.writeFile(LOG_FILE, JSON.stringify(logs, null, 2));
         } catch (error) {
             logger.error(`[Watchdog] Failed to save report: ${error.message}`);

@@ -12,6 +12,18 @@ describe('Auth Middleware - requireAdminKey', () => {
     const ORIGINAL_ENV = process.env;
     const logger = require('../../src/services/utils/logger');
 
+    // Helper to reduce code duplication in error scenarios
+    const expectAuthFailure = (statusCode, errorMessage) => {
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(statusCode);
+        if (errorMessage) {
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                success: false,
+                error: { message: errorMessage }
+            }));
+        }
+    };
+
     afterEach(() => {
         jest.clearAllMocks();
     });
@@ -51,12 +63,7 @@ describe('Auth Middleware - requireAdminKey', () => {
 
         requireAdminKey(req, res, next);
 
-        expect(next).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(401);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-            success: false,
-            error: { message: 'Unauthorized: Invalid Admin Key' }
-        }));
+        expectAuthFailure(401, 'Unauthorized: Invalid Admin Key');
         expect(logger.warn).toHaveBeenCalledWith(
             expect.stringContaining('Unauthorized admin access attempt')
         );
@@ -68,8 +75,7 @@ describe('Auth Middleware - requireAdminKey', () => {
 
         requireAdminKey(req, res, next);
 
-        expect(next).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(401);
+        expectAuthFailure(401, 'Unauthorized: Invalid Admin Key');
         expect(logger.warn).toHaveBeenCalled();
     });
 
@@ -79,12 +85,7 @@ describe('Auth Middleware - requireAdminKey', () => {
 
         requireAdminKey(req, res, next);
 
-        expect(next).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-            success: false,
-            error: { message: 'Server configuration error: Admin key not set' }
-        }));
+        expectAuthFailure(500, 'Server configuration error: Admin key not set');
         expect(logger.error).toHaveBeenCalledWith(
             expect.stringContaining('ADMIN_API_KEY is not configured')
         );
