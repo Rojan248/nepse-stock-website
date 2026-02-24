@@ -62,6 +62,18 @@ const tryFetchTimeSource = async (source, silent) => {
     }
 };
 
+const handleSuccessfulSync = (sourceName, accurateUtc, silent) => {
+    if (validateAndSetOffset(accurateUtc, sourceName, silent)) {
+        if (!silent) {
+            const nepseTime = getNepseTimeComponents();
+            logger.info(`[TimeSync] ✓ Synced with ${sourceName}. System clock offset: ${Math.round(systemClockOffset / 1000)}s`);
+            logger.info(`[TimeSync] Current Nepal Time: ${nepseTime.hour}:${String(nepseTime.minute).padStart(2, '0')}:${String(nepseTime.second).padStart(2, '0')} (Day: ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][nepseTime.day]})`);
+        }
+        return true;
+    }
+    return false;
+};
+
 /**
  * Fetch time from external reliable sources and calculate offset
  * @param {boolean} silent - If true, suppress info logs
@@ -88,15 +100,7 @@ const fetchTimeOffset = async (silent = false) => {
 
     for (const source of sources) {
         const result = await tryFetchTimeSource(source, silent);
-        if (!result.success) continue;
-
-        const accurateUtc = result.serverUtcTime + result.networkLatency;
-        if (validateAndSetOffset(accurateUtc, source.name, silent)) {
-            if (!silent) {
-                const nepseTime = getNepseTimeComponents();
-                logger.info(`[TimeSync] ✓ Synced with ${source.name}. System clock offset: ${Math.round(systemClockOffset / 1000)}s`);
-                logger.info(`[TimeSync] Current Nepal Time: ${nepseTime.hour}:${String(nepseTime.minute).padStart(2, '0')}:${String(nepseTime.second).padStart(2, '0')} (Day: ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][nepseTime.day]})`);
-            }
+        if (result.success && handleSuccessfulSync(source.name, result.serverUtcTime + result.networkLatency, silent)) {
             return true;
         }
     }

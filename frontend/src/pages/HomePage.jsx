@@ -10,6 +10,8 @@ import TrendingBar from '../components/TrendingBar';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import SearchBar from '../components/SearchBar';
+import MarketSummarySection from '../components/MarketSummarySection';
+import StocksToolbar from '../components/StocksToolbar';
 import { formatNumber, formatPercent, formatTurnover, getChangeClass } from '../utils/formatting';
 import { ITEMS_PER_PAGE } from '../utils/constants';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -217,97 +219,7 @@ function useFilteredStocks(stocks, filters, currentPage) {
     return { filtered, display, totalPages };
 }
 
-// ==================== Sub-Components ====================
 
-/** Market summary cards section */
-function MarketSummarySection({ marketSummary, marketStats, statusFilter, onStatusChange }) {
-    const turnoverRaw = marketSummary?.totalTurnover || 0;
-    const turnover = formatTurnoverDisplay(turnoverRaw);
-
-    const indexValueDisplay = Number.isFinite(marketSummary?.indexValue)
-        ? marketSummary.indexValue.toFixed(2)
-        : '--';
-    const indexChangePercent = Number.isFinite(marketSummary?.indexChangePercent)
-        ? marketSummary.indexChangePercent
-        : undefined;
-
-    return (
-        <section className="market-overview">
-            <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 className="section-title text-2xl" style={{ margin: 0 }}>Market Summary</h2>
-            </div>
-            <div className="market-cards">
-                <SummaryCard
-                    label="NEPSE Index"
-                    value={indexValueDisplay}
-                    change={indexChangePercent}
-                    valueKey="nepse-index"
-                />
-                <div className="summary-card">
-                    <div className="summary-label">TURNOVER</div>
-                    <div className="summary-value" style={{ display: 'flex', alignItems: 'baseline', columnGap: '6px' }}>
-                        <span className="currency-symbol" style={{ fontSize: '0.6em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Rs</span>
-                        <span className="number">{turnover.value}</span>
-                        <span className="unit" style={{ fontSize: '0.6em', color: 'var(--text-secondary)' }}>{turnover.unit}</span>
-                    </div>
-                </div>
-                <SummaryCard
-                    label="Transactions"
-                    value={formatNumber(marketSummary?.totalTransactions)}
-                    valueKey="transactions"
-                />
-                <SummaryCard
-                    label="Volume"
-                    value={formatNumber(marketSummary?.totalVolume)}
-                    valueKey="volume"
-                />
-            </div>
-            <MarketBreadthCard
-                marketStats={marketStats}
-                statusFilter={statusFilter}
-                onFilterChange={onStatusChange}
-            />
-        </section>
-    );
-}
-
-/** Toolbar with watchlist toggle and sector filter */
-function StocksToolbar({ stockCount, showFavoritesOnly, setShowFavoritesOnly, favorites, sectors, selectedSector, setSelectedSector }) {
-    return (
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 section-header">
-            <h2 className="text-xl font-bold tracking-tight text-primary section-title">
-                All Stocks <span className="text-stone-400 font-normal ml-1" style={{ fontSize: '0.9em', color: 'var(--text-muted)' }}>({stockCount})</span>
-            </h2>
-            <div className="flex items-center gap-3 w-full md:w-auto filters">
-                <button
-                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                    className={`watchlist-btn ${showFavoritesOnly ? 'active' : ''}`}
-                >
-                    <div className="icon-container">
-                        <svg className="star-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                        <svg className="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                    </div>
-                    <span className="btn-label">{showFavoritesOnly ? 'Added' : 'Watchlist'}</span>
-                    {favorites.length > 0 && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${showFavoritesOnly ? 'bg-amber-200 text-amber-900' : 'bg-stone-100 text-stone-500'}`}>
-                            {favorites.length}
-                        </span>
-                    )}
-                </button>
-                <Select
-                    value={selectedSector}
-                    onChange={(e) => setSelectedSector(e.target.value)}
-                    options={[{ label: 'ALL SECTORS', value: 'all' }, ...sectors.map(s => ({ label: s, value: s }))]}
-                    placeholder="ALL SECTORS"
-                />
-            </div>
-        </div>
-    );
-}
 
 // ==================== HomePage ====================
 
