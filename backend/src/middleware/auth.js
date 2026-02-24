@@ -1,5 +1,5 @@
-const logger = require('../services/utils/logger');
 const crypto = require('crypto');
+const logger = require('../services/utils/logger');
 
 /**
  * Admin Authentication Middleware
@@ -20,18 +20,20 @@ const requireAdminKey = (req, res, next) => {
         });
     }
 
-    try {
-        const inputBuffer = Buffer.from(apiKey);
-        const secretBuffer = Buffer.from(configuredKey);
+    // Constant-time comparison to prevent timing attacks
+    // Use SHA-256 hashing to ensure fixed length for timingSafeEqual
+    if (apiKey && typeof apiKey === 'string') {
+        try {
+            const inputHash = crypto.createHash('sha256').update(apiKey).digest();
+            const storedHash = crypto.createHash('sha256').update(configuredKey).digest();
 
-        // Constant-time comparison to prevent timing attacks
-        if (inputBuffer.length === secretBuffer.length &&
-            crypto.timingSafeEqual(inputBuffer, secretBuffer)) {
-            return next();
+            if (crypto.timingSafeEqual(inputHash, storedHash)) {
+                return next();
+            }
+        } catch (error) {
+            // Log error but don't expose details to client
+            logger.error(`Error verifying admin key: ${error.message}`);
         }
-    } catch (error) {
-        // Log error but don't expose details to client
-        logger.error(`Error verifying admin key: ${error.message}`);
     }
 
     logger.warn(`Unauthorized admin access attempt from ${req.ip}`);
