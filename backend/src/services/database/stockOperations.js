@@ -244,8 +244,20 @@ const getAllSectors = async () => {
     }, [], 'Error getting sectors');
 };
 
-/** Helper to fetch top stocks by various criteria */
-const fetchTopStocks = async (extraWhere, orderBy, limit, errorMsg) => {
+/** Map of configurations for fetching top distinct stock categories */
+const TOP_CONFIGS = {
+    gainers: [{ percentageChange: { not: null, gt: 0 } }, { percentageChange: 'desc' }, 'Error getting top gainers'],
+    losers: [{ percentageChange: { not: null, lt: 0 } }, { percentageChange: 'asc' }, 'Error getting top losers'],
+    traded: [{}, [{ volume: 'desc' }, { turnover: 'desc' }], 'Error getting top traded stocks'],
+    turnover: [{}, { turnover: 'desc' }, 'Error getting top turnover stocks'],
+    volume: [{}, { volume: 'desc' }, 'Error getting top volume stocks']
+};
+
+/** Unified helper to fetch top stocks by category */
+const fetchTopByCategory = async (category, limit = 10) => {
+    const config = TOP_CONFIGS[category];
+    if (!config) return [];
+    const [extraWhere, orderBy, errorMsg] = config;
     return fetchStocksWithMapping({
         where: { lastTradedPrice: { gt: 0 }, ...extraWhere },
         orderBy,
@@ -253,23 +265,11 @@ const fetchTopStocks = async (extraWhere, orderBy, limit, errorMsg) => {
     }, errorMsg);
 };
 
-const getTopGainers = async (limit = 10) => {
-    return fetchTopStocks(
-        { percentageChange: { not: null, gt: 0 } },
-        { percentageChange: 'desc' },
-        limit,
-        'Error getting top gainers'
-    );
-};
-
-const getTopLosers = async (limit = 10) => {
-    return fetchTopStocks(
-        { percentageChange: { not: null, lt: 0 } },
-        { percentageChange: 'asc' },
-        limit,
-        'Error getting top losers'
-    );
-};
+const getTopGainers = (limit) => fetchTopByCategory('gainers', limit);
+const getTopLosers = (limit) => fetchTopByCategory('losers', limit);
+const getTopTraded = (limit) => fetchTopByCategory('traded', limit);
+const getTopTurnover = (limit) => fetchTopByCategory('turnover', limit);
+const getTopVolume = (limit) => fetchTopByCategory('volume', limit);
 
 const getUnchangedStocks = async (limit = 10) => {
     return fetchStocksWithMapping({
@@ -282,23 +282,6 @@ const getUnchangedStocks = async (limit = 10) => {
         },
         take: limit
     }, 'Error getting unchanged stocks');
-};
-
-const getTopTraded = async (limit = 10) => {
-    return fetchTopStocks(
-        {},
-        [{ volume: 'desc' }, { turnover: 'desc' }],
-        limit,
-        'Error getting top traded stocks'
-    );
-};
-
-const getTopTurnover = async (limit = 10) => {
-    return fetchTopStocks({}, { turnover: 'desc' }, limit, 'Error getting top turnover stocks');
-};
-
-const getTopVolume = async (limit = 10) => {
-    return fetchTopStocks({}, { volume: 'desc' }, limit, 'Error getting top volume stocks');
 };
 
 const getTopTransactions = async (limit = 10) => {
