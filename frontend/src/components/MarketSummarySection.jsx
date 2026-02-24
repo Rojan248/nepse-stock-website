@@ -38,7 +38,7 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
                 <div className="summary-card">
                     <div className="summary-label">TURNOVER</div>
                     <div className="summary-value" style={{ display: 'flex', alignItems: 'baseline', columnGap: '6px' }}>
-                        <span className="currency-symbol" style={{ fontSize: '0.6em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Rs</span>
+                        <span className="currency-symbol" style={{ fontSize: '0.6em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>₹</span>
                         <span className="number">{turnover.value}</span>
                         <span className="unit" style={{ fontSize: '0.6em', color: 'var(--text-secondary)' }}>{turnover.unit}</span>
                     </div>

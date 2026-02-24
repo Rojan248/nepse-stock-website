@@ -67,7 +67,7 @@ const handleSuccessfulSync = (sourceName, accurateUtc, silent) => {
         if (!silent) {
             const nepseTime = getNepseTimeComponents();
             logger.info(`[TimeSync] ✓ Synced with ${sourceName}. System clock offset: ${Math.round(systemClockOffset / 1000)}s`);
-            logger.info(`[TimeSync] Current Nepal Time: ${nepseTime.hour}:${String(nepseTime.minute).padStart(2, '0')}:${String(nepseTime.second).padStart(2, '0')} (Day: ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][nepseTime.day]})`);
+            logger.info(`[TimeSync] Current Nepal Time: ${String(nepseTime.hour).padStart(2, '0')}:${String(nepseTime.minute).padStart(2, '0')}:${String(nepseTime.second).padStart(2, '0')} (Day: ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][nepseTime.day]})`);
         }
         return true;
     }
