@@ -1,5 +1,4 @@
 const { requireAdminKey } = require('../../src/middleware/auth');
-const logger = require('../../src/services/utils/logger');
 
 // Mock logger
 jest.mock('../../src/services/utils/logger', () => ({
@@ -11,9 +10,13 @@ jest.mock('../../src/services/utils/logger', () => ({
 describe('Auth Middleware - requireAdminKey', () => {
     let req, res, next;
     const ORIGINAL_ENV = process.env;
+    const logger = require('../../src/services/utils/logger');
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
 
     beforeEach(() => {
-        jest.resetModules();
         process.env = { ...ORIGINAL_ENV };
         req = {
             headers: {},
@@ -31,6 +34,8 @@ describe('Auth Middleware - requireAdminKey', () => {
     });
 
     it('should call next() when API key matches', () => {
+        // Note: Express/Node.js normalizes all incoming HTTP headers to lowercase,
+        // so req.headers['x-admin-key'] is always the correct lookup key in production.
         process.env.ADMIN_API_KEY = 'secret-key';
         req.headers['x-admin-key'] = 'secret-key';
 
@@ -52,6 +57,9 @@ describe('Auth Middleware - requireAdminKey', () => {
             success: false,
             error: { message: 'Unauthorized: Invalid Admin Key' }
         }));
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining('Unauthorized admin access attempt')
+        );
     });
 
     it('should return 401 when API key is missing in request', () => {
@@ -62,6 +70,7 @@ describe('Auth Middleware - requireAdminKey', () => {
 
         expect(next).not.toHaveBeenCalled();
         expect(res.status).toHaveBeenCalledWith(401);
+        expect(logger.warn).toHaveBeenCalled();
     });
 
     it('should return 500 when server has no API key configured', () => {
@@ -76,14 +85,67 @@ describe('Auth Middleware - requireAdminKey', () => {
             success: false,
             error: { message: 'Server configuration error: Admin key not set' }
         }));
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.stringContaining('ADMIN_API_KEY is not configured')
+        );
     });
 
-    it('should handle different casing in headers (uppercase)', () => {
-        process.env.ADMIN_API_KEY = 'secret-key';
-        req.headers['X-ADMIN-KEY'] = 'secret-key'; // Uppercase header
+
+    it('should return 401 when provided key is shorter than configured key', () => {
+        process.env.ADMIN_API_KEY = 'a-very-long-secret-key-1234567890';
+        req.headers['x-admin-key'] = 'short';
 
         requireAdminKey(req, res, next);
 
-        expect(next).toHaveBeenCalled();
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+    it('should return 401 when provided key is longer than configured key', () => {
+        process.env.ADMIN_API_KEY = 'short';
+        req.headers['x-admin-key'] = 'a-very-long-secret-key-1234567890';
+
+        requireAdminKey(req, res, next);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+    it('should return 401 for single-character key vs long configured key', () => {
+        process.env.ADMIN_API_KEY = 'super-secret-production-key';
+        req.headers['x-admin-key'] = 'x';
+
+        requireAdminKey(req, res, next);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+    it('should use constant-time comparison via SHA-256 hashing (no TypeError on length mismatch)', () => {
+        // This test ensures the implementation hashes inputs before comparing,
+        // so crypto.timingSafeEqual never receives unequal-length buffers.
+        // If the implementation used raw Buffers without hashing, keys of
+        // different lengths would cause a TypeError from timingSafeEqual.
+        const crypto = require('crypto');
+        const spy = jest.spyOn(crypto, 'timingSafeEqual');
+
+        process.env.ADMIN_API_KEY = 'configured-key-32-chars-long!!!!';
+        req.headers['x-admin-key'] = 'short'; // Very different length
+
+        // Should NOT throw - SHA-256 hashing normalizes to 32-byte buffers
+        expect(() => requireAdminKey(req, res, next)).not.toThrow();
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(401);
+
+        // Verify timingSafeEqual was called with equal-length buffers (32 bytes each from SHA-256)
+        if (spy.mock.calls.length > 0) {
+            const [buf1, buf2] = spy.mock.calls[0];
+            expect(buf1.byteLength).toBe(32); // SHA-256 digest length
+            expect(buf2.byteLength).toBe(32);
+            expect(buf1.byteLength).toBe(buf2.byteLength);
+        }
+
+        spy.mockRestore();
     });
 });

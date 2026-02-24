@@ -7,7 +7,7 @@ const logger = require('../services/utils/logger');
  */
 const requireAdminKey = (req, res, next) => {
     // Get key from headers (support various casing conventions)
-    const apiKey = (req.headers['x-admin-key'] || req.headers['X-ADMIN-KEY'] || '').toString();
+    const apiKey = (req.headers['x-admin-key'] || '').toString();
     const configuredKey = (process.env.ADMIN_API_KEY || '').toString();
 
     // If no key is configured on the server, BLOCK ALL ACCESS for safety

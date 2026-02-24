@@ -1,5 +1,11 @@
 const request = require('supertest');
 const express = require('express');
+
+// Set ADMIN_API_KEY before requiring the router so the auth middleware
+// has access to it regardless of when it reads process.env
+const ADMIN_KEY = 'test-admin-key';
+process.env.ADMIN_API_KEY = ADMIN_KEY;
+
 const watchdogRouter = require('../src/routes/watchdog');
 const { errorHandler } = require('../src/middleware/errorHandler');
 
