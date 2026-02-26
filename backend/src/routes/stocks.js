@@ -55,6 +55,13 @@ router.get('/search', searchLimiter, asyncHandler(async (req, res) => {
         });
     }
 
+    if (q.length > 50) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Search query too long' }
+        });
+    }
+
     const stocks = await stockOperations.searchStocks(q);
 
     // Record search for analytics
@@ -195,8 +202,8 @@ router.get('/recent', asyncHandler(async (req, res) => {
 router.get('/:symbol', asyncHandler(async (req, res) => {
     const { symbol } = req.params;
 
-    // Validate symbol format (alphanumeric only)
-    if (!/^[a-zA-Z0-9]+$/.test(symbol)) {
+    // Validate symbol format (alphanumeric only, max 20 chars)
+    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
         return res.status(400).json({
             success: false,
             error: { message: 'Invalid symbol format' }
