@@ -11,6 +11,7 @@ const LOG_FILE = path.join(__dirname, '../../logs/watchdog_verification.json');
 
 /**
  * Trigger a manual verification
+ * Protected by Admin Key and Rate Limiter
  */
 router.post('/verify', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     const report = await watchdogService.verify();
@@ -22,6 +23,7 @@ router.post('/verify', adminLimiter, requireAdminKey, asyncHandler(async (req, r
 
 /**
  * Get latest verification reports
+ * Protected by Admin Key and Rate Limiter (same middleware stack as /verify)
  */
 router.get('/reports', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     try {

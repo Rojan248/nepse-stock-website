@@ -27,6 +27,14 @@ function MarketDepth({ symbol, data, loading }) {
 
     const { buy, sell } = data.marketDepth;
 
+    if (buy.length === 0 && sell.length === 0) {
+        return (
+            <div className="depth-empty">
+                <span>Market is currently closed or no orders available</span>
+            </div>
+        );
+    }
+
     // Calculate max quantities for volume bars
     const maxBuyQty = Math.max(...buy.map(b => b.quantity), 1);
     const maxSellQty = Math.max(...sell.map(s => s.quantity), 1);
@@ -35,7 +43,7 @@ function MarketDepth({ symbol, data, loading }) {
         <div className="market-depth">
             <div className="depth-header">
                 <span className="depth-title">Order Book</span>
-                <span className="depth-source">{data.source === 'mock' ? '(Demo Data)' : '(Live)'}</span>
+                <span className="depth-source">{data?.source === 'mock' ? '(Demo Data)' : '(Live)'}</span>
             </div>
 
             <div className="depth-container">

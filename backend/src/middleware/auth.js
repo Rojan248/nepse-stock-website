@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const logger = require('../services/utils/logger');
 
 /**
@@ -6,8 +7,8 @@ const logger = require('../services/utils/logger');
  */
 const requireAdminKey = (req, res, next) => {
     // Get key from headers (support various casing conventions)
-    const apiKey = req.headers['x-admin-key'] || req.headers['X-ADMIN-KEY'];
-    const configuredKey = process.env.ADMIN_API_KEY;
+    const apiKey = (req.headers['x-admin-key'] || '').toString();
+    const configuredKey = (process.env.ADMIN_API_KEY || '').toString();
 
     // If no key is configured on the server, BLOCK ALL ACCESS for safety
     // This forces the developer to set up the key
@@ -19,9 +20,20 @@ const requireAdminKey = (req, res, next) => {
         });
     }
 
-    // Constant-time comparison to prevent timing attacks (simple string match is usually fine here, but explicit is better)
-    if (apiKey === configuredKey) {
-        return next();
+    // Constant-time comparison to prevent timing attacks
+    // Use SHA-256 hashing to ensure fixed length for timingSafeEqual
+    if (apiKey && typeof apiKey === 'string') {
+        try {
+            const inputHash = crypto.createHash('sha256').update(apiKey).digest();
+            const storedHash = crypto.createHash('sha256').update(configuredKey).digest();
+
+            if (crypto.timingSafeEqual(inputHash, storedHash)) {
+                return next();
+            }
+        } catch (error) {
+            // Log error but don't expose details to client
+            logger.error(`Error verifying admin key: ${error.message}`);
+        }
     }
 
     logger.warn(`Unauthorized admin access attempt from ${req.ip}`);

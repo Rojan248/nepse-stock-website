@@ -6,7 +6,7 @@ import { useStocks } from '../hooks/useStocks';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import { MarketDepth, Floorsheet } from '../components/depth';
+import { MarketDepth } from '../components/depth';
 import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass } from '../utils/formatting';
 import './StockDetailPage.css';
 
@@ -51,7 +51,7 @@ function formatChangeDisplay(change, changePercent) {
 
 /** Check if depth data needs to be loaded */
 function needsDepthFetch(activeTab, depthData, symbol) {
-    const isDepthTab = activeTab === 'depth' || activeTab === 'floorsheet';
+    const isDepthTab = activeTab === 'depth';
     return isDepthTab && !depthData && !!symbol;
 }
 
@@ -60,7 +60,6 @@ function needsDepthFetch(activeTab, depthData, symbol) {
 const TABS = [
     { key: 'overview', label: 'Overview' },
     { key: 'depth', label: 'Market Depth' },
-    { key: 'floorsheet', label: 'Floorsheet' },
 ];
 
 // ==================== Sub-Components ====================
@@ -206,11 +205,7 @@ function TabContent({ activeTab, p, relatedStocks, sector, navigate, symbol, dep
             </div>
         );
     }
-    return (
-        <div className="sdp-animate-fade-in">
-            <Floorsheet symbol={symbol} data={depthData} loading={depthLoading} />
-        </div>
-    );
+    return null;
 }
 
 // ==================== Custom Hooks ====================
