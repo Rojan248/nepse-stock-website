@@ -6,6 +6,7 @@ const customScraper = require('./scrapers/customScraper');
 const mockFetcher = require('./scrapers/mockFetcher');
 const logger = require('./utils/logger');
 const NEPSE_STOCKS = require('../data/nepseStocks');
+const { isEquitySecurity } = require('./utils/securityFilters');
 
 // Import consolidated enrichment functions from dataEnricher
 const {
@@ -475,6 +476,18 @@ const handleFetchSuccess = async (data, source) => {
         } catch (e) {
             logger.debug(`Failed to load DB fallback summary in fetch success: ${e.message}`);
             data.marketSummary = {};
+        }
+    }
+    // ── Centralized equity filter ──────────────────────────────────
+    // The library fetcher already filters internally, but proxy and
+    // custom scrapers may return mutual funds, bonds, debentures, etc.
+    // Strip them here so every code-path is safe.
+    if (Array.isArray(data.stocks)) {
+        const before = data.stocks.length;
+        data.stocks = data.stocks.filter(s => isEquitySecurity(s));
+        const removed = before - data.stocks.length;
+        if (removed > 0) {
+            logger.info(`handleFetchSuccess: Filtered out ${removed} non-equity securities (${before} → ${data.stocks.length})`);
         }
     }
     await enrichAndFinalize(data, fetchLiveMarketMeta);

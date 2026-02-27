@@ -246,9 +246,12 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
 
         // Identify missing stocks (Active in Company List but not in Trade Stat)
         const tradedSymbols = new Set(mergedSecurities.map(s => s.symbol));
-        const missingCompanies = companyList.filter(c => c.status === 'A' && !tradedSymbols.has(c.symbol));
+        // Filter out non-equity shares BEFORE fetching details to save requests and avoid errors
+        const missingCompanies = companyList
+            .filter(c => c.status === 'A' && !tradedSymbols.has(c.symbol))
+            .filter(c => isEquitySecurityFn(c)); // PRE-FILTER!
 
-        logger.info(`Found ${missingCompanies.length} active stocks missing from trade report. Fetching details...`);
+        logger.info(`Found ${missingCompanies.length} active EQUITY stocks missing from trade report. Fetching details...`);
 
         // Fetch details for missing stocks in batches
         const missingSecurities = await fetchMissingSecuritiesFn(missingCompanies, token);

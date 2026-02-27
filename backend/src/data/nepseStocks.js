@@ -119,11 +119,12 @@ const NEPSE_STOCKS = [
     { symbol: 'NGPL', name: 'Ngadi Group Power Ltd.', sector: 'Hydro Power', base: 310 },
     { symbol: 'NKJCL', name: 'Nangkholang Kirat Urja Company Ltd.', sector: 'Hydro Power', base: 168 },
     { symbol: 'NYADI', name: 'Nyadi Hydropower Limited', sector: 'Hydro Power', base: 175 },
+    { symbol: 'PHCL', name: 'Peoples Hydropower Company Limited', sector: 'Hydro Power', base: 185 },
     { symbol: 'PHLBSL', name: 'Panchamrit Hydropower Limited', sector: 'Hydro Power', base: 182 },
-    { symbol: 'PMHPL', name: 'Peoples Hydropower Company Limited', sector: 'Hydro Power', base: 185 },
+    { symbol: 'PMHPL', name: 'Panchakanya Mai Hydropower Ltd', sector: 'Hydro Power', base: 185 },
     { symbol: 'PPC', name: 'Panchthar Power Company Limited', sector: 'Hydro Power', base: 255 },
-    { symbol: 'PPL', name: 'Pushpalal Power Limited', sector: 'Hydro Power', base: 175 },
-    { symbol: 'PPCL', name: 'Peoples Power Company Limited', sector: 'Hydro Power', base: 188 },
+    { symbol: 'PPL', name: 'People\'s Power Limited', sector: 'Hydro Power', base: 175 },
+    { symbol: 'PPCL', name: 'Panchthar Power Company Limited', sector: 'Hydro Power', base: 188 },
     { symbol: 'RADHI', name: 'Radhi Bidyut Company Ltd.', sector: 'Hydro Power', base: 250 },
     { symbol: 'RHGCL', name: 'Rasuwagadhi Hydropower Co Ltd.', sector: 'Hydro Power', base: 175 },
     { symbol: 'RHPC', name: 'Rairang Hydropower Development Co. Ltd.', sector: 'Hydro Power', base: 290 },
@@ -244,7 +245,6 @@ const NEPSE_STOCKS = [
     { symbol: 'NMFBS', name: 'National Microfinance Bittiya Sanstha Limited', sector: 'Microfinance', base: 820 },
     { symbol: 'NSLB', name: 'Nagbeli Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 610 },
     { symbol: 'NUBL', name: 'Nirdhan Utthan Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 1280 },
-    { symbol: 'PHCL', name: 'Purnima Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 590 },
     { symbol: 'RMDC', name: 'RMDC Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 850 },
     { symbol: 'RSDC', name: 'RSDC Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 680 },
     { symbol: 'SABSL', name: 'Samata Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 590 },
@@ -268,45 +268,9 @@ const NEPSE_STOCKS = [
     { symbol: 'WNLB', name: 'Western Nepal Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 595 },
 
     // ============================================
-    // MUTUAL FUNDS (30+ schemes)
+    // MUTUAL FUNDS (REMOVED)
     // ============================================
-    { symbol: 'CMF1', name: 'Citizens Mutual Fund-1', sector: 'Mutual Fund', base: 12.5 },
-    { symbol: 'CMF2', name: 'Citizens Mutual Fund-2', sector: 'Mutual Fund', base: 11.8 },
-    { symbol: 'CMBF', name: 'Civil Bank Money Plus Fund', sector: 'Mutual Fund', base: 10.2 },
-    { symbol: 'GIMES1', name: 'Global IME Samunnat Scheme-1', sector: 'Mutual Fund', base: 12.1 },
-    { symbol: 'HIDCLP', name: 'HIDCL Mutual Fund', sector: 'Mutual Fund', base: 10.8 },
-    { symbol: 'KEF', name: 'Kumari Equity Fund', sector: 'Mutual Fund', base: 11.2 },
-    { symbol: 'LEMF', name: 'Laxmi Equity Fund', sector: 'Mutual Fund', base: 13.5 },
-    { symbol: 'LUK', name: 'Laxmi Unnati Kosh', sector: 'Mutual Fund', base: 10.9 },
-    { symbol: 'LVF1', name: 'Laxmi Value Fund-1', sector: 'Mutual Fund', base: 12.8 },
-    { symbol: 'LVF2', name: 'Laxmi Value Fund-2', sector: 'Mutual Fund', base: 10.5 },
-    { symbol: 'MBKJC', name: 'MBL Money Plus Fund', sector: 'Mutual Fund', base: 10.3 },
-    { symbol: 'MEF', name: 'Mahila Equity Fund', sector: 'Mutual Fund', base: 10.1 },
-    { symbol: 'MHEF', name: 'Megha Hydropower Equity Fund', sector: 'Mutual Fund', base: 10.2 },
-    { symbol: 'NBB', name: 'Nabil Balanced Fund-3', sector: 'Mutual Fund', base: 10.8 },
-    { symbol: 'NBF2', name: 'Nabil Balanced Fund-2', sector: 'Mutual Fund', base: 14.2 },
-    { symbol: 'NBF3', name: 'Nabil Balanced Fund-3', sector: 'Mutual Fund', base: 11.5 },
-    { symbol: 'NEF', name: 'Nabil Equity Fund', sector: 'Mutual Fund', base: 13.8 },
-    { symbol: 'NIBLGF', name: 'NIBL Growth Fund', sector: 'Mutual Fund', base: 12.5 },
-    { symbol: 'NIBLPF', name: 'NIBL Pragati Fund', sector: 'Mutual Fund', base: 11.8 },
-    { symbol: 'NIBSF1', name: 'NIBL Samriddhi Fund-1', sector: 'Mutual Fund', base: 13.2 },
-    { symbol: 'NIBSF2', name: 'NIBL Samriddhi Fund-2', sector: 'Mutual Fund', base: 10.5 },
-    { symbol: 'NICBF', name: 'NIC Asia Balance Fund', sector: 'Mutual Fund', base: 11.2 },
-    { symbol: 'NICGF', name: 'NIC Asia Growth Fund', sector: 'Mutual Fund', base: 14.5 },
-    { symbol: 'NICSF', name: 'NIC Asia Select-30 Index Fund', sector: 'Mutual Fund', base: 10.8 },
-    { symbol: 'NMB50', name: 'NMB 50 Fund', sector: 'Mutual Fund', base: 12.8 },
-    { symbol: 'NMBHF1', name: 'NMB Hybrid Fund L-1', sector: 'Mutual Fund', base: 11.5 },
-    { symbol: 'NMBSF1', name: 'NMB Saral Bachat Fund-E', sector: 'Mutual Fund', base: 10.8 },
-    { symbol: 'PBMF', name: 'Prabhu Mutual Fund', sector: 'Mutual Fund', base: 10.5 },
-    { symbol: 'PSF', name: 'Prabhu Select Fund', sector: 'Mutual Fund', base: 11.2 },
-    { symbol: 'SAEF', name: 'Sanima Equity Fund', sector: 'Mutual Fund', base: 13.5 },
-    { symbol: 'SBCF', name: 'Siddhartha City Fund', sector: 'Mutual Fund', base: 12.8 },
-    { symbol: 'SEF', name: 'Sanima Equity Fund', sector: 'Mutual Fund', base: 10.8 },
-    { symbol: 'SFMF', name: 'Sunrise First Mutual Fund', sector: 'Mutual Fund', base: 10.2 },
-    { symbol: 'SIGS1', name: 'Siddhartha Investment Growth Scheme-1', sector: 'Mutual Fund', base: 10.5 },
-    { symbol: 'SIGS2', name: 'Siddhartha Investment Growth Scheme-2', sector: 'Mutual Fund', base: 11.8 },
-    { symbol: 'SIGS3', name: 'Siddhartha Investment Growth Scheme-3', sector: 'Mutual Fund', base: 10.3 },
-    { symbol: 'SLCF', name: 'Sunrise First Mutual Fund', sector: 'Mutual Fund', base: 10.5 },
+    // Non-equity instruments are dynamically filtered out. Do not hardcode them here.
 
     // ============================================
     // MANUFACTURING AND PROCESSING (7 companies)
@@ -346,17 +310,9 @@ const NEPSE_STOCKS = [
     { symbol: 'NVG', name: 'Nerude Laghubitta Bittiya Sanstha Limited', sector: 'Others', base: 175 },
 
     // ============================================
-    // PROMOTER SHARES / PREFERRED / DEBENTURES
+    // PROMOTER SHARES / PREFERRED / DEBENTURES (REMOVED)
     // ============================================
-    { symbol: 'NABILD82', name: 'Nabil Bank Debenture 2082', sector: 'Corporate Debenture', base: 1000 },
-    { symbol: 'SBLD83', name: 'Siddhartha Bank Debenture 2083', sector: 'Corporate Debenture', base: 1000 },
-    { symbol: 'NIBD84', name: 'Nepal Investment Bank Debenture 2084', sector: 'Corporate Debenture', base: 1000 },
-    { symbol: 'NICAD8384', name: 'NIC Asia Bank Debenture 2083/84', sector: 'Corporate Debenture', base: 1000 },
-    { symbol: 'SBLD84', name: 'Siddhartha Bank Debenture 2084', sector: 'Corporate Debenture', base: 1000 },
-    { symbol: 'NBLD85', name: 'Nabil Bank Debenture 2085', sector: 'Corporate Debenture', base: 1000 },
-    { symbol: 'GBILD86', name: 'Global IME Bank Debenture 2086', sector: 'Corporate Debenture', base: 1000 },
-    { symbol: 'HNBPO', name: 'Himalayan Bank Promoter Share', sector: 'Promoter Share', base: 100 },
-    { symbol: 'NBPO', name: 'Nabil Bank Promoter Share', sector: 'Promoter Share', base: 100 },
+    // Non-equity instruments are dynamically filtered out. Do not hardcode them here.
 
     // ============================================
     // ADDITIONAL MISSING STOCKS (29 more to reach 326)

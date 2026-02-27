@@ -10,16 +10,45 @@ const EQUITY_TYPES = ['equity', 'ordinary share'];
 const ACTIVE_STATUSES = ['A', 'Active'];
 const FUND_KEYWORDS = ['fund', 'scheme', 'yojana', 'kosh', 'units'];
 const POWER_KEYWORDS = ['pariyojana', 'project', 'hydro', 'hydropower', 'jalvidhyut', 'jalbidhyut', 'koshi'];
-const MF_SUFFIXES = ['MF', 'LBS', 'LBSL'];
 const NON_EQUITY_NAME_KEYWORDS = ['debenture', 'bond', 'promoter'];
-const FUND_SYMBOL_PATTERN = /^[A-Z]{2,5}F\d*$/;
+
+// Symbol-suffix patterns that indicate non-equity instruments
 const NON_EQUITY_SYMBOL_PATTERNS = [
-    /[BD]\d{2,4}$/,
-    /EB\d{2}$/,
-    /\d{2}[_/]\d{2}/,
-    /SY$/,
-    /SF$/,
+    /[BD]\d{2,4}$/,       // bonds/debentures like ADBLD83, BOKD86
+    /EB\d{2}$/,           // e.g. EBLD91
+    /\d{2}[_/]\d{2}/,     // e.g. NICAD85/86, GBILD86/87
+    /SY\d*$/,             // e.g. CSY, GSY, KSY, RSY, GBIMESY2
+    /SF$/,                // e.g. various SF-suffix
+    /MF\d+$/,             // e.g. CMF2, MMF1 (MF + digits, not bare MF ending)
+    /ED$/,                // e.g. NIFRAGED
 ];
+
+// Regex for fund-style symbols: 2-5 uppercase letters followed by F and optional digits
+const FUND_SYMBOL_PATTERN = /^[A-Z]{2,5}F\d*$/;
+
+// Fund suffixes that legitimate equity companies may use — exclude these from fund check
+const SAFE_FUND_SUFFIXES = ['LBSL', 'LBS'];
+
+// Known non-equity symbols that don't follow any predictable regex pattern.
+// These are mutual funds, debentures, promoter shares, or preferred stock
+// whose symbols resemble ordinary equities.
+const NON_EQUITY_BLACKLIST = new Set([
+    // Mutual funds with tricky symbols
+    'LUK', 'KDBY', 'NICFC', 'H8020', 'NIBLSTF', 'NMB50',
+    'SIGS1', 'SIGS2', 'SIGS3', 'SFMF', 'C30MF',
+    // Promoter / preferred shares
+    'GBIMEP', 'HEIP', 'HIDCLP', 'NIMBPO', 'RBCLPO', 'SNMAPO', 'MLBLPO',
+    'HNBPO', 'NBPO',
+    // Debentures with unusual patterns
+    'SCBD', 'PBD85', 'PBD88',
+    // Misc non-equity
+    'HLICF', 'EMLBF',
+]);
+
+// Known equity symbols that might falsely trigger the fund/debenture regex (like NMBMF, SWMF)
+const EQUITY_WHITELIST = new Set([
+    'NMBMF', 'SWMF'
+]);
 
 // ── Predicate Helpers ───────────────────────────────────────────────
 
@@ -43,10 +72,10 @@ const isFundByName = (name) =>
     FUND_KEYWORDS.some(k => name.includes(k))
     && !POWER_KEYWORDS.some(k => name.includes(k));
 
-/** True when symbol looks like a fund code (e.g. ABCF1) excluding known suffixes */
+/** True when symbol looks like a fund code (e.g. ABCF1) excluding known safe suffixes */
 const isFundBySymbol = (symbol) =>
     FUND_SYMBOL_PATTERN.test(symbol)
-    && !MF_SUFFIXES.some(s => symbol.endsWith(s));
+    && !SAFE_FUND_SUFFIXES.some(s => symbol.endsWith(s));
 
 /** True when symbol matches a non-equity regex pattern or ends with PO */
 const hasNonEquitySymbol = (symbol) =>
@@ -70,6 +99,8 @@ const isEquitySecurity = (security) => {
     const instrumentType = (security.instrumentType || '').toLowerCase();
     const instrumentName = (security.instrumentName || '').toLowerCase();
 
+    if (EQUITY_WHITELIST.has(symbol)) return true;
+    if (NON_EQUITY_BLACKLIST.has(symbol)) return false;
     if (isNonEquityType(instrumentType)) return false;
     if (isInactiveStatus(security.status)) return false;
     if (isExcludedSector(sectorId, sector)) return false;
