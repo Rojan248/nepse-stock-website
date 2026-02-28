@@ -182,7 +182,11 @@ const resolveNEPSE52Week = (item) => ({
  */
 const transformNEPSEStock = (item) => ({
     ...resolveNEPSEIdentity(item),
-    prices: resolveNEPSEPrices(item),
+    prices: { ...resolveNEPSEPrices(item) },
+    lastTradedPrice: resolveNEPSEPrices(item).ltp,
+    previousClose: resolveNEPSEPrices(item).previousClose,
+    percentageChange: resolveNEPSEPrices(item).changePercent,
+    change: resolveNEPSEPrices(item).change,
     trading: resolveNEPSETrading(item),
     fiftyTwoWeek: resolveNEPSE52Week(item),
     lastUpdated: new Date().toISOString()
@@ -202,6 +206,10 @@ const transformMerolaganiStock = (item) => ({
         change: resolveFloat(item, ['c']),
         changePercent: resolveFloat(item, ['cp'])
     },
+    lastTradedPrice: resolveFloat(item, ['l', 'ltp']),
+    previousClose: resolveFloat(item, ['pc']),
+    percentageChange: resolveFloat(item, ['cp']),
+    change: resolveFloat(item, ['c']),
     trading: {
         volume: resolveInt(item, ['v']),
         turnover: resolveFloat(item, ['t']),
@@ -282,6 +290,10 @@ const generateSimulatedData = () => {
                 change: change,
                 changePercent: changePercent
             },
+            lastTradedPrice: ltp,
+            previousClose: previousClose,
+            percentageChange: changePercent,
+            change: change,
             trading: {
                 volume: volume,
                 turnover: turnover,
