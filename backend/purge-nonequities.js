@@ -2,17 +2,33 @@ require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { isEquitySecurity } = require('./src/services/utils/securityFilters');
+const readline = require('readline');
+
+async function askConfirmation(question) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    return new Promise(resolve => {
+        rl.question(question, (answer) => {
+            rl.close();
+            resolve(answer.toLowerCase());
+        });
+    });
+}
 
 async function cleanDB() {
-    console.log('--- STARTING DB CLEANUP ---');
+    const isDryRun = process.argv.includes('--dry-run');
+    console.log(`--- STARTING DB CLEANUP ${isDryRun ? '(DRY RUN)' : ''} ---`);
+
     try {
         const allStocks = await prisma.stock.findMany();
-        let deletedCount = 0;
+        const candidates = [];
 
         console.log(`Analyzing ${allStocks.length} stocks currently in the database...`);
 
         for (const stock of allStocks) {
-            // Apply our new strict filters
+            // Apply our strict filters
             const isEquity = isEquitySecurity({
                 symbol: stock.symbol,
                 companyName: stock.companyName,
@@ -20,10 +36,37 @@ async function cleanDB() {
             });
 
             if (!isEquity) {
-                console.log(`[DELETING] Non-equity found: ${stock.symbol} (${stock.sector}) - ${stock.companyName}`);
-                await prisma.stock.delete({ where: { id: stock.id } });
-                deletedCount++;
+                candidates.push(stock);
             }
+        }
+
+        console.log(`\nFound ${candidates.length} non-equity stocks out of ${allStocks.length}.`);
+        if (candidates.length === 0) {
+            console.log('Nothing to clean up.');
+            return;
+        }
+
+        console.log('\nCandidates for deletion:');
+        candidates.forEach(stock => {
+            console.log(` - ${stock.symbol} (${stock.sector}) - ${stock.companyName}`);
+        });
+
+        if (isDryRun) {
+            console.log('\n[DRY RUN] Skipping deletions. Run without --dry-run to delete.');
+            return;
+        }
+
+        const answer = await askConfirmation('\nProceed with deletion? (y/N): ');
+        if (answer !== 'y' && answer !== 'yes') {
+            console.log('Aborted.');
+            return;
+        }
+
+        let deletedCount = 0;
+        for (const stock of candidates) {
+            console.log(`[DELETING] ${stock.symbol}...`);
+            await prisma.stock.delete({ where: { id: stock.id } });
+            deletedCount++;
         }
 
         console.log(`\nCleanup Complete! Deleted ${deletedCount} non-equity stocks.`);
