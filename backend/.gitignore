@@ -23,3 +23,6 @@ scripts/debug_*.js
 scripts/patch_*.js
 scripts/check_*.js
 scripts/fix-*.js
+
+# HTML Artifacts
+/*.html
