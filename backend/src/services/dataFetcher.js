@@ -253,70 +253,7 @@ function parseNepseIndex(indexData, result) {
     result.indexChangePercent = parseFloat(nepseIdx.perChange) || null;
 }
 
-/** Candidate field names for percentage change */
-const CHANGE_FIELDS = ['percentageChange', 'percentChange', 'perChange', 'changePercent', 'change_percentage'];
 
-/** Candidate field names for last traded price */
-const LTP_FIELDS = ['lastTradedPrice', 'ltp', 'closePrice'];
-
-/** Candidate field names for previous close */
-const PREV_FIELDS = ['previousClose', 'previousClosingPrice', 'prevClose', 'previous_close'];
-
-/** Resolve first finite numeric value from candidate fields */
-function resolveFirstFinite(obj, fields) {
-    for (const f of fields) {
-        const v = parseFloat(obj[f]);
-        if (Number.isFinite(v)) return v;
-    }
-    return undefined;
-}
-
-/** Compute change % from LTP and previous close */
-function computeFromPrices(sec) {
-    const ltp = parsePrice(resolveFirstFinite(sec, LTP_FIELDS) || 0);
-    const prev = parsePrice(resolveFirstFinite(sec, PREV_FIELDS) || 0);
-    return (ltp && prev) ? ((ltp - prev) / prev) * 100 : undefined;
-}
-
-/** Resolve the percentage change for a single security */
-function resolveSecurityChange(sec) {
-    return resolveFirstFinite(sec, CHANGE_FIELDS) ?? computeFromPrices(sec);
-}
-
-/** Classify a change value into advanced/declined/unchanged bucket */
-function classifyChange(change) {
-    if (!Number.isFinite(change)) return 'unchanged';
-    if (change > 0) return 'advanced';
-    if (change < 0) return 'declined';
-    return 'unchanged';
-}
-
-/** Extract uppercase symbol from a security record */
-function resolveSymbol(sec) {
-    return (sec.symbol || sec.securitySymbol || '').toUpperCase();
-}
-
-/** Check if a symbol is a known equity and hasn't been counted yet */
-function isNewKnownEquity(symbol, seen) {
-    return symbol && !seen.has(symbol) && stockInfoMap.has(symbol);
-}
-
-/** Compute market breadth from securities array */
-function computeSecurityBreadth(securities) {
-    if (!Array.isArray(securities)) return null;
-
-    const counts = { advanced: 0, declined: 0, unchanged: 0 };
-    const seen = new Set();
-
-    for (const sec of securities) {
-        const symbol = resolveSymbol(sec);
-        if (!isNewKnownEquity(symbol, seen)) continue;
-        seen.add(symbol);
-        counts[classifyChange(resolveSecurityChange(sec))]++;
-    }
-
-    return { ...counts, totalScripsTraded: seen.size };
-}
 
 // ==================== Main scraper ====================
 
@@ -355,21 +292,6 @@ const scrapeOfficialWebsite = async () => {
             logger.info(`Custom Scraper: NEPSE Index = ${result.nepseIndex}, Change = ${result.indexChangePercent}%`);
         }
 
-        // 3. Market breadth
-        logger.info('Custom Scraper: Fetching securities for breadth calculation...');
-        try {
-            const securities = await nepseClient.getSecurities();
-            const breadth = computeSecurityBreadth(securities);
-            if (breadth) {
-                result.totalScripsTraded = breadth.totalScripsTraded;
-                result.advanced = breadth.advanced;
-                result.declined = breadth.declined;
-                result.unchanged = breadth.unchanged;
-                logger.info(`Custom Scraper: Breadth - Advanced=${breadth.advanced}, Declined=${breadth.declined}, Unchanged=${breadth.unchanged}`);
-            }
-        } catch (secErr) {
-            logger.debug(`Could not fetch securities for breadth: ${secErr.message}`);
-        }
 
         const hasMeaningfulData = result.totalTransactions || result.nepseIndex || result.totalTurnover;
         if (hasMeaningfulData) {
@@ -385,27 +307,7 @@ const scrapeOfficialWebsite = async () => {
     return null;
 };
 
-/** Check if market breadth data is effectively empty */
-function isBreadthMissing(merged) {
-    return (merged.advancedCompanies ?? 0) === 0
-        && (merged.declinedCompanies ?? 0) === 0;
-}
 
-/** Try to fill missing breadth from DB stock changes */
-async function applyBreadthFallback(merged) {
-    if (!isBreadthMissing(merged)) return merged;
-
-    const dbBreadth = await computeBreadthFromDb(prisma);
-    if (!dbBreadth) return merged;
-
-    logger.info(`syncMarketDataFromWeb: Applied DB breadth fallback A=${dbBreadth.advanced} D=${dbBreadth.declined} U=${dbBreadth.unchanged}`);
-    return {
-        ...merged,
-        advancedCompanies: dbBreadth.advanced,
-        declinedCompanies: dbBreadth.declined,
-        unchangedCompanies: dbBreadth.unchanged
-    };
-}
 
 /**
  * Sync all market data from web scraping - comprehensive update
@@ -429,7 +331,7 @@ const syncMarketDataFromWeb = async () => {
             return { updated: false, reason: 'market-closed', latest: latest ? { ...latest, source: 'cached-latest' } : merged };
         }
 
-        merged = await applyBreadthFallback(merged);
+
 
         // Only persist if we have meaningful data
         if (!merged.totalTransactions && !merged.totalTurnover) {
