@@ -108,13 +108,13 @@ async function fetchRealDepth(symbol) {
         }
 
         // Transform to our standard format
-        const buy = (depthData.marketDepth?.buyMarketDepthList || depthData.buyMarketDepthList || depthData.buyMarketDepth || []).slice(0, 5).map(d => ({
+        const buy = (depthData.marketDepth?.buyMarketDepthList || []).slice(0, 5).map(d => ({
             orders: d.orderCount || d.orders || 0,
             quantity: d.quantity || d.qty || 0,
             rate: d.rate || d.price || d.orderRate || 0
         }));
 
-        const sell = (depthData.marketDepth?.sellMarketDepthList || depthData.sellMarketDepthList || depthData.sellMarketDepth || []).slice(0, 5).map(d => ({
+        const sell = (depthData.marketDepth?.sellMarketDepthList || []).slice(0, 5).map(d => ({
             rate: d.rate || d.price || d.orderRate || 0,
             quantity: d.quantity || d.qty || 0,
             orders: d.orderCount || d.orders || 0
