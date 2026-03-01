@@ -19,11 +19,8 @@ const NON_EQUITY_SYMBOL_PATTERNS = [
     /\d{2}[_/]\d{2}/,     // e.g. NICAD85/86, GBILD86/87
     /SY\d*$/,             // e.g. CSY, GSY, KSY, RSY, GBIMESY2
     /SF$/,                // e.g. various SF-suffix
-    /MF\d*$/,             // e.g. CMF2, MMF1 (MF + optional digits)
+    /MF\d*$/,             // e.g. CMF2, MMF1, GBIMEMF1 (MF + optional digits)
     /ED$/,                // e.g. NIFRAGED
-    /MF$/,                // any ending in MF
-    /D\d{2}$/,            // bonds with D and 2 digits like BOKD86
-    /^\w{2,4}MF\d*$/      // catching CMF, CMF1, CMF2, etc.
 ];
 
 // Regex for fund-style symbols: 2-5 uppercase letters followed by F and optional digits
