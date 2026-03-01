@@ -19,15 +19,7 @@ async function cleanDB() {
                 sectorName: stock.sector
             });
 
-            // Also forcefully check sector strings that might have snuck in
-            const strictSectorExclusion = stock.sector
-                ? (stock.sector.toLowerCase().includes('others') ||
-                    stock.sector.toLowerCase().includes('mutual fund') ||
-                    stock.sector.toLowerCase().includes('bond') ||
-                    stock.sector.toLowerCase().includes('debenture'))
-                : false;
-
-            if (!isEquity || strictSectorExclusion) {
+            if (!isEquity) {
                 console.log(`[DELETING] Non-equity found: ${stock.symbol} (${stock.sector}) - ${stock.companyName}`);
                 await prisma.stock.delete({ where: { id: stock.id } });
                 deletedCount++;
