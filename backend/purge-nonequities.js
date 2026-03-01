@@ -31,6 +31,7 @@ async function cleanDB() {
         console.log(`Remaining stocks: ${remaining}`);
     } catch (e) {
         console.error('Cleanup error:', e);
+        process.exit(1);
     } finally {
         await prisma.$disconnect();
     }
