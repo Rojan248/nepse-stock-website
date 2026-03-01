@@ -10,7 +10,7 @@ const EQUITY_TYPES = ['equity', 'ordinary share'];
 const ACTIVE_STATUSES = ['A', 'Active'];
 const FUND_KEYWORDS = ['fund', 'scheme', 'yojana', 'kosh', 'units'];
 const POWER_KEYWORDS = ['pariyojana', 'project', 'hydro', 'hydropower', 'jalvidhyut', 'jalbidhyut', 'koshi'];
-const NON_EQUITY_NAME_KEYWORDS = ['debenture', 'bond', 'promoter'];
+const NON_EQUITY_NAME_KEYWORDS = ['debenture', 'bond', 'promoter', 'mutual fund', 'scheme'];
 
 // Symbol-suffix patterns that indicate non-equity instruments
 const NON_EQUITY_SYMBOL_PATTERNS = [
@@ -19,8 +19,11 @@ const NON_EQUITY_SYMBOL_PATTERNS = [
     /\d{2}[_/]\d{2}/,     // e.g. NICAD85/86, GBILD86/87
     /SY\d*$/,             // e.g. CSY, GSY, KSY, RSY, GBIMESY2
     /SF$/,                // e.g. various SF-suffix
-    /MF\d+$/,             // e.g. CMF2, MMF1 (MF + digits, not bare MF ending)
+    /MF\d*$/,             // e.g. CMF2, MMF1 (MF + optional digits)
     /ED$/,                // e.g. NIFRAGED
+    /MF$/,                // any ending in MF
+    /D\d{2}$/,            // bonds with D and 2 digits like BOKD86
+    /^\w{2,4}MF\d*$/      // catching CMF, CMF1, CMF2, etc.
 ];
 
 // Regex for fund-style symbols: 2-5 uppercase letters followed by F and optional digits
@@ -35,14 +38,14 @@ const SAFE_FUND_SUFFIXES = ['LBSL', 'LBS'];
 const NON_EQUITY_BLACKLIST = new Set([
     // Mutual funds with tricky symbols
     'LUK', 'KDBY', 'NICFC', 'H8020', 'NIBLSTF', 'NMB50',
-    'SIGS1', 'SIGS2', 'SIGS3', 'SFMF', 'C30MF',
+    'SIGS1', 'SIGS2', 'SIGS3', 'SFMF', 'C30MF', 'CMF1', 'CMF2',
     // Promoter / preferred shares
     'GBIMEP', 'HEIP', 'HIDCLP', 'NIMBPO', 'RBCLPO', 'SNMAPO', 'MLBLPO',
     'HNBPO', 'NBPO',
     // Debentures with unusual patterns
-    'SCBD', 'PBD85', 'PBD88',
+    'SCBD', 'PBD85', 'PBD88', 'BOKD86', 'EBLD91',
     // Misc non-equity
-    'HLICF', 'EMLBF',
+    'HLICF', 'EMLBF', 'RMF1', 'RMF2', 'SBCF', 'GIMES1'
 ]);
 
 // Known equity symbols that might falsely trigger the fund/debenture regex (like NMBMF, SWMF)
@@ -65,7 +68,8 @@ const isExcludedSector = (sectorId, sector) =>
     sectorId === 66
     || sector.includes('mutual fund')
     || sector.includes('bond')
-    || sector.includes('debenture');
+    || sector.includes('debenture')
+    || sector.includes('others');
 
 /** True when company name contains fund keywords but NOT power-sector keywords */
 const isFundByName = (name) =>
