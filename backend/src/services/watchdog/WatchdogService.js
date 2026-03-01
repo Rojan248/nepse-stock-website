@@ -4,6 +4,7 @@ const path = require('path');
 const logger = require('../utils/logger');
 const merolagani = require('./providers/MerolaganiProvider');
 const nepseAlpha = require('./providers/NepseAlphaProvider');
+const shareSansar = require('./providers/ShareSansarProvider');
 const dataFetcher = require('../dataFetcher');
 
 const prisma = new PrismaClient();
@@ -50,7 +51,7 @@ function applyStaleDataWarning(report, localData) {
 
 class WatchdogService {
     constructor() {
-        this.providers = [merolagani, nepseAlpha];
+        this.providers = [merolagani, nepseAlpha, shareSansar];
     }
 
     /**
@@ -60,9 +61,12 @@ class WatchdogService {
         logger.info('[Watchdog] Starting verification cycle...');
 
         const localData = await this.getLocalData();
-        const externalData = await Promise.all(
+        const externalDataSettled = await Promise.allSettled(
             this.providers.map(p => p.fetchMarketSummary())
         );
+        const externalData = externalDataSettled
+            .filter(r => r.status === 'fulfilled' && r.value && !r.value.error)
+            .map(r => r.value);
 
         const report = this.generateReport(localData, externalData);
 
@@ -158,10 +162,20 @@ class WatchdogService {
             return report;
         }
 
-        const m = external.find(e => e.source === 'Merolagani');
-        if (m && m.data) {
-            addDiscrepancyIfMismatch({ report, localValue: local.data.totalTurnover, externalValue: m.data.totalTurnover, metricName: 'Turnover', sourceName: 'Merolagani' });
-            addDiscrepancyIfMismatch({ report, localValue: local.data.totalTransactions, externalValue: m.data.totalTransactions, metricName: 'Transactions', sourceName: 'Merolagani' });
+        // Compare with all available external sources
+        for (const ext of external) {
+            if (ext && ext.data) {
+                if (ext.data.totalTurnover) {
+                    addDiscrepancyIfMismatch({ report, localValue: local.data.totalTurnover, externalValue: ext.data.totalTurnover, metricName: 'Turnover', sourceName: ext.source });
+                }
+                if (ext.data.totalTransactions) {
+                    addDiscrepancyIfMismatch({ report, localValue: local.data.totalTransactions, externalValue: ext.data.totalTransactions, metricName: 'Transactions', sourceName: ext.source });
+                }
+                if (ext.data.nepseIndex) {
+                    // Lower threshold for NEPSE index since it should be very close
+                    addDiscrepancyIfMismatch({ report, localValue: local.data.nepseIndex, externalValue: ext.data.nepseIndex, metricName: 'NEPSE Index', sourceName: ext.source, threshold: 0.1 });
+                }
+            }
         }
 
         return report;

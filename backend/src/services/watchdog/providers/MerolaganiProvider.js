@@ -16,34 +16,35 @@ class MerolaganiProvider {
                 timeout: 10000
             });
 
-            // Attempt to parse key metrics using Regex
-            // Note: This is fragile and depends on their HTML structure
-            
-            // Debug: Log start of response
-            // logger.info(`[Watchdog] Merolagani response start: ${data.substring(0, 200)}`);
-
+            const $ = cheerio.load(data);
             const result = {
                 source: this.name,
                 timestamp: new Date(),
                 data: {}
             };
 
-            // Total Turnover
-            const turnoverMatch = data.match(/Total\s+Turnover[^0-9]*([0-9,]+(\.[0-9]+)?)/i);
-            if (turnoverMatch) {
-                result.data.totalTurnover = parseFloat(turnoverMatch[1].replace(/,/g, ''));
+            // Attempt to extract from standard layout tables
+            $('table').each((ti, table) => {
+                $(table).find('tr').each((ri, tr) => {
+                    const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
+                    if (text.includes('total turnover')) {
+                        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
+                        if (!isNaN(val)) result.data.totalTurnover = val;
+                    }
+                    if (text.includes('total transaction')) {
+                        const val = parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
+                        if (!isNaN(val)) result.data.totalTransactions = val;
+                    }
+                });
+            });
+
+            // Fallback: Check if there's a specific table/div (e.g., #lblLastPrice for NEPSE)
+            const nepseEl = $('#ctl00_ContentPlaceHolder1_LiveTrading_LiveMarket1_CG1_lblLastPrice_0');
+            if (nepseEl.length) {
+                const val = parseFloat(nepseEl.text().replace(/,/g, ''));
+                if (!isNaN(val)) result.data.nepseIndex = val;
             }
 
-            // Total Transactions
-            const txMatch = data.match(/Total\s+Transactions[^0-9]*([0-9,]+)/i);
-            if (txMatch) {
-                result.data.totalTransactions = parseInt(txMatch[1].replace(/,/g, ''), 10);
-            }
-
-            // NEPSE Index (Harder to find reliably via regex on full page, but let's try)
-            // Often appears as "NEPSE Index ... value"
-            // Or inside a specific div
-            
             return result;
 
         } catch (error) {
