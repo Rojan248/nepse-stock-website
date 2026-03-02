@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { isEquitySecurity } = require('./src/services/utils/securityFilters');
+const { isKnownSymbol } = require('./src/services/dataEnricher');
 const readline = require('readline');
 
 async function askConfirmation(question) {
@@ -29,11 +29,7 @@ async function cleanDB() {
 
         for (const stock of allStocks) {
             // Apply our strict filters
-            const isEquity = isEquitySecurity({
-                symbol: stock.symbol,
-                companyName: stock.companyName,
-                sectorName: stock.sector
-            });
+            const isEquity = isKnownSymbol(stock.symbol);
 
             if (!isEquity) {
                 candidates.push(stock);

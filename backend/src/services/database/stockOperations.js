@@ -6,7 +6,7 @@
 
 const { prisma } = require('./connection');
 const logger = require('../utils/logger');
-const { isEquitySecurity } = require('../utils/securityFilters');
+const { isKnownSymbol } = require('../../services/dataEnricher');
 const { normalizeStockInput, mapStockOutput } = require('../utils/dataNormalizer');
 
 // ==================== Helper Functions ====================
@@ -368,7 +368,7 @@ const deleteNonEquitySecurities = async () => {
         });
 
         // Find non-equity symbols using unified filter
-        const nonEquitySymbols = allStocks.filter(s => !isEquitySecurity(s)).map(s => s.symbol);
+        const nonEquitySymbols = allStocks.filter(s => !isKnownSymbol(s.symbol)).map(s => s.symbol);
 
         if (nonEquitySymbols.length === 0) {
             logger.info('No non-equity securities found in database');

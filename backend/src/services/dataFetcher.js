@@ -6,7 +6,6 @@ const customScraper = require('./scrapers/customScraper');
 const mockFetcher = require('./scrapers/mockFetcher');
 const logger = require('./utils/logger');
 const NEPSE_STOCKS = require('../data/nepseStocks');
-const { isEquitySecurity } = require('./utils/securityFilters');
 
 // Import consolidated enrichment functions from dataEnricher
 const {
@@ -383,10 +382,10 @@ const handleFetchSuccess = async (data, source) => {
     // ── Centralized equity filter ──────────────────────────────────
     // The library fetcher already filters internally, but proxy and
     // custom scrapers may return mutual funds, bonds, debentures, etc.
-    // Strip them here so every code-path is safe.
+    // Strip them here so every code-path is safe by checking against our verified stocks DB.
     if (Array.isArray(data.stocks)) {
         const before = data.stocks.length;
-        data.stocks = data.stocks.filter(s => isEquitySecurity(s));
+        data.stocks = data.stocks.filter(s => isKnownSymbol(s.symbol));
         const removed = before - data.stocks.length;
         if (removed > 0) {
             logger.info(`handleFetchSuccess: Filtered out ${removed} non-equity securities (${before} → ${data.stocks.length})`);

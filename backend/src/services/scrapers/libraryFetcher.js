@@ -121,11 +121,11 @@ async function ensureInitialized() {
 
 /** Ranking definitions: [resultKey, compareFn, filterFn?] */
 const RANKING_DEFS = [
-    ['topTurnover',  (a, b) => b.turnover - a.turnover],
-    ['topTrades',    (a, b) => b.totalTrades - a.totalTrades],
-    ['topVolume',    (a, b) => b.volume - a.volume],
-    ['topGainers',   (a, b) => b.changePercent - a.changePercent, (s) => s.volume > 0],
-    ['topLosers',    (a, b) => a.changePercent - b.changePercent, (s) => s.volume > 0],
+    ['topTurnover', (a, b) => b.turnover - a.turnover],
+    ['topTrades', (a, b) => b.totalTrades - a.totalTrades],
+    ['topVolume', (a, b) => b.volume - a.volume],
+    ['topGainers', (a, b) => b.changePercent - a.changePercent, (s) => s.volume > 0],
+    ['topLosers', (a, b) => a.changePercent - b.changePercent, (s) => s.volume > 0],
 ];
 
 /** Compute top-K rankings across multiple dimensions in a single O(N*K) pass */
@@ -191,7 +191,7 @@ const fetchData = async () => {
  * @param {Object} security - Transformed security object
  * @returns {boolean} True if equity security
  */
-const { isEquitySecurity } = require('../utils/securityFilters');
+const { isKnownSymbol } = require('../dataEnricher');
 
 /**
  * Fetch all securities with price data from NEPSE
@@ -203,7 +203,7 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
         const baseUrl = runtimeDeps.baseUrl || BASE_URL;
         const httpsAgent = runtimeDeps.httpsAgent || nepseHttpsAgent;
         const transformSecurityFn = runtimeDeps.transformSecurityFn || transformSecurity;
-        const isEquitySecurityFn = runtimeDeps.isEquitySecurityFn || isEquitySecurity;
+        const isKnownSymbolFn = runtimeDeps.isKnownSymbolFn || isKnownSymbol;
         const fetchMissingSecuritiesFn = runtimeDeps.fetchMissingSecuritiesFn || fetchMissingSecurities;
 
         const headers = createHeadersFn(token);
@@ -249,7 +249,7 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
         // Filter out non-equity shares BEFORE fetching details to save requests and avoid errors
         const missingCompanies = companyList
             .filter(c => c.status === 'A' && !tradedSymbols.has(c.symbol))
-            .filter(c => isEquitySecurityFn(c)); // PRE-FILTER!
+            .filter(c => isKnownSymbolFn(c.symbol)); // PRE-FILTER!
 
         logger.info(`Found ${missingCompanies.length} active EQUITY stocks missing from trade report. Fetching details...`);
 
@@ -262,8 +262,7 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
         // Transform to our standard format and filter to stocks only
         const transformed = allSecurities
             .map(security => transformSecurityFn(security))
-            .filter(s => s !== null)
-            .filter(s => isEquitySecurityFn(s)); // Exclude MFs, bonds, debentures
+            .filter(s => isKnownSymbolFn(s.symbol)); // Exclude MFs, bonds, debentures
 
         logger.info(`Filtered to ${transformed.length} equity securities (excluded mutual funds, bonds, debentures)`);
 
@@ -593,7 +592,7 @@ const fetchCompanyList = async (token) => {
 module.exports = {
     fetchData,
     initializeLibrary,
-    isEquitySecurity,
+    isKnownSymbol,
     __test__: {
         fetchSecuritiesWithPrices
     }

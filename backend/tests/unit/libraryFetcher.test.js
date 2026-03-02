@@ -29,7 +29,7 @@ describe('Library Fetcher', () => {
             baseUrl: 'http://mock-base-url',
             httpsAgent: {},
             transformSecurityFn: (security) => security,
-            isEquitySecurityFn: () => true,
+            isKnownSymbolFn: () => true,
             fetchMissingSecuritiesFn
         });
 
@@ -53,7 +53,7 @@ describe('Library Fetcher', () => {
             baseUrl: 'http://mock-base-url',
             httpsAgent: {},
             transformSecurityFn: (security) => security,
-            isEquitySecurityFn: () => true,
+            isKnownSymbolFn: () => true,
             fetchMissingSecuritiesFn
         });
 
