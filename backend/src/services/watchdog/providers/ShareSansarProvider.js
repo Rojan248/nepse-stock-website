@@ -43,14 +43,15 @@ class ShareSansarProvider {
                 });
             });
 
-            if (result.data.totalTurnover == null || Number.isNaN(result.data.totalTurnover) ||
-                result.data.totalTransactions == null || Number.isNaN(result.data.totalTransactions) ||
-                result.data.nepseIndex == null || Number.isNaN(result.data.nepseIndex)) {
+            if (result.data.totalTurnover == null ||
+                result.data.totalTransactions == null ||
+                result.data.nepseIndex == null) {
                 result.success = false;
                 result.error = "Missing required metrics (turnover, transactions, or index)";
                 return result;
             }
 
+            result.success = true;
             return result;
         } catch (error) {
             logger.error(`[Watchdog] ShareSansar fetch failed: ${error.message}`);
