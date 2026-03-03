@@ -10,8 +10,12 @@ const logger = require('../utils/logger');
 /** Convert a date-like value to ISO string, or null */
 const toISOOrNull = (date) => date ? date.toISOString() : null;
 
-/** Convert a date-like value to a Date object, or null */
-const toDateOrNull = (val) => val ? new Date(val) : null;
+/** Convert a date-like value to a Date object, or null if missing/invalid */
+const toDateOrNull = (val) => {
+    if (!val) return null;
+    const date = val instanceof Date ? val : new Date(val);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
 
 /** Check if an IPO record has enough data to be saved */
 const isValidIpo = (ipo) => ipo && (ipo.symbol || ipo.companyName);
