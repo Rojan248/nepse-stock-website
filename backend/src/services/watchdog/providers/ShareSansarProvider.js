@@ -12,6 +12,12 @@ const METRIC_DEFS = [
 const isNepseIndexCandidate = (text, colCount, data) =>
     text.includes('nepse') && !text.includes('float') && colCount > 1 && data.nepseIndex == null;
 
+/** Try to parse a cell value and assign it to resultData if valid */
+const tryAssignMetric = (resultData, key, parseFn, cellText) => {
+    const val = parseFn(cellText);
+    if (!isNaN(val)) resultData[key] = val;
+};
+
 /**
  * Extract table-based metrics from HTML rows
  */
@@ -19,13 +25,8 @@ const extractTableMetrics = ($, resultData) => {
     $('table tr').each((i, tr) => {
         const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
         const cellText = $(tr).find('td').eq(1).text().replace(/,/g, '');
-
-        for (const def of METRIC_DEFS) {
-            if (text.includes(def.keyword)) {
-                const val = def.parse(cellText);
-                if (!isNaN(val)) resultData[def.key] = val;
-            }
-        }
+        const matched = METRIC_DEFS.find(def => text.includes(def.keyword));
+        if (matched) tryAssignMetric(resultData, matched.key, matched.parse, cellText);
     });
 };
 
