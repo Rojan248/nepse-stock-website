@@ -18,10 +18,7 @@ const FILES = {
 
 const loadJson = (filePath, fallback) => {
   try {
-    if (fs.existsSync(filePath)) {
-      const raw = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(raw);
-    }
+    if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (err) {
     console.error(`Failed to read ${filePath}: ${err.message}`);
   }
@@ -29,6 +26,38 @@ const loadJson = (filePath, fallback) => {
 };
 
 const parseDate = (value) => (value ? new Date(value) : null);
+
+/**
+ * Generic upsert-based migration for array collections.
+ * Eliminates structural duplication between migrateStocks / migrateIpos.
+ *
+ * @param {object}   opts
+ * @param {string}   opts.file        - JSON file path
+ * @param {string}   opts.label       - Human-readable name for logs
+ * @param {object}   opts.model       - Prisma model (e.g. prisma.stock)
+ * @param {Function} opts.resolveKey  - (item) => symbol string | falsy to skip
+ * @param {Function} opts.buildData   - (item, symbol) => field object
+ */
+const migrateCollection = async ({ file, label, model, resolveKey, buildData }) => {
+  const items = loadJson(file, []);
+  if (!Array.isArray(items) || items.length === 0) {
+    console.log(`No ${label} found to migrate.`);
+    return;
+  }
+
+  console.log(`Migrating ${items.length} ${label}...`);
+  for (const item of items) {
+    const symbol = resolveKey(item);
+    if (!symbol) continue;
+    const data = buildData(item, symbol);
+    await model.upsert({
+      where: { symbol },
+      update: data,
+      create: { symbol, ...data },
+    });
+  }
+  console.log(`${label} migrated.`);
+};
 
 const buildStockData = (stock) => ({
   companyName: stock.companyName || stock.name || stock.symbol,
@@ -45,25 +74,32 @@ const buildStockData = (stock) => ({
   percentageChange: stock.percentageChange ?? stock.changePercent ?? null,
 });
 
-const migrateStocks = async () => {
-  const stocks = loadJson(FILES.stocks, []);
-  if (!Array.isArray(stocks) || stocks.length === 0) {
-    console.log('No stocks found to migrate.');
-    return;
-  }
+const migrateStocks = () => migrateCollection({
+  file: FILES.stocks,
+  label: 'stocks',
+  model: prisma.stock,
+  resolveKey: (s) => s.symbol,
+  buildData: buildStockData,
+});
 
-  console.log(`Migrating ${stocks.length} stocks...`);
-  for (const stock of stocks) {
-    if (!stock.symbol) continue;
-    const data = buildStockData(stock);
-    await prisma.stock.upsert({
-      where: { symbol: stock.symbol },
-      update: data,
-      create: { symbol: stock.symbol, ...data },
-    });
-  }
-  console.log('Stocks migrated.');
-};
+const buildIpoData = (ipo, symbol) => ({
+  companyName: ipo.companyName || ipo.name || symbol,
+  sector: ipo.sector || null,
+  issueDate: parseDate(ipo.issueDate),
+  closingDate: parseDate(ipo.closingDate),
+  price: ipo.price ?? null,
+  units: ipo.units ?? null,
+  status: ipo.status ?? null,
+  issueManager: ipo.issueManager ?? null,
+});
+
+const migrateIpos = () => migrateCollection({
+  file: FILES.ipos,
+  label: 'IPOs',
+  model: prisma.ipo,
+  resolveKey: (ipo) => ipo.symbol || ipo.ticker,
+  buildData: buildIpoData,
+});
 
 const migrateMarketHistory = async () => {
   const history = loadJson(FILES.marketHistory, []);
@@ -112,38 +148,6 @@ const migrateMarketSummary = async () => {
     },
   });
   console.log('Market summary migrated.');
-};
-
-const buildIpoData = (ipo, symbol) => ({
-  companyName: ipo.companyName || ipo.name || symbol,
-  sector: ipo.sector || null,
-  issueDate: parseDate(ipo.issueDate),
-  closingDate: parseDate(ipo.closingDate),
-  price: ipo.price ?? null,
-  units: ipo.units ?? null,
-  status: ipo.status ?? null,
-  issueManager: ipo.issueManager ?? null,
-});
-
-const migrateIpos = async () => {
-  const ipos = loadJson(FILES.ipos, []);
-  if (!Array.isArray(ipos) || ipos.length === 0) {
-    console.log('No IPOs found to migrate.');
-    return;
-  }
-
-  console.log(`Migrating ${ipos.length} IPOs...`);
-  for (const ipo of ipos) {
-    const symbol = ipo.symbol || ipo.ticker;
-    if (!symbol) continue;
-    const data = buildIpoData(ipo, symbol);
-    await prisma.ipo.upsert({
-      where: { symbol },
-      update: data,
-      create: { symbol, ...data },
-    });
-  }
-  console.log('IPOs migrated.');
 };
 
 const run = async () => {
