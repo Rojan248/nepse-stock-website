@@ -71,6 +71,27 @@ const anonymizeIP = (ip) => {
  * Catches unhandled errors and returns standardized responses
  */
 
+/** Table-driven error-type to status code mapping */
+const ERROR_STATUS_MAP = [
+    { match: (err) => err.name === 'ValidationError', status: 400 },
+    { match: (err) => err.name === 'CastError',       status: 400 },
+    { match: (err) => err.code === 'ECONNREFUSED',    status: 503 },
+];
+
+/** Resolve the HTTP status from an error, falling back to err.status or 500 */
+const resolveStatusCode = (err) => {
+    const entry = ERROR_STATUS_MAP.find(e => e.match(err));
+    return entry ? entry.status : (err.status || err.statusCode || 500);
+};
+
+/** Build log metadata, conditionally including the anonymized IP */
+const buildLogMeta = (err, req) => {
+    const meta = { stack: err.stack, url: req.originalUrl, method: req.method };
+    const anonymizedIP = anonymizeIP(req.ip);
+    if (anonymizedIP) meta.ip = anonymizedIP;
+    return meta;
+};
+
 /**
  * Not Found Handler
  * Handles 404 errors for undefined routes
@@ -86,35 +107,9 @@ const notFoundHandler = (req, res, next) => {
  * Catches all errors and returns formatted response
  */
 const errorHandler = (err, req, res, next) => {
-    // Build log metadata (conditionally include IP)
-    const logMeta = {
-        stack: err.stack,
-        url: req.originalUrl,
-        method: req.method
-    };
+    logger.error(`Error: ${err.message}`, buildLogMeta(err, req));
 
-    // Only include IP if logging is enabled (anonymized)
-    const anonymizedIP = anonymizeIP(req.ip);
-    if (anonymizedIP) {
-        logMeta.ip = anonymizedIP;
-    }
-
-    // Log the error
-    logger.error(`Error: ${err.message}`, logMeta);
-
-    // Determine status code
-    let statusCode = err.status || err.statusCode || 500;
-
-    // Handle specific error types
-    if (err.name === 'ValidationError') {
-        statusCode = 400;
-    } else if (err.name === 'CastError') {
-        statusCode = 400;
-    } else if (err.code === 'ECONNREFUSED') {
-        statusCode = 503;
-    }
-
-    // Don't expose stack trace in production
+    const statusCode = resolveStatusCode(err);
     const isDevelopment = process.env.NODE_ENV === 'development';
 
     const response = createErrorResponse(
