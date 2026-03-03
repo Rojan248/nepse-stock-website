@@ -2,6 +2,58 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { getChangeClass } from '../utils/formatting';
 import './SummaryCard.css';
 
+const ANIMATION_DURATION = 600;
+
+/** Parse a display value to a number for comparison */
+const toNumeric = (val) => parseFloat(String(val).replace(/[^0-9.-]/g, ''));
+
+/** Determine movement direction between two values */
+function computeDirection(prevValue, newValue) {
+    const prevNum = toNumeric(prevValue);
+    const newNum = toNumeric(newValue);
+    if (isNaN(prevNum) || isNaN(newNum)) return null;
+    if (newNum > prevNum) return 'up';
+    if (newNum < prevNum) return 'down';
+    return null;
+}
+
+/** True when the value has actually changed after the initial render */
+const hasValueChanged = (prevValue, value, isFirst) =>
+    prevValue !== undefined && prevValue !== value && !isFirst;
+
+/** True when polling just finished (data loaded) */
+const didFinishPolling = (isPolling, isFirst) => !isPolling && !isFirst;
+
+/** Build the CSS class string for the value element */
+function buildValueClasses(isPolling, refreshPulse, isUpdated, direction) {
+    return [
+        'summary-value',
+        isPolling && 'value-loading',
+        refreshPulse && 'value-refreshed',
+        isUpdated && 'value-updated',
+        isUpdated && direction === 'up' && 'value-up',
+        isUpdated && direction === 'down' && 'value-down',
+    ].filter(Boolean).join(' ');
+}
+
+/** Format the change badge text */
+const formatChange = (change) => {
+    const sign = change >= 0 ? '+' : '';
+    const formatted = change?.toFixed(2) || '0.00';
+    return `${sign}${formatted}%`;
+};
+
+/** Change badge sub-component */
+function ChangeBadge({ change }) {
+    if (change === undefined) return null;
+    const changeClass = getChangeClass(change);
+    return (
+        <div className={`summary-badge ${changeClass}`}>
+            {formatChange(change)}
+        </div>
+    );
+}
+
 /**
  * SummaryCard Component with live update animations
  */
@@ -14,7 +66,6 @@ function SummaryCard({
     isPolling = false,
     valueKey = ''
 }) {
-    const changeClass = change !== undefined ? getChangeClass(change) : '';
     const [isUpdated, setIsUpdated] = useState(false);
     const [direction, setDirection] = useState(null);
     const [refreshPulse, setRefreshPulse] = useState(false);
@@ -23,9 +74,9 @@ function SummaryCard({
     
     // Trigger refresh pulse when isPolling changes from true to false (data loaded)
     useEffect(() => {
-        if (!isPolling && !isFirstRender.current) {
+        if (didFinishPolling(isPolling, isFirstRender.current)) {
             setRefreshPulse(true);
-            const timer = setTimeout(() => setRefreshPulse(false), 600);
+            const timer = setTimeout(() => setRefreshPulse(false), ANIMATION_DURATION);
             return () => clearTimeout(timer);
         }
         isFirstRender.current = false;
@@ -35,22 +86,14 @@ function SummaryCard({
     useEffect(() => {
         const prevValue = previousValueRef.current;
         
-        if (prevValue !== undefined && prevValue !== value && !isFirstRender.current) {
-            // Determine direction for change indicator
-            const prevNum = parseFloat(String(prevValue).replace(/[^0-9.-]/g, ''));
-            const newNum = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
-            
-            if (!isNaN(prevNum) && !isNaN(newNum)) {
-                setDirection(newNum > prevNum ? 'up' : newNum < prevNum ? 'down' : null);
-            }
-            
+        if (hasValueChanged(prevValue, value, isFirstRender.current)) {
+            setDirection(computeDirection(prevValue, value));
             setIsUpdated(true);
             
-            // Clear animation after 600ms
             const timer = setTimeout(() => {
                 setIsUpdated(false);
                 setDirection(null);
-            }, 600);
+            }, ANIMATION_DURATION);
             
             previousValueRef.current = value;
             return () => clearTimeout(timer);
@@ -59,35 +102,21 @@ function SummaryCard({
         previousValueRef.current = value;
     }, [value]);
 
-    // Build value classes
-    const valueClasses = [
-        'summary-value',
-        isPolling && 'value-loading',
-        refreshPulse && 'value-refreshed',
-        isUpdated && 'value-updated',
-        isUpdated && direction === 'up' && 'value-up',
-        isUpdated && direction === 'down' && 'value-down'
-    ].filter(Boolean).join(' ');
+    const valueClasses = buildValueClasses(isPolling, refreshPulse, isUpdated, direction);
+    const cardClass = `summary-card${refreshPulse ? ' card-refreshed' : ''}`;
     
     return (
-        <div className={`summary-card ${refreshPulse ? 'card-refreshed' : ''}`}>
-            {/* Label */}
+        <div className={cardClass}>
             <div className="summary-label">
                 {icon && <span className="summary-icon">{icon}</span>}
                 <span>{label}</span>
             </div>
 
-            {/* Value with animation */}
             <div className={valueClasses} data-key={valueKey}>
                 {value}
             </div>
 
-            {/* Change Badge */}
-            {change !== undefined && (
-                <div className={`summary-badge ${changeClass}`}>
-                    {change >= 0 ? '+' : ''}{change?.toFixed(2) || '0.00'}%
-                </div>
-            )}
+            <ChangeBadge change={change} />
         </div>
     );
 }
