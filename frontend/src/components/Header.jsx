@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import SearchBar from './SearchBar';
 import SystemHealthBadge from './SystemHealthBadge';
+import { useAuth } from '../hooks/useAuth';
 import logoPrimary from '../assets/img/logo-primary.jpg';
 import './Header.css';
 
 function Header({ searchTerm, onSearchChange }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { user, isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -67,10 +69,45 @@ function Header({ searchTerm, onSearchChange }) {
                         IPOs
                     </Link>
 
-
+                    {isAuthenticated && (
+                        <>
+                            <Link
+                                to="/portfolio"
+                                className={`nav-link ${isActive('/portfolio') ? 'nav-link--active' : ''}`}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                Portfolio
+                            </Link>
+                            <Link
+                                to="/alerts"
+                                className={`nav-link ${isActive('/alerts') ? 'nav-link--active' : ''}`}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                Alerts
+                            </Link>
+                        </>
+                    )}
 
                     {/* System Health Status Badge */}
                     <SystemHealthBadge />
+
+                    {/* Auth Links */}
+                    {isAuthenticated ? (
+                        <button
+                            className="nav-link nav-btn"
+                            onClick={() => { logout(); setIsMenuOpen(false); }}
+                        >
+                            Sign Out
+                        </button>
+                    ) : (
+                        <Link
+                            to="/login"
+                            className={`nav-link nav-link--accent ${isActive('/login') ? 'nav-link--active' : ''}`}
+                            onClick={() => setIsMenuOpen(false)}
+                        >
+                            Sign In
+                        </Link>
+                    )}
                 </nav>
 
                 {/* Mobile Menu Toggle */}

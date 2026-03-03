@@ -272,4 +272,36 @@ export const checkAPIHealth = async () => {
     }
 };
 
+// ==================== Watchlist APIs ====================
+
+export const getWatchlists = () => api.get('/watchlists').then(r => (r.data || r));
+export const createWatchlist = (name) => api.post('/watchlists', { name }).then(r => (r.data || r));
+export const renameWatchlist = (id, name) => api.put(`/watchlists/${id}`, { name }).then(r => (r.data || r));
+export const deleteWatchlist = (id) => api.delete(`/watchlists/${id}`);
+export const addWatchlistItem = (id, symbol) => api.post(`/watchlists/${id}/items`, { symbol }).then(r => (r.data || r));
+export const removeWatchlistItem = (id, symbol) => api.delete(`/watchlists/${id}/items/${symbol}`);
+export const importWatchlistItems = (id, symbols) => api.post(`/watchlists/${id}/import`, { symbols }).then(r => (r.data || r));
+export const getSharedWatchlist = (slug) => api.get(`/watchlists/shared/${slug}`).then(r => (r.data || r));
+
+// ==================== Portfolio APIs ====================
+
+export const getPortfolios = () => api.get('/portfolios').then(r => (r.data || r));
+export const createPortfolio = (name) => api.post('/portfolios', { name }).then(r => (r.data || r));
+export const deletePortfolio = (id) => api.delete(`/portfolios/${id}`);
+export const addTrade = (portfolioId, trade) => api.post(`/portfolios/${portfolioId}/trades`, trade).then(r => (r.data || r));
+export const deleteTrade = (portfolioId, tradeId) => api.delete(`/portfolios/${portfolioId}/trades/${tradeId}`);
+export const getPortfolioHoldings = (id) => api.get(`/portfolios/${id}/holdings`).then(r => (r.data || r));
+
+// ==================== Alert APIs ====================
+
+export const getAlerts = () => api.get('/alerts').then(r => (r.data || r));
+export const createAlert = (alert) => api.post('/alerts', alert).then(r => (r.data || r));
+export const updateAlert = (id, data) => api.put(`/alerts/${id}`, data).then(r => (r.data || r));
+export const deleteAlert = (id) => api.delete(`/alerts/${id}`);
+
+// ==================== Watchlist Share ====================
+
+export const shareWatchlist = (id) => api.post(`/watchlists/${id}/share`).then(r => (r.data || r));
+export const unshareWatchlist = (id) => api.post(`/watchlists/${id}/unshare`).then(r => (r.data || r));
+
 export default api;

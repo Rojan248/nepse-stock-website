@@ -1,0 +1,72 @@
+const jwt = require('jsonwebtoken');
+const logger = require('../services/utils/logger');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+
+/**
+ * Generate an access token for a user
+ */
+const generateAccessToken = (user) => {
+    return jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        JWT_SECRET,
+        { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+};
+
+/**
+ * Middleware: require a valid JWT Bearer token.
+ * Attaches req.user = { userId, email, role }
+ */
+const requireAuth = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+            success: false,
+            error: { message: 'Authentication required' }
+        });
+    }
+
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
+        next();
+    } catch (err) {
+        const message = err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token';
+        logger.debug(`Auth failed: ${err.message}`);
+        return res.status(401).json({
+            success: false,
+            error: { message }
+        });
+    }
+};
+
+/**
+ * Optional auth: if a valid token is present, attach req.user; otherwise proceed.
+ */
+const optionalAuth = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return next();
+    }
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
+    } catch {
+        // Token invalid — proceed without user
+    }
+    next();
+};
+
+module.exports = {
+    JWT_SECRET,
+    ACCESS_TOKEN_EXPIRY,
+    REFRESH_TOKEN_EXPIRY_DAYS,
+    generateAccessToken,
+    requireAuth,
+    optionalAuth
+};

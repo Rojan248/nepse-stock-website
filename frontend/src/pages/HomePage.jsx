@@ -15,6 +15,8 @@ import StocksToolbar from '../components/StocksToolbar';
 import { useMarketData, useStockData } from '../hooks/useHomePageData';
 import { useMarketBreadth, useFilteredStocks } from '../hooks/useFilters';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useAuth } from '../hooks/useAuth';
+import { getWatchlists, importWatchlistItems, addWatchlistItem, removeWatchlistItem } from '../services/api';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { Star, ChevronDown } from 'lucide-react';
 import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
@@ -26,6 +28,7 @@ import './HomePage.css';
 
 function HomePage({ globalSearch }) {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
     const { marketSummary, sectors, error, setError } = useMarketData();
     const { stocks, loading } = useStockData();
 
@@ -34,14 +37,47 @@ function HomePage({ globalSearch }) {
     const [favorites, setFavorites] = useLocalStorage('nepse-favorites', []);
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
+    const [defaultWatchlistId, setDefaultWatchlistId] = useState(null);
+    const migrated = useRef(false);
+
+    // Sync favorites with API watchlist when authenticated
+    useEffect(() => {
+        if (!isAuthenticated) { setDefaultWatchlistId(null); return; }
+        getWatchlists().then(wls => {
+            const list = Array.isArray(wls) ? wls : [];
+            if (list.length > 0) {
+                const def = list[0];
+                setDefaultWatchlistId(def.id);
+                // Merge server symbols into local favorites
+                const serverSymbols = (def.items || []).map(i => i.symbol);
+                setFavorites(prev => {
+                    const merged = [...new Set([...prev, ...serverSymbols])];
+                    return merged;
+                });
+                // Migrate localStorage favorites to server (once)
+                if (!migrated.current && favorites.length > 0) {
+                    migrated.current = true;
+                    importWatchlistItems(def.id, favorites).catch(() => {});
+                }
+            }
+        }).catch(() => {});
+    }, [isAuthenticated]);
 
     useEffect(() => { setCurrentPage(1); }, [selectedSector, globalSearch, statusFilter]);
 
     const handleStockClick = (stock) => navigate(`/stock/${stock.symbol}`);
 
     const toggleFavorite = useCallback((symbol) => {
-        setFavorites(prev => prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol]);
-    }, [setFavorites]);
+        setFavorites(prev => {
+            const isFav = prev.includes(symbol);
+            // Sync to API if authenticated
+            if (defaultWatchlistId) {
+                if (isFav) removeWatchlistItem(defaultWatchlistId, symbol).catch(() => {});
+                else addWatchlistItem(defaultWatchlistId, symbol).catch(() => {});
+            }
+            return isFav ? prev.filter(s => s !== symbol) : [...prev, symbol];
+        });
+    }, [setFavorites, defaultWatchlistId]);
 
     const filters = { selectedSector, statusFilter, globalSearch, showFavoritesOnly, favorites };
     const { display: displayStocks, totalPages } = useFilteredStocks(stocks, filters, currentPage);

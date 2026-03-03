@@ -17,6 +17,10 @@ const stocksRouter = require('./routes/stocks');
 const iposRouter = require('./routes/ipos');
 const marketRouter = require('./routes/market');
 const watchdogRouter = require('./routes/watchdog');
+const authRouter = require('./routes/auth');
+const watchlistRouter = require('./routes/watchlists');
+const portfolioRouter = require('./routes/portfolios');
+const alertRouter = require('./routes/alerts');
 
 /**
  * NEPSE Backend Server
@@ -62,6 +66,10 @@ app.use((req, res, next) => {
 });
 
 // API Routes
+app.use('/api/auth', authRouter);
+app.use('/api/watchlists', watchlistRouter);
+app.use('/api/portfolios', portfolioRouter);
+app.use('/api/alerts', alertRouter);
 app.use('/api/stocks', stocksRouter);
 app.use('/api/ipos', iposRouter);
 app.use('/api', marketRouter);

@@ -84,3 +84,121 @@ model Ipo {
   status      String?
   issueManager String?
 }
+
+// ==================== Auth & User Models ====================
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  passwordHash  String
+  displayName   String?
+  role          String    @default("user") // "user" | "admin"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  refreshTokens RefreshToken[]
+  watchlists    Watchlist[]
+  portfolios    Portfolio[]
+  alerts        Alert[]
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ==================== Watchlist Models ====================
+
+model Watchlist {
+  id         Int       @id @default(autoincrement())
+  name       String
+  userId     Int
+  publicSlug String?   @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      WatchlistItem[]
+
+  @@index([userId])
+}
+
+model WatchlistItem {
+  id          Int      @id @default(autoincrement())
+  watchlistId Int
+  symbol      String
+  addedAt     DateTime @default(now())
+
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, symbol])
+}
+
+// ==================== Portfolio Models ====================
+
+model Portfolio {
+  id        Int      @id @default(autoincrement())
+  name      String
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades    Trade[]
+
+  @@index([userId])
+}
+
+model Trade {
+  id          Int      @id @default(autoincrement())
+  portfolioId Int
+  symbol      String
+  type        String   // "buy" | "sell"
+  quantity    Int
+  price       Float
+  date        DateTime
+  note        String?
+  createdAt   DateTime @default(now())
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([symbol])
+}
+
+// ==================== Alert Models ====================
+
+model Alert {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  symbol     String
+  condition  String    // "above" | "below" | "pct_change"
+  threshold  Float
+  enabled    Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries AlertDelivery[]
+
+  @@index([userId])
+  @@index([symbol])
+}
+
+model AlertDelivery {
+  id          Int      @id @default(autoincrement())
+  alertId     Int
+  triggeredAt DateTime @default(now())
+  priceAtTrigger Float
+  channel     String   // "in-app" | "email" | "webhook"
+
+  alert       Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([alertId])
+}

@@ -5,6 +5,7 @@ const proxyFetcher = require('./scrapers/proxyFetcher');
 const customScraper = require('./scrapers/customScraper');
 const mockFetcher = require('./scrapers/mockFetcher');
 const logger = require('./utils/logger');
+const { recordSyncSuccess, recordSyncFailure } = require('./utils/alertService');
 const NEPSE_STOCKS = require('../data/nepseStocks');
 
 // Import consolidated enrichment functions from dataEnricher
@@ -402,6 +403,9 @@ const handleFetchSuccess = async (data, source) => {
     lastUpdateTime = new Date();
     consecutiveFailures = 0;
 
+    // Record successful sync for alertService
+    recordSyncSuccess(source);
+
     logger.info(`✓ Successfully fetched data using ${source} (${data.stocks?.length || 0} stocks)`);
     return data;
 };
@@ -482,6 +486,7 @@ const fetchLatestData = async () => {
 
     // 4. All sources failed
     consecutiveFailures++;
+    recordSyncFailure('all-sources', `All data sources failed. Consecutive failures: ${consecutiveFailures}`);
     logger.error(`All data sources failed. Consecutive failures: ${consecutiveFailures}`);
     return null;
 };

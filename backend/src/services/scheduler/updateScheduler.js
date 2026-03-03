@@ -6,6 +6,7 @@ const ipoOperations = require('../database/ipoOperations');
 const marketOperations = require('../database/marketOperations');
 const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSync, MARKET_STATES } = require('../utils/marketTime');
 const watchdogService = require('../watchdog/WatchdogService');
+const alertChecker = require('../alertChecker');
 
 /**
  * Update Scheduler
@@ -134,6 +135,13 @@ const performUpdate = async () => {
         lastUpdateTime = new Date();
         updateCount++;
         lastError = null;
+
+        // Check price alerts after successful data update
+        try {
+            await alertChecker.checkAlerts();
+        } catch (alertErr) {
+            logger.error(`Alert check failed after update: ${alertErr.message}`);
+        }
 
         const duration = Date.now() - startTime;
         logger.info(`Update cycle completed in ${duration}ms (Source: ${data.source})`);
