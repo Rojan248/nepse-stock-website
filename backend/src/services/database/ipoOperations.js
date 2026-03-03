@@ -5,6 +5,42 @@
 const { prisma } = require('./connection');
 const logger = require('../utils/logger');
 
+// ==================== Helpers ====================
+
+/** Convert a date-like value to ISO string, or null */
+const toISOOrNull = (date) => date ? date.toISOString() : null;
+
+/** Convert a date-like value to a Date object, or null */
+const toDateOrNull = (val) => val ? new Date(val) : null;
+
+/** Check if an IPO record has enough data to be saved */
+const isValidIpo = (ipo) => ipo && (ipo.symbol || ipo.companyName);
+
+/** Normalize an IPO record into a Prisma-compatible data object */
+const buildIpoData = (ipo) => {
+    const symbol = (ipo.symbol || ipo.companyName || '').toUpperCase();
+    return {
+        symbol,
+        companyName: ipo.companyName || ipo.name || symbol,
+        sector: ipo.sector || null,
+        issueDate: toDateOrNull(ipo.issueDate),
+        closingDate: toDateOrNull(ipo.closingDate),
+        price: ipo.price ?? null,
+        units: ipo.units ?? null,
+        status: ipo.status ?? null,
+        issueManager: ipo.issueManager ?? null
+    };
+};
+
+/** Build a Prisma upsert operation from normalized IPO data */
+const buildUpsertOp = (data) => prisma.ipo.upsert({
+    where: { symbol: data.symbol },
+    update: data,
+    create: data
+});
+
+// ==================== Output Mapping ====================
+
 const mapIpoOutput = (ipo) => {
     if (!ipo) return null;
     return {
@@ -12,8 +48,8 @@ const mapIpoOutput = (ipo) => {
         symbol: ipo.symbol,
         companyName: ipo.companyName,
         sector: ipo.sector,
-        issueDate: ipo.issueDate ? ipo.issueDate.toISOString() : null,
-        closingDate: ipo.closingDate ? ipo.closingDate.toISOString() : null,
+        issueDate: toISOOrNull(ipo.issueDate),
+        closingDate: toISOOrNull(ipo.closingDate),
         price: ipo.price,
         units: ipo.units,
         status: ipo.status,
@@ -21,35 +57,15 @@ const mapIpoOutput = (ipo) => {
     };
 };
 
+// ==================== Core Operations ====================
+
 const saveIPOs = async (ipos) => {
     if (!Array.isArray(ipos) || ipos.length === 0) {
         return { success: true, count: 0 };
     }
 
     try {
-        const ops = ipos
-            .filter(ipo => ipo && (ipo.symbol || ipo.companyName))
-            .map((ipo) => {
-                const symbol = (ipo.symbol || ipo.companyName || '').toUpperCase();
-                const data = {
-                    symbol,
-                    companyName: ipo.companyName || ipo.name || symbol,
-                    sector: ipo.sector || null,
-                    issueDate: ipo.issueDate ? new Date(ipo.issueDate) : null,
-                    closingDate: ipo.closingDate ? new Date(ipo.closingDate) : null,
-                    price: ipo.price ?? null,
-                    units: ipo.units ?? null,
-                    status: ipo.status ?? null,
-                    issueManager: ipo.issueManager ?? null
-                };
-
-                return prisma.ipo.upsert({
-                    where: { symbol },
-                    update: data,
-                    create: data
-                });
-            });
-
+        const ops = ipos.filter(isValidIpo).map(ipo => buildUpsertOp(buildIpoData(ipo)));
         await prisma.$transaction(ops);
         return { success: true, count: ops.length };
     } catch (error) {
