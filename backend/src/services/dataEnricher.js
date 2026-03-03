@@ -161,8 +161,8 @@ const accumulateTradingTotals = (stocks) => {
     return { turnover, volume, trades, tradedCompanies };
 };
 
-/** Use existing value if truthy, otherwise fall back to calculated value */
-const preferExisting = (existing, calculated) => existing || calculated || 0;
+/** Use existing value if strictly present (including 0), otherwise fall back to calculated value */
+const preferExisting = (existing, calculated) => (existing != null) ? existing : (calculated || 0);
 
 /** Strongly prefer mathematically calculated value if available (real-time). Fallback to API if skipped. */
 const preferCalculated = (calculated, existing) => (calculated !== null && calculated !== undefined) ? calculated : (existing || 0);
@@ -179,13 +179,12 @@ const buildSummaryResult = (existingSummary, calc, breadth) => ({
         ? existingSummary.totalTransactions
         : (calc.trades || 0),
     activeCompanies: preferExisting(existingSummary.activeCompanies, calc.tradedCompanies),
-    // Breadth assignments intentionally use preferCalculated to prioritize live-calculated values 
-    // during market hours, falling back to API values when updateMarketBreadth returns null.
-    // This creates an intentional asymmetry with totals fields (turnover, volume) which use 
-    // preferExisting to preserve API totals.
-    advancedCompanies: preferCalculated(breadth.advanced, existingSummary.advancedCompanies),
-    declinedCompanies: preferCalculated(breadth.declined, existingSummary.declinedCompanies),
-    unchangedCompanies: preferCalculated(breadth.unchanged, existingSummary.unchangedCompanies),
+    // Breadth assignments now use preferExisting to strictly pass through official
+    // NEPSE breadth data when available from the API or database.
+    // Manual calculation (breadth.advanced) is only used as a fallback.
+    advancedCompanies: preferExisting(existingSummary.advancedCompanies, breadth.advanced),
+    declinedCompanies: preferExisting(existingSummary.declinedCompanies, breadth.declined),
+    unchangedCompanies: preferExisting(existingSummary.unchangedCompanies, breadth.unchanged),
     timestamp: new Date().toISOString()
 });
 
