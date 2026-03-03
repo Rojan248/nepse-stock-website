@@ -210,29 +210,34 @@ const mergeSecurityResponses = (responses) => {
     return Array.from(allSecuritiesMap.values());
 };
 
+/** Resolve runtime dependencies with defaults */
+const resolveDeps = (runtimeDeps) => ({
+    createHeadersFn: runtimeDeps.createHeadersFn || createHeaders,
+    nepseAxiosClient: runtimeDeps.nepseAxiosClient || nepseAxios,
+    baseUrl: runtimeDeps.baseUrl || BASE_URL,
+    httpsAgent: runtimeDeps.httpsAgent || nepseHttpsAgent,
+    transformSecurityFn: runtimeDeps.transformSecurityFn || transformSecurity,
+    isKnownSymbolFn: runtimeDeps.isKnownSymbolFn || isKnownSymbol,
+    fetchMissingSecuritiesFn: runtimeDeps.fetchMissingSecuritiesFn || fetchMissingSecurities,
+});
+
+/** Filter and transform raw securities to equity-only list */
+const filterEquitySecurities = (allSecurities, transformFn, isKnownFn) => {
+    return allSecurities.map(s => transformFn(s)).filter(s => isKnownFn(s.symbol));
+};
+
 /**
  * Fetch all securities with price data from NEPSE
  */
 const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) => {
     try {
-        const createHeadersFn = runtimeDeps.createHeadersFn || createHeaders;
-        const nepseAxiosClient = runtimeDeps.nepseAxiosClient || nepseAxios;
-        const baseUrl = runtimeDeps.baseUrl || BASE_URL;
-        const httpsAgent = runtimeDeps.httpsAgent || nepseHttpsAgent;
-        const transformSecurityFn = runtimeDeps.transformSecurityFn || transformSecurity;
-        const isKnownSymbolFn = runtimeDeps.isKnownSymbolFn || isKnownSymbol;
-        const fetchMissingSecuritiesFn = runtimeDeps.fetchMissingSecuritiesFn || fetchMissingSecurities;
+        const deps = resolveDeps(runtimeDeps);
+        const headers = deps.createHeadersFn(token);
 
-        const headers = createHeadersFn(token);
-
-        // Strategy: Fetch from sectors configured in ALL_SECTORS (libraryConfig.js).
-        // Default remains Sector 58 (contains all traded securities), which minimizes
-        // concurrent requests and helps avoid NEPSE rate-limiting.
-        // Expand ALL_SECTORS with caution: each sector adds one parallel request.
         const fetchPromises = ALL_SECTORS.map(sectorId =>
-            nepseAxiosClient.get(`${baseUrl}/api/nots/securityDailyTradeStat/${sectorId}`, {
+            deps.nepseAxiosClient.get(`${deps.baseUrl}/api/nots/securityDailyTradeStat/${sectorId}`, {
                 headers,
-                httpsAgent,
+                httpsAgent: deps.httpsAgent,
                 timeout: 10000
             }).catch(err => {
                 logger.error(`Error fetching Sector ${sectorId}: ${err.message}`);
@@ -240,32 +245,23 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
             })
         );
 
-
         const responses = await Promise.all(fetchPromises);
         const mergedSecurities = mergeSecurityResponses(responses);
         logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${fetchPromises.length} primary source(s)`);
 
-
-        // Identify missing stocks (Active in Company List but not in Trade Stat)
         const tradedSymbols = new Set(mergedSecurities.map(s => s.symbol));
-        // Filter out non-equity shares BEFORE fetching details to save requests and avoid errors
         const missingCompanies = companyList
             .filter(c => c.status === 'A' && !tradedSymbols.has(c.symbol))
-            .filter(c => isKnownSymbolFn(c.symbol)); // PRE-FILTER!
+            .filter(c => deps.isKnownSymbolFn(c.symbol));
 
         logger.info(`Found ${missingCompanies.length} active EQUITY stocks missing from trade report. Fetching details...`);
 
-        // Fetch details for missing stocks in batches
-        const missingSecurities = await fetchMissingSecuritiesFn(missingCompanies, token);
+        const missingSecurities = await deps.fetchMissingSecuritiesFn(missingCompanies, token);
         const allSecurities = [...mergedSecurities, ...missingSecurities];
 
         logger.info(`Total securities after merging: ${allSecurities.length}`);
 
-        // Transform to our standard format and filter to stocks only
-        const transformed = allSecurities
-            .map(security => transformSecurityFn(security))
-            .filter(s => isKnownSymbolFn(s.symbol)); // Exclude MFs, bonds, debentures
-
+        const transformed = filterEquitySecurities(allSecurities, deps.transformSecurityFn, deps.isKnownSymbolFn);
         logger.info(`Filtered to ${transformed.length} equity securities (excluded mutual funds, bonds, debentures)`);
 
         return transformed;

@@ -13,9 +13,9 @@ const isNepseIndexCandidate = (text, colCount, data) =>
     text.includes('nepse') && !text.includes('float') && colCount > 1 && data.nepseIndex == null;
 
 /**
- * Extract market metrics from raw HTML rows
+ * Extract table-based metrics from HTML rows
  */
-const extractMetrics = ($, resultData) => {
+const extractTableMetrics = ($, resultData) => {
     $('table tr').each((i, tr) => {
         const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
         const cellText = $(tr).find('td').eq(1).text().replace(/,/g, '');
@@ -26,11 +26,16 @@ const extractMetrics = ($, resultData) => {
                 if (!isNaN(val)) resultData[def.key] = val;
             }
         }
+    });
+};
 
-        if (isNepseIndexCandidate(text, $(tr).find('td').length, resultData)) {
-            const val = parseFloat(cellText);
-            if (!isNaN(val)) resultData.nepseIndex = val;
-        }
+/** Extract the NEPSE index value from table rows */
+const extractNepseIndex = ($, resultData) => {
+    $('table tr').each((i, tr) => {
+        const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
+        if (!isNepseIndexCandidate(text, $(tr).find('td').length, resultData)) return;
+        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
+        if (!isNaN(val)) resultData.nepseIndex = val;
     });
 };
 
@@ -56,7 +61,8 @@ class ShareSansarProvider {
                 data: {}
             };
 
-            extractMetrics($, result.data);
+            extractTableMetrics($, result.data);
+            extractNepseIndex($, result.data);
 
             const d = result.data;
             const isMissingMetrics = d.totalTurnover == null || d.totalTransactions == null || d.nepseIndex == null;

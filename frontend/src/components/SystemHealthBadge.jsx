@@ -47,20 +47,23 @@ function useHealthPolling() {
 
 // ==================== Helpers ====================
 
+const isMarketClosed = (health) => !!(health?.market?.state && health.market.state !== 'OPEN');
+const isSystemOffline = (health) => !health || health.status === 'degraded' || health.status === 'error';
+const isDataStale = (lastUpdateDate) => lastUpdateDate && (Date.now() - lastUpdateDate > STALE_THRESHOLD);
+
 /**
  * Determine the current health state from API data.
  * Priority: Market Closed > Offline > Circuit Breaker > Stale > Healthy
- * @returns {{ key: string, lastUpdateDate: Date|null, isCircuitOpen: boolean }}
  */
 function getHealthState(health) {
     const isCircuitOpen = !!health?.resilience?.circuitBreaker?.isOpen;
     const lastUpdateDate = health?.scheduler?.lastUpdate ? new Date(health.scheduler.lastUpdate) : null;
 
     const states = [
-        { cond: health?.market?.state && health.market.state !== 'OPEN', key: 'closed' },
-        { cond: !health || health.status === 'degraded' || health.status === 'error', key: 'offline' },
+        { cond: isMarketClosed(health), key: 'closed' },
+        { cond: isSystemOffline(health), key: 'offline' },
         { cond: isCircuitOpen, key: 'circuit' },
-        { cond: lastUpdateDate && (Date.now() - lastUpdateDate > STALE_THRESHOLD), key: 'stale' },
+        { cond: isDataStale(lastUpdateDate), key: 'stale' },
     ];
 
     const match = states.find(s => s.cond);

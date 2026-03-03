@@ -70,6 +70,19 @@ function transformDepthEntry(d) {
     };
 }
 
+/** Slice and transform a raw depth list */
+function sliceAndTransform(list) {
+    return (list || []).slice(0, 5).map(transformDepthEntry);
+}
+
+/** Detect which response shape NEPSE returned and extract the marketDepth object */
+function resolveDepthShape(responseData, symbol) {
+    if (responseData?.marketDepth) return responseData.marketDepth;
+    if (responseData?.buyMarketDepthList || responseData?.sellMarketDepthList) return responseData;
+    logger.warn(`Unrecognized market depth response shape for ${symbol}: ${JSON.stringify(responseData)}`);
+    return { buyMarketDepthList: [], sellMarketDepthList: [] };
+}
+
 /** Map a single raw floorsheet entry to standard format */
 function transformFloorEntry(t) {
     return {
@@ -90,36 +103,33 @@ async function lookupCompanyId(ctx, symbol) {
 }
 
 async function fetchAndTransformDepth(ctx, companyId, symbol) {
-    let depthData = { marketDepth: { buyMarketDepthList: [], sellMarketDepthList: [] } };
+    let marketDepth = { buyMarketDepthList: [], sellMarketDepthList: [] };
     try {
-        const depthResponse = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/nepse-data/marketdepth/${companyId}`, { headers: ctx.headers, timeout: 5000 });
-        if (depthResponse.data?.marketDepth) {
-            depthData.marketDepth = depthResponse.data.marketDepth;
-        } else if (depthResponse.data?.buyMarketDepthList || depthResponse.data?.sellMarketDepthList) {
-            depthData.marketDepth = depthResponse.data;
-        } else {
-            logger.warn(`Unrecognized market depth response shape for ${symbol}: ${JSON.stringify(depthResponse.data)}`);
-        }
+        const res = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/nepse-data/marketdepth/${companyId}`, { headers: ctx.headers, timeout: 5000 });
+        marketDepth = resolveDepthShape(res.data, symbol);
     } catch (e) {
         logger.warn(`Failed to fetch real depth for ${symbol}: ${e.message}`);
     }
+    return {
+        buy: sliceAndTransform(marketDepth.buyMarketDepthList),
+        sell: sliceAndTransform(marketDepth.sellMarketDepthList)
+    };
+}
 
-    const buy = (depthData.marketDepth?.buyMarketDepthList || []).slice(0, 5).map(transformDepthEntry);
-    const sell = (depthData.marketDepth?.sellMarketDepthList || []).slice(0, 5).map(transformDepthEntry);
-
-    return { buy, sell };
+/** Extract the floorsheet content array from the raw response */
+function resolveFloorContent(rawData) {
+    return rawData?.floorsheets?.content || rawData || [];
 }
 
 async function fetchAndTransformFloorsheet(ctx, companyId, symbol) {
     let floorData = [];
     try {
-        const floorResponse = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/floorsheet?companyId=${companyId}`, { headers: ctx.headers, timeout: 5000 });
-        floorData = floorResponse.data || [];
+        const res = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/floorsheet?companyId=${companyId}`, { headers: ctx.headers, timeout: 5000 });
+        floorData = res.data || [];
     } catch (e) {
         logger.debug(`Floorsheet endpoint unavailable for ${symbol}`);
     }
-
-    return (floorData.floorsheets?.content || floorData || []).slice(0, 20).map(transformFloorEntry);
+    return resolveFloorContent(floorData).slice(0, 20).map(transformFloorEntry);
 }
 
 /**

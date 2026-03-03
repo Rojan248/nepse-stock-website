@@ -21,6 +21,13 @@ function getField(stock, nested1, nested2, ...keys) {
     return 0;
 }
 
+/** Fields that fall back to displayLtp when missing */
+const OHLC_FIELDS = [
+    ['open', 'open', 'openPrice'],
+    ['high', 'high', 'highPrice'],
+    ['low', 'low', 'lowPrice'],
+];
+
 /** Resolve common stock price fields from various API shapes */
 function resolveStockPrices(stock) {
     const p = stock.prices || {};
@@ -30,18 +37,21 @@ function resolveStockPrices(stock) {
     const pc = getField(stock, p, t, 'previousClose') || stock.close || 0;
     const dLtp = ltp > 0 ? ltp : pc;
 
-    return {
+    const result = {
         ltp,
         previousClose: pc,
         displayLtp: dLtp,
-        open: getField(stock, p, t, 'open', 'openPrice') || dLtp,
-        high: getField(stock, p, t, 'high', 'highPrice') || dLtp,
-        low: getField(stock, p, t, 'low', 'lowPrice') || dLtp,
         volume: getField(stock, t, p, 'volume'),
         turnover: getField(stock, t, p, 'turnover'),
         change: stock.change ?? p.change ?? 0,
         changePercent: stock.changePercent ?? p.changePercent ?? 0,
     };
+
+    for (const [key, ...aliases] of OHLC_FIELDS) {
+        result[key] = getField(stock, p, t, ...aliases) || dLtp;
+    }
+
+    return result;
 }
 
 /** Format a change value with direction symbol */

@@ -11,7 +11,7 @@ const METRIC_DEFS = [
 /**
  * Extract market metrics from raw HTML rows
  */
-const extractMetrics = ($, resultData) => {
+const extractTableMetrics = ($, resultData) => {
     $('table tr').each((i, tr) => {
         const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
         const cellText = $(tr).find('td').eq(1).text().replace(/,/g, '');
@@ -23,12 +23,14 @@ const extractMetrics = ($, resultData) => {
             }
         }
     });
+};
 
+/** Extract NEPSE index from a known DOM element */
+const extractNepseFromDom = ($, resultData) => {
     const nepseEl = $('#ctl00_ContentPlaceHolder1_LiveTrading_LiveMarket1_CG1_lblLastPrice_0');
-    if (nepseEl.length) {
-        const val = parseFloat(nepseEl.text().replace(/,/g, ''));
-        if (!isNaN(val)) resultData.nepseIndex = val;
-    }
+    if (!nepseEl.length) return;
+    const val = parseFloat(nepseEl.text().replace(/,/g, ''));
+    if (!isNaN(val)) resultData.nepseIndex = val;
 };
 
 class MerolaganiProvider {
@@ -53,7 +55,8 @@ class MerolaganiProvider {
                 data: {}
             };
 
-            extractMetrics($, result.data);
+            extractTableMetrics($, result.data);
+            extractNepseFromDom($, result.data);
 
             return result;
 
