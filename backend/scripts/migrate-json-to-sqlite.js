@@ -28,6 +28,23 @@ const loadJson = (filePath, fallback) => {
   return fallback;
 };
 
+const parseDate = (value) => (value ? new Date(value) : null);
+
+const buildStockData = (stock) => ({
+  companyName: stock.companyName || stock.name || stock.symbol,
+  sector: stock.sector || null,
+  lastTradedPrice: stock.lastTradedPrice ?? stock.ltp ?? null,
+  previousClose: stock.previousClose ?? stock.previousClosingPrice ?? null,
+  openPrice: stock.openPrice ?? null,
+  highPrice: stock.highPrice ?? null,
+  lowPrice: stock.lowPrice ?? null,
+  volume: stock.volume ?? stock.totalTradedQuantity ?? null,
+  totalTrades: stock.totalTrades ?? stock.totalTradedTransactions ?? null,
+  turnover: stock.turnover ?? stock.totalTradedValue ?? null,
+  change: stock.change ?? stock.pointChange ?? null,
+  percentageChange: stock.percentageChange ?? stock.changePercent ?? null,
+});
+
 const migrateStocks = async () => {
   const stocks = loadJson(FILES.stocks, []);
   if (!Array.isArray(stocks) || stocks.length === 0) {
@@ -38,37 +55,11 @@ const migrateStocks = async () => {
   console.log(`Migrating ${stocks.length} stocks...`);
   for (const stock of stocks) {
     if (!stock.symbol) continue;
+    const data = buildStockData(stock);
     await prisma.stock.upsert({
       where: { symbol: stock.symbol },
-      update: {
-        companyName: stock.companyName || stock.name || stock.symbol,
-        sector: stock.sector || null,
-        lastTradedPrice: stock.lastTradedPrice ?? stock.ltp ?? null,
-        previousClose: stock.previousClose ?? stock.previousClosingPrice ?? null,
-        openPrice: stock.openPrice ?? null,
-        highPrice: stock.highPrice ?? null,
-        lowPrice: stock.lowPrice ?? null,
-        volume: stock.volume ?? stock.totalTradedQuantity ?? null,
-        totalTrades: stock.totalTrades ?? stock.totalTradedTransactions ?? null,
-        turnover: stock.turnover ?? stock.totalTradedValue ?? null,
-        change: stock.change ?? stock.pointChange ?? null,
-        percentageChange: stock.percentageChange ?? stock.changePercent ?? null,
-      },
-      create: {
-        symbol: stock.symbol,
-        companyName: stock.companyName || stock.name || stock.symbol,
-        sector: stock.sector || null,
-        lastTradedPrice: stock.lastTradedPrice ?? stock.ltp ?? null,
-        previousClose: stock.previousClose ?? stock.previousClosingPrice ?? null,
-        openPrice: stock.openPrice ?? null,
-        highPrice: stock.highPrice ?? null,
-        lowPrice: stock.lowPrice ?? null,
-        volume: stock.volume ?? stock.totalTradedQuantity ?? null,
-        totalTrades: stock.totalTrades ?? stock.totalTradedTransactions ?? null,
-        turnover: stock.turnover ?? stock.totalTradedValue ?? null,
-        change: stock.change ?? stock.pointChange ?? null,
-        percentageChange: stock.percentageChange ?? stock.changePercent ?? null,
-      },
+      update: data,
+      create: { symbol: stock.symbol, ...data },
     });
   }
   console.log('Stocks migrated.');
@@ -123,6 +114,17 @@ const migrateMarketSummary = async () => {
   console.log('Market summary migrated.');
 };
 
+const buildIpoData = (ipo, symbol) => ({
+  companyName: ipo.companyName || ipo.name || symbol,
+  sector: ipo.sector || null,
+  issueDate: parseDate(ipo.issueDate),
+  closingDate: parseDate(ipo.closingDate),
+  price: ipo.price ?? null,
+  units: ipo.units ?? null,
+  status: ipo.status ?? null,
+  issueManager: ipo.issueManager ?? null,
+});
+
 const migrateIpos = async () => {
   const ipos = loadJson(FILES.ipos, []);
   if (!Array.isArray(ipos) || ipos.length === 0) {
@@ -134,29 +136,11 @@ const migrateIpos = async () => {
   for (const ipo of ipos) {
     const symbol = ipo.symbol || ipo.ticker;
     if (!symbol) continue;
+    const data = buildIpoData(ipo, symbol);
     await prisma.ipo.upsert({
       where: { symbol },
-      update: {
-        companyName: ipo.companyName || ipo.name || symbol,
-        sector: ipo.sector || null,
-        issueDate: ipo.issueDate ? new Date(ipo.issueDate) : null,
-        closingDate: ipo.closingDate ? new Date(ipo.closingDate) : null,
-        price: ipo.price ?? null,
-        units: ipo.units ?? null,
-        status: ipo.status ?? null,
-        issueManager: ipo.issueManager ?? null,
-      },
-      create: {
-        symbol,
-        companyName: ipo.companyName || ipo.name || symbol,
-        sector: ipo.sector || null,
-        issueDate: ipo.issueDate ? new Date(ipo.issueDate) : null,
-        closingDate: ipo.closingDate ? new Date(ipo.closingDate) : null,
-        price: ipo.price ?? null,
-        units: ipo.units ?? null,
-        status: ipo.status ?? null,
-        issueManager: ipo.issueManager ?? null,
-      },
+      update: data,
+      create: { symbol, ...data },
     });
   }
   console.log('IPOs migrated.');
