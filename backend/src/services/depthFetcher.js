@@ -61,17 +61,38 @@ function generateMockDepth(symbol) {
     };
 }
 
-async function lookupCompanyId(symbol, nepseAxios, headers, BASE_URL) {
-    const companiesRes = await nepseAxios.get(`${BASE_URL}/api/nots/company/list`, { headers, timeout: 5000 });
+/** Map a single raw depth entry to standard format */
+function transformDepthEntry(d) {
+    return {
+        orders: d.orderCount || d.orders || 0,
+        quantity: d.quantity || d.qty || 0,
+        rate: d.rate || d.price || d.orderRate || 0
+    };
+}
+
+/** Map a single raw floorsheet entry to standard format */
+function transformFloorEntry(t) {
+    return {
+        transId: t.contractId || t.transactionId || 0,
+        buyerBroker: t.buyerMemberId || t.buyerBroker || 'N/A',
+        sellerBroker: t.sellerMemberId || t.sellerBroker || 'N/A',
+        quantity: t.contractQuantity || t.quantity || 0,
+        rate: t.contractRate || t.rate || 0,
+        amount: t.contractAmount || t.amount || 0
+    };
+}
+
+async function lookupCompanyId(ctx, symbol) {
+    const companiesRes = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/company/list`, { headers: ctx.headers, timeout: 5000 });
     const company = companiesRes?.data?.find(c => c.symbol === symbol.toUpperCase());
     if (!company) throw new Error(`Company ID not found for symbol ${symbol}`);
     return company.id;
 }
 
-async function fetchAndTransformDepth(companyId, nepseAxios, headers, BASE_URL, symbol) {
+async function fetchAndTransformDepth(ctx, companyId, symbol) {
     let depthData = { marketDepth: { buyMarketDepthList: [], sellMarketDepthList: [] } };
     try {
-        const depthResponse = await nepseAxios.get(`${BASE_URL}/api/nots/nepse-data/marketdepth/${companyId}`, { headers, timeout: 5000 });
+        const depthResponse = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/nepse-data/marketdepth/${companyId}`, { headers: ctx.headers, timeout: 5000 });
         if (depthResponse.data?.marketDepth) {
             depthData.marketDepth = depthResponse.data.marketDepth;
         } else if (depthResponse.data?.buyMarketDepthList || depthResponse.data?.sellMarketDepthList) {
@@ -83,38 +104,22 @@ async function fetchAndTransformDepth(companyId, nepseAxios, headers, BASE_URL, 
         logger.warn(`Failed to fetch real depth for ${symbol}: ${e.message}`);
     }
 
-    const buy = (depthData.marketDepth?.buyMarketDepthList || []).slice(0, 5).map(d => ({
-        orders: d.orderCount || d.orders || 0,
-        quantity: d.quantity || d.qty || 0,
-        rate: d.rate || d.price || d.orderRate || 0
-    }));
-
-    const sell = (depthData.marketDepth?.sellMarketDepthList || []).slice(0, 5).map(d => ({
-        rate: d.rate || d.price || d.orderRate || 0,
-        quantity: d.quantity || d.qty || 0,
-        orders: d.orderCount || d.orders || 0
-    }));
+    const buy = (depthData.marketDepth?.buyMarketDepthList || []).slice(0, 5).map(transformDepthEntry);
+    const sell = (depthData.marketDepth?.sellMarketDepthList || []).slice(0, 5).map(transformDepthEntry);
 
     return { buy, sell };
 }
 
-async function fetchAndTransformFloorsheet(companyId, nepseAxios, headers, BASE_URL, symbol) {
+async function fetchAndTransformFloorsheet(ctx, companyId, symbol) {
     let floorData = [];
     try {
-        const floorResponse = await nepseAxios.get(`${BASE_URL}/api/nots/floorsheet?companyId=${companyId}`, { headers, timeout: 5000 });
+        const floorResponse = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/floorsheet?companyId=${companyId}`, { headers: ctx.headers, timeout: 5000 });
         floorData = floorResponse.data || [];
     } catch (e) {
         logger.debug(`Floorsheet endpoint unavailable for ${symbol}`);
     }
 
-    return (floorData.floorsheets?.content || floorData || []).slice(0, 20).map(t => ({
-        transId: t.contractId || t.transactionId || 0,
-        buyerBroker: t.buyerMemberId || t.buyerBroker || 'N/A',
-        sellerBroker: t.sellerMemberId || t.sellerBroker || 'N/A',
-        quantity: t.contractQuantity || t.quantity || 0,
-        rate: t.contractRate || t.rate || 0,
-        amount: t.contractAmount || t.amount || 0
-    }));
+    return (floorData.floorsheets?.content || floorData || []).slice(0, 20).map(transformFloorEntry);
 }
 
 /**
@@ -127,15 +132,16 @@ async function fetchRealDepth(symbol) {
         await nepseClient.initialize();
         const token = await nepseClient.getToken();
         const headers = createHeaders(token);
+        const ctx = { nepseAxios, headers, BASE_URL };
 
         // 1. Fetch Company List to map symbol to company ID
-        const companyId = await lookupCompanyId(symbol, nepseAxios, headers, BASE_URL);
+        const companyId = await lookupCompanyId(ctx, symbol);
 
         // 2. Fetch Market Depth
-        const { buy, sell } = await fetchAndTransformDepth(companyId, nepseAxios, headers, BASE_URL, symbol);
+        const { buy, sell } = await fetchAndTransformDepth(ctx, companyId, symbol);
 
         // 3. Fetch Floorsheet
-        const floorsheet = await fetchAndTransformFloorsheet(companyId, nepseAxios, headers, BASE_URL, symbol);
+        const floorsheet = await fetchAndTransformFloorsheet(ctx, companyId, symbol);
 
         return {
             marketDepth: { buy, sell },

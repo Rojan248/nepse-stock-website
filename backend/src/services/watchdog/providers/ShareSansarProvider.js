@@ -2,24 +2,33 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const logger = require('../../utils/logger');
 
-/**
- * Process a single raw HTML row to extract core metrics
- */
-const processRow = ($, tr, resultData) => {
-    const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
+/** Parse cell value as float */
+const cellFloat = ($, tr) => parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
 
-    if (text.includes('total turnover')) {
-        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
-        if (!isNaN(val)) resultData.totalTurnover = val;
-    }
-    if (text.includes('total transaction')) {
-        const val = parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
-        if (!isNaN(val)) resultData.totalTransactions = val;
-    }
-    if (text.includes('nepse') && $(tr).find('td').length > 1 && resultData.nepseIndex == null && !text.includes('float')) {
-        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
-        if (!isNaN(val)) resultData.nepseIndex = val;
-    }
+/** Parse cell value as int */
+const cellInt = ($, tr) => parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
+
+const extractTurnover = ($, tr, text, data) => {
+    if (!text.includes('total turnover')) return;
+    const val = cellFloat($, tr);
+    if (!isNaN(val)) data.totalTurnover = val;
+};
+
+const extractTransactions = ($, tr, text, data) => {
+    if (!text.includes('total transaction')) return;
+    const val = cellInt($, tr);
+    if (!isNaN(val)) data.totalTransactions = val;
+};
+
+const isNepseIndexRow = ($, tr, text, data) => {
+    return text.includes('nepse') && !text.includes('float')
+        && $(tr).find('td').length > 1 && data.nepseIndex == null;
+};
+
+const extractNepseIndex = ($, tr, text, data) => {
+    if (!isNepseIndexRow($, tr, text, data)) return;
+    const val = cellFloat($, tr);
+    if (!isNaN(val)) data.nepseIndex = val;
 };
 
 /**
@@ -27,7 +36,10 @@ const processRow = ($, tr, resultData) => {
  */
 const extractMetrics = ($, resultData) => {
     $('table tr').each((i, tr) => {
-        processRow($, tr, resultData);
+        const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
+        extractTurnover($, tr, text, resultData);
+        extractTransactions($, tr, text, resultData);
+        extractNepseIndex($, tr, text, resultData);
     });
 };
 
@@ -55,9 +67,9 @@ class ShareSansarProvider {
 
             extractMetrics($, result.data);
 
-            if (result.data.totalTurnover == null ||
-                result.data.totalTransactions == null ||
-                result.data.nepseIndex == null) {
+            const d = result.data;
+            const isMissingMetrics = d.totalTurnover == null || d.totalTransactions == null || d.nepseIndex == null;
+            if (isMissingMetrics) {
                 result.success = false;
                 result.error = "Missing required metrics (turnover, transactions, or index)";
                 return result;

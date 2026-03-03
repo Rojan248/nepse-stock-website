@@ -15,10 +15,8 @@ import './StockDetailPage.css';
 function getField(stock, nested1, nested2, ...keys) {
     for (const k of keys) {
         if (stock[k]) return stock[k];
-    }
-    for (const k of keys) {
-        if (nested1 && nested1[k]) return nested1[k];
-        if (nested2 && nested2[k]) return nested2[k];
+        if (nested1?.[k]) return nested1[k];
+        if (nested2?.[k]) return nested2[k];
     }
     return 0;
 }
