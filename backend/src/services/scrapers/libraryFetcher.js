@@ -194,6 +194,23 @@ const fetchData = async () => {
 const { isKnownSymbol } = require('../dataEnricher');
 
 /**
+ * Merge parallel trade stat responses into a single unique array
+ */
+const mergeSecurityResponses = (responses) => {
+    const allSecuritiesMap = new Map();
+    responses.forEach(response => {
+        if (response.data && Array.isArray(response.data)) {
+            response.data.forEach(security => {
+                if (security.symbol && !allSecuritiesMap.has(security.symbol)) {
+                    allSecuritiesMap.set(security.symbol, security);
+                }
+            });
+        }
+    });
+    return Array.from(allSecuritiesMap.values());
+};
+
+/**
  * Fetch all securities with price data from NEPSE
  */
 const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) => {
@@ -225,22 +242,7 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
 
 
         const responses = await Promise.all(fetchPromises);
-
-        // Merge all securities, removing duplicates by symbol
-        const allSecuritiesMap = new Map();
-
-        responses.forEach(response => {
-            if (response.data && Array.isArray(response.data)) {
-                response.data.forEach(security => {
-                    const symbol = security.symbol;
-                    if (symbol && !allSecuritiesMap.has(symbol)) {
-                        allSecuritiesMap.set(symbol, security);
-                    }
-                });
-            }
-        });
-
-        const mergedSecurities = Array.from(allSecuritiesMap.values());
+        const mergedSecurities = mergeSecurityResponses(responses);
         logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${fetchPromises.length} primary source(s)`);
 
 

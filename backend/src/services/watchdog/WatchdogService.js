@@ -49,6 +49,22 @@ function applyStaleDataWarning(report, localData) {
     }
 }
 
+/** Compare external source data to local and add discrepancies */
+function compareExternalToLocal(report, local, ext) {
+    if (!ext || !ext.data) return;
+
+    if (ext.data.totalTurnover) {
+        addDiscrepancyIfMismatch({ report, localValue: local.data.totalTurnover, externalValue: ext.data.totalTurnover, metricName: 'Turnover', sourceName: ext.source });
+    }
+    if (ext.data.totalTransactions) {
+        addDiscrepancyIfMismatch({ report, localValue: local.data.totalTransactions, externalValue: ext.data.totalTransactions, metricName: 'Transactions', sourceName: ext.source });
+    }
+    if (ext.data.nepseIndex) {
+        // Lower threshold for NEPSE index since it should be very close
+        addDiscrepancyIfMismatch({ report, localValue: local.data.nepseIndex, externalValue: ext.data.nepseIndex, metricName: 'NEPSE Index', sourceName: ext.source, threshold: 0.1 });
+    }
+}
+
 class WatchdogService {
     constructor() {
         this.providers = [merolagani, nepseAlpha, shareSansar];
@@ -164,18 +180,7 @@ class WatchdogService {
 
         // Compare with all available external sources
         for (const ext of external) {
-            if (ext && ext.data) {
-                if (ext.data.totalTurnover) {
-                    addDiscrepancyIfMismatch({ report, localValue: local.data.totalTurnover, externalValue: ext.data.totalTurnover, metricName: 'Turnover', sourceName: ext.source });
-                }
-                if (ext.data.totalTransactions) {
-                    addDiscrepancyIfMismatch({ report, localValue: local.data.totalTransactions, externalValue: ext.data.totalTransactions, metricName: 'Transactions', sourceName: ext.source });
-                }
-                if (ext.data.nepseIndex) {
-                    // Lower threshold for NEPSE index since it should be very close
-                    addDiscrepancyIfMismatch({ report, localValue: local.data.nepseIndex, externalValue: ext.data.nepseIndex, metricName: 'NEPSE Index', sourceName: ext.source, threshold: 0.1 });
-                }
-            }
+            compareExternalToLocal(report, local, ext);
         }
 
         return report;

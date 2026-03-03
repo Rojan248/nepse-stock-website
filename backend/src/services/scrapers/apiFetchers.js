@@ -27,6 +27,46 @@ const createClient = (baseURL, customHeaders = {}) => axios.create({
 });
 
 /**
+ * Parse a single row from ShareSansar live trading table
+ * @param {Object} $ - Cheerio instance
+ * @param {Object} cells - Cheerio cells selection
+ * @returns {Object|null} Transformed stock or null
+ */
+const parseShareSansarRow = ($, cells) => {
+    if (cells.length === 0) return null;
+
+    const rawItem = {
+        symbol: $(cells[1]).text().trim(),
+        ltp: $(cells[2]).text().replace(/,/g, '').trim(),
+        change: $(cells[3]).text().replace(/,/g, '').trim(),
+        percentChange: $(cells[4]).text().replace(/,/g, '').trim(),
+        open: $(cells[5]).text().replace(/,/g, '').trim(),
+        high: $(cells[6]).text().replace(/,/g, '').trim(),
+        low: $(cells[7]).text().replace(/,/g, '').trim(),
+        volume: $(cells[8]).text().replace(/,/g, '').trim(),
+        previousClose: $(cells[9]).text().replace(/,/g, '').trim()
+    };
+
+    if (rawItem.symbol && rawItem.ltp !== '') {
+        return transformShareSansarStock(rawItem);
+    }
+    return null;
+};
+
+/**
+ * Extract array of securities from different possible response structures
+ * @param {Object} data - The API response data
+ * @returns {Array|null} Array of securities or null
+ */
+const extractSecuritiesArray = (data) => {
+    let securities = data;
+    if (securities.data) securities = securities.data;
+    if (securities.securities) securities = securities.securities;
+    if (securities.stocks) securities = securities.stocks;
+    return Array.isArray(securities) ? securities : null;
+};
+
+/**
  * Fetch from NepAlpha API - Primary NEPSE data source
  * @returns {Promise<Object|null>} Standardized data or null
  */
@@ -56,6 +96,25 @@ const fetchFromNepAlpha = async () => {
 };
 
 /**
+ * Parse ShareSansar HTML into stocks array
+ * @param {string} html
+ * @returns {Array} Array of parsed stocks
+ */
+const parseShareSansarHtml = (html) => {
+    const $ = cheerio.load(html);
+    const rows = $('table tbody tr');
+    const stocks = [];
+
+    if (rows.length > 0) {
+        rows.each((i, el) => {
+            const parsed = parseShareSansarRow($, $(el).find('td'));
+            if (parsed) stocks.push(parsed);
+        });
+    }
+    return stocks;
+};
+
+/**
  * Fetch from ShareSansar API
  * @returns {Promise<Object|null>} Standardized data or null
  */
@@ -69,33 +128,9 @@ const fetchFromShareSansar = async () => {
         const response = await client.get('https://www.sharesansar.com/live-trading');
 
         if (response.data && typeof response.data === 'string') {
-            const $ = cheerio.load(response.data);
-            const rows = $('table tbody tr');
+            const stocks = parseShareSansarHtml(response.data);
 
-            if (rows.length > 0) {
-                const stocks = [];
-                rows.each((i, el) => {
-                    const cells = $(el).find('td');
-                    if (cells.length > 0) {
-                        // ShareSansar table columns (as of 2026):
-                        // 0:S.No | 1:Symbol | 2:LTP | 3:Point Change | 4:% Change | 5:Open | 6:High | 7:Low | 8:Volume | 9:Prev. Close
-                        const rawItem = {
-                            symbol: $(cells[1]).text().trim(),
-                            ltp: $(cells[2]).text().replace(/,/g, '').trim(),
-                            change: $(cells[3]).text().replace(/,/g, '').trim(),
-                            percentChange: $(cells[4]).text().replace(/,/g, '').trim(),
-                            open: $(cells[5]).text().replace(/,/g, '').trim(),
-                            high: $(cells[6]).text().replace(/,/g, '').trim(),
-                            low: $(cells[7]).text().replace(/,/g, '').trim(),
-                            volume: $(cells[8]).text().replace(/,/g, '').trim(),
-                            previousClose: $(cells[9]).text().replace(/,/g, '').trim()
-                        };
-                        if (rawItem.symbol && rawItem.ltp !== '') {
-                            stocks.push(transformShareSansarStock(rawItem));
-                        }
-                    }
-                });
-
+            if (stocks.length > 0) {
                 return {
                     stocks,
                     ipos: [],
@@ -140,12 +175,8 @@ const fetchStocksFromSource = async (client, source) => {
         const response = await client.get(source.stocksEndpoint);
 
         if (response.data) {
-            let securities = response.data;
-            if (securities.data) securities = securities.data;
-            if (securities.securities) securities = securities.securities;
-            if (securities.stocks) securities = securities.stocks;
-
-            if (Array.isArray(securities) && securities.length > 0) {
+            const securities = extractSecuritiesArray(response.data);
+            if (securities && securities.length > 0) {
                 return securities.map(transformStock);
             }
         }

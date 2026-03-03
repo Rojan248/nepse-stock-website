@@ -2,6 +2,35 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const logger = require('../../utils/logger');
 
+/**
+ * Process a single raw HTML row to extract core metrics
+ */
+const processRow = ($, tr, resultData) => {
+    const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
+
+    if (text.includes('total turnover')) {
+        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
+        if (!isNaN(val)) resultData.totalTurnover = val;
+    }
+    if (text.includes('total transaction')) {
+        const val = parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
+        if (!isNaN(val)) resultData.totalTransactions = val;
+    }
+    if (text.includes('nepse') && $(tr).find('td').length > 1 && resultData.nepseIndex == null && !text.includes('float')) {
+        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
+        if (!isNaN(val)) resultData.nepseIndex = val;
+    }
+};
+
+/**
+ * Extract market metrics from raw HTML rows
+ */
+const extractMetrics = ($, resultData) => {
+    $('table tr').each((i, tr) => {
+        processRow($, tr, resultData);
+    });
+};
+
 class ShareSansarProvider {
     constructor() {
         this.name = 'ShareSansar';
@@ -24,24 +53,7 @@ class ShareSansarProvider {
                 data: {}
             };
 
-            $('table').each((ti, table) => {
-                $(table).find('tr').each((ri, tr) => {
-                    const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
-
-                    if (text.includes('total turnover')) {
-                        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
-                        if (!isNaN(val)) result.data.totalTurnover = val;
-                    }
-                    if (text.includes('total transaction')) {
-                        const val = parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
-                        if (!isNaN(val)) result.data.totalTransactions = val;
-                    }
-                    if (text.includes('nepse') && $(tr).find('td').length > 1 && result.data.nepseIndex == null && !text.includes('float')) {
-                        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
-                        if (!isNaN(val)) result.data.nepseIndex = val;
-                    }
-                });
-            });
+            extractMetrics($, result.data);
 
             if (result.data.totalTurnover == null ||
                 result.data.totalTransactions == null ||

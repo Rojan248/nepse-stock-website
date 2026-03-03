@@ -135,9 +135,11 @@ class AnalyticsService {
     }
 
     /**
-     * Record a stock view
+     * Record a stock interaction (view or search) to prevent duplication
+     * @param {string} symbol - Stock symbol
+     * @param {string} interactionType - 'views' or 'searches'
      */
-    recordView(symbol) {
+    recordInteraction(symbol, interactionType) {
         if (!this.isValidInput(symbol)) return;
 
         const upperSymbol = symbol.toUpperCase();
@@ -149,37 +151,27 @@ class AnalyticsService {
 
         const current = this.scores.get(upperSymbol) || { views: 0, searches: 0, score: 0 };
 
-        current.views++;
+        current[interactionType]++;
         current.score = this.calculateScore(current.views, current.searches);
 
         this.scores.set(upperSymbol, current);
         this.isDirty = true;
 
-        logger.debug(`[Analytics] View recorded: ${upperSymbol} (score: ${current.score})`);
+        logger.debug(`[Analytics] ${interactionType} recorded: ${upperSymbol} (score: ${current.score})`);
+    }
+
+    /**
+     * Record a stock view
+     */
+    recordView(symbol) {
+        this.recordInteraction(symbol, 'views');
     }
 
     /**
      * Record a stock search
      */
     recordSearch(query) {
-        if (!this.isValidInput(query)) return;
-
-        const upperQuery = query.toUpperCase();
-
-        // Prevent map explosion: If full and new key, ignore
-        if (!this.scores.has(upperQuery) && this.scores.size >= this.MAX_ENTRIES) {
-            return;
-        }
-
-        const current = this.scores.get(upperQuery) || { views: 0, searches: 0, score: 0 };
-
-        current.searches++;
-        current.score = this.calculateScore(current.views, current.searches);
-
-        this.scores.set(upperQuery, current);
-        this.isDirty = true;
-
-        logger.debug(`[Analytics] Search recorded: ${upperQuery} (score: ${current.score})`);
+        this.recordInteraction(query, 'searches');
     }
 
     /**

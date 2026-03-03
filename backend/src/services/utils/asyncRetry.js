@@ -16,6 +16,17 @@ const DEFAULT_OPTIONS = {
 };
 
 /**
+ * Check if the error is inherently non-retryable (validation, 404s, DNS)
+ * @param {Error} error
+ * @returns {boolean} True if the error should NOT be retried
+ */
+const isNonRetryableError = (error) => {
+    return error.message?.includes('validation') ||
+        error.message?.includes('invalid') ||
+        error.code === 'ENOTFOUND';
+};
+
+/**
  * Wrap an async function with retry logic
  * @param {Function} fn - Async function to retry
  * @param {Object} options - Override default options
@@ -35,9 +46,7 @@ const withRetry = async (fn, options = {}, context = 'operation') => {
             return await fn();
         } catch (error) {
             // Don't retry on certain errors (e.g., validation errors)
-            if (error.message?.includes('validation') ||
-                error.message?.includes('invalid') ||
-                error.code === 'ENOTFOUND') {
+            if (isNonRetryableError(error)) {
                 logger.error(`[Retry] ${context}: Non-retryable error: ${error.message}`);
                 bail(error);
                 return;

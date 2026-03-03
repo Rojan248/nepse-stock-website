@@ -358,44 +358,51 @@ const getTrueTransactionCount = async () => {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
+ * Ensure market summary exists, fallback to database if not
+ * @param {Object} data - Fetched data
+ */
+const ensureMarketSummary = async (data) => {
+    if (data.marketSummary) return;
+    try {
+        const { prisma } = require('./database/connection');
+        const latestSummary = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' }, take: 1 });
+        data.marketSummary = latestSummary || {};
+    } catch (e) {
+        logger.debug(`Failed to load DB fallback summary in fetch success: ${e.message}`);
+        data.marketSummary = {};
+    }
+};
+
+/**
+ * Filter non-equity stocks from data
+ * @param {Object} data - Fetched data
+ */
+const filterEquityStocks = (data) => {
+    if (!Array.isArray(data.stocks)) return;
+    const before = data.stocks.length;
+    data.stocks = data.stocks.filter(s => isKnownSymbol(s.symbol));
+    const removed = before - data.stocks.length;
+    if (removed > 0) {
+        logger.info(`handleFetchSuccess: Filtered out ${removed} non-equity securities (${before} → ${data.stocks.length})`);
+    }
+};
+
+/**
  * Handle successful fetch - updates tracking state, enriches data, and logs result
  * @param {Object} data - Fetched data
  * @param {string} source - Data source name
  * @returns {Object} The enriched data
  */
 const handleFetchSuccess = async (data, source) => {
-    // If the scraper completely failed to return a summary, recover non-breadth fields from DB.
-    // Breadth (advance/decline/unchanged) is always recalculated from live stock data
-    // by enrichAndFinalize → updateMarketBreadth, so we do NOT patch breadth from DB here.
-    const isMissingSummary = !data.marketSummary;
-
-    if (isMissingSummary) {
-        try {
-            const { prisma } = require('./database/connection');
-            const latestSummary = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' }, take: 1 });
-            data.marketSummary = latestSummary || {};
-        } catch (e) {
-            logger.debug(`Failed to load DB fallback summary in fetch success: ${e.message}`);
-            data.marketSummary = {};
-        }
-    }
-    // ── Centralized equity filter ──────────────────────────────────
-    // The library fetcher already filters internally, but proxy and
-    // custom scrapers may return mutual funds, bonds, debentures, etc.
-    // Strip them here so every code-path is safe by checking against our verified stocks DB.
-    if (Array.isArray(data.stocks)) {
-        const before = data.stocks.length;
-        data.stocks = data.stocks.filter(s => isKnownSymbol(s.symbol));
-        const removed = before - data.stocks.length;
-        if (removed > 0) {
-            logger.info(`handleFetchSuccess: Filtered out ${removed} non-equity securities (${before} → ${data.stocks.length})`);
-        }
-    }
+    await ensureMarketSummary(data);
+    filterEquityStocks(data);
     await enrichAndFinalize(data, fetchLiveMarketMeta);
+
     lastDataSource = data.source || source;
     lastUpdateTime = new Date();
     consecutiveFailures = 0;
-    logger.info(`✓ Successfully fetched data using ${source} (${data.stocks.length} stocks)`);
+
+    logger.info(`✓ Successfully fetched data using ${source} (${data.stocks?.length || 0} stocks)`);
     return data;
 };
 

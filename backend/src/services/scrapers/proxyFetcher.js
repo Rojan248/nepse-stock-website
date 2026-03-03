@@ -85,30 +85,43 @@ const tryGenericSources = async () => {
 };
 
 /**
+ * Fetch IPO representations from a single proxy source across multiple endpoints
+ * @param {Object} source - The source config
+ * @returns {Promise<Array|null>} Mapped IPO array or null
+ */
+const fetchIPOFromSource = async (source) => {
+    const client = createClient(source.baseUrl);
+
+    for (const endpoint of IPO_ENDPOINTS) {
+        try {
+            const response = await client.get(endpoint);
+
+            if (response.data) {
+                let ipos = response.data;
+                if (ipos.data) ipos = ipos.data;
+                if (ipos.ipos) ipos = ipos.ipos;
+
+                if (Array.isArray(ipos) && ipos.length > 0) {
+                    logger.info(`Fetched ${ipos.length} IPOs from ${source.name}`);
+                    return ipos.map(transformIPO);
+                }
+            }
+        } catch (error) {
+            logger.debug(`IPO endpoint ${endpoint} on ${source.name} failed: ${error.message}`);
+        }
+    }
+    return null;
+};
+
+/**
  * Fetch IPOs from proxy sources
  * @returns {Promise<Array>} Array of IPO objects
  */
 const fetchIPOs = async () => {
     for (const source of API_SOURCES) {
-        const client = createClient(source.baseUrl);
-
-        for (const endpoint of IPO_ENDPOINTS) {
-            try {
-                const response = await client.get(endpoint);
-
-                if (response.data) {
-                    let ipos = response.data;
-                    if (ipos.data) ipos = ipos.data;
-                    if (ipos.ipos) ipos = ipos.ipos;
-
-                    if (Array.isArray(ipos) && ipos.length > 0) {
-                        logger.info(`Fetched ${ipos.length} IPOs from ${source.name}`);
-                        return ipos.map(transformIPO);
-                    }
-                }
-            } catch (error) {
-                logger.debug(`IPO endpoint ${endpoint} on ${source.name} failed: ${error.message}`);
-            }
+        const ipos = await fetchIPOFromSource(source);
+        if (ipos) {
+            return ipos;
         }
     }
 

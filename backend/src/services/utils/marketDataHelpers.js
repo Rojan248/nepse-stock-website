@@ -36,26 +36,26 @@ const shouldUpdateMarketData = (latest, merged, isMarketOpen) => {
     return { shouldUpdate: true, reason: 'market-open' };
 };
 
+/** field properties used during merge */
+const DEFAULT_SUMMARY_FIELDS = [
+    'indexValue', 'indexChange', 'indexChangePercent',
+    'totalTransactions', 'totalTurnover', 'totalVolume',
+    'activeCompanies', 'advancedCompanies', 'declinedCompanies',
+    'unchangedCompanies'
+];
+
 /**
- * Merge API data with cached data using nullish coalescing
+ * Merge API data with cached data using a mapping dictionary
  * @param {Object} apiData - Fresh data from API
  * @param {Object|null} cachedData - Cached data from database
  * @returns {Object} Merged market summary object
  */
 const mergeMarketSummaryData = (apiData, cachedData = null) => {
-    return {
-        indexValue: apiData.indexValue ?? cachedData?.indexValue ?? null,
-        indexChange: apiData.indexChange ?? cachedData?.indexChange ?? null,
-        indexChangePercent: apiData.indexChangePercent ?? cachedData?.indexChangePercent ?? null,
-        totalTransactions: apiData.totalTransactions ?? cachedData?.totalTransactions ?? null,
-        totalTurnover: apiData.totalTurnover ?? cachedData?.totalTurnover ?? null,
-        totalVolume: apiData.totalVolume ?? cachedData?.totalVolume ?? null,
-        activeCompanies: apiData.activeCompanies ?? cachedData?.activeCompanies ?? null,
-        advancedCompanies: apiData.advancedCompanies ?? cachedData?.advancedCompanies ?? null,
-        declinedCompanies: apiData.declinedCompanies ?? cachedData?.declinedCompanies ?? null,
-        unchangedCompanies: apiData.unchangedCompanies ?? cachedData?.unchangedCompanies ?? null,
-        timestamp: new Date()
-    };
+    const merged = { timestamp: new Date() };
+    for (const field of DEFAULT_SUMMARY_FIELDS) {
+        merged[field] = apiData[field] ?? cachedData?.[field] ?? null;
+    }
+    return merged;
 };
 
 /**

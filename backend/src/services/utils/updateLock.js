@@ -11,6 +11,12 @@ let lockExpiry = null;
 
 const LOCK_DURATION_MS = 60000; // 1 minute lock
 
+/** Helper to check if lock is expired */
+const isLockExpired = () => isLocked && lockExpiry && Date.now() >= lockExpiry;
+
+/** Helper to check if lock is currently active */
+const isLockActive = () => isLocked && lockExpiry && Date.now() < lockExpiry;
+
 /**
  * Acquire the update lock
  * @param {string} owner - Identifier for who is acquiring the lock
@@ -18,7 +24,7 @@ const LOCK_DURATION_MS = 60000; // 1 minute lock
  */
 const acquireLock = (owner) => {
     // Check if lock is held and not expired
-    if (isLocked && lockExpiry && Date.now() < lockExpiry) {
+    if (isLockActive()) {
         logger.debug(`[UpdateLock] Lock denied to '${owner}' - held by '${lockOwner}'`);
         return false;
     }
@@ -51,7 +57,7 @@ const releaseLock = (owner) => {
  */
 const isLockedBy = (owner) => {
     // Also check expiry
-    if (isLocked && lockExpiry && Date.now() >= lockExpiry) {
+    if (isLockExpired()) {
         // Lock expired, auto-release
         logger.debug(`[UpdateLock] Lock expired, auto-releasing from '${lockOwner}'`);
         isLocked = false;
@@ -68,7 +74,7 @@ const isLockedBy = (owner) => {
  */
 const isAnyLockActive = () => {
     // Check expiry
-    if (isLocked && lockExpiry && Date.now() >= lockExpiry) {
+    if (isLockExpired()) {
         isLocked = false;
         lockOwner = null;
         lockExpiry = null;

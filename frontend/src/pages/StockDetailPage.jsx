@@ -12,33 +12,37 @@ import './StockDetailPage.css';
 
 // ==================== Shared Helpers ====================
 
-/** Resolve first truthy value from top-level stock fields, then nested source */
-const resolveFirst = (stock, fields, nested, nestedKey) => {
-    for (const f of fields) { if (stock[f]) return stock[f]; }
-    if (nested && nestedKey && nested[nestedKey]) return nested[nestedKey];
+function getField(stock, nested1, nested2, ...keys) {
+    for (const k of keys) {
+        if (stock[k]) return stock[k];
+    }
+    for (const k of keys) {
+        if (nested1 && nested1[k]) return nested1[k];
+        if (nested2 && nested2[k]) return nested2[k];
+    }
     return 0;
-};
+}
 
 /** Resolve common stock price fields from various API shapes */
 function resolveStockPrices(stock) {
-    const prices = stock.prices || {};
-    const trading = stock.trading || {};
+    const p = stock.prices || {};
+    const t = stock.trading || {};
 
-    const ltp = resolveFirst(stock, ['ltp'], prices, 'ltp') || stock.close || 0;
-    const previousClose = resolveFirst(stock, ['previousClose'], prices, 'previousClose') || stock.close || 0;
-    const displayLtp = ltp > 0 ? ltp : previousClose;
+    const ltp = getField(stock, p, t, 'ltp') || stock.close || 0;
+    const pc = getField(stock, p, t, 'previousClose') || stock.close || 0;
+    const dLtp = ltp > 0 ? ltp : pc;
 
     return {
         ltp,
-        previousClose,
-        displayLtp,
-        open: resolveFirst(stock, ['open', 'openPrice'], prices, 'open') || displayLtp,
-        high: resolveFirst(stock, ['high', 'highPrice'], prices, 'high') || displayLtp,
-        low: resolveFirst(stock, ['low', 'lowPrice'], prices, 'low') || displayLtp,
-        volume: resolveFirst(stock, ['volume'], trading, 'volume'),
-        turnover: resolveFirst(stock, ['turnover'], trading, 'turnover'),
-        change: stock.change ?? prices.change ?? 0,
-        changePercent: stock.changePercent ?? prices.changePercent ?? 0,
+        previousClose: pc,
+        displayLtp: dLtp,
+        open: getField(stock, p, t, 'open', 'openPrice') || dLtp,
+        high: getField(stock, p, t, 'high', 'highPrice') || dLtp,
+        low: getField(stock, p, t, 'low', 'lowPrice') || dLtp,
+        volume: getField(stock, t, p, 'volume'),
+        turnover: getField(stock, t, p, 'turnover'),
+        change: stock.change ?? p.change ?? 0,
+        changePercent: stock.changePercent ?? p.changePercent ?? 0,
     };
 }
 

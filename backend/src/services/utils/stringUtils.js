@@ -3,6 +3,28 @@
  */
 
 /**
+ * Purify string sequentially
+ * @param {string} str
+ */
+const normalizeString = (str) => {
+    return str.normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Za-z0-9]/g, '_')
+        .toLowerCase()
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+};
+
+/**
+ * Resolves key collisions using a fallback or timestamp suffix
+ */
+const resolveCollisionKey = (key, fallbackId, existingKeys) => {
+    if (!existingKeys || !existingKeys.has(key)) return key;
+    const suffix = fallbackId || Date.now().toString(36);
+    return `${key}_${suffix}`;
+};
+
+/**
  * Generate a safe, normalized key from a company name
  * - Normalizes unicode to NFKD form
  * - Replaces non-alphanumeric characters with underscores
@@ -19,37 +41,14 @@ const generateSafeKey = (companyName, fallbackId = null, existingKeys = null) =>
         return fallbackId || `ipo_${Date.now()}`;
     }
 
-    // Normalize unicode (NFKD decomposes characters)
-    let key = companyName.normalize('NFKD');
-
-    // Remove diacritical marks (combining characters)
-    key = key.replace(/[\u0300-\u036f]/g, '');
-
-    // Replace all non-alphanumeric ASCII characters with underscores
-    key = key.replace(/[^A-Za-z0-9]/g, '_');
-
-    // Convert to lowercase
-    key = key.toLowerCase();
-
-    // Collapse consecutive underscores
-    key = key.replace(/_+/g, '_');
-
-    // Trim leading/trailing underscores
-    key = key.replace(/^_+|_+$/g, '');
+    let key = normalizeString(companyName);
 
     // If key is empty after processing, use fallback
     if (!key) {
         return fallbackId || `ipo_${Date.now()}`;
     }
 
-    // Check for collisions if existingKeys map is provided
-    if (existingKeys && existingKeys.has(key)) {
-        // Append fallbackId or timestamp to make unique
-        const suffix = fallbackId || Date.now().toString(36);
-        key = `${key}_${suffix}`;
-    }
-
-    return key;
+    return resolveCollisionKey(key, fallbackId, existingKeys);
 };
 
 module.exports = {

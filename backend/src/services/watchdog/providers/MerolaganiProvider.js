@@ -2,6 +2,37 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const logger = require('../../utils/logger');
 
+/**
+ * Process a single raw HTML row to extract core metrics
+ */
+const processRow = ($, tr, resultData) => {
+    const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
+
+    if (text.includes('total turnover')) {
+        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
+        if (!isNaN(val)) resultData.totalTurnover = val;
+    }
+    if (text.includes('total transaction')) {
+        const val = parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
+        if (!isNaN(val)) resultData.totalTransactions = val;
+    }
+};
+
+/**
+ * Extract market metrics from raw HTML rows
+ */
+const extractMetrics = ($, resultData) => {
+    $('table tr').each((i, tr) => {
+        processRow($, tr, resultData);
+    });
+
+    const nepseEl = $('#ctl00_ContentPlaceHolder1_LiveTrading_LiveMarket1_CG1_lblLastPrice_0');
+    if (nepseEl.length) {
+        const val = parseFloat(nepseEl.text().replace(/,/g, ''));
+        if (!isNaN(val)) resultData.nepseIndex = val;
+    }
+};
+
 class MerolaganiProvider {
     constructor() {
         this.name = 'Merolagani';
@@ -24,27 +55,7 @@ class MerolaganiProvider {
                 data: {}
             };
 
-            // Attempt to extract from standard layout tables
-            $('table').each((ti, table) => {
-                $(table).find('tr').each((ri, tr) => {
-                    const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
-                    if (text.includes('total turnover')) {
-                        const val = parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
-                        if (!isNaN(val)) result.data.totalTurnover = val;
-                    }
-                    if (text.includes('total transaction')) {
-                        const val = parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
-                        if (!isNaN(val)) result.data.totalTransactions = val;
-                    }
-                });
-            });
-
-            // Fallback: Check if there's a specific table/div (e.g., #lblLastPrice for NEPSE)
-            const nepseEl = $('#ctl00_ContentPlaceHolder1_LiveTrading_LiveMarket1_CG1_lblLastPrice_0');
-            if (nepseEl.length) {
-                const val = parseFloat(nepseEl.text().replace(/,/g, ''));
-                if (!isNaN(val)) result.data.nepseIndex = val;
-            }
+            extractMetrics($, result.data);
 
             return result;
 

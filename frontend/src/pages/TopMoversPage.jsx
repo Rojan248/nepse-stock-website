@@ -10,6 +10,38 @@ import metricUnchanged from '../assets/img/metric-unchanged.jpg';
 import metricTraded from '../assets/img/metric-traded.jpg';
 import './TopMoversPage.css';
 
+const MOVER_STYLES = {
+    '1': { class: 'positive', icon: '▲', prefix: '+' },
+    '-1': { class: 'negative', icon: '▼', prefix: '−' },
+    '0': { class: '', icon: '', prefix: '' }
+};
+
+const FormattedMoverCard = ({ stock, activeTab, onClick }) => {
+    const sign = Math.sign(stock.change).toString();
+    const style = MOVER_STYLES[sign] || MOVER_STYLES['0'];
+
+    return (
+        <div className={`mover-card ${activeTab}`} onClick={() => onClick(stock)}>
+            <div className="card-header">
+                <span className="symbol">{stock.symbol}</span>
+                <span className="sector-badge">{stock.sector || 'Others'}</span>
+            </div>
+            <div className="company-name">{stock.companyName}</div>
+            <div className="ltp"><span className="currency">Rs</span> {formatNumber(stock.ltp)}</div>
+            <div className="change-row">
+                <span className={`change ${style.class}`}>
+                    {style.icon} {style.prefix}{Math.abs(stock.change).toFixed(2)}
+                </span>
+                <span className={`percent ${style.class}`}>
+                    ({style.prefix}{Math.abs(stock.changePercent).toFixed(2)}%)
+                </span>
+            </div>
+            <div className="volume">Vol: {(stock.volume || stock.totalTradedQuantity || 0).toLocaleString()}</div>
+            <button className="view-btn">View</button>
+        </div>
+    );
+};
+
 function TopMoversPage() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('gainers');
@@ -29,13 +61,8 @@ function TopMoversPage() {
     };
 
     const getActiveStocks = () => {
-        switch (activeTab) {
-            case 'gainers': return gainers;
-            case 'losers': return losers;
-            case 'unchanged': return unchanged;
-            case 'traded': return traded;
-            default: return [];
-        }
+        const stockMap = { gainers, losers, unchanged, traded };
+        return stockMap[activeTab] || [];
     };
 
     const activeStocks = getActiveStocks();
@@ -97,31 +124,14 @@ function TopMoversPage() {
                 ) : (
                     <div className="top-movers-grid">
                         {activeStocks.length > 0 ? (
-                            activeStocks.map((stock) => {
-                                const isPositive = stock.change > 0;
-                                const isNegative = stock.change < 0;
-                                const changeClass = isPositive ? 'positive' : isNegative ? 'negative' : '';
-                                const changeIcon = isPositive ? '▲' : isNegative ? '▼' : '';
-                                const changePrefix = isPositive ? '+' : isNegative ? '−' : '';
-
-                                return (
-                                    <div key={stock.symbol} className={`mover-card ${activeTab}`} onClick={() => handleStockClick(stock)}>
-                                        <div className="card-header">
-                                            <span className="symbol">{stock.symbol}</span>
-                                            <span className="sector-badge">{stock.sector || 'Others'}</span>
-                                        </div>
-                                        <div className="company-name">{stock.companyName}</div>
-                                        <div className="ltp"><span className="currency">Rs</span> {formatNumber(stock.ltp)}</div>
-                                        <div className="change-row">
-                                            <span className={changeClass}>
-                                                {changeIcon} {changePrefix}{Math.abs(stock.change).toFixed(2)} ({changePrefix}{Math.abs(stock.changePercent).toFixed(2)}%)
-                                            </span>
-                                        </div>
-                                        <div className="volume">Vol: {(stock.volume || stock.totalTradedQuantity || 0).toLocaleString()}</div>
-                                        <button className="view-btn">View</button>
-                                    </div>
-                                );
-                            })
+                            activeStocks.map((stock) => (
+                                <FormattedMoverCard
+                                    key={stock.symbol}
+                                    stock={stock}
+                                    activeTab={activeTab}
+                                    onClick={handleStockClick}
+                                />
+                            ))
                         ) : (
                             <div className="empty-state">
                                 <p>No {activeTab} available at the moment</p>

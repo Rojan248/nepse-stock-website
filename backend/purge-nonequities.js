@@ -17,6 +17,28 @@ async function askConfirmation(question) {
     });
 }
 
+async function processDeletion(candidates, isDryRun) {
+    if (isDryRun) {
+        console.log('\n[DRY RUN] Skipping deletions. Run without --dry-run to delete.');
+        return;
+    }
+
+    const answer = await askConfirmation('\nProceed with deletion? (y/N): ');
+    if (answer !== 'y' && answer !== 'yes') {
+        console.log('Aborted.');
+        return;
+    }
+
+    let deletedCount = 0;
+    for (const stock of candidates) {
+        console.log(`[DELETING] ${stock.symbol}...`);
+        await prisma.stock.delete({ where: { id: stock.id } });
+        deletedCount++;
+    }
+
+    console.log(`\nCleanup Complete! Deleted ${deletedCount} non-equity stocks.`);
+}
+
 async function cleanDB() {
     const isDryRun = process.argv.includes('--dry-run');
     console.log(`--- STARTING DB CLEANUP ${isDryRun ? '(DRY RUN)' : ''} ---`);
@@ -47,25 +69,7 @@ async function cleanDB() {
             console.log(` - ${stock.symbol} (${stock.sector}) - ${stock.companyName}`);
         });
 
-        if (isDryRun) {
-            console.log('\n[DRY RUN] Skipping deletions. Run without --dry-run to delete.');
-            return;
-        }
-
-        const answer = await askConfirmation('\nProceed with deletion? (y/N): ');
-        if (answer !== 'y' && answer !== 'yes') {
-            console.log('Aborted.');
-            return;
-        }
-
-        let deletedCount = 0;
-        for (const stock of candidates) {
-            console.log(`[DELETING] ${stock.symbol}...`);
-            await prisma.stock.delete({ where: { id: stock.id } });
-            deletedCount++;
-        }
-
-        console.log(`\nCleanup Complete! Deleted ${deletedCount} non-equity stocks.`);
+        await processDeletion(candidates, isDryRun);
         const remaining = await prisma.stock.count();
         console.log(`Remaining stocks: ${remaining}`);
     } catch (e) {

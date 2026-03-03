@@ -78,6 +78,17 @@ const fetchSimple = async (endpoint, params = {}, defaultValue = [], errorMsg = 
 };
 
 /**
+ * Resolve list payload into standardized array structure
+ * @param {Object} payload - API Response payload
+ * @param {string} listKey - specific key to look for
+ * @returns {Array} Extracted items
+ */
+const resolveListPayload = (payload, listKey) => {
+    if (listKey) return payload[listKey];
+    return payload.data || payload.stocks || payload.ipos || [];
+};
+
+/**
  * Fetch and unwrap a list endpoint with count/total
  * Standardizes response format for paginated/list data
  * @param {string} endpoint - API endpoint
@@ -92,7 +103,7 @@ const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey 
         if (!payload) return { data: [], total: 0 };
 
         // Auto-detect list array if not specified
-        const data = listKey ? payload[listKey] : (payload.data || payload.stocks || payload.ipos || []);
+        const data = resolveListPayload(payload, listKey);
         const total = payload.count || payload.total || 0;
 
         // Return structured list response, preserving other payload props (pagination, statistics)

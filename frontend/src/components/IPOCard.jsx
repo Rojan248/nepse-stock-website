@@ -1,6 +1,21 @@
 import { formatPrice, formatDate } from '../utils/formatting';
 import './IPOCard.css';
 
+const formatUnits = (num) => {
+    if (!num) return 'N/A';
+    if (num >= 10000000) return (num / 10000000).toFixed(1) + ' Cr';
+    if (num >= 100000) return (num / 100000).toFixed(1) + ' L';
+    if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
+    return num.toLocaleString();
+};
+
+const statusLabels = {
+    open: 'OPEN',
+    upcoming: 'UPCOMING',
+    closed: 'CLOSED',
+    completed: 'COMPLETED'
+};
+
 function IPOCard({ ipo, onClick }) {
     if (!ipo) return null;
 
@@ -16,23 +31,8 @@ function IPOCard({ ipo, onClick }) {
         issueManager
     } = ipo;
 
-    const formatUnits = (num) => {
-        if (!num) return 'N/A';
-        if (num >= 10000000) return (num / 10000000).toFixed(1) + ' Cr';
-        if (num >= 100000) return (num / 100000).toFixed(1) + ' L';
-        if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
-        return num.toLocaleString();
-    };
-
     const getStatusClass = () => {
         return status || 'upcoming';
-    };
-
-    const statusLabels = {
-        open: 'OPEN',
-        upcoming: 'UPCOMING',
-        closed: 'CLOSED',
-        completed: 'COMPLETED'
     };
 
     return (

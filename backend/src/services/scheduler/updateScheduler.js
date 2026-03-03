@@ -68,18 +68,21 @@ const shouldSkipUpdate = () => {
 };
 
 /**
- * Persist fetched data to database
- * @param {Object} data - The fetched data object from dataFetcher
+ * Persist stocks and IPOs to the database
  */
-const saveUpdateData = async (data) => {
+const persistCoreData = async (data) => {
     if (data.stocks && data.stocks.length > 0) {
         await stockOperations.saveStocks(data.stocks);
     }
-
     if (data.ipos && data.ipos.length > 0) {
         await ipoOperations.saveIPOs(data.ipos);
     }
+};
 
+/**
+ * Persist market summary and top movers to the database
+ */
+const persistMarketAnalytics = async (data) => {
     if (data.marketSummary) {
         await marketOperations.upsertMarketSummary(data.marketSummary);
     }
@@ -94,6 +97,15 @@ const saveUpdateData = async (data) => {
             losers: data.topLosers
         });
     }
+};
+
+/**
+ * Persist fetched data to database
+ * @param {Object} data - The fetched data object from dataFetcher
+ */
+const saveUpdateData = async (data) => {
+    await persistCoreData(data);
+    await persistMarketAnalytics(data);
 };
 
 /**
@@ -135,6 +147,49 @@ const performUpdate = async () => {
 };
 
 /**
+ * Handle repetitive interval scheduling dynamically
+ */
+const scheduleNext = () => {
+    if (!isRunning) return;
+
+    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
+    const interval = (isMarketOpen() || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
+
+    schedulerJob = setTimeout(async () => {
+        if (isRunning) {
+            try {
+                await performUpdate();
+            } catch (error) {
+                logger.error(`Scheduled update failed: ${error.message}`);
+            } finally {
+                scheduleNext();
+            }
+        }
+    }, interval);
+};
+
+/**
+ * Setup daily and periodic cron jobs
+ */
+const setupCronJobs = () => {
+    // Daily cleanup
+    schedule.scheduleJob('0 0 * * *', async () => {
+        logger.info('Running daily cleanup...');
+        await marketOperations.cleanOldSummaries(30);
+    });
+
+    // Watchdog (Every 10 minutes)
+    schedule.scheduleJob('*/10 * * * *', async () => {
+        logger.info('Running scheduled watchdog verification...');
+        try {
+            await watchdogService.verify();
+        } catch (e) {
+            logger.error(`Scheduled watchdog failed: ${e.message}`);
+        }
+    });
+};
+
+/**
  * Start the update scheduler
  */
 const startScheduler = async () => {
@@ -152,47 +207,9 @@ const startScheduler = async () => {
     // Initial update
     await performUpdate();
 
-    // Evaluate base configuration
-    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
-
-    // Use recursive setTimeout to prevent overlapping updates (race condition)
-    const scheduleNext = () => {
-        if (!isRunning) return;
-
-        // Dynamically evaluate interval based on current market state
-        const marketOpen = isMarketOpen();
-        const interval = (marketOpen || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
-
-        schedulerJob = setTimeout(async () => {
-            if (isRunning) {
-                try {
-                    await performUpdate();
-                } catch (error) {
-                    logger.error(`Scheduled update failed: ${error.message}`);
-                } finally {
-                    scheduleNext();
-                }
-            }
-        }, interval);
-    };
-
+    // Start recursive scheduling and background cron tasks
     scheduleNext();
-
-    // Also schedule daily cleanup
-    schedule.scheduleJob('0 0 * * *', async () => {
-        logger.info('Running daily cleanup...');
-        await marketOperations.cleanOldSummaries(30);
-    });
-
-    // Schedule Watchdog (Every 10 minutes)
-    schedule.scheduleJob('*/10 * * * *', async () => {
-        logger.info('Running scheduled watchdog verification...');
-        try {
-            await watchdogService.verify();
-        } catch (e) {
-            logger.error(`Scheduled watchdog failed: ${e.message}`);
-        }
-    });
+    setupCronJobs();
 
     const nst = getNSTTime();
     logger.info(`Scheduler started at ${nst.toISOString()} NST (from external time server)`);

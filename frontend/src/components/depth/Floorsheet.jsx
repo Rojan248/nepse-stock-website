@@ -16,7 +16,9 @@ function Floorsheet({ symbol, data, loading }) {
         );
     }
 
-    if (!data || !data.floorsheet || data.floorsheet.length === 0) {
+    const hasValidData = data && data.floorsheet && data.floorsheet.length > 0;
+
+    if (!hasValidData) {
         return (
             <div className="floorsheet-empty">
                 <span>No recent trades available (Market may be closed)</span>

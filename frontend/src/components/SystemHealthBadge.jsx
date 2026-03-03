@@ -53,18 +53,23 @@ function useHealthPolling() {
  * @returns {{ key: string, lastUpdateDate: Date|null, isCircuitOpen: boolean }}
  */
 function getHealthState(health) {
-    const isOffline = !health || health.status === 'degraded' || health.status === 'error';
     const isCircuitOpen = !!health?.resilience?.circuitBreaker?.isOpen;
     const lastUpdateDate = health?.scheduler?.lastUpdate ? new Date(health.scheduler.lastUpdate) : null;
+
+    const isMarketClosed = health?.market?.state && health.market.state !== 'OPEN';
+    const isOffline = !health || health.status === 'degraded' || health.status === 'error';
     const isStale = lastUpdateDate && (Date.now() - lastUpdateDate > STALE_THRESHOLD);
-    const marketState = health?.market?.state;
-    const isMarketClosed = marketState && marketState !== 'OPEN';
 
     let key = 'healthy';
-    if (isMarketClosed) key = 'closed';
-    else if (isOffline) key = 'offline';
-    else if (isCircuitOpen) key = 'circuit';
-    else if (isStale) key = 'stale';
+    if (isMarketClosed) {
+        key = 'closed';
+    } else if (isOffline) {
+        key = 'offline';
+    } else if (isCircuitOpen) {
+        key = 'circuit';
+    } else if (isStale) {
+        key = 'stale';
+    }
 
     return { key, lastUpdateDate, isCircuitOpen };
 }

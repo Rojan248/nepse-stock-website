@@ -58,6 +58,12 @@ const changePillClass = (val) => val > 0 ? 'positive' : val < 0 ? 'negative' : '
 
 // ==================== AnimatedCell ====================
 
+/** Helper to determine animation direction class */
+const getDirectionClass = (isUpdated, direction) => {
+    if (!isUpdated) return '';
+    return direction === 'up' ? 'value-up' : direction === 'down' ? 'value-down' : '';
+};
+
 const AnimatedCell = memo(function AnimatedCell({
     value,
     previousValue,
@@ -92,8 +98,7 @@ const AnimatedCell = memo(function AnimatedCell({
         'stock-value',
         className,
         isUpdated && 'value-updated',
-        isUpdated && direction === 'up' && 'value-up',
-        isUpdated && direction === 'down' && 'value-down'
+        getDirectionClass(isUpdated, direction)
     ].filter(Boolean).join(' ');
 
     return <span className={classes}>{formatter(value)}</span>;

@@ -13,6 +13,26 @@ const isValidTransactionCount = (count) => {
 };
 
 /**
+ * Check if data has a valid stocks array
+ */
+const hasValidStocksData = (data) => {
+    if (!Array.isArray(data.stocks) || data.stocks.length === 0) return false;
+    const firstStock = data.stocks[0];
+    return typeof firstStock.symbol === 'string';
+};
+
+/**
+ * Check if data has a valid market summary
+ */
+const hasValidMarketSummaryData = (data) => {
+    if (!data.marketSummary || typeof data.marketSummary !== 'object') return false;
+    const summary = data.marketSummary;
+    const hasIndex = typeof summary.indexValue === 'number';
+    const hasTransactions = typeof summary.totalTransactions === 'number';
+    return hasIndex || hasTransactions;
+};
+
+/**
  * Check if market data object is valid and has meaningful content
  * @param {Object} data - Data object to validate
  * @returns {boolean} True if data is valid
@@ -20,29 +40,10 @@ const isValidTransactionCount = (count) => {
 const isValidMarketData = (data) => {
     if (!data || typeof data !== 'object') return false;
 
-    // Must have at least stocks or marketSummary
-    const hasStocks = Array.isArray(data.stocks) && data.stocks.length > 0;
-    const hasMarketSummary = data.marketSummary && typeof data.marketSummary === 'object';
+    const validStocks = hasValidStocksData(data);
+    const validSummary = hasValidMarketSummaryData(data);
 
-    if (!hasStocks && !hasMarketSummary) return false;
-
-    // If has stocks, validate structure
-    if (hasStocks) {
-        const firstStock = data.stocks[0];
-        if (!firstStock.symbol || typeof firstStock.symbol !== 'string') return false;
-    }
-
-    // If has market summary, validate key fields
-    if (hasMarketSummary) {
-        const summary = data.marketSummary;
-        const hasIndex = typeof summary.indexValue === 'number';
-        const hasTransactions = typeof summary.totalTransactions === 'number';
-
-        // At least one of these should be present
-        if (!hasIndex && !hasTransactions) return false;
-    }
-
-    return true;
+    return validStocks || validSummary;
 };
 
 /**
