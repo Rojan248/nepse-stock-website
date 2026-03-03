@@ -46,17 +46,26 @@ const migrateCollection = async ({ file, label, model, resolveKey, buildData }) 
   }
 
   console.log(`Migrating ${items.length} ${label}...`);
+  const failures = [];
   for (const item of items) {
     const symbol = resolveKey(item);
     if (!symbol) continue;
-    const data = buildData(item, symbol);
-    await model.upsert({
-      where: { symbol },
-      update: data,
-      create: { symbol, ...data },
-    });
+    try {
+      const data = buildData(item, symbol);
+      await model.upsert({
+        where: { symbol },
+        update: data,
+        create: { symbol, ...data },
+      });
+    } catch (err) {
+      console.error(`Failed to migrate ${label} item (symbol=${symbol}): ${err.message}`);
+      failures.push({ symbol, error: err.message });
+    }
   }
-  console.log(`${label} migrated.`);
+  if (failures.length > 0) {
+    console.warn(`${failures.length} ${label} item(s) failed to migrate:`, failures.map(f => f.symbol).join(', '));
+  }
+  console.log(`${label} migrated (${items.length - failures.length}/${items.length} succeeded).`);
 };
 
 const buildStockData = (stock) => ({
