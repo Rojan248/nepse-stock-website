@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useIPOs } from '../hooks/useIPOs';
 import IPOCard from '../components/IPOCard';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -54,6 +55,8 @@ function IPOTabSwitcher({ selectedStatus, onSelect }) {
 
 /** Renders the IPO card grid with empty/error states */
 function IPOGridContent({ ipos, loading, error, selectedStatus }) {
+    const navigate = useNavigate();
+
     if (error) {
         return (
             <div className="empty-state">
@@ -72,11 +75,12 @@ function IPOGridContent({ ipos, loading, error, selectedStatus }) {
     }
 
     return (
-        <div className="ipo-grid">
+        <div className="ipo-grid" style={{ zIndex: 1 }}>
             {ipos.map((ipo, index) => (
                 <IPOCard
                     key={ipo.id || ipo.symbol || index}
                     ipo={ipo}
+                    onClick={(p) => navigate(`/stock/${p.symbol}`)}
                 />
             ))}
         </div>
