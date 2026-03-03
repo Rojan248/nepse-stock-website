@@ -2,23 +2,11 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const logger = require('../../utils/logger');
 
-/** Parse cell value as float */
-const cellFloat = ($, tr) => parseFloat($(tr).find('td').eq(1).text().replace(/,/g, ''));
-
-/** Parse cell value as int */
-const cellInt = ($, tr) => parseInt($(tr).find('td').eq(1).text().replace(/,/g, ''), 10);
-
-const extractTurnover = ($, tr, text, data) => {
-    if (!text.includes('total turnover')) return;
-    const val = cellFloat($, tr);
-    if (!isNaN(val)) data.totalTurnover = val;
-};
-
-const extractTransactions = ($, tr, text, data) => {
-    if (!text.includes('total transaction')) return;
-    const val = cellInt($, tr);
-    if (!isNaN(val)) data.totalTransactions = val;
-};
+/** Metric definitions: keyword to match, output key, and parse function */
+const METRIC_DEFS = [
+    { keyword: 'total turnover', key: 'totalTurnover', parse: (v) => parseFloat(v) },
+    { keyword: 'total transaction', key: 'totalTransactions', parse: (v) => parseInt(v, 10) },
+];
 
 /**
  * Extract market metrics from raw HTML rows
@@ -26,8 +14,14 @@ const extractTransactions = ($, tr, text, data) => {
 const extractMetrics = ($, resultData) => {
     $('table tr').each((i, tr) => {
         const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
-        extractTurnover($, tr, text, resultData);
-        extractTransactions($, tr, text, resultData);
+        const cellText = $(tr).find('td').eq(1).text().replace(/,/g, '');
+
+        for (const def of METRIC_DEFS) {
+            if (text.includes(def.keyword)) {
+                const val = def.parse(cellText);
+                if (!isNaN(val)) resultData[def.key] = val;
+            }
+        }
     });
 
     const nepseEl = $('#ctl00_ContentPlaceHolder1_LiveTrading_LiveMarket1_CG1_lblLastPrice_0');

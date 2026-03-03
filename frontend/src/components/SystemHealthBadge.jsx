@@ -56,22 +56,15 @@ function getHealthState(health) {
     const isCircuitOpen = !!health?.resilience?.circuitBreaker?.isOpen;
     const lastUpdateDate = health?.scheduler?.lastUpdate ? new Date(health.scheduler.lastUpdate) : null;
 
-    const isMarketClosed = health?.market?.state && health.market.state !== 'OPEN';
-    const isOffline = !health || health.status === 'degraded' || health.status === 'error';
-    const isStale = lastUpdateDate && (Date.now() - lastUpdateDate > STALE_THRESHOLD);
+    const states = [
+        { cond: health?.market?.state && health.market.state !== 'OPEN', key: 'closed' },
+        { cond: !health || health.status === 'degraded' || health.status === 'error', key: 'offline' },
+        { cond: isCircuitOpen, key: 'circuit' },
+        { cond: lastUpdateDate && (Date.now() - lastUpdateDate > STALE_THRESHOLD), key: 'stale' },
+    ];
 
-    let key = 'healthy';
-    if (isMarketClosed) {
-        key = 'closed';
-    } else if (isOffline) {
-        key = 'offline';
-    } else if (isCircuitOpen) {
-        key = 'circuit';
-    } else if (isStale) {
-        key = 'stale';
-    }
-
-    return { key, lastUpdateDate, isCircuitOpen };
+    const match = states.find(s => s.cond);
+    return { key: match?.key || 'healthy', lastUpdateDate, isCircuitOpen };
 }
 
 // ==================== Sub-components ====================

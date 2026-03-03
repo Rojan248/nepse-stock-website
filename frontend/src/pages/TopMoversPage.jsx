@@ -10,16 +10,53 @@ import metricUnchanged from '../assets/img/metric-unchanged.jpg';
 import metricTraded from '../assets/img/metric-traded.jpg';
 import './TopMoversPage.css';
 
+const TABS = ['gainers', 'losers', 'unchanged', 'traded'];
+const TAB_LABELS = { gainers: 'Gainers', losers: 'Losers', unchanged: 'Unchanged', traded: 'Traded' };
+
+const METRIC_CARDS = [
+    { key: 'advancedCompanies', label: 'GAINERS', cls: 'gainers' },
+    { key: 'declinedCompanies', label: 'LOSERS', cls: 'losers' },
+    { key: 'unchangedCompanies', label: 'UNCHANGED', cls: 'unchanged' },
+    { key: 'activeCompanies', label: 'TRADED', cls: 'traded' },
+];
+
+function MetricsBar({ marketSummary }) {
+    return (
+        <section className="top-metrics-bar">
+            {METRIC_CARDS.map(m => (
+                <div className="top-metric-card" key={m.key}>
+                    <span className="top-metric-label">{m.label}</span>
+                    <span className={`top-metric-value ${m.cls}`}>{marketSummary?.[m.key] || 0}</span>
+                </div>
+            ))}
+        </section>
+    );
+}
+
+function TabSwitcher({ activeTab, setActiveTab }) {
+    return (
+        <div className="tab-switcher">
+            {TABS.map(tab => (
+                <button
+                    key={tab}
+                    className={activeTab === tab ? 'active' : ''}
+                    onClick={() => setActiveTab(tab)}
+                >
+                    {TAB_LABELS[tab]}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 const MOVER_STYLES = {
     '1': { class: 'positive', icon: '▲', prefix: '+' },
     '-1': { class: 'negative', icon: '▼', prefix: '−' },
     '0': { class: '', icon: '', prefix: '' }
 };
 
-const FormattedMoverCard = ({ stock, activeTab, onClick }) => {
-    const sign = Math.sign(stock.change).toString();
-    const style = MOVER_STYLES[sign] || MOVER_STYLES['0'];
-
+function FormattedMoverCard({ stock, activeTab, onClick }) {
+    const style = MOVER_STYLES[Math.sign(stock.change).toString()] || MOVER_STYLES['0'];
     return (
         <div className={`mover-card ${activeTab}`} onClick={() => onClick(stock)}>
             <div className="card-header">
@@ -40,7 +77,24 @@ const FormattedMoverCard = ({ stock, activeTab, onClick }) => {
             <button className="view-btn">View</button>
         </div>
     );
-};
+}
+
+function StockGrid({ stocks, activeTab, onStockClick }) {
+    if (stocks.length === 0) {
+        return (
+            <div className="empty-state">
+                <p>No {activeTab} available at the moment</p>
+            </div>
+        );
+    }
+    return (
+        <div className="top-movers-grid">
+            {stocks.map(stock => (
+                <FormattedMoverCard key={stock.symbol} stock={stock} activeTab={activeTab} onClick={onStockClick} />
+            ))}
+        </div>
+    );
+}
 
 function TopMoversPage() {
     const navigate = useNavigate();
@@ -60,84 +114,20 @@ function TopMoversPage() {
         navigate(`/stock/${stock.symbol}`);
     };
 
-    const getActiveStocks = () => {
-        const stockMap = { gainers, losers, unchanged, traded };
-        return stockMap[activeTab] || [];
-    };
-
-    const activeStocks = getActiveStocks();
+    const stockMap = { gainers, losers, unchanged, traded };
+    const activeStocks = stockMap[activeTab] || [];
 
     return (
         <div className="top-movers-page layout-container">
-            {/* Top Metrics Bar */}
-            <section className="top-metrics-bar">
-                <div className="top-metric-card">
-                    <span className="top-metric-label">GAINERS</span>
-                    <span className="top-metric-value gainers">{marketSummary?.advancedCompanies || 0}</span>
-                </div>
-                <div className="top-metric-card">
-                    <span className="top-metric-label">LOSERS</span>
-                    <span className="top-metric-value losers">{marketSummary?.declinedCompanies || 0}</span>
-                </div>
-                <div className="top-metric-card">
-                    <span className="top-metric-label">UNCHANGED</span>
-                    <span className="top-metric-value unchanged">{marketSummary?.unchangedCompanies || 0}</span>
-                </div>
-                <div className="top-metric-card">
-                    <span className="top-metric-label">TRADED</span>
-                    <span className="top-metric-value traded">{marketSummary?.activeCompanies || 0}</span>
-                </div>
-            </section>
-
-            {/* Tabs */}
-            <div className="tab-switcher">
-                <button
-                    className={activeTab === 'gainers' ? 'active' : ''}
-                    onClick={() => setActiveTab('gainers')}
-                >
-                    Gainers
-                </button>
-                <button
-                    className={activeTab === 'losers' ? 'active' : ''}
-                    onClick={() => setActiveTab('losers')}
-                >
-                    Losers
-                </button>
-                <button
-                    className={activeTab === 'unchanged' ? 'active' : ''}
-                    onClick={() => setActiveTab('unchanged')}
-                >
-                    Unchanged
-                </button>
-                <button
-                    className={activeTab === 'traded' ? 'active' : ''}
-                    onClick={() => setActiveTab('traded')}
-                >
-                    Traded
-                </button>
-            </div>
+            <MetricsBar marketSummary={marketSummary} />
+            <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
 
             {/* Content */}
             <div className="tab-content">
                 {loading ? (
                     <LoadingSpinner text="Loading stocks..." />
                 ) : (
-                    <div className="top-movers-grid">
-                        {activeStocks.length > 0 ? (
-                            activeStocks.map((stock) => (
-                                <FormattedMoverCard
-                                    key={stock.symbol}
-                                    stock={stock}
-                                    activeTab={activeTab}
-                                    onClick={handleStockClick}
-                                />
-                            ))
-                        ) : (
-                            <div className="empty-state">
-                                <p>No {activeTab} available at the moment</p>
-                            </div>
-                        )}
-                    </div>
+                    <StockGrid stocks={activeStocks} activeTab={activeTab} onStockClick={handleStockClick} />
                 )}
             </div>
         </div>
