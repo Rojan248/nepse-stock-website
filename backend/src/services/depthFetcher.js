@@ -83,16 +83,28 @@ function resolveDepthShape(responseData, symbol) {
     return { buyMarketDepthList: [], sellMarketDepthList: [] };
 }
 
+/** Field mapping for floorsheet entries: [outputKey, primaryField, fallbackField, default] */
+const FLOOR_FIELD_MAP = [
+    ['transId', 'contractId', 'transactionId', 0],
+    ['buyerBroker', 'buyerMemberId', 'buyerBroker', 'N/A'],
+    ['sellerBroker', 'sellerMemberId', 'sellerBroker', 'N/A'],
+    ['quantity', 'contractQuantity', 'quantity', 0],
+    ['rate', 'contractRate', 'rate', 0],
+    ['amount', 'contractAmount', 'amount', 0],
+];
+
+/** Resolve a single field from an object using primary, fallback, or default */
+function resolveField(obj, primary, fallback, defaultVal) {
+    return obj[primary] || obj[fallback] || defaultVal;
+}
+
 /** Map a single raw floorsheet entry to standard format */
 function transformFloorEntry(t) {
-    return {
-        transId: t.contractId || t.transactionId || 0,
-        buyerBroker: t.buyerMemberId || t.buyerBroker || 'N/A',
-        sellerBroker: t.sellerMemberId || t.sellerBroker || 'N/A',
-        quantity: t.contractQuantity || t.quantity || 0,
-        rate: t.contractRate || t.rate || 0,
-        amount: t.contractAmount || t.amount || 0
-    };
+    const result = {};
+    for (const [key, primary, fallback, defaultVal] of FLOOR_FIELD_MAP) {
+        result[key] = resolveField(t, primary, fallback, defaultVal);
+    }
+    return result;
 }
 
 async function lookupCompanyId(ctx, symbol) {

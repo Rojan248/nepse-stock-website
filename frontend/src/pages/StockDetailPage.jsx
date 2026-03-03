@@ -28,6 +28,9 @@ const OHLC_FIELDS = [
     ['low', 'low', 'lowPrice'],
 ];
 
+/** Resolve a value with a chain of fallbacks */
+const fallback = (...values) => values.find(v => v != null) ?? 0;
+
 /** Resolve common stock price fields from various API shapes */
 function resolveStockPrices(stock) {
     const p = stock.prices || {};
@@ -43,8 +46,8 @@ function resolveStockPrices(stock) {
         displayLtp: dLtp,
         volume: getField(stock, t, p, 'volume'),
         turnover: getField(stock, t, p, 'turnover'),
-        change: stock.change ?? p.change ?? 0,
-        changePercent: stock.changePercent ?? p.changePercent ?? 0,
+        change: fallback(stock.change, p.change),
+        changePercent: fallback(stock.changePercent, p.changePercent),
     };
 
     for (const [key, ...aliases] of OHLC_FIELDS) {
