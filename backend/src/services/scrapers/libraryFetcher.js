@@ -55,54 +55,51 @@ function insertSorted(arr, item, k, compareFn) {
 }
 
 /**
- * Initialize the NEPSE library
+ * Attempt to initialize the NEPSE library with a given mode
+ * @param {boolean} useWasm - Whether to use WASM mode
+ * @param {string} modeLabel - Human-readable mode label for logging
+ * @returns {Promise<boolean>} True if initialization succeeded
  */
-const initializeLibrary = async () => {
+const tryInitialize = async (useWasm, modeLabel) => {
     try {
-        // Import the nepse-api-helper package
         const nepseModule = await import('nepse-api-helper');
         nepseClient = nepseModule.nepseClient;
         nepseAxios = nepseModule.nepseAxios;
         createHeaders = nepseModule.createHeaders;
         BASE_URL = nepseModule.BASE_URL;
 
-        // Create a custom logger adapter
         const customLogger = {
             info: (msg, ...args) => logger.debug(`[NEPSE-API] ${msg}`, ...args),
             warn: (msg, ...args) => logger.warn(`[NEPSE-API] ${msg}`, ...args),
             error: (msg, ...args) => logger.error(`[NEPSE-API] ${msg}`, ...args)
         };
 
-        // Initialize with WASM mode for best compatibility
-        await nepseClient.initialize({
-            useWasm: true,
-            logger: customLogger
-        });
-
+        await nepseClient.initialize({ useWasm, logger: customLogger });
         isInitialized = true;
-        logger.info('✓ NEPSE API Helper library initialized successfully (WASM mode)');
+        logger.info(`✓ NEPSE API Helper library initialized successfully (${modeLabel})`);
         return true;
-
     } catch (error) {
-        logger.warn(`Failed to initialize nepse-api-helper: ${error.message}`);
-
-        // Try TypeScript mode as fallback
-        try {
-            const nepseModule = await import('nepse-api-helper');
-            nepseClient = nepseModule.nepseClient;
-            nepseAxios = nepseModule.nepseAxios;
-            createHeaders = nepseModule.createHeaders;
-            BASE_URL = nepseModule.BASE_URL;
-
-            await nepseClient.initialize({ useWasm: false });
-            isInitialized = true;
-            logger.info('✓ NEPSE API Helper library initialized (TypeScript mode)');
-            return true;
-        } catch (fallbackError) {
-            logger.error(`Library initialization failed completely: ${fallbackError.message}`);
-            return false;
-        }
+        logger.warn(`Failed to initialize nepse-api-helper (${modeLabel}): ${error.message}`);
+        return false;
     }
+};
+
+/** Initialization modes to try in priority order */
+const INIT_MODES = [
+    { useWasm: true, label: 'WASM mode' },
+    { useWasm: false, label: 'TypeScript mode' },
+];
+
+/**
+ * Initialize the NEPSE library, trying WASM first then TypeScript fallback
+ */
+const initializeLibrary = async () => {
+    for (const { useWasm, label } of INIT_MODES) {
+        const success = await tryInitialize(useWasm, label);
+        if (success) return true;
+    }
+    logger.error('Library initialization failed completely');
+    return false;
 };
 
 /** Ensure the NEPSE library is initialized, returning true if ready.

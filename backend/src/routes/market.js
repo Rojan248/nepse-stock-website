@@ -317,94 +317,118 @@ router.post('/sync-from-web', adminLimiter, requireAdminKey, asyncHandler(async 
     });
 }));
 
+// ==================== Scrape Helpers ====================
+
+/** Remove commas from a numeric string */
+const stripCommas = (s) => s.replace(/,/g, '');
+
+/** Parse an integer from a comma-separated string */
+const parseIntClean = (s) => parseInt(stripCommas(s), 10);
+
+/** Parse a float from a comma-separated string */
+const parseFloatClean = (s) => parseFloat(stripCommas(s));
+
+/**
+ * Data-driven scraping patterns.
+ * Each entry: { field, patterns (tried in order), parser }
+ * First matching pattern wins for each field.
+ */
+const SCRAPE_PATTERNS = [
+    {
+        field: 'totalTransactions',
+        patterns: [
+            /Total Transactions<\/th>\s*<td[^>]*>([0-9,]+)/i,
+            /Total Transactions<\/[^>]+>\s*<[^>]+>([0-9,]+)/i,
+            /Total Transactions[\s\S]{0,50}?([0-9,]{3,})/i,
+        ],
+        parser: parseIntClean,
+    },
+    {
+        field: 'totalTurnover',
+        patterns: [/Total Turnover[\s\S]{0,50}?([0-9,.]{5,})/i],
+        parser: parseFloatClean,
+    },
+    {
+        field: 'totalVolume',
+        patterns: [/Total Traded Shares[\s\S]{0,50}?([0-9,]{3,})/i],
+        parser: parseIntClean,
+    },
+    {
+        field: 'nepseIndex',
+        patterns: [
+            /NEPSE<\/[^>]+>\s*<[^>]+>([0-9,.]+)/i,
+            />NEPSE[\s\S]{0,30}?([0-9,]{1,3}(?:,[0-9]{3})*\.?[0-9]*)/i,
+        ],
+        parser: parseFloatClean,
+    },
+];
+
+/** Apply the first matching regex pattern from a list, returning the parsed value or null */
+function applyFirstMatch(html, patterns, parser) {
+    for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match) return parser(match[1]);
+    }
+    return null;
+}
+
+/** Extract an HTML sample around the 'Transactions' keyword for debugging */
+function extractHtmlSample(html) {
+    const txIdx = html.indexOf('Transactions');
+    if (txIdx <= 0) return null;
+    return html.substring(Math.max(0, txIdx - 50), txIdx + 150);
+}
+
+/**
+ * Parse market data from Merolagani HTML using data-driven regex patterns.
+ * @param {string} html - Raw HTML string
+ * @returns {Object} Parsed fields (values are null if not found)
+ */
+function scrapeFromMerolagani(html) {
+    const result = {};
+    for (const { field, patterns, parser } of SCRAPE_PATTERNS) {
+        result[field] = applyFirstMatch(html, patterns, parser);
+    }
+    result.htmlSample = extractHtmlSample(html);
+    return result;
+}
+
+const MEROLAGANI_URL = 'https://merolagani.com/MarketSummary.aspx';
+const MEROLAGANI_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Cache-Control': 'no-cache'
+};
+
 /**
  * GET /api/scrape-live
  * Scrape and return live market data from official sources (without saving)
  */
 router.get('/scrape-live', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     logger.info('Live scrape requested');
-
     const axios = require('axios');
-    const result = {
-        nepseIndex: null,
-        totalTransactions: null,
-        totalTurnover: null,
-        totalVolume: null,
-        advanced: null,
-        declined: null,
-        unchanged: null,
-        source: null,
-        error: null,
-        htmlSample: null
+
+    const base = {
+        nepseIndex: null, totalTransactions: null, totalTurnover: null, totalVolume: null,
+        advanced: null, declined: null, unchanged: null, source: null, error: null, htmlSample: null
     };
 
-    // Scrape from Merolagani (SSR website - contains data in HTML)
     try {
-        const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
-            timeout: 15000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Cache-Control': 'no-cache'
-            }
-        });
-
+        const resp = await axios.get(MEROLAGANI_URL, { timeout: 15000, headers: MEROLAGANI_HEADERS });
         const html = resp.data || '';
         logger.info(`Merolagani HTML fetched: ${html.length} bytes`);
 
-        // Find the market summary section and extract a sample
-        const txIdx = html.indexOf('Transactions');
-        if (txIdx > 0) {
-            result.htmlSample = html.substring(Math.max(0, txIdx - 50), txIdx + 150);
-        }
-
-        // Try multiple regex patterns
-        // Pattern 1: Table row format
-        let txMatch = html.match(/Total Transactions<\/th>\s*<td[^>]*>([0-9,]+)/i);
-        if (!txMatch) {
-            // Pattern 2: With class attributes
-            txMatch = html.match(/Total Transactions<\/[^>]+>\s*<[^>]+>([0-9,]+)/i);
-        }
-        if (!txMatch) {
-            // Pattern 3: Generic - just find the number after Total Transactions
-            txMatch = html.match(/Total Transactions[\s\S]{0,50}?([0-9,]{3,})/i);
-        }
-        if (txMatch) {
-            result.totalTransactions = parseInt(txMatch[1].replace(/,/g, ''), 10);
-        }
-
-        // Total Turnover
-        let turnoverMatch = html.match(/Total Turnover[\s\S]{0,50}?([0-9,\.]{5,})/i);
-        if (turnoverMatch) {
-            result.totalTurnover = parseFloat(turnoverMatch[1].replace(/,/g, ''));
-        }
-
-        // Total Traded Shares
-        let volumeMatch = html.match(/Total Traded Shares[\s\S]{0,50}?([0-9,]{3,})/i);
-        if (volumeMatch) {
-            result.totalVolume = parseInt(volumeMatch[1].replace(/,/g, ''), 10);
-        }
-
-        // NEPSE Index - look for pattern like: NEPSE</td><td>2,620.92
-        let nepseMatch = html.match(/NEPSE<\/[^>]+>\s*<[^>]+>([0-9,\.]+)/i);
-        if (!nepseMatch) {
-            nepseMatch = html.match(/>NEPSE[\s\S]{0,30}?([0-9,]{1,3}(?:,[0-9]{3})*\.?[0-9]*)/i);
-        }
-        if (nepseMatch) {
-            result.nepseIndex = parseFloat(nepseMatch[1].replace(/,/g, ''));
-        }
-
-        result.source = 'merolagani';
-
+        const parsed = scrapeFromMerolagani(html);
+        Object.assign(base, parsed, { source: 'merolagani' });
     } catch (err) {
-        result.error = err.message;
+        base.error = err.message;
         logger.error(`Scrape failed: ${err.message}`);
     }
 
     res.json({
-        success: result.totalTransactions !== null || result.nepseIndex !== null,
-        data: result,
+        success: base.totalTransactions !== null || base.nepseIndex !== null,
+        data: base,
         timestamp: new Date().toISOString()
     });
 }));
