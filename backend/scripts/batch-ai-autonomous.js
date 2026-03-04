@@ -67,6 +67,11 @@ const stats = {
     rounds: 0, startTime: Date.now()
 };
 
+// GitHub Models quota tracking
+let ghConsecRL = 0;
+let ghQuotaExhausted = false;
+const GH_QUOTA_THRESHOLD = 3; // consecutive 429s before assuming daily quota
+
 // ── Utilities ────────────────────────────────────────────────────────────────
 
 const sleep  = ms  => new Promise(r => setTimeout(r, ms));
@@ -433,24 +438,46 @@ async function processGeminiBatch(stocks, facts) {
 // ── GitHub Models processor ───────────────────────────────────────────────────
 
 async function processGitHubModels(symbol, fact) {
-    try {
-        const result = await callGitHubModels(singlePrompt(fact));
-        const parsed = extractJSON(result.text);
-        if (!parsed?.summary) throw new Error('Invalid JSON structure');
-        await saveOverview(symbol, parsed, fact, result.model, result.tokens);
-        stats.ghOk++;
-        process.stdout.write(`  ✓ ${symbol} (GH)\n`);
-        return true;
-    } catch (err) {
-        if (err.status === 429) {
-            log(`  ⏸ GitHub Models rate-limited for ${symbol} — backing off 65s`);
-            await sleep(65_000);
-        } else {
-            log(`  ✗ GH ${symbol}: ${err.message.slice(0, 80)}`);
+    // If daily quota already confirmed exhausted, skip immediately
+    if (ghQuotaExhausted) return false;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const result = await callGitHubModels(singlePrompt(fact));
+            const parsed = extractJSON(result.text);
+            if (!parsed?.summary) throw new Error('Invalid JSON structure');
+            await saveOverview(symbol, parsed, fact, result.model, result.tokens);
+            stats.ghOk++;
+            ghConsecRL = 0; // reset on success
+            process.stdout.write(`  ✓ ${symbol} (GH)\n`);
+            return true;
+        } catch (err) {
+            if (err.status === 429) {
+                stats.rateLimits++;
+                ghConsecRL++;
+                if (ghConsecRL >= GH_QUOTA_THRESHOLD) {
+                    ghQuotaExhausted = true;
+                    log(`  ⚡ GitHub Models daily quota exhausted — skipping remaining Phase 2`);
+                    stats.failed++;
+                    return false;
+                }
+                if (attempt === 1) {
+                    log(`  ⏸ GitHub Models rate-limited for ${symbol} — retrying in 65s`);
+                    await sleep(65_000);
+                    // fall through to attempt 2
+                } else {
+                    log(`  ✗ GH ${symbol}: still rate-limited after retry`);
+                    stats.failed++;
+                    return false;
+                }
+            } else {
+                log(`  ✗ GH ${symbol}: ${err.message.slice(0, 80)}`);
+                stats.failed++;
+                return false;
+            }
         }
-        stats.failed++;
-        return false;
     }
+    return false;
 }
 
 // ── Market overview ───────────────────────────────────────────────────────────
@@ -564,6 +591,9 @@ async function main() {
         round++;
         stats.rounds = round;
 
+        // Reset GitHub Models quota state each round (quota resets daily at ~00:05 UTC)
+        if (round > 1) { ghConsecRL = 0; ghQuotaExhausted = false; }
+
         // On first round with --force, regenerate everything
         const isForceRound = forceMode && round === 1;
         const remaining = await getRemainingStocks(allStocks, isForceRound);
@@ -628,14 +658,15 @@ async function main() {
         // Uses the remaining set from THIS round (not a DB query) so force-mode
         // regeneration works correctly even when all stocks already have overviews.
         const needsPhase2 = remaining.filter(s => !geminiSucceeded.has(s.symbol));
-        if (useGH && needsPhase2.length > 0) {
+        if (useGH && needsPhase2.length > 0 && !ghQuotaExhausted) {
             log(`  Phase 2 — GitHub Models (${needsPhase2.length} stocks)`);
             for (let i = 0; i < needsPhase2.length; i++) {
+                if (ghQuotaExhausted) break;
                 const s    = needsPhase2[i];
                 const fact = buildFact(s, mc[s.symbol] || null);
                 const ok   = await processGitHubModels(s.symbol, fact);
                 if (ok) processedThisRound++;
-                if (i < needsPhase2.length - 1) await sleep(4_000);
+                if (!ghQuotaExhausted && i < needsPhase2.length - 1) await sleep(4_000);
             }
         }
 
