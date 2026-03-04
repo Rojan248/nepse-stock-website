@@ -6,7 +6,12 @@ const https = require('https');
 const fs = require('fs');
 const agentOpts = {};
 if (process.env.CA_CERT_PATH) {
-    agentOpts.ca = fs.readFileSync(process.env.CA_CERT_PATH);
+    try {
+        agentOpts.ca = fs.readFileSync(process.env.CA_CERT_PATH);
+    } catch (err) {
+        console.error(`Failed to read CA certificate from ${process.env.CA_CERT_PATH}:`, err.message);
+        process.exit(1);
+    }
 } else if (process.env.ALLOW_INSECURE_TLS === 'true' || process.env.NODE_ENV === 'test') {
     agentOpts.rejectUnauthorized = false;
 }

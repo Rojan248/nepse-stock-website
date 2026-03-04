@@ -15,8 +15,16 @@ if ($conn) {
         } else {
             Stop-Process -Id $procId -Confirm
         }
-        # Verify the process was actually terminated
-        if (-not (Get-Process -Id $procId -ErrorAction SilentlyContinue)) {
+        # Poll to verify termination (process may take a moment to exit)
+        $terminated = $false
+        for ($i = 0; $i -lt 10; $i++) {
+            Start-Sleep -Milliseconds 300
+            if (-not (Get-Process -Id $procId -ErrorAction SilentlyContinue)) {
+                $terminated = $true
+                break
+            }
+        }
+        if ($terminated) {
             Write-Host "Killed."
         } else {
             Write-Host "Process $procId was not terminated."

@@ -40,6 +40,7 @@ function compute(history, currentStock) {
         ma180: null,
         priceVsMa20: null,   // percentage: (price - ma20) / ma20 * 100
         priceVsMa50: null,
+        priceVsMa120: null,
         priceVsMa180: null,
         goldenCross: false,  // MA50 crosses above MA180
         deathCross: false,   // MA50 crosses below MA180
@@ -74,6 +75,7 @@ function compute(history, currentStock) {
     // Price vs MA percentages
     if (result.ma20)  result.priceVsMa20  = ((price - result.ma20)  / result.ma20)  * 100;
     if (result.ma50)  result.priceVsMa50  = ((price - result.ma50)  / result.ma50)  * 100;
+    if (result.ma120) result.priceVsMa120 = ((price - result.ma120) / result.ma120) * 100;
     if (result.ma180) result.priceVsMa180 = ((price - result.ma180) / result.ma180) * 100;
 
     // Golden Cross / Death Cross detection
