@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Stock" ADD COLUMN "avgVol30dExt" REAL;
+ALTER TABLE "Stock" ADD COLUMN "ma120Ext" REAL;
+ALTER TABLE "Stock" ADD COLUMN "ma180Ext" REAL;
+ALTER TABLE "Stock" ADD COLUMN "yearlyYield" REAL;

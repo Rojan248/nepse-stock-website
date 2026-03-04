@@ -28,6 +28,11 @@ model Stock {
   high52w         Float?
   low52w          Float?
   nepseSecurityId String?  // NEPSE internal security ID for API lookups
+  // Externally-sourced technical indicators (MeroLagani — no auth needed)
+  ma180Ext        Float?   // 180-day moving average from MeroLagani
+  ma120Ext        Float?   // 120-day moving average from MeroLagani
+  yearlyYield     Float?   // 1-year price yield % from MeroLagani
+  avgVol30dExt    Float?   // 30-day avg volume from MeroLagani
   updatedAt      DateTime @default(now()) @updatedAt
 
   history        MarketHistory[]

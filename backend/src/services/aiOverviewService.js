@@ -84,7 +84,10 @@ STOCK DATA:
 
 TECHNICAL METRICS:
 - 52W High: ${factSheet.priceMetrics?.high52w || 'N/A'} | 52W Low: ${factSheet.priceMetrics?.low52w || 'N/A'}
+- 52W % from High: ${factSheet.priceMetrics?.distFromHigh52w?.toFixed(1) ?? 'N/A'}% | from Low: ${factSheet.priceMetrics?.distFromLow52w?.toFixed(1) ?? 'N/A'}%
+- 1-Year Return: ${factSheet.priceMetrics?.yearlyChange?.toFixed(1) ?? 'N/A'}%
 - MA20: ${factSheet.trendMetrics?.ma20?.toFixed(2) || 'N/A'} | MA50: ${factSheet.trendMetrics?.ma50?.toFixed(2) || 'N/A'} | MA180: ${factSheet.trendMetrics?.ma180?.toFixed(2) || 'N/A'}
+- Price vs MA180: ${factSheet.trendMetrics?.priceVsMa180?.toFixed(1) ?? 'N/A'}%
 - Trend: ${factSheet.trendMetrics?.trend || 'N/A'}
 - RSI(14): ${factSheet.momentumMetrics?.rsi14?.toFixed(1) || 'N/A'} | RSI(7): ${factSheet.momentumMetrics?.rsi7?.toFixed(1) || 'N/A'}
 - ROC(10d): ${factSheet.momentumMetrics?.roc10d?.toFixed(2) || 'N/A'}% | ROC(30d): ${factSheet.momentumMetrics?.roc30d?.toFixed(2) || 'N/A'}%

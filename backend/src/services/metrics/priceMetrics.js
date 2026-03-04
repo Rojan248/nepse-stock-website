@@ -22,6 +22,7 @@ function compute(history, currentStock) {
         consecutiveDown: 0,
         weeklyChange: null,
         monthlyChange: null,
+        yearlyChange: null,  // 1-year price return; from MeroLagani when history insufficient
         distFromHigh52w: null,
         distFromLow52w: null,
         source52w: null // 'computed' | 'nepse' — for debugging
@@ -40,6 +41,8 @@ function compute(history, currentStock) {
                 result.distFromLow52w = ((currentPrice - result.low52w) / result.low52w) * 100;
             }
         }
+        // Apply MeroLagani yearly yield as annual return proxy
+        if (currentStock?.yearlyYield != null) result.yearlyChange = currentStock.yearlyYield;
         return result;
     }
 
@@ -117,6 +120,15 @@ function compute(history, currentStock) {
         const current = history[0].closePrice;
         const month = history[19].closePrice;
         result.monthlyChange = ((current - month) / month) * 100;
+    }
+
+    // Yearly change — computed from 235 days of history when available, else MeroLagani
+    if (history.length >= TRADING_DAYS_IN_YEAR && history[TRADING_DAYS_IN_YEAR - 1].closePrice > 0) {
+        const current = history[0].closePrice;
+        const yearAgo = history[TRADING_DAYS_IN_YEAR - 1].closePrice;
+        result.yearlyChange = ((current - yearAgo) / yearAgo) * 100;
+    } else if (currentStock?.yearlyYield != null && result.yearlyChange == null) {
+        result.yearlyChange = currentStock.yearlyYield;
     }
 
     return result;

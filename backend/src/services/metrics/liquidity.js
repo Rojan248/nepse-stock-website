@@ -32,7 +32,7 @@ function compute(history, currentStock) {
 
     if (tradingDays.length === 0) return result;
 
-    // Average volumes
+    // Average volumes — fall back to MeroLagani 30-day avg when local history is short
     const volumes20 = tradingDays.slice(0, 20).map(h => h.volume);
     const volumes50 = tradingDays.slice(0, 50).map(h => h.volume);
 
@@ -41,6 +41,15 @@ function compute(history, currentStock) {
     }
     if (volumes50.length > 0) {
         result.avgVolume50d = volumes50.reduce((a, b) => a + b, 0) / volumes50.length;
+    }
+
+    // If we have fewer than 10 days of local data, the computed averages are unreliable.
+    // Use the MeroLagani 30-day avg volume as a more accurate baseline.
+    const ext30d = currentStock?.avgVol30dExt;
+    if (ext30d && tradingDays.length < 10) {
+        result.avgVolume20d = ext30d;  // 30-day avg is close enough to 20-day avg
+        result.avgVolume50d = result.avgVolume50d || ext30d;
+        result.sourceVolume = 'merolagani';
     }
 
     // Average turnover
