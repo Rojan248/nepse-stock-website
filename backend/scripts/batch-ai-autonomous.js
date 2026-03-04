@@ -73,6 +73,57 @@ let ghQuotaExhausted = false;
 let ghQuotaExhaustedAt = null; // timestamp when quota was first confirmed exhausted
 const GH_QUOTA_THRESHOLD = 3; // consecutive 429s before assuming daily quota
 
+// Gemini daily quota tracking (across all models)
+let geminiQuotaExhaustedAt = null; // timestamp when all Gemini models hit daily quota
+
+// Per-session tracking (for force-mode: ensures ALL stocks get regenerated, not just "have any overview")
+const sessionRegenerated = new Set();
+
+// ── Quota reset time helpers ────────────────────────────────────────────────
+// Gemini free tier resets at approximately midnight Pacific (08:00 UTC).
+// GitHub Models resets at approximately 00:00–00:05 UTC.
+
+/** Compute the next UTC timestamp at which the given daily quota resets. */
+function nextResetAfter(exhaustedAt, resetHourUTC) {
+    const d = new Date(exhaustedAt);
+    // Set to the reset hour on the same day
+    d.setUTCHours(resetHourUTC, 8, 0, 0); // e.g. 08:08 UTC or 00:08 UTC
+    // If that time has already passed, push to the next day
+    if (d.getTime() <= exhaustedAt) d.setUTCDate(d.getUTCDate() + 1);
+    return d.getTime();
+}
+
+/** Earliest timestamp at which any exhausted quota (Gemini or GH) will become available. */
+function nextQuotaResetTime() {
+    const resets = [];
+    if (geminiQuotaExhaustedAt)  resets.push(nextResetAfter(geminiQuotaExhaustedAt, 8)); // 08:00 UTC
+    if (ghQuotaExhaustedAt)      resets.push(nextResetAfter(ghQuotaExhaustedAt, 0));     // 00:00 UTC
+    return resets.length > 0 ? Math.min(...resets) : null;
+}
+
+/** Check if both API sources are currently quota-exhausted. */
+function allQuotasExhausted(ghEnabled) {
+    return allModelsOnQuotaCooldown() && (!ghEnabled || ghQuotaExhausted);
+}
+
+/** Reset Gemini model state after daily quota refresh. */
+function resetGeminiQuota() {
+    for (const m of GEMINI_MODELS) {
+        modelState[m].consecRL = 0;
+        modelState[m].cooldownUntil = 0;
+    }
+    geminiQuotaExhaustedAt = null;
+    log('  🔄 Gemini daily quota reset — models re-enabled');
+}
+
+/** Reset GitHub Models state after daily quota refresh. */
+function resetGHQuota() {
+    ghConsecRL = 0;
+    ghQuotaExhausted = false;
+    ghQuotaExhaustedAt = null;
+    log('  🔄 GitHub Models daily quota reset — re-enabled');
+}
+
 // ── Utilities ────────────────────────────────────────────────────────────────
 
 const sleep  = ms  => new Promise(r => setTimeout(r, ms));
@@ -420,6 +471,7 @@ async function processGeminiBatch(stocks, facts) {
             if (entry?.summary) {
                 await saveOverview(sym, entry, facts[i], model, tokPerStock);
                 stats.geminiOk++;
+                sessionRegenerated.add(sym);
                 process.stdout.write(`  ✓ ${sym} (G)\n`);
             } else {
                 missed.push(sym);
@@ -451,6 +503,7 @@ async function processGitHubModels(symbol, fact) {
             if (!parsed?.summary) throw new Error('Invalid JSON structure');
             await saveOverview(symbol, parsed, fact, result.model, result.tokens);
             stats.ghOk++;
+            sessionRegenerated.add(symbol);
             ghConsecRL = 0; // reset on success
             process.stdout.write(`  ✓ ${symbol} (GH)\n`);
             return true;
@@ -595,25 +648,25 @@ async function main() {
         round++;
         stats.rounds = round;
 
-        // Reset GitHub Models quota state only after GitHub's daily quota window resets
-        // (~00:05–00:10 UTC the day after exhaustion was first detected).
-        if (round > 1 && ghQuotaExhaustedAt !== null) {
-            const resetTime = new Date(ghQuotaExhaustedAt);
-            resetTime.setUTCDate(resetTime.getUTCDate() + 1);
-            resetTime.setUTCHours(0, 8, 0, 0); // 00:08 UTC — safely past the reset window
-            if (Date.now() >= resetTime.getTime()) {
-                ghConsecRL = 0;
-                ghQuotaExhausted = false;
-                ghQuotaExhaustedAt = null;
+        // Reset quota states if their daily windows have elapsed
+        if (round > 1) {
+            const now = Date.now();
+            if (geminiQuotaExhaustedAt && now >= nextResetAfter(geminiQuotaExhaustedAt, 8)) {
+                resetGeminiQuota();
+            }
+            if (ghQuotaExhaustedAt && now >= nextResetAfter(ghQuotaExhaustedAt, 0)) {
+                resetGHQuota();
             }
         }
 
-        // On first round with --force, regenerate everything
-        const isForceRound = forceMode && round === 1;
-        const remaining = await getRemainingStocks(allStocks, isForceRound);
+        // Determine which stocks still need processing
+        // In force mode, use session tracking (not DB) so we keep going until ALL are freshly regenerated
+        const remaining = forceMode
+            ? allStocks.filter(s => !sessionRegenerated.has(s.symbol))
+            : await getRemainingStocks(allStocks, false);
 
         if (remaining.length === 0) {
-            log(`✓ All ${allStocks.length} stocks have overviews. Done!`);
+            log(`✓ All ${allStocks.length} stocks ${forceMode ? 'regenerated' : 'have overviews'}. Done!`);
             break;
         }
 
@@ -644,6 +697,7 @@ async function main() {
                 // All models in cooldown — decide: wait (RPM) or bail to GH Models (daily quota)
                 if (!pickModel()) {
                     if (allModelsOnQuotaCooldown()) {
+                        if (!geminiQuotaExhaustedAt) geminiQuotaExhaustedAt = Date.now();
                         log(`  ⚡ All Gemini models hit daily quota — switching to GitHub Models immediately`);
                         break; // skip remaining batches, go to Phase 2
                     }
@@ -685,23 +739,39 @@ async function main() {
         }
 
         // ── Check progress ────────────────────────────────────────────────────
-        const afterRound = await getRemainingStocks(allStocks, false);
+        const stillNeeded = forceMode
+            ? allStocks.filter(s => !sessionRegenerated.has(s.symbol))
+            : await getRemainingStocks(allStocks, false);
 
-        if (afterRound.length === 0) {
-            log(`✓ All ${allStocks.length} stocks have overviews. Done!`);
+        if (stillNeeded.length === 0) {
+            log(`✓ All ${allStocks.length} stocks ${forceMode ? 'regenerated' : 'have overviews'}. Done!`);
             break;
         }
 
-        if (processedThisRound === 0) {
-            // No progress — all models must be cooling down
+        if (allQuotasExhausted(useGH)) {
+            // Both Gemini + GitHub Models daily quotas are exhausted
+            // Auto-sleep until the earliest one resets, then resume
+            const resetAt = nextQuotaResetTime();
+            if (resetAt) {
+                const sleepMs = Math.max(60_000, resetAt - Date.now());
+                log(`\n  ⏳ All quotas exhausted. ${stillNeeded.length} stocks remain.`);
+                log(`  Session progress: ${sessionRegenerated.size}/${allStocks.length} regenerated so far.`);
+                log(`  Auto-sleeping ${fmt(sleepMs)} until next quota reset at ${new Date(resetAt).toUTCString()}`);
+                log(`  Elapsed total: ${fmt(elapsed() * 1000)}`);
+                await sleep(sleepMs);
+            } else {
+                log(`  ⚠ All quotas exhausted but no reset time computed. Retrying in 30 minutes.`);
+                await sleep(30 * 60 * 1000);
+            }
+        } else if (processedThisRound === 0) {
+            // No progress — RPM cooldown still in effect
             const waitUntil = earliestCooldownEnd();
             const waitMs    = Math.max(RPM_COOLDOWN_MS, waitUntil - Date.now());
-            log(`  ⏳ No progress this round. ${afterRound.length} stocks remain.`);
+            log(`  ⏳ No progress this round. ${stillNeeded.length} stocks remain.`);
             log(`  Waiting ${fmt(waitMs)} before next attempt (cooldowns active)...`);
-            log(`  Elapsed total: ${fmt(elapsed() * 1000)}`);
             await sleep(waitMs + 5_000);
         } else {
-            log(`  Round ${round} done: +${processedThisRound} overviews (${afterRound.length} remaining, ${elapsed()}s total)`);
+            log(`  Round ${round} done: +${processedThisRound} overviews (${stillNeeded.length} remaining, ${elapsed()}s total)`);
             // Brief pause between rounds before re-checking
             await sleep(2_000);
         }
