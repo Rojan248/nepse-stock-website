@@ -190,7 +190,7 @@ async function main() {
             // Also upsert today's MarketHistory with full OHLCV if available
             if (details.closePrice && details.businessDate) {
                 const businessDate = new Date(details.businessDate);
-                businessDate.setHours(6, 0, 0, 0); // Noon NST to avoid timezone issues
+                businessDate.setHours(6, 15, 0, 0); // 06:15 UTC = 12:00 NST to avoid timezone issues
 
                 // Check if we already have a markethistory row for today
                 const existingHistory = await prisma.marketHistory.findFirst({

@@ -24,7 +24,10 @@ const TIMEOUT_MS  = 20_000;
 
 const args  = process.argv.slice(2);
 const FORCE = args.includes('--force');
-const SINGLE = args.includes('--sym') ? args[args.indexOf('--sym') + 1]?.toUpperCase() : null;
+const symIdx = args.indexOf('--sym');
+const SINGLE = (symIdx !== -1 && symIdx + 1 < args.length && args[symIdx + 1])
+    ? args[symIdx + 1].toUpperCase()
+    : null;
 
 const log  = (...a) => console.log(`[${new Date().toISOString()}]`, ...a);
 const warn = (...a) => console.warn(`[${new Date().toISOString()}] WARN`, ...a);
@@ -114,7 +117,7 @@ async function main() {
         try {
             const data = await scrapeStock(stock.symbol);
 
-            if (!data.ma180Ext && !data.ma120Ext && !data.yearlyYield && !data.avgVol30dExt) {
+            if (data.ma180Ext == null && data.ma120Ext == null && data.yearlyYield == null && data.avgVol30dExt == null) {
                 warn(`${stock.symbol}: no indicators found on MeroLagani page`);
                 counters.noData++;
                 return;

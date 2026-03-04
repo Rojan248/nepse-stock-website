@@ -322,10 +322,14 @@ async function storeHistoryBatch(symbol, rows) {
     // Individual creates
     for (const row of enriched) {
         try {
+            const dayStart = new Date(row.date);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayStart);
+            dayEnd.setDate(dayEnd.getDate() + 1);
             const existing = await prisma.marketHistory.findFirst({
                 where: {
                     symbol: row.symbol,
-                    date: row.date
+                    date: { gte: dayStart, lt: dayEnd }
                 },
                 select: { id: true }
             });

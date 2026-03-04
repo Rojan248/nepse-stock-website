@@ -44,11 +44,11 @@ function compute(history, currentStock) {
     }
 
     // If we have fewer than 10 days of local data, the computed averages are unreliable.
-    // Use the MeroLagani 30-day avg volume as a more accurate baseline.
+    // Use the MeroLagani 30-day avg volume as a more accurate baseline for both averages.
     const ext30d = currentStock?.avgVol30dExt;
     if (ext30d && tradingDays.length < 10) {
-        result.avgVolume20d = ext30d;  // 30-day avg is close enough to 20-day avg
-        result.avgVolume50d = result.avgVolume50d || ext30d;
+        result.avgVolume20d = ext30d;
+        result.avgVolume50d = ext30d;  // override both so they share the same external baseline
         result.sourceVolume = 'merolagani';
     }
 

@@ -42,4 +42,7 @@ const { prisma } = require('../src/services/database/connection');
     } finally {
         await prisma.$disconnect();
     }
-})();
+})().catch(e => {
+    console.error(e);
+    process.exit(1);
+});

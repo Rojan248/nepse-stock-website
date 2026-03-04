@@ -1,6 +1,10 @@
 require('dotenv').config();
 const { prisma } = require('../src/services/database/connection');
 
+function safeParseJSON(str) {
+    try { return JSON.parse(str || '{}'); } catch (e) { console.warn('JSON parse error:', e.message); return {}; }
+}
+
 (async () => {
     const symbols = ['NABIL', 'HBL', 'PHCL'];  // sample stocks
     for (const sym of symbols) {
@@ -10,9 +14,9 @@ const { prisma } = require('../src/services/database/connection');
         });
         const sm = await prisma.stockMetrics.findFirst({ where: { symbol: sym }, orderBy: { date: 'desc' } });
         if (!sm) { console.log(sym, ': no metrics'); continue; }
-        const pm = JSON.parse(sm.priceMetrics || '{}');
-        const tm = JSON.parse(sm.trendMetrics || '{}');
-        const liq = JSON.parse(sm.liquidityMetrics || '{}');
+        const pm  = safeParseJSON(sm.priceMetrics);
+        const tm  = safeParseJSON(sm.trendMetrics);
+        const liq = safeParseJSON(sm.liquidityMetrics);
         console.log(`\n--- ${sym} ---`);
         console.log('Stock ext fields:', stock);
         console.log('52W:', pm.high52w, '/', pm.low52w, '| source:', pm.source52w);

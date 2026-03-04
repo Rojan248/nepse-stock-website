@@ -4,7 +4,10 @@
 const axios = require('axios');
 const https = require('https');
 
-const agent = new https.Agent({ rejectUnauthorized: false });
+// TLS verification bypass — only for local debugging through trusted proxies.
+// Set DISABLE_TLS_VERIFY=true in your environment when required;
+// never commit or use this in production environments.
+const agent = new https.Agent({ rejectUnauthorized: process.env.DISABLE_TLS_VERIFY !== 'true' });
 
 async function main() {
     const res = await axios.get('https://www.sharesansar.com/company/nabil', {

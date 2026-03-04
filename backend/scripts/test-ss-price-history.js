@@ -26,7 +26,7 @@ async function trySSPriceHistory(params) {
         console.log(`  Status: ${res.status}, type: ${type}`);
         if (type === 'object') {
             console.log('  Keys:', Object.keys(d).slice(0, 10).join(', '));
-            if (d.data) console.log('  data[0]:', JSON.stringify(d.data[0]).slice(0, 200));
+            if (Array.isArray(d.data) && d.data.length > 0) console.log('  data[0]:', JSON.stringify(d.data[0]).slice(0, 200));
             if (d.recordsTotal !== undefined) console.log('  total:', d.recordsTotal);
         } else {
             console.log('  Body (300):', String(d).slice(0, 300));
@@ -49,7 +49,7 @@ async function trySSPriceHistory(params) {
         console.log(`  Status: ${res.status}, type: ${type}`);
         if (type === 'object') {
             console.log('  Keys:', Object.keys(d).slice(0, 10).join(', '));
-            if (d.data) console.log('  data[0]:', JSON.stringify(d.data[0]).slice(0, 200));
+            if (Array.isArray(d.data) && d.data.length > 0) console.log('  data[0]:', JSON.stringify(d.data[0]).slice(0, 200));
         } else {
             console.log('  Body (300):', String(d).slice(0, 300));
         }

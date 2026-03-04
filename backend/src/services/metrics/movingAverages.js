@@ -118,10 +118,10 @@ function _applyExtFallbacks(result, currentStock, currentPrice, localDays) {
     const ext180 = currentStock?.ma180Ext;
     const ext120 = currentStock?.ma120Ext;
 
-    if (!result.ma180 && ext180) {
+    if (!result.ma180 && ext180 != null && ext180 !== 0) {
         result.ma180 = ext180;
         result.source_ma180 = 'merolagani';
-        if (currentPrice) result.priceVsMa180 = ((currentPrice - ext180) / ext180) * 100;
+        if (currentPrice && ext180 !== 0) result.priceVsMa180 = ((currentPrice - ext180) / ext180) * 100;
     }
     if (!result.ma120 && ext120) {
         result.ma120 = ext120;

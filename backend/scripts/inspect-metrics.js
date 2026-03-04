@@ -1,6 +1,10 @@
 require('dotenv').config();
 const { prisma } = require('../src/services/database/connection');
 
+function safeParseJSON(str) {
+    try { return JSON.parse(str || '{}'); } catch (e) { console.warn('JSON parse error:', e.message); return {}; }
+}
+
 (async () => {
     const stock = await prisma.stock.findUnique({
         where: { symbol: 'NABIL' },
@@ -10,10 +14,10 @@ const { prisma } = require('../src/services/database/connection');
 
     const sm = await prisma.stockMetrics.findFirst({ where: { symbol: 'NABIL' }, orderBy: { date: 'desc' } });
     if (sm) {
-        const pm = JSON.parse(sm.priceMetrics || '{}');
-        const tm = JSON.parse(sm.trendMetrics || '{}');
-        const mom = JSON.parse(sm.momentumMetrics || '{}');
-        const liq = JSON.parse(sm.liquidityMetrics || '{}');
+        const pm  = safeParseJSON(sm.priceMetrics);
+        const tm  = safeParseJSON(sm.trendMetrics);
+        const mom = safeParseJSON(sm.momentumMetrics);
+        const liq = safeParseJSON(sm.liquidityMetrics);
         console.log('priceMetrics high52w:', pm.high52w, 'low52w:', pm.low52w, 'source52w:', pm.source52w);
         console.log('trendMetrics ma20:', tm.ma20, 'ma50:', tm.ma50, 'ma180:', tm.ma180);
         console.log('momentumMetrics rsi14:', mom.rsi14, 'roc10d:', mom.roc10d);
