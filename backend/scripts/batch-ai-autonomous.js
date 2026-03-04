@@ -130,14 +130,30 @@ function buildFact(stock, metrics) {
 
 // ── Prompt builders ──────────────────────────────────────────────────────────
 
+/** Format large numbers in Nepali lakh/crore units for AI readability */
+function fmtLakh(n) {
+    if (!n || n === 0) return '0';
+    const abs = Math.abs(Number(n));
+    if (abs >= 1e7)  return (abs / 1e7).toFixed(2) + ' crore';
+    if (abs >= 1e5)  return (abs / 1e5).toFixed(2) + ' lakh';
+    if (abs >= 1e3)  return abs.toLocaleString('en-IN');
+    return String(abs);
+}
+
+/** Format a rupee price with commas, e.g. 5842 → "Rs 5,842" */
+function fmtRs(n) {
+    if (n == null) return 'N/A';
+    return 'Rs\u202f' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 1 });
+}
+
 function batchPrompt(facts) {
     const lines = facts.map(f => {
-        let l = `${f.s}(${f.n},${f.sec}): Price=Rs${f.ltp} Yesterday=Rs${f.pc} Change=${f.chg}(${f.pct}%) Volume=${f.vol}`;
-        if (f.pm)         l += ` YearHigh=Rs${f.pm.h52} YearLow=Rs${f.pm.l52}`;
+        let l = `${f.s}(${f.n},${f.sec}): Price=${fmtRs(f.ltp)} Yesterday=${fmtRs(f.pc)} Change=${f.chg}(${f.pct}%) Volume=${fmtLakh(f.vol)} shares`;
+        if (f.pm)         l += ` YearHigh=${fmtRs(f.pm.h52)} YearLow=${fmtRs(f.pm.l52)}`;
         if (f.pm?.yChg)   l += ` PastYearReturn=${f.pm.yChg}%`;
         if (f.tm)         l += ` PriceTrend=${f.tm.trend}`;
-        if (f.tm?.ma20)   l += ` AvgPricePastMonth=Rs${f.tm.ma20}`;
-        if (f.tm?.ma180)  l += ` AvgPricePast6Months=Rs${f.tm.ma180}(${f.tm.vsMa180})`;
+        if (f.tm?.ma20)   l += ` AvgPricePastMonth=${fmtRs(f.tm.ma20)}`;
+        if (f.tm?.ma180)  l += ` AvgPricePast6Months=${fmtRs(f.tm.ma180)}(${f.tm.vsMa180})`;
         if (f.rsi)        l += ` MomentumScore=${f.rsi}`;
         if (f.sig)        l += ` [${f.sig}]`;
         if (f.bonus)      l += ` [RECENT BONUS SHARE ISSUED]`;
@@ -156,7 +172,8 @@ STRICT RULES — must follow all:
 - Say "the price has been rising/falling lately" instead of "uptrend/downtrend"
 - Say "the stock lost/gained X% this year" for returns — explain whether that is good or bad
 - Explain everything like talking to a friend with no finance background
-- Use "Rs" before all prices
+- Use "Rs" before all prices, with commas for large amounts (e.g. Rs 1,250 not Rs1250)
+- For share volumes use lakh/crore: say "9.36 lakh shares" not "936,347 shares"
 - summary: 2-3 friendly plain-English sentences about what this company does and how its price has moved
 - bullets: 3–4 simple facts a beginner would care about (avoid all financial jargon)
 - outlook: 1–2 sentences on whether things look stable/improving/declining in plain language
@@ -173,13 +190,13 @@ ${schema}
 
 function singlePrompt(f) {
     let d = `Company: ${f.n} (Symbol: ${f.s}, Sector: ${f.sec})`;
-    d += `\nCurrent Price: Rs${f.ltp} | Yesterday's Price: Rs${f.pc} | Change: ${f.chg} (${f.pct}%)`;
-    d += `\nShares Traded Today: ${f.vol}`;
-    if (f.pm)        d += `\nHighest Price in Past Year: Rs${f.pm.h52} | Lowest Price in Past Year: Rs${f.pm.l52}`;
+    d += `\nCurrent Price: ${fmtRs(f.ltp)} | Yesterday's Price: ${fmtRs(f.pc)} | Change: ${f.chg} (${f.pct}%)`;
+    d += `\nShares Traded Today: ${fmtLakh(f.vol)} shares`;
+    if (f.pm)        d += `\nHighest Price in Past Year: ${fmtRs(f.pm.h52)} | Lowest Price in Past Year: ${fmtRs(f.pm.l52)}`;
     if (f.pm?.yChg)  d += `\nReturn Over Past Year: ${f.pm.yChg}%`;
     if (f.tm)        d += `\nPrice Trend: ${f.tm.trend}`;
-    if (f.tm?.ma20)  d += `\nAverage Price Last Month: Rs${f.tm.ma20}`;
-    if (f.tm?.ma180) d += `\nAverage Price Last 6 Months: Rs${f.tm.ma180}`;
+    if (f.tm?.ma20)  d += `\nAverage Price Last Month: ${fmtRs(f.tm.ma20)}`;
+    if (f.tm?.ma180) d += `\nAverage Price Last 6 Months: ${fmtRs(f.tm.ma180)}`;
     if (f.rsi)       d += `\nMomentum Score (0-100, above 70 = rising fast, below 30 = falling fast): ${f.rsi}`;
     if (f.vr)        d += `\nToday's trading volume vs normal: ${f.vr}x`;
     if (f.sig)       d += `\nNotable signals: ${f.sig}`;
@@ -191,7 +208,8 @@ STRICT RULES — must follow all:
 - Say "highest price in the past year" not "52-week high"
 - Explain the trend in plain words: "the price has been slowly rising" or "the price has dropped a lot lately"
 - If the company issued bonus shares, briefly explain what that means simply
-- Use "Rs" before all prices
+- Use "Rs" before all prices, with commas for large prices (e.g. Rs 1,250 not Rs1250)
+- For share volumes use lakh/crore: say "9.36 lakh shares" not "936,347 shares"; say "1.23 crore shares" not "12,345,678 shares"
 - summary: 2-3 friendly sentences — what the company does, how the price is moving, and one interesting fact
 - bullets: 3–4 simple things a beginner would actually care about (written in plain language)
 - outlook: 1–2 plain sentences — is the situation looking stable, getting better, or under pressure?
