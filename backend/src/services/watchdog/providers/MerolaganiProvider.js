@@ -1,38 +1,5 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
 const logger = require('../../utils/logger');
-
-/** Metric definitions: keyword to match, output key, and parse function */
-const METRIC_DEFS = [
-    { keyword: 'total turnover', key: 'totalTurnover', parse: (v) => parseFloat(v) },
-    { keyword: 'total transaction', key: 'totalTransactions', parse: (v) => parseInt(v, 10) },
-];
-
-/** Try to parse a cell value and assign it to resultData if valid */
-const tryAssignMetric = (resultData, key, parseFn, cellText) => {
-    const val = parseFn(cellText);
-    if (!isNaN(val)) resultData[key] = val;
-};
-
-/**
- * Extract market metrics from raw HTML rows
- */
-const extractTableMetrics = ($, resultData) => {
-    $('table tr').each((i, tr) => {
-        const text = $(tr).text().replace(/\s+/g, ' ').toLowerCase();
-        const cellText = $(tr).find('td').eq(1).text().replace(/,/g, '');
-        const matched = METRIC_DEFS.find(def => text.includes(def.keyword));
-        if (matched) tryAssignMetric(resultData, matched.key, matched.parse, cellText);
-    });
-};
-
-/** Extract NEPSE index from a known DOM element */
-const extractNepseFromDom = ($, resultData) => {
-    const nepseEl = $('#ctl00_ContentPlaceHolder1_LiveTrading_LiveMarket1_CG1_lblLastPrice_0');
-    if (!nepseEl.length) return;
-    const val = parseFloat(nepseEl.text().replace(/,/g, ''));
-    if (!isNaN(val)) resultData.nepseIndex = val;
-};
 
 class MerolaganiProvider {
     constructor() {
@@ -49,16 +16,34 @@ class MerolaganiProvider {
                 timeout: 10000
             });
 
-            const $ = cheerio.load(data);
+            // Attempt to parse key metrics using Regex
+            // Note: This is fragile and depends on their HTML structure
+            
+            // Debug: Log start of response
+            // logger.info(`[Watchdog] Merolagani response start: ${data.substring(0, 200)}`);
+
             const result = {
                 source: this.name,
                 timestamp: new Date(),
                 data: {}
             };
 
-            extractTableMetrics($, result.data);
-            extractNepseFromDom($, result.data);
+            // Total Turnover
+            const turnoverMatch = data.match(/Total\s+Turnover[^0-9]*([0-9,]+(\.[0-9]+)?)/i);
+            if (turnoverMatch) {
+                result.data.totalTurnover = parseFloat(turnoverMatch[1].replace(/,/g, ''));
+            }
 
+            // Total Transactions
+            const txMatch = data.match(/Total\s+Transactions[^0-9]*([0-9,]+)/i);
+            if (txMatch) {
+                result.data.totalTransactions = parseInt(txMatch[1].replace(/,/g, ''), 10);
+            }
+
+            // NEPSE Index (Harder to find reliably via regex on full page, but let's try)
+            // Often appears as "NEPSE Index ... value"
+            // Or inside a specific div
+            
             return result;
 
         } catch (error) {
