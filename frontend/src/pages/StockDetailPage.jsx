@@ -7,6 +7,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { MarketDepth, Floorsheet } from '../components/depth';
+import AIOverviewCard from '../components/AIOverviewCard';
+import MetricsPanel from '../components/MetricsPanel';
 import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass } from '../utils/formatting';
 import './StockDetailPage.css';
 
@@ -208,7 +210,9 @@ function TabContent({ activeTab, p, relatedStocks, sector, navigate, symbol, dep
     if (activeTab === 'overview') {
         return (
             <>
+                <AIOverviewCard symbol={symbol} />
                 <KeyMetrics p={p} />
+                <MetricsPanel symbol={symbol} />
                 <PriceSummary p={p} />
                 <RelatedStocks relatedStocks={relatedStocks} sector={sector} navigate={navigate} />
             </>

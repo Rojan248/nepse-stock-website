@@ -62,11 +62,38 @@ const optionalAuth = (req, res, next) => {
     next();
 };
 
+/**
+ * Set refresh token as httpOnly cookie
+ */
+const setRefreshCookie = (res, token) => {
+    res.cookie('refreshToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/api/auth',
+        maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    });
+};
+
+/**
+ * Clear refresh token cookie
+ */
+const clearRefreshCookie = (res) => {
+    res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/api/auth'
+    });
+};
+
 module.exports = {
     JWT_SECRET,
     ACCESS_TOKEN_EXPIRY,
     REFRESH_TOKEN_EXPIRY_DAYS,
     generateAccessToken,
     requireAuth,
-    optionalAuth
+    optionalAuth,
+    setRefreshCookie,
+    clearRefreshCookie
 };

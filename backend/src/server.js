@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const { connectDB } = require('./services/database/connection');
@@ -51,6 +52,7 @@ app.use(helmet({
 app.use(corsMiddleware);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(globalLimiter);
 
 // Request logging middleware
@@ -128,6 +130,49 @@ const startServer = async () => {
         // Initialize analytics service
         const analytics = require('./services/analytics');
         await analytics.initialize();
+
+        // Validate Gemini AI configuration
+        if (!process.env.GEMINI_API_KEY) {
+            logger.warn('GEMINI_API_KEY not set — AI overview features will be disabled');
+        } else {
+            logger.info(`Gemini AI configured (model: ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'})`);
+        }
+
+        // Check if AI overviews need initial generation
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                const { prisma } = require('./services/database/connection');
+                const overviewCount = await prisma.aIOverview.count();
+                if (overviewCount === 0) {
+                    logger.info('No AI overviews found — scheduling initial generation...');
+                    // Run async (don't block server startup)
+                    const metricsOrchestrator = require('./services/metrics/metricsOrchestrator');
+                    const aiOverviewService = require('./services/aiOverviewService');
+                    setImmediate(async () => {
+                        try {
+                            await metricsOrchestrator.computeAll();
+                            await aiOverviewService.generateMarketOverview('startup');
+                            // Generate for top 20 stocks initially (don't overload on first start)
+                            const topStocks = await prisma.stock.findMany({
+                                where: { lastTradedPrice: { gt: 0 } },
+                                orderBy: { turnover: 'desc' },
+                                take: 20,
+                                select: { symbol: true }
+                            });
+                            for (const stock of topStocks) {
+                                await aiOverviewService.generateForSymbol(stock.symbol, 'startup');
+                                await new Promise(r => setTimeout(r, 500));
+                            }
+                            logger.info('Initial AI overview generation completed');
+                        } catch (err) {
+                            logger.error(`Initial AI generation failed: ${err.message}`);
+                        }
+                    });
+                }
+            } catch (err) {
+                logger.error(`AI overview check failed: ${err.message}`);
+            }
+        }
 
         // Start Express server
         const server = app.listen(PORT, '0.0.0.0', () => {

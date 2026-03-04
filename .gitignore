@@ -41,4 +41,8 @@ backend/data/*.tmp
 # Temporary UI components
 useable/
 
+# Claude temp files
+tmpclaude-*
+backend/tmpclaude-*
+
 cloudflared.exe

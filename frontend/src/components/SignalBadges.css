@@ -1,0 +1,8 @@
+
+.signal-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.signal-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.025em; text-transform: uppercase; white-space: nowrap; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+.signal--bullish { background: #ecfdf5; color: #059669; border: 1px solid #10b981; }
+.signal--bearish { background: #fef2f2; color: #dc2626; border: 1px solid #ef4444; }
+.signal--caution { background: #fffbeb; color: #d97706; border: 1px solid #f59e0b; }
+.signal--opportunity { background: #eff6ff; color: #2563eb; border: 1px solid #3b82f6; }
+.signal--info { background: #faf5ff; color: #7c3aed; border: 1px solid #8b5cf6; }

@@ -73,8 +73,28 @@ const searchLimiter = rateLimit({
     }
 });
 
+// Login brute-force protection: 5 attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        error: {
+            message: 'Too many login attempts. Please try again in 15 minutes.',
+            retryAfter: 900
+        }
+    },
+    handler: (req, res, next, options) => {
+        logger.warn(`[RateLimit] Login brute-force limit exceeded: ${req.ip}`);
+        res.status(429).json(options.message);
+    }
+});
+
 module.exports = {
     globalLimiter,
     adminLimiter,
-    searchLimiter
+    searchLimiter,
+    loginLimiter
 };

@@ -10,6 +10,8 @@ const { adminLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString, getMarketState } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
+const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
+const aiOverviewService = require('../services/aiOverviewService');
 
 /**
  * Market API Routes
@@ -74,6 +76,40 @@ router.get('/market-stats', asyncHandler(async (req, res) => {
             sectors
         }
     });
+}));
+
+/**
+ * GET /api/market-overview
+ * Get AI-generated market overview narrative
+ */
+router.get('/market-overview', asyncHandler(async (req, res) => {
+    const overview = await aiOverviewService.getOverview('MARKET', 'market');
+
+    if (!overview) {
+        return res.status(404).json({
+            success: false,
+            error: { message: 'No market overview available yet' }
+        });
+    }
+
+    res.json({ success: true, data: overview });
+}));
+
+/**
+ * GET /api/market-metrics
+ * Get aggregate market-level metrics
+ */
+router.get('/market-metrics', asyncHandler(async (req, res) => {
+    const metrics = await metricsOrchestrator.getMarketMetrics();
+
+    if (!metrics) {
+        return res.status(500).json({
+            success: false,
+            error: { message: 'Failed to compute market metrics' }
+        });
+    }
+
+    res.json({ success: true, data: metrics });
 }));
 
 /**

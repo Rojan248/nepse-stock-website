@@ -202,3 +202,39 @@ model AlertDelivery {
 
   @@index([alertId])
 }
+
+// ==================== AI & Metrics Models ====================
+
+model StockMetrics {
+  id               Int      @id @default(autoincrement())
+  symbol           String
+  date             DateTime
+  priceMetrics     String?  // JSON: 52wHigh, 52wLow, atCircuitHigh, atCircuitLow, consecutiveUp, consecutiveDown
+  trendMetrics     String?  // JSON: ma20, ma50, ma180, goldenCross, deathCross
+  momentumMetrics  String?  // JSON: rsi14, rsi7, roc10d, roc30d
+  liquidityMetrics String?  // JSON: avgVolume20d, volumeRatio, turnoverRatio, liquidityScore, isVolumeSpike
+  relativeMetrics  String?  // JSON: vsSectorAvg, sectorRank, marketRank
+  fundamentals     String?  // JSON: basePrice, priceToBase, sector
+  patterns         String?  // JSON: composite flags derived from all metrics
+  signals          String?  // JSON: array of signal objects [{type, label, sentiment}]
+  computedAt       DateTime @default(now())
+
+  @@unique([symbol, date])
+  @@index([symbol])
+}
+
+model AIOverview {
+  id           Int      @id @default(autoincrement())
+  symbol       String
+  type         String   @default("stock") // "stock" | "market"
+  context      String?  // JSON: fact sheet / input data snapshot
+  narrative    String?  // JSON: { summary, bullets, outlook, generatedAt }
+  modelVersion String?
+  tokenCount   Int?
+  triggeredBy  String?  // "scheduler" | "manual" | "startup"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  @@unique([symbol, type])
+  @@index([symbol])
+}

@@ -7,6 +7,7 @@ const marketOperations = require('../database/marketOperations');
 const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSync, MARKET_STATES } = require('../utils/marketTime');
 const watchdogService = require('../watchdog/WatchdogService');
 const alertChecker = require('../alertChecker');
+const metricsOrchestrator = require('../metrics/metricsOrchestrator');
 
 /**
  * Update Scheduler
@@ -143,6 +144,13 @@ const performUpdate = async () => {
             logger.error(`Alert check failed after update: ${alertErr.message}`);
         }
 
+        // Compute metrics after successful data update
+        try {
+            await metricsOrchestrator.computeAll();
+        } catch (metricsErr) {
+            logger.error(`Metrics computation failed after update: ${metricsErr.message}`);
+        }
+
         const duration = Date.now() - startTime;
         logger.info(`Update cycle completed in ${duration}ms (Source: ${data.source})`);
         return true;
@@ -184,6 +192,18 @@ const setupCronJobs = () => {
     schedule.scheduleJob('0 0 * * *', async () => {
         logger.info('Running daily cleanup...');
         await marketOperations.cleanOldSummaries(30);
+    });
+
+    // AI Overview generation after market close (3:30 PM NST, Sun-Thu)
+    schedule.scheduleJob('30 15 * * 0-4', async () => {
+        logger.info('Running post-market AI overview generation...');
+        try {
+            const aiOverviewService = require('../aiOverviewService');
+            await aiOverviewService.generateMarketOverview('scheduler');
+            await aiOverviewService.generateAll('scheduler');
+        } catch (e) {
+            logger.error(`Post-market AI generation failed: ${e.message}`);
+        }
     });
 
     // Watchdog (Every 10 minutes)

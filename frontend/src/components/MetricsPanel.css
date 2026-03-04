@@ -1,0 +1,70 @@
+
+.metrics-panel {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-main, #e2e8f0);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    transition: all 0.3s ease;
+}
+.metrics-panel:hover {
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+}
+.metrics-panel--loading { opacity: 0.7; }
+.metrics-panel__title {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 1.125rem; font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    margin: 0 0 1.25rem; letter-spacing: -0.025em;
+}
+.metrics-panel__title svg { color: var(--primary-accent, #2563eb); }
+.metrics-panel__section { margin-bottom: 1.5rem; }
+.metrics-panel__section:last-of-type { margin-bottom: 1rem; }
+.metrics-panel__section-title {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.75rem; font-weight: 600;
+    color: var(--text-muted, #64748b); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 0 0 0.75rem;
+    border-bottom: 1px solid var(--border-subtle, #f1f5f9); padding-bottom: 0.25rem;
+}
+.metrics-panel__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.75rem; }
+.metrics-panel__item {
+    display: flex; flex-direction: column; justify-content: center; gap: 0.25rem;
+    padding: 0.75rem; background: var(--bg-app, #f8fafc);
+    border: 1px solid var(--border-subtle, #f1f5f9); border-radius: 8px;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+.metrics-panel__item:hover {
+    background: #ffffff; border-color: var(--border-main, #e2e8f0);
+    transform: translateY(-1px); box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.05);
+}
+.metrics-panel__item-label { font-size: 0.7rem; color: var(--text-muted, #64748b); text-transform: uppercase; letter-spacing: 0.025em; font-weight: 600; }
+.metrics-panel__item-value { font-size: 1rem; font-weight: 700; color: var(--text-primary, #0f172a); font-variant-numeric: tabular-nums; font-family: var(--font-mono, monospace); }
+.metrics-panel__item-sub { font-size: 0.75rem; color: var(--text-secondary, #334155); font-family: var(--font-mono, monospace); }
+
+.metrics-panel__item.trend-bullish .metrics-panel__item-value { color: var(--success, #00e676); }
+.metrics-panel__item.trend-bearish .metrics-panel__item-value { color: var(--danger, #ff1744); }
+.metrics-panel__item.overbought .metrics-panel__item-value { color: #eab308; }
+.metrics-panel__item.oversold .metrics-panel__item-value { color: var(--primary-accent, #2563eb); }
+.metrics-panel__item.high .metrics-panel__item-value { color: var(--success, #00e676); }
+.metrics-panel__item.low .metrics-panel__item-value { color: var(--danger, #ff1744); }
+.metrics-panel__item.spike { background: #fffbeb; border-color: #fde68a; }
+.metrics-panel__item.spike .metrics-panel__item-value { color: #d97706; }
+
+.metrics-panel__footer { font-size: 0.75rem; color: var(--text-muted, #64748b); padding-top: 1rem; margin-top: 1rem; border-top: 1px dashed var(--border-main, #e2e8f0); text-align: right; font-style: italic; display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem; }
+.metrics-panel__notice {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    padding: 0.75rem 1rem; margin-bottom: 1rem;
+    background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+    color: #1d4ed8; font-size: 0.8rem; line-height: 1.5;
+}
+.metrics-panel__notice svg { flex-shrink: 0; margin-top: 2px; }
+.metrics-panel__skeleton { display: flex; flex-direction: column; gap: 0.75rem; }
+.skeleton-line {
+    height: 12px; border-radius: 4px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+.skeleton-line--full { width: 100%; } .skeleton-line--80 { width: 80%; } .skeleton-line--60 { width: 60%; }
+@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

@@ -6,6 +6,8 @@ const { requireAdminKey } = require('../middleware/auth');
 const { searchLimiter, adminLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
+const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
+const aiOverviewService = require('../services/aiOverviewService');
 
 /**
  * Stock API Routes
@@ -192,6 +194,93 @@ router.get('/recent', asyncHandler(async (req, res) => {
         data: stocks,
         count: stocks.length,
         window: `${seconds} seconds`
+    });
+}));
+
+/**
+ * GET /api/stocks/:symbol/metrics
+ * Get computed metrics for a stock
+ */
+router.get('/:symbol/metrics', asyncHandler(async (req, res) => {
+    const { symbol } = req.params;
+
+    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Invalid symbol format' }
+        });
+    }
+
+    const metrics = await metricsOrchestrator.getMetrics(symbol);
+
+    if (!metrics) {
+        return res.status(404).json({
+            success: false,
+            error: { message: `No metrics available for '${symbol}'` }
+        });
+    }
+
+    res.json({ success: true, data: metrics });
+}));
+
+/**
+ * GET /api/stocks/:symbol/overview
+ * Get AI-generated overview for a stock
+ */
+router.get('/:symbol/overview', asyncHandler(async (req, res) => {
+    const { symbol } = req.params;
+
+    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Invalid symbol format' }
+        });
+    }
+
+    const overview = await aiOverviewService.getOverview(symbol, 'stock');
+
+    if (!overview) {
+        return res.status(404).json({
+            success: false,
+            error: { message: `No AI overview available for '${symbol}'` }
+        });
+    }
+
+    res.json({ success: true, data: overview });
+}));
+
+/**
+ * POST /api/stocks/:symbol/overview/refresh
+ * Manually trigger AI overview regeneration for a stock
+ * Protected by Admin Key
+ */
+router.post('/:symbol/overview/refresh', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
+    const { symbol } = req.params;
+
+    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Invalid symbol format' }
+        });
+    }
+
+    // Compute fresh metrics first
+    await metricsOrchestrator.computeForSymbol(symbol);
+
+    // Generate fresh AI overview
+    const overview = await aiOverviewService.generateForSymbol(symbol, 'manual');
+
+    if (!overview) {
+        return res.status(500).json({
+            success: false,
+            error: { message: `Failed to generate AI overview for '${symbol}'` }
+        });
+    }
+
+    res.json({
+        success: true,
+        message: `AI overview refreshed for ${symbol}`,
+        data: overview
     });
 }));
 

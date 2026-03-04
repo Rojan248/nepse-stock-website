@@ -12,6 +12,7 @@ import Select from '../components/ui/Select';
 import SearchBar from '../components/SearchBar';
 import MarketSummarySection from '../components/MarketSummarySection';
 import StocksToolbar from '../components/StocksToolbar';
+import MarketNarrativeBanner from '../components/MarketNarrativeBanner';
 import { useMarketData, useStockData } from '../hooks/useHomePageData';
 import { useMarketBreadth, useFilteredStocks } from '../hooks/useFilters';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -98,6 +99,8 @@ function HomePage({ globalSearch }) {
                 statusFilter={statusFilter}
                 onStatusChange={setStatusFilter}
             />
+
+            <MarketNarrativeBanner />
 
             <div ref={sectorRef} className={`scroll-fade ${sectorVisible ? 'visible' : ''}`}>
                 <SectorChart stocks={stocks} />

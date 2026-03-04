@@ -14,6 +14,7 @@ const TIMEOUT = 10000;
 const api = axios.create({
     baseURL: API_URL,
     timeout: TIMEOUT,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
     }
@@ -191,6 +192,34 @@ export const getSectors = async () => {
  */
 export const getStockDepth = async (symbol) => {
     return fetchSimple(`/stocks/${symbol}/depth`, {}, null, `Failed to fetch depth for ${symbol}`);
+};
+
+/**
+ * Get computed metrics for a stock
+ */
+export const getStockMetrics = async (symbol) => {
+    return fetchSimple(`/stocks/${symbol}/metrics`, {}, null, `Failed to fetch metrics for ${symbol}`);
+};
+
+/**
+ * Get AI-generated overview for a stock
+ */
+export const getStockOverview = async (symbol) => {
+    return fetchSimple(`/stocks/${symbol}/overview`, {}, null, `Failed to fetch overview for ${symbol}`);
+};
+
+/**
+ * Get AI-generated market overview
+ */
+export const getMarketOverview = async () => {
+    return fetchSimple('/market-overview', {}, null, 'Failed to fetch market overview');
+};
+
+/**
+ * Get aggregate market metrics
+ */
+export const getMarketMetrics = async () => {
+    return fetchSimple('/market-metrics', {}, null, 'Failed to fetch market metrics');
 };
 
 // ==================== IPO APIs ====================

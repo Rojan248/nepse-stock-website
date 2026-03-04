@@ -4,7 +4,8 @@ const crypto = require('crypto');
 const router = express.Router();
 const { prisma } = require('../services/database/connection');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { generateAccessToken, JWT_SECRET, REFRESH_TOKEN_EXPIRY_DAYS, requireAuth } = require('../middleware/authMiddleware');
+const { generateAccessToken, JWT_SECRET, REFRESH_TOKEN_EXPIRY_DAYS, requireAuth, setRefreshCookie, clearRefreshCookie } = require('../middleware/authMiddleware');
+const { loginLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 
 const SALT_ROUNDS = 12;
@@ -70,20 +71,20 @@ router.post('/register', asyncHandler(async (req, res) => {
 
     const accessToken = generateAccessToken(user);
     const refreshToken = await createRefreshToken(user.id);
+    setRefreshCookie(res, refreshToken);
 
     logger.info(`New user registered: ${user.email}`);
     res.status(201).json({
         success: true,
         data: {
             user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role },
-            accessToken,
-            refreshToken
+            accessToken
         }
     });
 }));
 
-// POST /api/auth/login
-router.post('/login', asyncHandler(async (req, res) => {
+// POST /api/auth/login (rate limited: 5 attempts per 15 min per IP)
+router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -103,33 +104,35 @@ router.post('/login', asyncHandler(async (req, res) => {
     await cleanExpiredTokens(user.id);
     const accessToken = generateAccessToken(user);
     const refreshToken = await createRefreshToken(user.id);
+    setRefreshCookie(res, refreshToken);
 
     logger.info(`User logged in: ${user.email}`);
     res.json({
         success: true,
         data: {
             user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role },
-            accessToken,
-            refreshToken
+            accessToken
         }
     });
 }));
 
-// POST /api/auth/refresh
+// POST /api/auth/refresh — silent refresh via httpOnly cookie
 router.post('/refresh', asyncHandler(async (req, res) => {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
-        return res.status(400).json({ success: false, error: { message: 'Refresh token required' } });
+        return res.status(401).json({ success: false, error: { message: 'No refresh token' } });
     }
 
     const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
     if (!stored || stored.expiresAt < new Date()) {
         if (stored) await prisma.refreshToken.delete({ where: { id: stored.id } });
+        clearRefreshCookie(res);
         return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
     }
 
     const user = await prisma.user.findUnique({ where: { id: stored.userId } });
     if (!user) {
+        clearRefreshCookie(res);
         return res.status(401).json({ success: false, error: { message: 'User not found' } });
     }
 
@@ -137,19 +140,24 @@ router.post('/refresh', asyncHandler(async (req, res) => {
     await prisma.refreshToken.delete({ where: { id: stored.id } });
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = await createRefreshToken(user.id);
+    setRefreshCookie(res, newRefreshToken);
 
     res.json({
         success: true,
-        data: { accessToken: newAccessToken, refreshToken: newRefreshToken }
+        data: {
+            accessToken: newAccessToken,
+            user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role }
+        }
     });
 }));
 
-// POST /api/auth/logout
+// POST /api/auth/logout — clear httpOnly cookie
 router.post('/logout', asyncHandler(async (req, res) => {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies?.refreshToken;
     if (refreshToken) {
         await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
     }
+    clearRefreshCookie(res);
     res.json({ success: true, data: { message: 'Logged out' } });
 }));
 
