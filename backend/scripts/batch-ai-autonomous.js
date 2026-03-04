@@ -132,15 +132,15 @@ function buildFact(stock, metrics) {
 
 function batchPrompt(facts) {
     const lines = facts.map(f => {
-        let l = `${f.s}(${f.n},${f.sec}): LTP=${f.ltp} PC=${f.pc} Chg=${f.chg}(${f.pct}%) Vol=${f.vol}`;
-        if (f.pm)         l += ` 52H=${f.pm.h52} 52L=${f.pm.l52}`;
-        if (f.pm?.yChg)   l += ` 1Y=${f.pm.yChg}%`;
-        if (f.tm)         l += ` Trend=${f.tm.trend}`;
-        if (f.tm?.ma20)   l += ` MA20=${f.tm.ma20}`;
-        if (f.tm?.ma180)  l += ` MA180=${f.tm.ma180}(${f.tm.vsMa180})`;
-        if (f.rsi)        l += ` RSI=${f.rsi}`;
+        let l = `${f.s}(${f.n},${f.sec}): Price=Rs${f.ltp} Yesterday=Rs${f.pc} Change=${f.chg}(${f.pct}%) Volume=${f.vol}`;
+        if (f.pm)         l += ` YearHigh=Rs${f.pm.h52} YearLow=Rs${f.pm.l52}`;
+        if (f.pm?.yChg)   l += ` PastYearReturn=${f.pm.yChg}%`;
+        if (f.tm)         l += ` PriceTrend=${f.tm.trend}`;
+        if (f.tm?.ma20)   l += ` AvgPricePastMonth=Rs${f.tm.ma20}`;
+        if (f.tm?.ma180)  l += ` AvgPricePast6Months=Rs${f.tm.ma180}(${f.tm.vsMa180})`;
+        if (f.rsi)        l += ` MomentumScore=${f.rsi}`;
         if (f.sig)        l += ` [${f.sig}]`;
-        if (f.bonus)      l += ` [POST-BONUS]`;
+        if (f.bonus)      l += ` [RECENT BONUS SHARE ISSUED]`;
         return l;
     }).join('\n');
 
@@ -148,8 +148,21 @@ function batchPrompt(facts) {
         f => `  "${f.s}": {"summary":"...","bullets":["...","...","..."],"outlook":"..."}`
     ).join(',\n');
 
-    return `NEPSE analyst. For each stock produce: summary (2-3 sentences), bullets (3-5 key points), outlook (1-2 sentences). Be data-driven, no buy/sell recommendations.
+    return `You are explaining NEPSE stocks to a first-time investor who knows nothing about the stock market. Write in simple, plain English that anyone can understand.
 
+STRICT RULES — must follow all:
+- NEVER use jargon: no "52-week", "RSI", "MA", "MACD", "bullish", "bearish", "resistance", "support", "consolidation", "overbought", "oversold", "divergence", "momentum"
+- Say "highest price in the past year" instead of "52-week high"
+- Say "the price has been rising/falling lately" instead of "uptrend/downtrend"
+- Say "the stock lost/gained X% this year" for returns — explain whether that is good or bad
+- Explain everything like talking to a friend with no finance background
+- Use "Rs" before all prices
+- summary: 2-3 friendly plain-English sentences about what this company does and how its price has moved
+- bullets: 3–4 simple facts a beginner would care about (avoid all financial jargon)
+- outlook: 1–2 sentences on whether things look stable/improving/declining in plain language
+- No buy/sell recommendations
+
+Data:
 ${lines}
 
 Respond with ONLY valid JSON — no markdown, no extra text:
@@ -159,35 +172,61 @@ ${schema}
 }
 
 function singlePrompt(f) {
-    let d = `${f.s} (${f.n}, ${f.sec}): LTP=${f.ltp} PC=${f.pc} Chg=${f.chg}(${f.pct}%) Vol=${f.vol}`;
-    if (f.pm)        d += ` 52WH=${f.pm.h52} 52WL=${f.pm.l52}`;
-    if (f.pm?.yChg)  d += ` 1YReturn=${f.pm.yChg}%`;
-    if (f.tm)        d += ` Trend=${f.tm.trend}`;
-    if (f.tm?.ma20)  d += ` MA20=${f.tm.ma20}`;
-    if (f.tm?.ma180) d += ` MA180=${f.tm.ma180}`;
-    if (f.rsi)       d += ` RSI14=${f.rsi}`;
-    if (f.vr)        d += ` VolRatio=${f.vr}x`;
-    if (f.sig)       d += ` Signals:${f.sig}`;
-    if (f.bonus)     d += ` [POST-BONUS ADJUSTMENT]`;
-    return `You are a NEPSE stock analyst. Analyse the following data and respond with ONLY valid JSON — no markdown, no extra text.
+    let d = `Company: ${f.n} (Symbol: ${f.s}, Sector: ${f.sec})`;
+    d += `\nCurrent Price: Rs${f.ltp} | Yesterday's Price: Rs${f.pc} | Change: ${f.chg} (${f.pct}%)`;
+    d += `\nShares Traded Today: ${f.vol}`;
+    if (f.pm)        d += `\nHighest Price in Past Year: Rs${f.pm.h52} | Lowest Price in Past Year: Rs${f.pm.l52}`;
+    if (f.pm?.yChg)  d += `\nReturn Over Past Year: ${f.pm.yChg}%`;
+    if (f.tm)        d += `\nPrice Trend: ${f.tm.trend}`;
+    if (f.tm?.ma20)  d += `\nAverage Price Last Month: Rs${f.tm.ma20}`;
+    if (f.tm?.ma180) d += `\nAverage Price Last 6 Months: Rs${f.tm.ma180}`;
+    if (f.rsi)       d += `\nMomentum Score (0-100, above 70 = rising fast, below 30 = falling fast): ${f.rsi}`;
+    if (f.vr)        d += `\nToday's trading volume vs normal: ${f.vr}x`;
+    if (f.sig)       d += `\nNotable signals: ${f.sig}`;
+    if (f.bonus)     d += `\nNote: Company recently issued bonus shares`;
+    return `You are explaining a NEPSE stock to a first-time investor who has never bought a share in their life. Write in simple, plain English — like explaining to a friend.
+
+STRICT RULES — must follow all:
+- NEVER use jargon: no "52-week", "RSI", "MA20", "MA180", "MACD", "bullish", "bearish", "resistance", "support", "consolidation", "overbought", "oversold"
+- Say "highest price in the past year" not "52-week high"
+- Explain the trend in plain words: "the price has been slowly rising" or "the price has dropped a lot lately"
+- If the company issued bonus shares, briefly explain what that means simply
+- Use "Rs" before all prices
+- summary: 2-3 friendly sentences — what the company does, how the price is moving, and one interesting fact
+- bullets: 3–4 simple things a beginner would actually care about (written in plain language)
+- outlook: 1–2 plain sentences — is the situation looking stable, getting better, or under pressure?
+- No buy/sell recommendations
 
 ${d}
 
-{"summary":"2-3 sentence overview","bullets":["point1","point2","point3"],"outlook":"1-2 sentence outlook"}`;
+Respond with ONLY valid JSON — no markdown, no extra text:
+{"summary":"...","bullets":["...","...","..."],"outlook":"..."}`;
 }
 
 function marketPrompt(mMetrics, mSummary) {
     const sectors = (mMetrics?.sectors || []).slice(0, 8)
-        .map(s => `${s.name}: avg ${s.avgChange?.toFixed(2)}%, ${s.advancing}↑ ${s.declining}↓`)
+        .map(s => `${s.name}: avg ${s.avgChange?.toFixed(2)}% change, ${s.advancing} stocks up, ${s.declining} stocks down`)
         .join('; ');
-    return `NEPSE market analyst. Today's session:
-Index: ${mSummary?.indexValue || 'N/A'} Change: ${mSummary?.indexChange || 0}(${mSummary?.indexChangePercent || 0}%)
-Turnover: Rs${mSummary?.totalTurnover || 0}  Volume: ${mSummary?.totalVolume || 0}
-Advancing: ${mMetrics?.advancing || 0}  Declining: ${mMetrics?.declining || 0}  Unchanged: ${mMetrics?.unchanged || 0}
-Sectors: ${sectors}
+    return `You are explaining today's NEPSE stock market to someone who is completely new to investing. Write in simple, friendly language — no jargon.
 
-Return ONLY valid JSON:
-{"summary":"2-3 sentences","bullets":["...","...","..."],"outlook":"1-2 sentences"}`;
+Today's market data:
+- NEPSE Index: ${mSummary?.indexValue || 'N/A'} (changed by ${mSummary?.indexChange || 0} points, ${mSummary?.indexChangePercent || 0}%)
+- Total money traded: Rs ${mSummary?.totalTurnover || 0}
+- Total shares traded: ${mSummary?.totalVolume || 0}
+- Stocks that went up: ${mMetrics?.advancing || 0} | Went down: ${mMetrics?.declining || 0} | No change: ${mMetrics?.unchanged || 0}
+- Sector breakdown: ${sectors}
+
+STRICT RULES:
+- Explain what the index movement means simply (e.g. "the overall market rose slightly today")
+- Say "more stocks went up than down" or vice versa — explain what that means for investors in plain terms
+- Mention 1-2 sectors that stood out in simple language
+- No jargon: no "bullish", "bearish", "resistance", "support", "consolidation"
+- summary: 2-3 plain sentences about what happened in the market today
+- bullets: 3–4 simple highlights a beginner would understand
+- outlook: 1–2 plain sentences about what the current state suggests
+
+Respond with ONLY valid JSON — no markdown, no extra text:
+{"summary":"...","bullets":["...","...","..."],"outlook":"..."}`;
 }
 
 // ── JSON extraction ───────────────────────────────────────────────────────────
@@ -263,7 +302,7 @@ async function callGitHubModels(prompt) {
         body: JSON.stringify({
             model: GH_MODEL,
             messages: [
-                { role: 'system', content: 'You are a NEPSE stock market analyst. Respond ONLY with valid JSON.' },
+                { role: 'system', content: 'You explain financial data in simple, plain English for beginners. Respond ONLY with valid JSON. Never use stock market jargon.' },
                 { role: 'user', content: prompt }
             ],
             temperature: 0.3,
