@@ -9,7 +9,7 @@
  *   RPM (requests-per-minute) 429  → wait 65 s, rotate to next model
  *   3+ consecutive 429s per model  → assume daily quota, put model on 2-hr cooldown
  *   All models on cooldown          → sleep until the earliest model becomes available
- *   LM Studio (if configured)       → used for any stock Gemini repeatedly fails on
+ *   GitHub Models (if configured)   → used for any stock Gemini repeatedly fails on
  *
  * Resumability:
  *   Default: skips stocks that already have any overview in the DB
@@ -19,7 +19,7 @@
  * Usage:
  *   node scripts/batch-ai-autonomous.js              # resume from current state
  *   node scripts/batch-ai-autonomous.js --force      # redo all overviews
- *   node scripts/batch-ai-autonomous.js --no-lm      # skip LM Studio fallback
+ *   node scripts/batch-ai-autonomous.js --no-gh      # skip GitHub Models fallback
  *   node scripts/batch-ai-autonomous.js --dry-run    # show what would be done
  */
 
@@ -44,9 +44,9 @@ const CONSEC_RL_THRESHOLD  = 3;        // consecutive 429s before quota cooldown
 const TRIGGERED_BY         = 'autonomous';
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const LM_BASE    = process.env.LM_STUDIO_BASE_URL || 'http://localhost:1234/v1';
-const LM_KEY     = process.env.LM_STUDIO_API_KEY  || '';
-const LM_MODEL   = 'qwen/qwen2.5-vl-7b';
+const GH_TOKEN   = process.env.GITHUB_TOKEN || '';
+const GH_BASE    = 'https://models.inference.ai.azure.com';
+const GH_MODEL   = 'gpt-4o-mini'; // free-tier GitHub Models
 
 // ── Per-model state ──────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ const modelState = Object.fromEntries(
 // ── Global stats ─────────────────────────────────────────────────────────────
 
 const stats = {
-    geminiOk: 0, lmOk: 0, failed: 0,
+    geminiOk: 0, ghOk: 0, failed: 0,
     apiCalls: 0, tokens: 0, rateLimits: 0,
     rounds: 0, startTime: Date.now()
 };
@@ -244,15 +244,15 @@ async function callGemini(prompt, model) {
     return { text, tokens: data?.usageMetadata?.totalTokenCount || 0, model };
 }
 
-async function callLMStudio(prompt) {
-    const res = await fetch(`${LM_BASE}/chat/completions`, {
+async function callGitHubModels(prompt) {
+    const res = await fetch(`${GH_BASE}/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${LM_KEY}`
+            'Authorization': `Bearer ${GH_TOKEN}`
         },
         body: JSON.stringify({
-            model: LM_MODEL,
+            model: GH_MODEL,
             messages: [
                 { role: 'system', content: 'You are a NEPSE stock market analyst. Respond ONLY with valid JSON.' },
                 { role: 'user', content: prompt }
@@ -261,12 +261,19 @@ async function callLMStudio(prompt) {
             max_tokens: 2048
         })
     });
-    if (!res.ok) throw new Error(`LM Studio HTTP ${res.status}`);
+    if (res.status === 429) {
+        stats.rateLimits++;
+        throw Object.assign(new Error('RATE_LIMIT'), { status: 429 });
+    }
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`GitHub Models HTTP ${res.status}: ${body.slice(0, 120)}`);
+    }
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Empty LM Studio response');
+    if (!text) throw new Error('Empty GitHub Models response');
     stats.apiCalls++;
-    return { text, tokens: data?.usage?.total_tokens || 0, model: `lmstudio:${LM_MODEL}` };
+    return { text, tokens: data?.usage?.total_tokens || 0, model: `github:${GH_MODEL}` };
 }
 
 // ── DB save ───────────────────────────────────────────────────────────────────
@@ -357,19 +364,24 @@ async function processGeminiBatch(stocks, facts) {
     }
 }
 
-// ── LM Studio processor ───────────────────────────────────────────────────────
+// ── GitHub Models processor ───────────────────────────────────────────────────
 
-async function processLMStudio(symbol, fact) {
+async function processGitHubModels(symbol, fact) {
     try {
-        const result = await callLMStudio(singlePrompt(fact));
+        const result = await callGitHubModels(singlePrompt(fact));
         const parsed = extractJSON(result.text);
         if (!parsed?.summary) throw new Error('Invalid JSON structure');
         await saveOverview(symbol, parsed, fact, result.model, result.tokens);
-        stats.lmOk++;
-        process.stdout.write(`  ✓ ${symbol} (LM)\n`);
+        stats.ghOk++;
+        process.stdout.write(`  ✓ ${symbol} (GH)\n`);
         return true;
     } catch (err) {
-        log(`  ✗ LM ${symbol}: ${err.message.slice(0, 80)}`);
+        if (err.status === 429) {
+            log(`  ⏸ GitHub Models rate-limited for ${symbol} — backing off 65s`);
+            await sleep(65_000);
+        } else {
+            log(`  ✗ GH ${symbol}: ${err.message.slice(0, 80)}`);
+        }
         stats.failed++;
         return false;
     }
@@ -402,17 +414,17 @@ async function generateMarketOverview() {
             }
         }
 
-        // LM Studio fallback
-        if (LM_KEY) {
+        // GitHub Models fallback
+        if (GH_TOKEN) {
             try {
-                const result = await callLMStudio(prompt);
+                const result = await callGitHubModels(prompt);
                 const parsed = extractJSON(result.text);
                 if (parsed?.summary) {
                     await saveOverview('MARKET', parsed, { mMetrics, mSummary }, result.model, result.tokens, 'market');
-                    log('  ✓ MARKET (LM Studio)');
+                    log('  ✓ MARKET (GitHub Models)');
                 }
             } catch (err) {
-                log(`  ✗ MARKET LM: ${err.message.slice(0, 80)}`);
+                log(`  ✗ MARKET GH: ${err.message.slice(0, 80)}`);
             }
         } else {
             log('  ✗ No available model for market overview');
@@ -447,21 +459,21 @@ async function getRemainingStocks(allStocks, forceMode) {
 async function main() {
     const forceMode = process.argv.includes('--force');
     const dryRun    = process.argv.includes('--dry-run');
-    const noLM      = process.argv.includes('--no-lm');
-    const useLM     = LM_KEY && !noLM;
+    const noGH      = process.argv.includes('--no-gh');
+    const useGH     = GH_TOKEN && !noGH;
 
     log('════════════════════════════════════════════');
     log('   NEPSE AI Overview — Autonomous Generator  ');
     log('════════════════════════════════════════════');
-    log(`Gemini key : ${GEMINI_KEY ? 'configured' : 'MISSING'}`);
-    log(`LM Studio  : ${useLM ? 'configured' : noLM ? 'disabled (--no-lm)' : 'not configured'}`);
-    log(`Models     : ${GEMINI_MODELS.join(', ')}`);
-    log(`Batch size : ${BATCH_SIZE} | Inter-call delay: ${INTER_CALL_DELAY_MS}ms`);
-    log(`Mode       : ${forceMode ? 'FORCE (regenerate all)' : 'RESUME (skip existing)'}`);
+    log(`Gemini key     : ${GEMINI_KEY ? 'configured' : 'MISSING'}`);
+    log(`GitHub Models  : ${useGH ? 'configured' : noGH ? 'disabled (--no-gh)' : 'not configured'}`);
+    log(`Models         : ${GEMINI_MODELS.join(', ')}`);
+    log(`Batch size     : ${BATCH_SIZE} | Inter-call delay: ${INTER_CALL_DELAY_MS}ms`);
+    log(`Mode           : ${forceMode ? 'FORCE (regenerate all)' : 'RESUME (skip existing)'}`);
     log('');
 
-    if (!GEMINI_KEY && !useLM) {
-        console.error('ERROR: No API keys configured. Set GEMINI_API_KEY in .env');
+    if (!GEMINI_KEY && !useGH) {
+        console.error('ERROR: No API keys configured. Set GEMINI_API_KEY or GITHUB_TOKEN in .env');
         process.exit(1);
     }
 
@@ -537,18 +549,19 @@ async function main() {
             }
         }
 
-        // ── Phase 2: LM Studio top-up ─────────────────────────────────────────
+        // ── Phase 2: GitHub Models top-up ────────────────────────────────────
         // Used for stocks Gemini couldn't handle this round (rate limits / parse errors)
-        if (useLM) {
+        if (useGH) {
             const remainingAfterGemini = await getRemainingStocks(allStocks, false);
             if (remainingAfterGemini.length > 0) {
-                log(`  Phase 2 — LM Studio (${remainingAfterGemini.length} stocks)`);
+                log(`  Phase 2 — GitHub Models (${remainingAfterGemini.length} stocks, gpt-4o-mini free tier)`);
                 for (let i = 0; i < remainingAfterGemini.length; i++) {
                     const s    = remainingAfterGemini[i];
                     const fact = buildFact(s, mc[s.symbol] || null);
-                    const ok   = await processLMStudio(s.symbol, fact);
+                    const ok   = await processGitHubModels(s.symbol, fact);
                     if (ok) processedThisRound++;
-                    if (i < remainingAfterGemini.length - 1) await sleep(600);
+                    // 4s gap → stay safely under 15 RPM free-tier limit
+                    if (i < remainingAfterGemini.length - 1) await sleep(4_000);
                 }
             }
         }
@@ -585,7 +598,7 @@ async function main() {
 
     log('\n════════════════════ RESULTS ════════════════════');
     log(`Gemini OK  : ${stats.geminiOk}`);
-    log(`LM OK      : ${stats.lmOk}`);
+    log(`GH Mdls OK : ${stats.ghOk}`);
     log(`Failed     : ${stats.failed}`);
     log(`API calls  : ${stats.apiCalls}`);
     log(`Tokens     : ${stats.tokens.toLocaleString()}`);
