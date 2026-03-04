@@ -140,10 +140,10 @@ function fmtLakh(n) {
     return String(abs);
 }
 
-/** Format a rupee price with commas, e.g. 5842 → "Rs 5,842" */
+/** Format a rupee price with commas, e.g. 5842 → "NPR 5,842" */
 function fmtRs(n) {
     if (n == null) return 'N/A';
-    return 'Rs\u202f' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 1 });
+    return 'NPR\u202f' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 1 });
 }
 
 function batchPrompt(facts) {
@@ -172,7 +172,7 @@ STRICT RULES — must follow all:
 - Say "the price has been rising/falling lately" instead of "uptrend/downtrend"
 - Say "the stock lost/gained X% this year" for returns — explain whether that is good or bad
 - Explain everything like talking to a friend with no finance background
-- Use "Rs" before all prices, with commas for large amounts (e.g. Rs 1,250 not Rs1250)
+- Use "NPR" before all prices, with commas for large amounts (e.g. NPR 1,250 not NPR1250) — this is Nepali Rupee, NOT Indian Rupee
 - For share volumes use lakh/crore: say "9.36 lakh shares" not "936,347 shares"
 - summary: 2-3 friendly plain-English sentences about what this company does and how its price has moved
 - bullets: 3–4 simple facts a beginner would care about (avoid all financial jargon)
@@ -208,7 +208,7 @@ STRICT RULES — must follow all:
 - Say "highest price in the past year" not "52-week high"
 - Explain the trend in plain words: "the price has been slowly rising" or "the price has dropped a lot lately"
 - If the company issued bonus shares, briefly explain what that means simply
-- Use "Rs" before all prices, with commas for large prices (e.g. Rs 1,250 not Rs1250)
+- Use "NPR" before all prices, with commas for large prices (e.g. NPR 1,250 not NPR1250) — this is Nepali Rupee, NOT Indian Rupee
 - For share volumes use lakh/crore: say "9.36 lakh shares" not "936,347 shares"; say "1.23 crore shares" not "12,345,678 shares"
 - summary: 2-3 friendly sentences — what the company does, how the price is moving, and one interesting fact
 - bullets: 3–4 simple things a beginner would actually care about (written in plain language)
@@ -229,7 +229,7 @@ function marketPrompt(mMetrics, mSummary) {
 
 Today's market data:
 - NEPSE Index: ${mSummary?.indexValue || 'N/A'} (changed by ${mSummary?.indexChange || 0} points, ${mSummary?.indexChangePercent || 0}%)
-- Total money traded: Rs ${mSummary?.totalTurnover || 0}
+- Total money traded: NPR ${fmtLakh(mSummary?.totalTurnover)}
 - Total shares traded: ${mSummary?.totalVolume || 0}
 - Stocks that went up: ${mMetrics?.advancing || 0} | Went down: ${mMetrics?.declining || 0} | No change: ${mMetrics?.unchanged || 0}
 - Sector breakdown: ${sectors}
