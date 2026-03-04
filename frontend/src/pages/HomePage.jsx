@@ -24,61 +24,80 @@ import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 import './HomePage.css';
 
 
+// ==================== Watchlist Helpers ====================
 
-// ==================== HomePage ====================
+/** Merge server watchlist symbols into local favorites */
+function mergeServerSymbols(setFavorites, serverItems) {
+    const serverSymbols = (serverItems || []).map(i => i.symbol);
+    setFavorites(prev => [...new Set([...prev, ...serverSymbols])]);
+}
 
-function HomePage({ globalSearch }) {
-    const navigate = useNavigate();
+/** One-time migration of localStorage favorites to the server */
+function migrateLocalFavorites(migrated, watchlistId, favorites) {
+    if (migrated.current || favorites.length === 0) return;
+    migrated.current = true;
+    importWatchlistItems(watchlistId, favorites).catch(() => { });
+}
+
+/** Process the default watchlist after fetching */
+function processWatchlist({ watchlist, setDefaultWatchlistId, setFavorites, migrated, favorites }) {
+    setDefaultWatchlistId(watchlist.id);
+    mergeServerSymbols(setFavorites, watchlist.items);
+    migrateLocalFavorites(migrated, watchlist.id, favorites);
+}
+
+/** Sync a single favorite toggle to the API */
+function syncFavoriteToApi(watchlistId, symbol, isFav) {
+    if (!watchlistId) return;
+    const action = isFav ? removeWatchlistItem : addWatchlistItem;
+    action(watchlistId, symbol).catch(() => { });
+}
+
+// ==================== Watchlist Hook ====================
+
+function useWatchlistSync() {
     const { isAuthenticated } = useAuth();
-    const { marketSummary, sectors, error, setError } = useMarketData();
-    const { stocks, loading } = useStockData();
-
-    const [selectedSector, setSelectedSector] = useState('all');
-    const [currentPage, setCurrentPage] = useState(1);
     const [favorites, setFavorites] = useLocalStorage('nepse-favorites', []);
-    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-    const [statusFilter, setStatusFilter] = useState('all');
     const [defaultWatchlistId, setDefaultWatchlistId] = useState(null);
     const migrated = useRef(false);
 
-    // Sync favorites with API watchlist when authenticated
     useEffect(() => {
         if (!isAuthenticated) { setDefaultWatchlistId(null); return; }
         getWatchlists().then(wls => {
             const list = Array.isArray(wls) ? wls : [];
             if (list.length > 0) {
-                const def = list[0];
-                setDefaultWatchlistId(def.id);
-                // Merge server symbols into local favorites
-                const serverSymbols = (def.items || []).map(i => i.symbol);
-                setFavorites(prev => {
-                    const merged = [...new Set([...prev, ...serverSymbols])];
-                    return merged;
-                });
-                // Migrate localStorage favorites to server (once)
-                if (!migrated.current && favorites.length > 0) {
-                    migrated.current = true;
-                    importWatchlistItems(def.id, favorites).catch(() => {});
-                }
+                processWatchlist({ watchlist: list[0], setDefaultWatchlistId, setFavorites, migrated, favorites });
             }
-        }).catch(() => {});
+        }).catch(() => { });
     }, [isAuthenticated]);
-
-    useEffect(() => { setCurrentPage(1); }, [selectedSector, globalSearch, statusFilter]);
-
-    const handleStockClick = (stock) => navigate(`/stock/${stock.symbol}`);
 
     const toggleFavorite = useCallback((symbol) => {
         setFavorites(prev => {
             const isFav = prev.includes(symbol);
-            // Sync to API if authenticated
-            if (defaultWatchlistId) {
-                if (isFav) removeWatchlistItem(defaultWatchlistId, symbol).catch(() => {});
-                else addWatchlistItem(defaultWatchlistId, symbol).catch(() => {});
-            }
+            syncFavoriteToApi(defaultWatchlistId, symbol, isFav);
             return isFav ? prev.filter(s => s !== symbol) : [...prev, symbol];
         });
     }, [setFavorites, defaultWatchlistId]);
+
+    return { favorites, toggleFavorite };
+}
+
+// ==================== HomePage ====================
+
+function HomePage({ globalSearch }) {
+    const navigate = useNavigate();
+    const { marketSummary, sectors, error, setError } = useMarketData();
+    const { stocks, loading } = useStockData();
+    const { favorites, toggleFavorite } = useWatchlistSync();
+
+    const [selectedSector, setSelectedSector] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all');
+
+    useEffect(() => { setCurrentPage(1); }, [selectedSector, globalSearch, statusFilter]);
+
+    const handleStockClick = (stock) => navigate(`/stock/${stock.symbol}`);
 
     const filters = { selectedSector, statusFilter, globalSearch, showFavoritesOnly, favorites };
     const { display: displayStocks, totalPages } = useFilteredStocks(stocks, filters, currentPage);

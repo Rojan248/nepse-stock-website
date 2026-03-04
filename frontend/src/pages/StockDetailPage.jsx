@@ -33,14 +33,29 @@ const OHLC_FIELDS = [
 /** Resolve a value with a chain of fallbacks */
 const fallback = (...values) => values.find(v => v != null) ?? 0;
 
+/** Resolve the last traded price from various API shapes */
+function resolveLtp(stock, prices, trading) {
+    return getField(stock, prices, trading, 'ltp') || stock.close || 0;
+}
+
+/** Resolve the previous close price from various API shapes */
+function resolvePreviousClose(stock, prices, trading) {
+    return getField(stock, prices, trading, 'previousClose') || stock.close || 0;
+}
+
+/** Display LTP falls back to previous close when LTP is zero */
+function resolveDisplayLtp(ltp, previousClose) {
+    return ltp > 0 ? ltp : previousClose;
+}
+
 /** Resolve common stock price fields from various API shapes */
 function resolveStockPrices(stock) {
     const p = stock.prices || {};
     const t = stock.trading || {};
 
-    const ltp = getField(stock, p, t, 'ltp') || stock.close || 0;
-    const pc = getField(stock, p, t, 'previousClose') || stock.close || 0;
-    const dLtp = ltp > 0 ? ltp : pc;
+    const ltp = resolveLtp(stock, p, t);
+    const pc = resolvePreviousClose(stock, p, t);
+    const dLtp = resolveDisplayLtp(ltp, pc);
 
     const result = {
         ltp,
