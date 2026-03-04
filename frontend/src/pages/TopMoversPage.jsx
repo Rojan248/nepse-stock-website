@@ -64,7 +64,7 @@ function FormattedMoverCard({ stock, activeTab, onClick }) {
                 <span className="sector-badge">{stock.sector || 'Others'}</span>
             </div>
             <div className="company-name">{stock.companyName}</div>
-            <div className="ltp"><span className="currency">Rs</span> {formatNumber(stock.ltp)}</div>
+            <div className="ltp"><span className="currency">NPR</span> {formatNumber(stock.ltp)}</div>
             <div className="change-row">
                 <span className={`change ${style.class}`}>
                     {style.icon} {style.prefix}{Math.abs(stock.change).toFixed(2)}

@@ -119,9 +119,9 @@ function PortfolioPage() {
                     {/* Holdings summary */}
                     {holdings && holdings.summary && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                            <SummaryBox label="Total Cost" value={`Rs ${holdings.summary.totalCost.toLocaleString()}`} />
-                            <SummaryBox label="Market Value" value={`Rs ${holdings.summary.totalValue.toLocaleString()}`} />
-                            <SummaryBox label="Total P&L" value={`Rs ${holdings.summary.totalPL.toLocaleString()}`}
+                            <SummaryBox label="Total Cost" value={`NPR ${holdings.summary.totalCost.toLocaleString()}`} />
+                            <SummaryBox label="Market Value" value={`NPR ${holdings.summary.totalValue.toLocaleString()}`} />
+                            <SummaryBox label="Total P&L" value={`NPR ${holdings.summary.totalPL.toLocaleString()}`}
                                 color={holdings.summary.totalPL >= 0 ? 'var(--success)' : 'var(--danger)'} />
                             <SummaryBox label="Return" value={`${holdings.summary.totalPLPercent}%`}
                                 color={holdings.summary.totalPLPercent >= 0 ? 'var(--success)' : 'var(--danger)'} />

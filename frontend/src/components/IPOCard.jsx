@@ -41,7 +41,7 @@ function IPOCard({ ipo, onClick }) {
                 <span className="sector-badge">{sector || 'Others'}</span>
             </div>
             <div className="company-name">{companyName}</div>
-            <div className="ltp"><span className="currency">Rs</span>{price || 100}</div>
+            <div className="ltp"><span className="currency">NPR</span>{price || 100}</div>
             <div className="change-row">
                 <span className={`status-text ${status}`}>{statusLabels[status] || 'IPO'}</span>
                 <span className="units-text">• {formatUnits(units)} units</span>

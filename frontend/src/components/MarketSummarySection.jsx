@@ -38,7 +38,7 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
                 <div className="summary-card">
                     <div className="summary-label">TURNOVER</div>
                     <div className="summary-value turnover-value">
-                        <span className="currency-symbol turnover-currency">₹</span>
+                        <span className="currency-symbol turnover-currency">NPR</span>
                         <span className="number">{turnover.value}</span>
                         <span className="unit turnover-unit">{turnover.unit}</span>
                     </div>

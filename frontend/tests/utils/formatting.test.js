@@ -16,7 +16,7 @@ describe('Formatting Utilities', () => {
         });
 
         it('should add Nepali Rupee symbol', () => {
-            expect(formatPrice(100)).toContain('Rs');
+            expect(formatPrice(100)).toContain('NPR');
         });
 
         it('should show decimal places', () => {
@@ -24,8 +24,8 @@ describe('Formatting Utilities', () => {
         });
 
         it('should handle null/undefined', () => {
-            expect(formatPrice(null)).toBe('Rs 0.00');
-            expect(formatPrice(undefined)).toBe('Rs 0.00');
+            expect(formatPrice(null)).toBe('NPR 0.00');
+            expect(formatPrice(undefined)).toBe('NPR 0.00');
         });
     });
 
