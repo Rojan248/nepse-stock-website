@@ -8,13 +8,12 @@
  * Rate-limit strategy:
  *   RPM (requests-per-minute) 429  → wait 65 s, rotate to next model
  *   3+ consecutive 429s per model  → assume daily quota, put model on 2-hr cooldown
- *   All models on daily quota      → immediately fall through to Copilot (no wait)
+ *   All models on daily quota      → immediately fall through to GitHub Models (no wait)
  *   All models on RPM cooldown     → sleep until the earliest model becomes available
  *
- * Three-layer fallback (in order):
+ * Two-layer fallback (in order):
  *   1. Gemini (4 models rotating, free tier)
- *   2. GitHub Copilot (gpt-4o-mini, activated on Gemini quota exhaustion)
- *   3. GitHub Models  (gpt-4o-mini, free-tier, final safety net)
+ *   2. GitHub Models gpt-4o-mini — activated immediately on Gemini quota exhaustion
  *
  * Resumability:
  *   Default: skips stocks that already have any overview in the DB
@@ -48,12 +47,10 @@ const QUOTA_COOLDOWN_MS    = 2 * 60 * 60 * 1000; // 2-hr cooldown → assume dai
 const CONSEC_RL_THRESHOLD  = 3;        // consecutive 429s before quota cooldown
 const TRIGGERED_BY         = 'autonomous';
 
-const GEMINI_KEY    = process.env.GEMINI_API_KEY;
-const GH_TOKEN      = process.env.GITHUB_TOKEN || '';
-const GH_BASE       = 'https://models.inference.ai.azure.com';
-const GH_MODEL      = 'gpt-4o-mini';
-const COPILOT_BASE  = 'https://api.githubcopilot.com';
-const COPILOT_MODEL = 'gpt-4o-mini';
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const GH_TOKEN   = process.env.GITHUB_TOKEN || '';
+const GH_BASE    = 'https://models.inference.ai.azure.com';
+const GH_MODEL   = 'gpt-4o-mini';
 
 // ── Per-model state ──────────────────────────────────────────────────────────
 
@@ -65,7 +62,7 @@ const modelState = Object.fromEntries(
 // ── Global stats ─────────────────────────────────────────────────────────────
 
 const stats = {
-    geminiOk: 0, copilotOk: 0, ghOk: 0, failed: 0,
+    geminiOk: 0, ghOk: 0, failed: 0,
     apiCalls: 0, tokens: 0, rateLimits: 0,
     rounds: 0, startTime: Date.now()
 };
@@ -399,62 +396,6 @@ async function processGitHubModels(symbol, fact) {
     }
 }
 
-// ── GitHub Copilot processor ──────────────────────────────────────────────────
-
-async function callGitHubCopilot(prompt) {
-    const res = await fetch(`${COPILOT_BASE}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GH_TOKEN}`,
-            'Copilot-Integration-Id': 'vscode-chat'
-        },
-        body: JSON.stringify({
-            model: COPILOT_MODEL,
-            messages: [
-                { role: 'system', content: 'You are a NEPSE stock market analyst. Respond ONLY with valid JSON.' },
-                { role: 'user', content: prompt }
-            ],
-            temperature: 0.3,
-            max_tokens: 2048
-        })
-    });
-    if (res.status === 429) {
-        stats.rateLimits++;
-        throw Object.assign(new Error('RATE_LIMIT'), { status: 429 });
-    }
-    if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`Copilot HTTP ${res.status}: ${body.slice(0, 200)}`);
-    }
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Empty Copilot response');
-    stats.apiCalls++;
-    return { text, tokens: data?.usage?.total_tokens || 0, model: `copilot:${COPILOT_MODEL}` };
-}
-
-async function processCopilot(symbol, fact) {
-    try {
-        const result = await callGitHubCopilot(singlePrompt(fact));
-        const parsed = extractJSON(result.text);
-        if (!parsed?.summary) throw new Error('Invalid JSON structure');
-        await saveOverview(symbol, parsed, fact, result.model, result.tokens);
-        stats.copilotOk++;
-        process.stdout.write(`  ✓ ${symbol} (CP)\n`);
-        return true;
-    } catch (err) {
-        if (err.status === 429) {
-            log(`  ⏸ Copilot rate-limited for ${symbol} — backing off 65s`);
-            await sleep(65_000);
-        } else {
-            log(`  ✗ CP ${symbol}: ${err.message.slice(0, 100)}`);
-        }
-        stats.failed++;
-        return false;
-    }
-}
-
 // ── Market overview ───────────────────────────────────────────────────────────
 
 async function generateMarketOverview() {
@@ -482,20 +423,8 @@ async function generateMarketOverview() {
             }
         }
 
-        // GitHub Copilot fallback (when Gemini quota exhausted)
+        // GitHub Models fallback (when Gemini quota exhausted)
         if (GH_TOKEN) {
-            try {
-                const result = await callGitHubCopilot(prompt);
-                const parsed = extractJSON(result.text);
-                if (parsed?.summary) {
-                    await saveOverview('MARKET', parsed, { mMetrics, mSummary }, result.model, result.tokens, 'market');
-                    log('  ✓ MARKET (GitHub Copilot)');
-                    return;
-                }
-            } catch (err) {
-                log(`  ✗ MARKET Copilot: ${err.message.slice(0, 100)}`);
-            }
-            // Final fallback: GitHub Models
             try {
                 const result = await callGitHubModels(prompt);
                 const parsed = extractJSON(result.text);
@@ -504,7 +433,7 @@ async function generateMarketOverview() {
                     log('  ✓ MARKET (GitHub Models)');
                 }
             } catch (err) {
-                log(`  ✗ MARKET GH: ${err.message.slice(0, 80)}`);
+                log(`  ✗ MARKET GH: ${err.message.slice(0, 100)}`);
             }
         } else {
             log('  ✗ No available model for market overview');
@@ -546,8 +475,7 @@ async function main() {
     log('   NEPSE AI Overview — Autonomous Generator  ');
     log('════════════════════════════════════════════');
     log(`Gemini key     : ${GEMINI_KEY ? 'configured' : 'MISSING'}`);
-    log(`GitHub Copilot : ${useGH ? 'configured (quota fallback)' : noGH ? 'disabled (--no-gh)' : 'not configured'}`);
-    log(`GitHub Models  : ${useGH ? 'configured (final fallback)' : 'not configured'}`);
+    log(`GitHub Models  : ${useGH ? 'configured (quota fallback)' : noGH ? 'disabled (--no-gh)' : 'not configured'}`);
     log(`Models         : ${GEMINI_MODELS.join(', ')}`);
     log(`Batch size     : ${BATCH_SIZE} | Inter-call delay: ${INTER_CALL_DELAY_MS}ms`);
     log(`Mode           : ${forceMode ? 'FORCE (regenerate all)' : 'RESUME (skip existing)'}`);
@@ -601,6 +529,7 @@ async function main() {
 
         let processedThisRound = 0;
         const totalBatches = Math.ceil(remaining.length / BATCH_SIZE);
+        const geminiSucceeded = new Set(); // symbols Gemini saved this round
 
         // ── Phase 1: Gemini ───────────────────────────────────────────────────
         if (GEMINI_KEY) {
@@ -611,10 +540,10 @@ async function main() {
                 const facts = batch.map(s => buildFact(s, mc[s.symbol]));
                 const batchNum = Math.floor(i / BATCH_SIZE) + 1;
 
-                // All models in cooldown — decide: wait (RPM) or bail to Copilot (daily quota)
+                // All models in cooldown — decide: wait (RPM) or bail to GH Models (daily quota)
                 if (!pickModel()) {
                     if (allModelsOnQuotaCooldown()) {
-                        log(`  ⚡ All Gemini models hit daily quota — switching to Copilot immediately`);
+                        log(`  ⚡ All Gemini models hit daily quota — switching to GitHub Models immediately`);
                         break; // skip remaining batches, go to Phase 2
                     }
                     const waitUntil = earliestCooldownEnd();
@@ -625,6 +554,10 @@ async function main() {
 
                 log(`  [${batchNum}/${totalBatches}] ${batch.map(s => s.symbol).join(' ')}`);
                 const missed = await processGeminiBatch(batch, facts);
+                const missedSet = new Set(missed);
+                for (const s of batch) {
+                    if (!missedSet.has(s.symbol)) geminiSucceeded.add(s.symbol);
+                }
                 processedThisRound += batch.length - missed.length;
 
                 // Polite delay between calls (skip after last batch)
@@ -634,34 +567,18 @@ async function main() {
             }
         }
 
-        // ── Phase 2: GitHub Copilot top-up ───────────────────────────────────
-        // Runs immediately when Gemini hits daily quota mid-round,
-        // or as normal top-up after Gemini finishes.
-        if (useGH) {
-            const remainingAfterGemini = await getRemainingStocks(allStocks, false);
-            if (remainingAfterGemini.length > 0) {
-                log(`  Phase 2 — GitHub Copilot (${remainingAfterGemini.length} stocks)`);
-                let copilotFailed = [];
-                for (let i = 0; i < remainingAfterGemini.length; i++) {
-                    const s    = remainingAfterGemini[i];
-                    const fact = buildFact(s, mc[s.symbol] || null);
-                    const ok   = await processCopilot(s.symbol, fact);
-                    if (ok) processedThisRound++;
-                    else copilotFailed.push(s);
-                    if (i < remainingAfterGemini.length - 1) await sleep(4_000);
-                }
-
-                // Phase 3: GitHub Models as final fallback for anything Copilot couldn't handle
-                if (copilotFailed.length > 0) {
-                    log(`  Phase 3 — GitHub Models fallback (${copilotFailed.length} stocks)`);
-                    for (let i = 0; i < copilotFailed.length; i++) {
-                        const s    = copilotFailed[i];
-                        const fact = buildFact(s, mc[s.symbol] || null);
-                        const ok   = await processGitHubModels(s.symbol, fact);
-                        if (ok) processedThisRound++;
-                        if (i < copilotFailed.length - 1) await sleep(4_000);
-                    }
-                }
+        // ── Phase 2: GitHub Models top-up ─────────────────────────────────────
+        // Uses the remaining set from THIS round (not a DB query) so force-mode
+        // regeneration works correctly even when all stocks already have overviews.
+        const needsPhase2 = remaining.filter(s => !geminiSucceeded.has(s.symbol));
+        if (useGH && needsPhase2.length > 0) {
+            log(`  Phase 2 — GitHub Models (${needsPhase2.length} stocks)`);
+            for (let i = 0; i < needsPhase2.length; i++) {
+                const s    = needsPhase2[i];
+                const fact = buildFact(s, mc[s.symbol] || null);
+                const ok   = await processGitHubModels(s.symbol, fact);
+                if (ok) processedThisRound++;
+                if (i < needsPhase2.length - 1) await sleep(4_000);
             }
         }
 
@@ -697,7 +614,6 @@ async function main() {
 
     log('\n════════════════════ RESULTS ════════════════════');
     log(`Gemini OK  : ${stats.geminiOk}`);
-    log(`Copilot OK : ${stats.copilotOk}`);
     log(`GH Mdls OK : ${stats.ghOk}`);
     log(`Failed     : ${stats.failed}`);
     log(`API calls  : ${stats.apiCalls}`);
