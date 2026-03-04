@@ -194,17 +194,9 @@ const setupCronJobs = () => {
         await marketOperations.cleanOldSummaries(30);
     });
 
-    // AI Overview generation after market close (3:30 PM NST, Sun-Thu)
-    schedule.scheduleJob('30 15 * * 0-4', async () => {
-        logger.info('Running post-market AI overview generation...');
-        try {
-            const aiOverviewService = require('../aiOverviewService');
-            await aiOverviewService.generateMarketOverview('scheduler');
-            await aiOverviewService.generateAll('scheduler');
-        } catch (e) {
-            logger.error(`Post-market AI generation failed: ${e.message}`);
-        }
-    });
+    // AI Overview generation is triggered manually via batch scripts, not automatically.
+    // The auto-generation was disabled to prevent daily Gemini API quota exhaustion.
+    // To regenerate, run: node scripts/batch-ai-generate-v4.js --force
 
     // Watchdog (Every 10 minutes)
     schedule.scheduleJob('*/10 * * * *', async () => {

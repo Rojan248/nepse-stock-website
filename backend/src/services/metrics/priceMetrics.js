@@ -9,7 +9,7 @@ const TRADING_DAYS_IN_YEAR = 235; // ~235 trading days in a NEPSE year
 /**
  * Compute price metrics from historical data
  * @param {Array} history - MarketHistory records sorted by date DESC
- * @param {Object} currentStock - Current stock data
+ * @param {Object} currentStock - Current stock data (may include high52w/low52w from NEPSE)
  * @returns {Object} priceMetrics
  */
 function compute(history, currentStock) {
@@ -23,10 +23,25 @@ function compute(history, currentStock) {
         weeklyChange: null,
         monthlyChange: null,
         distFromHigh52w: null,
-        distFromLow52w: null
+        distFromLow52w: null,
+        source52w: null // 'computed' | 'nepse' — for debugging
     };
 
-    if (!history || history.length === 0) return result;
+    const currentPrice = currentStock?.lastTradedPrice || (history?.[0]?.closePrice);
+
+    if (!history || history.length === 0) {
+        // No history at all — fall back to NEPSE-provided 52W if available
+        if (currentStock?.high52w && currentStock?.low52w) {
+            result.high52w = currentStock.high52w;
+            result.low52w = currentStock.low52w;
+            result.source52w = 'nepse';
+            if (currentPrice) {
+                result.distFromHigh52w = ((currentPrice - result.high52w) / result.high52w) * 100;
+                result.distFromLow52w = ((currentPrice - result.low52w) / result.low52w) * 100;
+            }
+        }
+        return result;
+    }
 
     // 52-week window (approx 235 trading days)
     const yearData = history.slice(0, TRADING_DAYS_IN_YEAR);
@@ -39,14 +54,27 @@ function compute(history, currentStock) {
         if (prices.length > 0) {
             result.high52w = Math.max(...prices);
             result.low52w = Math.min(...prices);
+            result.source52w = 'computed';
 
-            const currentPrice = currentStock?.lastTradedPrice || prices[0];
-            if (result.high52w > 0) {
+            if (result.high52w > 0 && currentPrice) {
                 result.distFromHigh52w = ((currentPrice - result.high52w) / result.high52w) * 100;
             }
-            if (result.low52w > 0) {
+            if (result.low52w > 0 && currentPrice) {
                 result.distFromLow52w = ((currentPrice - result.low52w) / result.low52w) * 100;
             }
+        }
+    }
+
+    // Override with NEPSE-provided 52W values when history is insufficient.
+    // NEPSE computes these from full exchange records — always more accurate than
+    // our local history when we have fewer than TRADING_DAYS_IN_YEAR of records.
+    if (currentStock?.high52w && currentStock?.low52w && yearData.length < TRADING_DAYS_IN_YEAR) {
+        result.high52w = currentStock.high52w;
+        result.low52w = currentStock.low52w;
+        result.source52w = 'nepse';
+        if (currentPrice) {
+            result.distFromHigh52w = ((currentPrice - result.high52w) / result.high52w) * 100;
+            result.distFromLow52w = ((currentPrice - result.low52w) / result.low52w) * 100;
         }
     }
 
