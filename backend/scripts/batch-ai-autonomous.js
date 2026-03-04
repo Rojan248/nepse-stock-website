@@ -70,6 +70,7 @@ const stats = {
 // GitHub Models quota tracking
 let ghConsecRL = 0;
 let ghQuotaExhausted = false;
+let ghQuotaExhaustedAt = null; // timestamp when quota was first confirmed exhausted
 const GH_QUOTA_THRESHOLD = 3; // consecutive 429s before assuming daily quota
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -138,11 +139,13 @@ function buildFact(stock, metrics) {
 /** Format large numbers in Nepali lakh/crore units for AI readability */
 function fmtLakh(n) {
     if (!n || n === 0) return '0';
-    const abs = Math.abs(Number(n));
-    if (abs >= 1e7)  return (abs / 1e7).toFixed(2) + ' crore';
-    if (abs >= 1e5)  return (abs / 1e5).toFixed(2) + ' lakh';
-    if (abs >= 1e3)  return abs.toLocaleString('en-IN');
-    return String(abs);
+    const num = Number(n);
+    const sign = num < 0 ? '-' : '';
+    const abs = Math.abs(num);
+    if (abs >= 1e7)  return sign + (abs / 1e7).toFixed(2) + ' crore';
+    if (abs >= 1e5)  return sign + (abs / 1e5).toFixed(2) + ' lakh';
+    if (abs >= 1e3)  return sign + abs.toLocaleString('en-IN');
+    return sign + String(abs);
 }
 
 /** Format a rupee price with commas, e.g. 5842 → "NPR 5,842" */
@@ -429,7 +432,7 @@ async function processGeminiBatch(stocks, facts) {
             handleRateLimit(model);
         } else {
             log(`  ✗ ${model}: ${err.message.slice(0, 100)}`);
-            modelState[model].consecRL++;
+            // Do not increment consecRL for non-rate-limit errors (network, parse, etc.)
         }
         return symbols; // entire batch failed, retry later
     }
@@ -453,10 +456,11 @@ async function processGitHubModels(symbol, fact) {
             return true;
         } catch (err) {
             if (err.status === 429) {
-                stats.rateLimits++;
+                // stats.rateLimits already incremented inside callGitHubModels
                 ghConsecRL++;
                 if (ghConsecRL >= GH_QUOTA_THRESHOLD) {
                     ghQuotaExhausted = true;
+                    ghQuotaExhaustedAt = Date.now();
                     log(`  ⚡ GitHub Models daily quota exhausted — skipping remaining Phase 2`);
                     stats.failed++;
                     return false;
@@ -591,8 +595,18 @@ async function main() {
         round++;
         stats.rounds = round;
 
-        // Reset GitHub Models quota state each round (quota resets daily at ~00:05 UTC)
-        if (round > 1) { ghConsecRL = 0; ghQuotaExhausted = false; }
+        // Reset GitHub Models quota state only after GitHub's daily quota window resets
+        // (~00:05–00:10 UTC the day after exhaustion was first detected).
+        if (round > 1 && ghQuotaExhaustedAt !== null) {
+            const resetTime = new Date(ghQuotaExhaustedAt);
+            resetTime.setUTCDate(resetTime.getUTCDate() + 1);
+            resetTime.setUTCHours(0, 8, 0, 0); // 00:08 UTC — safely past the reset window
+            if (Date.now() >= resetTime.getTime()) {
+                ghConsecRL = 0;
+                ghQuotaExhausted = false;
+                ghQuotaExhaustedAt = null;
+            }
+        }
 
         // On first round with --force, regenerate everything
         const isForceRound = forceMode && round === 1;
