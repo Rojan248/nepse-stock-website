@@ -25,7 +25,7 @@ const FORCE = ARGS.includes('--force');
 const SINGLE_SYMBOL = ARGS.includes('--symbol') ? ARGS[ARGS.indexOf('--symbol') + 1] : null;
 const DELAY = 400; // ms between /security/{id} calls
 
-const agent = new https.Agent({ rejectUnauthorized: false });
+const agent = new https.Agent();
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 const warn = (msg) => console.warn(`[${new Date().toISOString()}] WARN: ${msg}`);
