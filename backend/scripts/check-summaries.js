@@ -8,7 +8,13 @@ async function main() {
     select: { symbol: true, narrative: true, modelVersion: true, updatedAt: true }
   });
   rows.forEach(r => {
-    const n = JSON.parse(r.narrative);
+    let n;
+    try {
+      n = JSON.parse(r.narrative);
+    } catch (parseErr) {
+      console.warn(`WARNING: Failed to parse narrative for ${r.symbol} (updated ${r.updatedAt}):`, parseErr.message);
+      return;
+    }
     console.log('=== ' + r.symbol + ' [' + r.modelVersion + '] ' + r.updatedAt.toISOString().slice(11,19) + ' ===');
     console.log('SUMMARY:', n.summary);
     console.log('BULLETS:');

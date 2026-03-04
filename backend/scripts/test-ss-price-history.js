@@ -1,7 +1,16 @@
 const axios = require('axios');
 const https = require('https');
 
-const agent = new https.Agent({ rejectUnauthorized: false });
+// Only disable TLS verification when explicitly opted-in for debugging/testing.
+// Production runs always validate certificates.
+const fs = require('fs');
+const agentOpts = {};
+if (process.env.CA_CERT_PATH) {
+    agentOpts.ca = fs.readFileSync(process.env.CA_CERT_PATH);
+} else if (process.env.ALLOW_INSECURE_TLS === 'true' || process.env.NODE_ENV === 'test') {
+    agentOpts.rejectUnauthorized = false;
+}
+const agent = new https.Agent(agentOpts);
 
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

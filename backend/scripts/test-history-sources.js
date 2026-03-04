@@ -4,7 +4,11 @@
 const axios = require('axios');
 const https = require('https');
 
-const agent = new https.Agent({ rejectUnauthorized: false });
+// Allow disabling TLS verification for debugging (e.g., corporate proxies / self-signed certs).
+// In production, certificate validation stays enabled regardless of DISABLE_TLS_VERIFY.
+const agent = new https.Agent({
+    rejectUnauthorized: process.env.NODE_ENV === 'production' ? true : process.env.DISABLE_TLS_VERIFY !== 'true'
+});
 
 async function tryUrl(name, url, headers = {}) {
     try {

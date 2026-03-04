@@ -15,7 +15,12 @@ if ($conn) {
         } else {
             Stop-Process -Id $procId -Confirm
         }
-        Write-Host "Killed."
+        # Verify the process was actually terminated
+        if (-not (Get-Process -Id $procId -ErrorAction SilentlyContinue)) {
+            Write-Host "Killed."
+        } else {
+            Write-Host "Process $procId was not terminated."
+        }
     } else {
         Write-Host "Process not found (PID $procId)"
     }

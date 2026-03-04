@@ -90,6 +90,7 @@ async function fetchPriceHistory(symbol) {
         console.log(`With dates - Status: ${res2.status}, total: ${d2.recordsTotal}`);
         if (d2.data && d2.data.length > 0) {
             console.log('First:', JSON.stringify(d2.data[0]));
+            return d2;
         }
     }
     return d;

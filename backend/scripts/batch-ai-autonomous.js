@@ -287,10 +287,10 @@ function extractJSON(text) {
 
 async function callGemini(prompt, model) {
     const res = await fetch(
-        `${GEMINI_BASE}/${model}:generateContent?key=${GEMINI_KEY}`,
+        `${GEMINI_BASE}/${model}:generateContent`,
         {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {

@@ -212,68 +212,6 @@ async function fetchHistoricalData(symbol) {
 }
 
 /**
- * Store historical rows into MarketHistory table
- */
-async function storeHistory(symbol, rows) {
-    let stored = 0;
-    let skipped = 0;
-
-    for (const row of rows) {
-        try {
-            // Calculate change from previous close if we have sequential data
-            // We'll store raw data first; change can be derived
-            await prisma.marketHistory.upsert({
-                where: {
-                    // Need a unique constraint on symbol+date
-                    // Since there's no named unique constraint, use a findFirst approach
-                    id: -1 // this will always miss, triggering create
-                },
-                update: {},
-                create: {
-                    symbol,
-                    date: row.date,
-                    closePrice: row.close,
-                    highPrice: row.high,
-                    lowPrice: row.low,
-                    volume: row.volume,
-                    turnover: null,
-                    change: null,
-                    percentageChange: null
-                }
-            }).catch(async () => {
-                // Upsert with fake id fails; use findFirst + create pattern
-                const existing = await prisma.marketHistory.findFirst({
-                    where: { symbol, date: row.date }
-                });
-                if (!existing) {
-                    await prisma.marketHistory.create({
-                        data: {
-                            symbol,
-                            date: row.date,
-                            closePrice: row.close,
-                            highPrice: row.high,
-                            lowPrice: row.low,
-                            volume: row.volume,
-                            turnover: null,
-                            change: null,
-                            percentageChange: null
-                        }
-                    });
-                    stored++;
-                } else {
-                    skipped++;
-                }
-            });
-            stored++;
-        } catch (e) {
-            skipped++;
-        }
-    }
-
-    return { stored, skipped };
-}
-
-/**
  * Better store function: batch upsert using createMany with skipDuplicates
  */
 async function storeHistoryBatch(symbol, rows) {
