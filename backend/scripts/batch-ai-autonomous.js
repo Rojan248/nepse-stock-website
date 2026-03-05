@@ -284,23 +284,30 @@ function marketPrompt(mMetrics, mSummary) {
     const sectors = (mMetrics?.sectors || []).slice(0, 8)
         .map(s => `${s.name}: avg ${s.avgChange?.toFixed(2)}% change, ${s.advancing} stocks up, ${s.declining} stocks down`)
         .join('; ');
-    return `You are explaining today's NEPSE stock market to someone who is completely new to investing. Write in simple, friendly language — no jargon.
+    const totalStocks = (mMetrics?.advancing || 0) + (mMetrics?.declining || 0) + (mMetrics?.unchanged || 0);
+    return `You are explaining today's NEPSE stock market to someone who is completely new to investing. Write in simple, friendly language — like explaining to a friend who has never invested.
 
 Today's market data:
 - NEPSE Index: ${mSummary?.indexValue || 'N/A'} (changed by ${mSummary?.indexChange || 0} points, ${mSummary?.indexChangePercent || 0}%)
 - Total money traded: NPR ${fmtLakh(mSummary?.totalTurnover)}
-- Total shares traded: ${mSummary?.totalVolume || 0}
+- Total shares traded: ${fmtLakh(mSummary?.totalVolume)} shares
+- Total stocks traded: ${totalStocks}
 - Stocks that went up: ${mMetrics?.advancing || 0} | Went down: ${mMetrics?.declining || 0} | No change: ${mMetrics?.unchanged || 0}
 - Sector breakdown: ${sectors}
 
-STRICT RULES:
-- Explain what the index movement means simply (e.g. "the overall market rose slightly today")
-- Say "more stocks went up than down" or vice versa — explain what that means for investors in plain terms
-- Mention 1-2 sectors that stood out in simple language
-- No jargon: no "bullish", "bearish", "resistance", "support", "consolidation"
-- summary: 2-3 plain sentences about what happened in the market today
-- bullets: 3–4 simple highlights a beginner would understand
-- outlook: 1–2 plain sentences about what the current state suggests
+STRICT RULES — must follow all:
+- NEVER use jargon: no "bullish", "bearish", "resistance", "support", "consolidation", "volatility", "momentum", "sentiment", "rally", "correction", "overbought", "oversold"
+- Say "most stocks went up" instead of "bullish sentiment"
+- Say "the market had a strong/weak day" instead of "upward/downward momentum"
+- Use "NPR" for Nepali Rupee (NOT "Rs" — that is Indian Rupee)
+- Always format large numbers in lakh/crore: say "NPR 62.34 crore" not "NPR 6234381480", say "1.52 crore shares" not "15184607 shares"
+- Explain what the index movement means in simple terms (e.g. "the index went up by 38 points, which means the overall value of the market increased")
+- Say "X out of Y stocks went up" — explain whether that is a lot or a little
+- Mention 1-2 sectors that did well or poorly, in plain language
+- summary: 2-3 plain sentences about what happened in the market today — include the index value and how many stocks went up/down
+- bullets: 3-4 detailed but simple facts — include formatted turnover, volume, sector highlights, and what they mean for a beginner
+- outlook: 1-2 plain sentences on whether the market looks stable, positive, or under pressure — explain WHY in simple terms
+- No buy/sell recommendations
 
 Respond with ONLY valid JSON — no markdown, no extra text:
 {"summary":"...","bullets":["...","...","..."],"outlook":"..."}`;
