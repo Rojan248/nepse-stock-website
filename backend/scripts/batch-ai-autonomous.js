@@ -408,9 +408,72 @@ async function callGitHubModels(prompt) {
     return { text, tokens: data?.usage?.total_tokens || 0, model: `github:${GH_MODEL}` };
 }
 
+// ── Post-generation sanitizer ─────────────────────────────────────────────────
+
+const JARGON_REPLACEMENTS = [
+    [/\bbullish\b/gi, 'positive'],
+    [/\bbearish\b/gi, 'negative'],
+    [/\bresistance\s*(level)?/gi, 'price ceiling'],
+    [/\bsupport\s*(level)?/gi, 'price floor'],
+    [/\bconsolidation\b/gi, 'sideways movement'],
+    [/\bconsolidating\b/gi, 'moving sideways'],
+    [/\bvolatility\b/gi, 'price swings'],
+    [/\bvolatile\b/gi, 'unpredictable'],
+    [/\bmomentum\b/gi, 'movement'],
+    [/\bsentiment\b/gi, 'mood'],
+    [/\brally\b/gi, 'rise'],
+    [/\bcorrection\b/gi, 'price drop'],
+    [/\boverbought\b/gi, 'risen a lot'],
+    [/\boversold\b/gi, 'fallen a lot'],
+    [/\b52[- ]?week\s+high\b/gi, 'highest price in the past year'],
+    [/\b52[- ]?week\s+low\b/gi, 'lowest price in the past year'],
+    [/\bRSI\b/g, 'momentum score'],
+    [/\bMA\s*20\b/gi, 'average price last month'],
+    [/\bMA\s*180\b/gi, 'average price last 6 months'],
+    [/\bMACD\b/gi, 'trend indicator'],
+    [/\bdivergence\b/gi, 'mismatch'],
+    [/\bsurge[ds]?\b/gi, (m) => m.startsWith('S') || m.startsWith('s') ? m.replace(/surge/i, 'rise') : m],
+    [/\bRs\.?\s*/g, 'NPR '],
+    [/₹\s*/g, 'NPR '],
+];
+
+/**
+ * Sanitize AI-generated narrative by replacing jargon with plain language
+ * and formatting raw large numbers into lakh/crore.
+ */
+function sanitizeNarrative(narrative) {
+    if (!narrative) return narrative;
+
+    const sanitizeText = (text) => {
+        if (typeof text !== 'string') return text;
+        let result = text;
+        for (const [pattern, replacement] of JARGON_REPLACEMENTS) {
+            result = result.replace(pattern, replacement);
+        }
+        // Format raw large numbers (6+ digits) into lakh/crore
+        result = result.replace(/(?:NPR\s*)?(\d{6,}(?:\.\d+)?)/g, (match, numStr) => {
+            const num = parseFloat(numStr);
+            const prefix = match.startsWith('NPR') ? 'NPR ' : '';
+            if (num >= 10000000) return `${prefix}${(num / 10000000).toFixed(2)} crore`;
+            if (num >= 100000) return `${prefix}${(num / 100000).toFixed(2)} lakh`;
+            return match;
+        });
+        return result;
+    };
+
+    return {
+        summary: sanitizeText(narrative.summary),
+        bullets: Array.isArray(narrative.bullets)
+            ? narrative.bullets.map(b => sanitizeText(b))
+            : narrative.bullets,
+        outlook: sanitizeText(narrative.outlook),
+    };
+}
+
 // ── DB save ───────────────────────────────────────────────────────────────────
 
-async function saveOverview(symbol, narrative, factSheet, model, tokenCount, type = 'stock') {
+async function saveOverview(symbol, rawNarrative, factSheet, model, tokenCount, type = 'stock') {
+    const narrative = sanitizeNarrative(rawNarrative);
     narrative.generatedAt = new Date().toISOString();
     await prisma.aIOverview.upsert({
         where: { symbol_type: { symbol: symbol.toUpperCase(), type } },
