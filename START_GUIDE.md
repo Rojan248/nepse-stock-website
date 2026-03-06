@@ -4,6 +4,27 @@ Quick reference to get **nepse.me** back online from scratch.
 
 ---
 
+## Quick Start (Development Mode)
+
+For local development with hot-reload:
+
+```powershell
+cd D:\nepse-stock-website\backend
+node src/server.js
+```
+
+In a second terminal:
+
+```powershell
+cd D:\nepse-stock-website\frontend
+npm run dev
+```
+
+- Backend: `http://localhost:3000`
+- Frontend: `http://localhost:3001` (or 3002+ if ports in use)
+
+---
+
 ## Prerequisites
 
 - Node.js 18+ installed
@@ -15,10 +36,10 @@ Quick reference to get **nepse.me** back online from scratch.
 
 ## Step 1 — Start the Backend Server
 
-Open a terminal in the workspace root (`C:\Users\Rojan\Desktop\nepse-stock-website`):
+Open a terminal in the backend directory:
 
 ```powershell
-cd nepse-stock-website\backend
+cd D:\nepse-stock-website\backend
 $env:PORT='3000'
 $env:NODE_ENV='production'
 node src/server.js
@@ -86,6 +107,25 @@ npm run build
 ```
 
 Then restart the backend (Step 1).
+
+---
+
+## AI Overview Generator (Optional)
+
+To regenerate AI overviews for stocks and market overview:
+
+```powershell
+cd D:\nepse-stock-website\backend
+$env:GEMINI_API_KEY='your-key-here'
+$env:GITHUB_TOKEN='your-token-here'
+node scripts/batch-ai-autonomous.js
+```
+
+The generator:
+- Automatically rotates through Gemini models and GitHub Models API
+- Detects quota limits and sleeps until quotas reset
+- Sanitizes output to strip jargon and format numbers as NPR lakh/crore
+- Resumes automatically when quotas become available
 
 ---
 
