@@ -195,8 +195,7 @@ const setupCronJobs = () => {
     });
 
     // AI Overview generation is triggered manually via batch scripts, not automatically.
-    // The auto-generation was disabled to prevent daily Gemini API quota exhaustion.
-    // To regenerate, run: node scripts/batch-ai-generate-v4.js --force
+    // To regenerate, run: node scripts/batch-ai-autonomous.js --force
 
     // Watchdog (Every 10 minutes)
     schedule.scheduleJob('*/10 * * * *', async () => {

@@ -336,20 +336,11 @@ const fetchMissingSecurities = async (companies, token) => {
     return results;
 };
 
-/**
- * Check if market is currently open (Nepal time)
- * Market hours: 10:00 AM - 3:00 PM NST, Sunday to Thursday
- */
 const { isMarketActive } = require('../utils/marketTime');
-
-// Use centralized market time utility instead of local calculation
-const isMarketOpen = () => {
-    return isMarketActive();
-};
 
 // Wrap the imported transformSecurity to pass required dependencies
 const transformSecurity = (security, marketOpen = null) => {
-    return transformSecurityLib(security, marketOpen, staticStockMap, isMarketOpen);
+    return transformSecurityLib(security, marketOpen, staticStockMap, isMarketActive);
 };
 
 // ==================== fetchMarketSummary Helpers ====================

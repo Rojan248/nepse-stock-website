@@ -7,7 +7,6 @@
     "build:frontend": "cd frontend && npm run build",
     "build:fresh": "cd frontend && npm run build",
     "start:prod": "cd backend && pm2 start ecosystem.config.js --env production",
-    "deploy": "node deploy_update.js",
     "setup": "npm run install:all && npm run build:fresh"
   },
   "keywords": [

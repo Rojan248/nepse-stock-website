@@ -11,7 +11,6 @@ const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
-const { initScheduler } = require('./services/scheduler');
 
 // Import routes
 const stocksRouter = require('./routes/stocks');
@@ -180,12 +179,8 @@ const startServer = async () => {
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
         });
 
-        // Start the legacy update scheduler
         logger.info('Starting data update scheduler...');
         scheduler.startScheduler();
-
-        // Start cron-based scheduler for reliability
-        initScheduler();
         logger.info('Scheduler service started');
 
         // Graceful shutdown
