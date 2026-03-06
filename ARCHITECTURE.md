@@ -43,13 +43,16 @@ backend/
     │
     ├── middleware/
     │   ├── cors.js                         # CORS configuration for frontend access.
+    │   ├── auth.js                         # Admin API key authentication middleware.
+    │   ├── authMiddleware.js               # JWT user authentication (requireAuth, optionalAuth).
+    │   ├── rateLimiter.js                  # Rate limiting middleware (global + admin).
     │   └── errorHandler.js                 # Global async error handler, 404 handler, validation error handler.
     │
     ├── services/
     │   ├── dataFetcher.js                  # **ORCHESTRATOR**: Tries scrapers in order (Library → Proxy → Custom → Mock). Enriches data with company names.
     │   ├── analytics.js                    # Market analytics and calculations.
+    │   ├── aiOverviewService.js            # AI-generated stock/market narrative service (Gemini/GitHub Models).
     │   ├── depthFetcher.js                 # Market depth data fetching.
-    │   ├── scheduler.js                    # Main scheduler entry point.
     │   │
     │   ├── scrapers/
     │   │   ├── libraryFetcher.js           # **OPTION 1**: Uses `nepse-api-helper` npm package to fetch from official NEPSE API (with token handling).
@@ -63,8 +66,7 @@ backend/
     │   ├── database/
     │   │   ├── connection.js               # `connectDB()` / `disconnectDB()` wrappers.
     │   │   ├── prismaClient.js             # Prisma ORM client singleton.
-    │   │   ├── localStorage.js             # **FALLBACK STORAGE**: In-memory Maps + debounced JSON file persistence.
-    │   │   ├── stockOperations.js          # Stock CRUD operations (Prisma + localStorage fallback).
+    │   │   ├── stockOperations.js          # Stock CRUD operations via Prisma.
     │   │   ├── marketOperations.js         # Market summary operations.
     │   │   └── ipoOperations.js            # IPO CRUD operations.
     │   │
@@ -265,7 +267,7 @@ The Watchdog service ensures data integrity:
 | **SearchBar** | `SearchBar.css` | Input with live autocomplete dropdown. Updates `globalSearch` in App state. |
 | **StockTable** | `StockTable.css` | Main data table. Columns: Symbol, LTP, Change (%), High, Low, Volume, Turnover. Sorting, pagination, favorites. |
 | **SummaryCard** | `SummaryCard.css` | Displays a metric with optional change indicator. |
-| **SectorChart** | `SectorChart.css` | Bar chart via `recharts` showing stock count per sector. |
+| **SectorChart** | `SectorChart.css` | Bar chart showing stock count per sector. |
 | **MetricCard** | `MetricCard.css` | Simple value card (used in market overview). |
 | **AnimatedValue** | `AnimatedValue.css` | Wraps a value to flash green/red on change. |
 
@@ -338,7 +340,6 @@ All components reference these variables. Example from `StockTable.css`:
 | **react-dom** | ^18.2.0 | React DOM renderer. |
 | **react-router-dom** | ^6.21.1 | Client-side routing. |
 | **axios** | ^1.6.2 | HTTP client for API calls. |
-| **recharts** | ^3.6.0 | Charting library for SectorChart. |
 | **lucide-react** | ^0.562.0 | Icon library (Star, ChevronDown, etc.). |
 | **vite** (dev) | ^5.0.10 | Build tool and dev server. |
 | **vitest** (dev) | ^1.1.0 | Unit testing (Vite-native). |
@@ -350,7 +351,7 @@ All components reference these variables. Example from `StockTable.css`:
 
 > These are the specific choices this project makes, not generic practices.
 
-1. **Hybrid Storage**: Uses SQLite (via Prisma ORM) as the primary database with JSON files as fallback. This provides structured querying with Prisma while maintaining backward compatibility.
+1. **SQLite Primary Storage**: Uses SQLite via Prisma ORM as the primary database with structured querying.
 
 2. **Watchdog Service**: A dedicated service verifies local data against external sources (Merolagani, NepseAlpha) and auto-corrects discrepancies to ensure data integrity.
 
@@ -368,7 +369,9 @@ All components reference these variables. Example from `StockTable.css`:
 
 9. **LTP Preservation**: If an incoming stock update has `ltp=0`, the system preserves the existing LTP to prevent data corruption.
 
-10. **No Authentication**: The application is a public data dashboard with no user authentication required. All displayed data is publicly available NEPSE information.
+10. **User Authentication**: JWT-based authentication with httpOnly cookie refresh tokens and in-memory access tokens. Admin endpoints protected by API key middleware.
+
+11. **AI Overviews**: AI-generated stock and market narratives using Gemini and GitHub Models APIs. Output is sanitized to strip jargon and format numbers as NPR lakh/crore.
 
 ---
 
@@ -381,4 +384,4 @@ This document provides a complete blueprint of the NEPSE Stock Website architect
 3. Identify which files to modify for any feature change.
 4. Know which libraries are essential and why.
 
-**Last Updated**: 2026-01-06
+**Last Updated**: 2026-03-06

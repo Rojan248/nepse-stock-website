@@ -1,19 +1,17 @@
 # NEPSE Stock Website Documentation
 
 > Central index for all project documentation.
-> All documents are based on comprehensive codebase analysis (2026-01-09).
 
 ---
 
 ## Project Overview
 
-**NEPSE Stock Website** is a real-time dashboard for Nepal Stock Exchange (NEPSE) data. It scrapes data from official and unofficial sources, stores it in SQLite, and presents it through a modern React frontend.
+**NEPSE Stock Website** is a real-time dashboard for Nepal Stock Exchange (NEPSE) data with AI-powered analysis. It fetches data from official and unofficial sources, stores it in SQLite, generates AI overviews, and presents it through a modern React frontend.
 
 | | |
 |---|---|
 | **Tech Stack** | Node.js/Express + React/Vite + SQLite/Prisma |
 | **Repository** | `Rojan248/nepse-stock-website` |
-| **Latest Commit** | `4281114` on `master` branch |
 | **License** | MIT |
 
 ---
@@ -22,41 +20,30 @@
 
 | Document | Description |
 |----------|-------------|
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Complete system design, data flow diagrams, directory structure, database schema, and key design decisions |
-| **[API.md](./API.md)** | Full REST API reference with all endpoints, parameters, and response examples |
-| **[SETUP.md](./SETUP.md)** | Development and production setup guide with all npm scripts documented |
-| **[SECURITY.md](./SECURITY.md)** | Security analysis, vulnerability assessment, and hardening recommendations |
-| **[STATE_OF_PROJECT.md](./STATE_OF_PROJECT.md)** | Current status report with feature status, known issues, and next steps |
+| **[ARCHITECTURE.md](../ARCHITECTURE.md)** | System design, data flow, directory structure, database schema, and design decisions |
+| **[API.md](./API.md)** | REST API reference with endpoints, parameters, and response examples |
+| **[SETUP.md](./SETUP.md)** | Development and production setup guide |
+| **[SECURITY.md](./SECURITY.md)** | Security analysis and hardening recommendations |
+| **[WATCHDOG.md](./WATCHDOG.md)** | Watchdog data integrity service documentation |
+| **[PROJECT_DEBRIEF.md](./PROJECT_DEBRIEF.md)** | Full project context, status, and tech debt |
+| **[START_GUIDE.md](../START_GUIDE.md)** | Quick start reference for getting the site online |
 
 ---
 
 ## Quick Start
 
-### Development
-
-```bash
-# Clone
-git clone https://github.com/Rojan248/nepse-stock-website.git
-cd nepse-stock-website
-
+```powershell
 # Backend
-cd backend
-npm install
-npm run prisma:generate
-npm run prisma:migrate
-npm run dev  # Port 5000
+cd D:\nepse-stock-website\backend
+node src/server.js
 
 # Frontend (new terminal)
-cd frontend
-npm install
-npm run dev  # Port 3000
+cd D:\nepse-stock-website\frontend
+npm run dev
 ```
 
-### Access
-
-- **Frontend**: http://localhost:3000
-- **API**: http://localhost:5000/api
-- **Health Check**: http://localhost:5000/api/health
+- **Backend**: http://localhost:3000
+- **Frontend**: http://localhost:3001
 
 ---
 
@@ -65,25 +52,14 @@ npm run dev  # Port 3000
 | Feature | Endpoint/Component |
 |---------|-------------------|
 | Stock Dashboard | `HomePage.jsx` |
+| AI Stock Analysis | `GET /api/stocks/:symbol/overview` |
+| AI Market Overview | `GET /api/market-overview` |
 | Market Summary | `GET /api/market-summary` |
 | Top Movers | `GET /api/stocks/top-gainers`, `/top-losers` |
 | Search | `GET /api/stocks/search?q=` |
-| Sector Chart | `SectorChart.jsx` |
 | IPO Listings | `GET /api/ipos` |
-| Trending Stocks | `GET /api/trending` |
+| User Auth | `POST /api/auth/login`, `/register` |
 | Data Verification | `POST /api/watchdog/verify` |
-
----
-
-## Architecture Summary
-
-```
-NEPSE API → libraryFetcher → dataFetcher → Prisma/SQLite → Express API → React Frontend
-                                 ↓
-                         Watchdog (verification)
-                                 ↓
-                    Merolagani/NepseAlpha (cross-check)
-```
 
 ---
 
@@ -94,14 +70,7 @@ NEPSE API → libraryFetcher → dataFetcher → Prisma/SQLite → Express API �
 | Market OPEN (10:00-15:00 NST, Sun-Thu) | Every 10 seconds |
 | Market CLOSED | Every 1 hour |
 | Watchdog Verification | Every 10 minutes |
-| Analytics Decay | Every 1 hour |
 
 ---
 
-## Contact
-
-For issues or contributions, please use the GitHub repository.
-
----
-
-*Documentation last updated: 2026-01-09*
+*Documentation last updated: 2026-03-06*

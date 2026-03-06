@@ -19,15 +19,16 @@ The application utilizes a **Stark Minimalism** design philosophy to ensure clar
 
 ## Features
 
-- 📊 **Real-time Stock Data** - Live prices, changes, and volumes
-- 🔍 **Unified Global Search** - Search stocks by symbol or name from anywhere in the app
-- 🔄 **Auto Updates** - 10-second refresh during market hours (10 AM - 3 PM NST)
-- 📈 **Market Breadth** - Track Advanced, Declined, and Unchanged counts at a glance
-- 📈 **Top Gainers/Losers** - Track best and worst performers
-- 🆕 **IPO Tracking** - Browse upcoming, open, and completed IPOs
-- 🛡️ **Watchdog Service** - Automatic data verification and self-correction
-- 📱 **Responsive Design** - Optimized for desktop, tablet, and mobile
-- 🌙 **Dark Theme** - Modern, eye-friendly interface
+- **Real-time Stock Data** - Live prices, changes, and volumes with 10-second refresh during market hours
+- **AI-Powered Analysis** - AI-generated stock and market overviews using Gemini/GitHub Models
+- **Unified Global Search** - Search stocks by symbol or name from anywhere in the app
+- **Market Breadth** - Track Advanced, Declined, and Unchanged counts at a glance
+- **Top Gainers/Losers** - Track best and worst performers
+- **IPO Tracking** - Browse upcoming, open, and completed IPOs
+- **User Authentication** - JWT-based auth with secure httpOnly cookie refresh tokens
+- **Portfolio Tracking** - Track your stock portfolio with buy/sell trades
+- **Watchdog Service** - Automatic data verification and self-correction
+- **Responsive Design** - Optimized for desktop, tablet, and mobile
 
 ## Tech Stack
 
@@ -96,10 +97,14 @@ nepse-stock-website/
 | `GET /api/stocks` | All stocks with pagination |
 | `GET /api/stocks/:symbol` | Single stock details |
 | `GET /api/stocks/search?q=` | Search stocks |
+| `GET /api/stocks/:symbol/overview` | AI-generated stock overview |
 | `GET /api/ipos` | IPO listings |
 | `GET /api/market-summary` | NEPSE index data |
+| `GET /api/market-overview` | AI market narrative |
 | `GET /api/watchdog/status` | Watchdog service status |
 | `GET /api/health` | Server status |
+| `POST /api/auth/login` | User login |
+| `POST /api/auth/register` | User registration |
 
 ## Environment Variables
 
@@ -161,16 +166,19 @@ npm run pm2:start
 |----------|-------------|
 | [SETUP.md](docs/SETUP.md) | Complete setup and deployment instructions |
 | [API.md](docs/API.md) | API reference |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture |
 | [SECURITY.md](docs/SECURITY.md) | Security best practices |
+| [WATCHDOG.md](docs/WATCHDOG.md) | Watchdog data integrity service |
+| [PROJECT_DEBRIEF.md](docs/PROJECT_DEBRIEF.md) | Full project status and context |
+| [START_GUIDE.md](START_GUIDE.md) | Quick start reference |
 
-## Recent Updates (Jan 2026)
+## Recent Updates (Mar 2026)
 
-- **Watchdog Service**: Added data verification with auto-correction using external providers
-- **Prisma/SQLite**: Migrated from JSON-only to SQLite database with Prisma ORM
-- **Simplified Deployment**: Removed Cloudflare integration, focused on self-hosted setup
-- **Data Integrity**: Fixed inflated stock counts and improved sector classification
-- **Architecture Redesign**: Migrated search state to root components for unified UX
+- **AI Overviews**: AI-generated stock and market narratives with jargon sanitization
+- **Autonomous AI Generator**: Auto-manages Gemini/GitHub Models quotas with sleep-and-resume
+- **NPR Currency**: Fixed all currency references to use NPR (Nepali Rupee)
+- **User Authentication**: JWT-based auth with portfolio and watchlist support
+- **Codebase Cleanup**: Removed 2,320+ lines of dead code, unused deps, and stale scripts
 
 ## License
 

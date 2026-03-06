@@ -1,36 +1,32 @@
 # NEPSE Frontend
 
-React application for browsing NEPSE stock market data and IPOs.
+React + Vite application for browsing NEPSE stock market data.
 
-## Features
-- Real-time stock listing
-- IPO information
-- Stock search and filtering
-- Detailed stock information pages
-- Responsive design
-- Nepali language support (planned)
+## Quick Start
 
-## Setup
+```bash
+npm install
+npm run dev
+```
 
-1. Install dependencies:
-   ```
-   npm install
-   ```
+App runs on http://localhost:3001 (requires backend on port 3000)
 
-2. Start development server:
-   ```
-   npm run dev
-   ```
+## Key Features
 
-App will run on http://localhost:3000
-
-## Environment
-Ensure backend is running on http://localhost:5000
+- Real-time stock dashboard with live price updates
+- AI-powered stock and market analysis
+- User authentication with portfolio tracking
+- IPO tracking and filtering
+- Global search by symbol or company name
+- Top gainers/losers/most traded
+- Responsive design for desktop and mobile
 
 ## Build
 
-```
-npm run build
+```bash
+npm run build    # Production build to dist/
+npm run preview  # Preview production build
+npm test         # Run tests with Vitest
 ```
 
-Production build will be in dist/ folder
+See [docs/](../docs/) for comprehensive documentation.
