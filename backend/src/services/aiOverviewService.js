@@ -1,13 +1,13 @@
 /**
  * AI Overview Service
  * Generates AI-powered stock narratives using Google Gemini API
- * 
- * Rules:
- * - Never hardcode API keys
- * - Handle all Gemini errors gracefully
- * - 500ms delay between AI calls
- * - 30-minute cooldown per symbol
- * - Fallback to secondary model on failure
+ *
+ * Autonomous operation:
+ * - Processes stocks in chunks to respect API rate limits
+ * - Detects 429 rate limits and backs off automatically
+ * - Tracks daily quota exhaustion and stops until reset
+ * - Sanitizes all output to remove jargon and format numbers
+ * - Triggered by scheduler after market close and on startup
  */
 
 const { prisma } = require('./database/connection');
@@ -15,11 +15,74 @@ const logger = require('./utils/logger');
 const metricsOrchestrator = require('./metrics/metricsOrchestrator');
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DELAY_BETWEEN_CALLS = 500; // 500ms between API calls
 
-/**
- * Get Gemini configuration from environment
- */
+// Rate limit config
+const DELAY_BETWEEN_CALLS = 2000;  // 2s between API calls (safe for free tier)
+const CHUNK_SIZE = 10;             // Process 10 stocks per chunk
+const CHUNK_DELAY = 15000;         // 15s pause between chunks
+const MAX_CONSECUTIVE_429 = 3;     // 3 consecutive 429s = daily quota hit
+const BACKOFF_ON_429 = 65000;      // 65s backoff on single 429
+
+// ── Runtime state ─────────────────────────────────────────────────────────────
+let isGenerating = false;
+let generationStats = { lastRun: null, generated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
+
+// ── Jargon sanitizer ──────────────────────────────────────────────────────────
+const JARGON_REPLACEMENTS = [
+    [/\bbullish\b/gi, 'positive'],
+    [/\bbearish\b/gi, 'negative'],
+    [/\bresistance\s*(level)?/gi, 'price ceiling'],
+    [/\bsupport\s*(level)?/gi, 'price floor'],
+    [/\bconsolidation\b/gi, 'sideways movement'],
+    [/\bconsolidating\b/gi, 'moving sideways'],
+    [/\bvolatility\b/gi, 'price swings'],
+    [/\bvolatile\b/gi, 'unpredictable'],
+    [/\bmomentum\b/gi, 'movement'],
+    [/\bsentiment\b/gi, 'mood'],
+    [/\brally\b/gi, 'rise'],
+    [/\bcorrection\b/gi, 'price drop'],
+    [/\boverbought\b/gi, 'risen a lot'],
+    [/\boversold\b/gi, 'fallen a lot'],
+    [/\b52[- ]?week\s+high\b/gi, 'highest price in the past year'],
+    [/\b52[- ]?week\s+low\b/gi, 'lowest price in the past year'],
+    [/\bRSI\b/g, 'momentum score'],
+    [/\bMA\s*20\b/gi, 'average price last month'],
+    [/\bMA\s*180\b/gi, 'average price last 6 months'],
+    [/\bMACD\b/gi, 'trend indicator'],
+    [/\bdivergence\b/gi, 'mismatch'],
+    [/\bsurge[ds]?\b/gi, (m) => m.replace(/surge/i, 'rise')],
+    [/\bRs\.?\s*/g, 'NPR '],
+    [/₹\s*/g, 'NPR '],
+];
+
+function sanitizeText(text) {
+    if (typeof text !== 'string') return text;
+    let result = text;
+    for (const [pattern, replacement] of JARGON_REPLACEMENTS) {
+        result = result.replace(pattern, replacement);
+    }
+    // Format raw large numbers (6+ digits) into lakh/crore
+    result = result.replace(/(?:NPR\s*)?(\d{6,}(?:\.\d+)?)/g, (match, numStr) => {
+        const num = parseFloat(numStr);
+        const prefix = match.startsWith('NPR') ? 'NPR ' : '';
+        if (num >= 10000000) return `${prefix}${(num / 10000000).toFixed(2)} crore`;
+        if (num >= 100000) return `${prefix}${(num / 100000).toFixed(2)} lakh`;
+        return match;
+    });
+    return result;
+}
+
+function sanitizeNarrative(narrative) {
+    if (!narrative) return narrative;
+    return {
+        summary: sanitizeText(narrative.summary),
+        bullets: Array.isArray(narrative.bullets) ? narrative.bullets.map(b => sanitizeText(b)) : narrative.bullets,
+        outlook: sanitizeText(narrative.outlook),
+    };
+}
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
 function getConfig() {
     return {
         apiKey: process.env.GEMINI_API_KEY,
@@ -29,12 +92,23 @@ function getConfig() {
     };
 }
 
-/**
- * Build a fact sheet from stock data and metrics for the AI prompt
- * @param {Object} stock - Current stock data
- * @param {Object} metrics - Computed metrics
- * @returns {Object} factSheet
- */
+// ── Fact sheet & prompt builders ──────────────────────────────────────────────
+
+function fmtNPR(val) {
+    if (val == null || isNaN(val)) return 'N/A';
+    return `NPR ${Number(val).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function fmtLakh(val) {
+    if (val == null || isNaN(val)) return 'N/A';
+    const num = Number(val);
+    const sign = num < 0 ? '-' : '';
+    const abs = Math.abs(num);
+    if (abs >= 10000000) return `${sign}${(abs / 10000000).toFixed(2)} crore`;
+    if (abs >= 100000) return `${sign}${(abs / 100000).toFixed(2)} lakh`;
+    return `${sign}${abs.toLocaleString('en-IN')}`;
+}
+
 function buildFactSheet(stock, metrics) {
     return {
         symbol: stock.symbol,
@@ -44,131 +118,80 @@ function buildFactSheet(stock, metrics) {
         previousClose: stock.previousClose,
         change: stock.change,
         percentageChange: stock.percentageChange,
-        open: stock.openPrice,
-        high: stock.highPrice,
-        low: stock.lowPrice,
         volume: stock.volume,
         turnover: stock.turnover,
         priceMetrics: metrics?.priceMetrics || null,
         trendMetrics: metrics?.trendMetrics || null,
         momentumMetrics: metrics?.momentumMetrics || null,
-        liquidityMetrics: metrics?.liquidityMetrics || null,
-        relativeMetrics: metrics?.relativeMetrics || null,
-        fundamentals: metrics?.fundamentals || null,
-        patterns: metrics?.patterns || null,
         signals: metrics?.signals || []
     };
 }
 
-/**
- * Build the Gemini prompt for stock overview
- * @param {Object} factSheet - Stock fact sheet
- * @returns {string} prompt
- */
 function buildPrompt(factSheet) {
-    const signalsList = (factSheet.signals || [])
-        .map(s => `  - ${s.label} (${s.sentiment})`)
-        .join('\n');
+    let d = `Company: ${factSheet.companyName} (Symbol: ${factSheet.symbol}, Sector: ${factSheet.sector || 'N/A'})`;
+    d += `\nCurrent Price: ${fmtNPR(factSheet.ltp)} | Yesterday's Price: ${fmtNPR(factSheet.previousClose)} | Change: ${factSheet.change} (${factSheet.percentageChange}%)`;
+    d += `\nShares Traded Today: ${fmtLakh(factSheet.volume)} shares`;
+    if (factSheet.priceMetrics?.high52w) d += `\nHighest Price in Past Year: ${fmtNPR(factSheet.priceMetrics.high52w)} | Lowest: ${fmtNPR(factSheet.priceMetrics.low52w)}`;
+    if (factSheet.priceMetrics?.yearlyChange) d += `\nReturn Over Past Year: ${factSheet.priceMetrics.yearlyChange.toFixed(1)}%`;
+    if (factSheet.trendMetrics?.trend) d += `\nPrice Trend: ${factSheet.trendMetrics.trend}`;
+    if (factSheet.trendMetrics?.ma20) d += `\nAverage Price Last Month: ${fmtNPR(factSheet.trendMetrics.ma20)}`;
 
-    return `You are a NEPSE (Nepal Stock Exchange) market analyst. Given the following data for ${factSheet.symbol} (${factSheet.companyName}), write a brief, insightful overview.
+    return `You are explaining a NEPSE stock to a first-time investor who has never bought a share. Write in simple, plain English — like explaining to a friend.
 
-STOCK DATA:
-- Symbol: ${factSheet.symbol}
-- Company: ${factSheet.companyName}
-- Sector: ${factSheet.sector || 'N/A'}
-- LTP: Rs ${factSheet.ltp || 'N/A'}
-- Previous Close: Rs ${factSheet.previousClose || 'N/A'}
-- Change: ${factSheet.change || 0} (${factSheet.percentageChange || 0}%)
-- Open: Rs ${factSheet.open || 'N/A'} | High: Rs ${factSheet.high || 'N/A'} | Low: Rs ${factSheet.low || 'N/A'}
-- Volume: ${factSheet.volume || 0} | Turnover: Rs ${factSheet.turnover || 0}
+STRICT RULES — must follow all:
+- NEVER use jargon: no "52-week", "RSI", "MA20", "MACD", "bullish", "bearish", "resistance", "support", "consolidation", "overbought", "oversold", "volatility", "momentum", "sentiment", "rally", "correction"
+- Say "highest price in the past year" not "52-week high"
+- Explain trends plainly: "the price has been slowly rising" or "the price dropped a lot lately"
+- Use "NPR" before all prices with commas (e.g. NPR 1,250 not NPR1250) — this is Nepali Rupee
+- For share volumes use lakh/crore: say "9.36 lakh shares" not "936,347 shares"
+- summary: 2-3 friendly sentences — what the company does, how the price is moving
+- bullets: 3-4 simple things a beginner would care about
+- outlook: 1-2 plain sentences — stable, improving, or under pressure?
+- No buy/sell recommendations
 
-TECHNICAL METRICS:
-- 52W High: ${factSheet.priceMetrics?.high52w || 'N/A'} | 52W Low: ${factSheet.priceMetrics?.low52w || 'N/A'}
-- 52W % from High: ${factSheet.priceMetrics?.distFromHigh52w?.toFixed(1) ?? 'N/A'}% | from Low: ${factSheet.priceMetrics?.distFromLow52w?.toFixed(1) ?? 'N/A'}%
-- 1-Year Return: ${factSheet.priceMetrics?.yearlyChange?.toFixed(1) ?? 'N/A'}%
-- MA20: ${factSheet.trendMetrics?.ma20?.toFixed(2) || 'N/A'} | MA50: ${factSheet.trendMetrics?.ma50?.toFixed(2) || 'N/A'} | MA180: ${factSheet.trendMetrics?.ma180?.toFixed(2) || 'N/A'}
-- Price vs MA180: ${factSheet.trendMetrics?.priceVsMa180?.toFixed(1) ?? 'N/A'}%
-- Trend: ${factSheet.trendMetrics?.trend || 'N/A'}
-- RSI(14): ${factSheet.momentumMetrics?.rsi14?.toFixed(1) || 'N/A'} | RSI(7): ${factSheet.momentumMetrics?.rsi7?.toFixed(1) || 'N/A'}
-- ROC(10d): ${factSheet.momentumMetrics?.roc10d?.toFixed(2) || 'N/A'}% | ROC(30d): ${factSheet.momentumMetrics?.roc30d?.toFixed(2) || 'N/A'}%
-- Volume Ratio: ${factSheet.liquidityMetrics?.volumeRatio?.toFixed(2) || 'N/A'}x | Liquidity Score: ${factSheet.liquidityMetrics?.liquidityScore || 'N/A'}/100
-- Sector Rank: ${factSheet.relativeMetrics?.sectorRank || 'N/A'}/${factSheet.relativeMetrics?.sectorTotal || 'N/A'}
-- Market Rank: ${factSheet.relativeMetrics?.marketRank || 'N/A'}/${factSheet.relativeMetrics?.marketTotal || 'N/A'}
+${d}
 
-ACTIVE SIGNALS:
-${signalsList || '  (none)'}
-
-${factSheet.patterns?.postBonusAdjustment ? 'NOTE: This stock appears to be in post-bonus/rights adjustment. Do NOT interpret the price drop as bearish.\n' : ''}
-
-INSTRUCTIONS:
-1. Write a 2-3 sentence summary of the stock's current situation
-2. Provide 3-5 bullet points highlighting key observations
-3. Give a brief 1-2 sentence outlook/what to watch
-4. Be factual and data-driven. Do NOT give buy/sell recommendations.
-5. If post-bonus adjusted, explain that price decline reflects corporate action, not market weakness.
-
-Respond ONLY in valid JSON format:
-{
-  "summary": "...",
-  "bullets": ["...", "...", "..."],
-  "outlook": "..."
-}`;
+Respond with ONLY valid JSON — no markdown, no extra text:
+{"summary":"...","bullets":["...","...","..."],"outlook":"..."}`;
 }
 
-/**
- * Build prompt for market-level overview
- * @param {Object} marketMetrics - Aggregate market data
- * @param {Object} marketSummary - Latest market summary
- * @returns {string} prompt
- */
 function buildMarketPrompt(marketMetrics, marketSummary) {
-    const sectorSummary = (marketMetrics?.sectors || [])
-        .slice(0, 10)
-        .map(s => `  - ${s.name}: avg ${s.avgChange.toFixed(2)}%, ${s.advancing}↑ ${s.declining}↓`)
-        .join('\n');
+    const sectors = (marketMetrics?.sectors || []).slice(0, 8)
+        .map(s => `${s.name}: avg ${s.avgChange?.toFixed(2)}% change, ${s.advancing} stocks up, ${s.declining} stocks down`)
+        .join('; ');
+    const totalStocks = (marketMetrics?.advancing || 0) + (marketMetrics?.declining || 0) + (marketMetrics?.unchanged || 0);
 
-    return `You are a NEPSE (Nepal Stock Exchange) market analyst. Given today's market data, write a brief market overview.
+    return `You are explaining today's NEPSE stock market to someone completely new to investing. Write in simple, friendly language.
 
-MARKET DATA:
-- NEPSE Index: ${marketSummary?.indexValue || 'N/A'}
-- Index Change: ${marketSummary?.indexChange || 0} (${marketSummary?.indexChangePercent || 0}%)
-- Total Turnover: Rs ${marketSummary?.totalTurnover || 'N/A'}
-- Total Volume: ${marketSummary?.totalVolume || 'N/A'}
-- Transactions: ${marketSummary?.totalTransactions || 'N/A'}
-- Advancing: ${marketMetrics?.advancing || 0} | Declining: ${marketMetrics?.declining || 0} | Unchanged: ${marketMetrics?.unchanged || 0}
-- Breadth Ratio: ${((marketMetrics?.breadthRatio || 0) * 100).toFixed(1)}%
+Today's market data:
+- NEPSE Index: ${marketSummary?.indexValue || 'N/A'} (changed by ${marketSummary?.indexChange || 0} points, ${marketSummary?.indexChangePercent || 0}%)
+- Total money traded: NPR ${fmtLakh(marketSummary?.totalTurnover)}
+- Total shares traded: ${fmtLakh(marketSummary?.totalVolume)} shares
+- Total stocks traded: ${totalStocks}
+- Stocks that went up: ${marketMetrics?.advancing || 0} | Went down: ${marketMetrics?.declining || 0} | No change: ${marketMetrics?.unchanged || 0}
+- Sector breakdown: ${sectors}
 
-SECTOR PERFORMANCE:
-${sectorSummary || '  (unavailable)'}
+STRICT RULES — must follow all:
+- NEVER use jargon: no "bullish", "bearish", "resistance", "support", "consolidation", "volatility", "momentum", "sentiment", "rally", "correction", "overbought", "oversold"
+- Explain what the index movement means simply (e.g. "the overall market rose slightly today")
+- Say "more stocks went up than down" or vice versa
+- Mention 1-2 sectors that stood out in simple language
+- Always write money amounts with NPR and use lakh/crore (e.g., NPR 62.34 crore, not NPR 623438148)
+- summary: 2-3 plain sentences about what happened in the market today
+- bullets: 3-4 simple highlights a beginner would understand
+- outlook: 1-2 plain sentences about what the current state suggests
 
-INSTRUCTIONS:
-1. Write a 2-3 sentence summary of today's market
-2. Provide 3-5 bullet points on key observations
-3. Give a 1-2 sentence outlook
-4. Be factual. No buy/sell advice.
-
-Respond ONLY in valid JSON format:
-{
-  "summary": "...",
-  "bullets": ["...", "...", "..."],
-  "outlook": "..."
-}`;
+Respond with ONLY valid JSON — no markdown, no extra text:
+{"summary":"...","bullets":["...","...","..."],"outlook":"..."}`;
 }
 
-/**
- * Call Gemini API
- * @param {string} prompt - The prompt text
- * @param {string} model - Model name
- * @param {string} apiKey - API key
- * @returns {Object} { text, tokenCount, model }
- */
+// ── Gemini API caller ─────────────────────────────────────────────────────────
+
 async function callGemini(prompt, model, apiKey) {
     const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`;
 
     const body = {
-        contents: [{
-            parts: [{ text: prompt }]
-        }],
+        contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
             temperature: 0.4,
             topP: 0.8,
@@ -184,205 +207,250 @@ async function callGemini(prompt, model, apiKey) {
     });
 
     if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Gemini API ${response.status}: ${errorText.slice(0, 200)}`);
+        const err = new Error(`Gemini API ${response.status}`);
+        err.status = response.status;
+        throw err;
     }
 
     const data = await response.json();
-
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-        throw new Error('Empty response from Gemini');
-    }
+    if (!text) throw new Error('Empty response from Gemini');
 
-    const tokenCount = data?.usageMetadata?.totalTokenCount || 0;
-
-    return { text, tokenCount, model };
+    return { text, tokenCount: data?.usageMetadata?.totalTokenCount || 0, model };
 }
 
-/**
- * Generate AI overview for a single stock
- * @param {string} symbol - Stock symbol
- * @param {string} triggeredBy - "scheduler" | "manual" | "startup"
- * @returns {Object|null} Generated overview or null
- */
-async function generateForSymbol(symbol, triggeredBy = 'manual') {
+function extractJSON(text) {
+    try { return JSON.parse(text); } catch {}
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) try { return JSON.parse(m[0]); } catch {}
+    return null;
+}
+
+// ── Save overview (with sanitization) ─────────────────────────────────────────
+
+async function saveOverview(symbol, rawNarrative, factSheet, model, tokenCount, type = 'stock', triggeredBy = 'scheduler') {
+    const narrative = sanitizeNarrative(rawNarrative);
+    narrative.generatedAt = new Date().toISOString();
+
+    return prisma.aIOverview.upsert({
+        where: { symbol_type: { symbol: symbol.toUpperCase(), type } },
+        update: {
+            context: JSON.stringify(factSheet),
+            narrative: JSON.stringify(narrative),
+            modelVersion: model,
+            tokenCount: Math.round(tokenCount),
+            triggeredBy,
+            updatedAt: new Date()
+        },
+        create: {
+            symbol: symbol.toUpperCase(),
+            type,
+            context: JSON.stringify(factSheet),
+            narrative: JSON.stringify(narrative),
+            modelVersion: model,
+            tokenCount: Math.round(tokenCount),
+            triggeredBy
+        }
+    });
+}
+
+// ── Generate for a single stock ───────────────────────────────────────────────
+
+async function generateForSymbol(symbol, triggeredBy = 'scheduler') {
     const config = getConfig();
+    if (!config.apiKey) return null;
 
-    if (!config.apiKey) {
-        logger.warn('GEMINI_API_KEY not set — skipping AI overview generation');
-        return null;
-    }
+    const stock = await prisma.stock.findUnique({ where: { symbol: symbol.toUpperCase() } });
+    if (!stock || !stock.lastTradedPrice) return null;
 
+    const metrics = await metricsOrchestrator.getMetrics(symbol);
+    const factSheet = buildFactSheet(stock, metrics);
+    const prompt = buildPrompt(factSheet);
+
+    // Try primary, then fallback
+    let result;
     try {
-        // Check cooldown
-        const existing = await prisma.aIOverview.findUnique({
-            where: { symbol_type: { symbol: symbol.toUpperCase(), type: 'stock' } }
-        });
-
-        if (existing && triggeredBy !== 'startup') {
-            const cooldownMs = config.cooldownMinutes * 60 * 1000;
-            const elapsed = Date.now() - new Date(existing.updatedAt).getTime();
-            if (elapsed < cooldownMs) {
-                logger.debug(`Skipping AI for ${symbol}: cooldown (${Math.round((cooldownMs - elapsed) / 60000)}min remaining)`);
-                return existing;
-            }
-        }
-
-        // Get stock data
-        const stock = await prisma.stock.findUnique({
-            where: { symbol: symbol.toUpperCase() }
-        });
-        if (!stock || !stock.lastTradedPrice) return null;
-
-        // Get metrics
-        const metrics = await metricsOrchestrator.getMetrics(symbol);
-        const factSheet = buildFactSheet(stock, metrics);
-        const prompt = buildPrompt(factSheet);
-
-        // Try primary model, then fallback
-        let result;
+        result = await callGemini(prompt, config.model, config.apiKey);
+    } catch (primaryErr) {
+        if (primaryErr.status === 429) throw primaryErr; // let caller handle rate limits
         try {
-            result = await callGemini(prompt, config.model, config.apiKey);
-        } catch (primaryErr) {
-            logger.warn(`Primary model (${config.model}) failed for ${symbol}: ${primaryErr.message}. Trying fallback...`);
-            try {
-                result = await callGemini(prompt, config.fallbackModel, config.apiKey);
-            } catch (fallbackErr) {
-                logger.error(`Fallback model also failed for ${symbol}: ${fallbackErr.message}`);
-                return null;
-            }
+            result = await callGemini(prompt, config.fallbackModel, config.apiKey);
+        } catch (fallbackErr) {
+            if (fallbackErr.status === 429) throw fallbackErr;
+            return null;
         }
-
-        // Parse the JSON response
-        let narrative;
-        try {
-            narrative = JSON.parse(result.text);
-        } catch {
-            // Try to extract JSON from the text
-            const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                narrative = JSON.parse(jsonMatch[0]);
-            } else {
-                logger.error(`Failed to parse Gemini response for ${symbol}`);
-                return null;
-            }
-        }
-
-        narrative.generatedAt = new Date().toISOString();
-
-        // Upsert to database
-        const overview = await prisma.aIOverview.upsert({
-            where: { symbol_type: { symbol: symbol.toUpperCase(), type: 'stock' } },
-            update: {
-                context: JSON.stringify(factSheet),
-                narrative: JSON.stringify(narrative),
-                modelVersion: result.model,
-                tokenCount: result.tokenCount,
-                triggeredBy,
-                updatedAt: new Date()
-            },
-            create: {
-                symbol: symbol.toUpperCase(),
-                type: 'stock',
-                context: JSON.stringify(factSheet),
-                narrative: JSON.stringify(narrative),
-                modelVersion: result.model,
-                tokenCount: result.tokenCount,
-                triggeredBy
-            }
-        });
-
-        logger.info(`AI overview generated for ${symbol} (${result.tokenCount} tokens, model: ${result.model})`);
-        return overview;
-    } catch (error) {
-        logger.error(`AI overview generation failed for ${symbol}: ${error.message}`);
-        return null;
     }
+
+    const parsed = extractJSON(result.text);
+    if (!parsed?.summary) return null;
+
+    await saveOverview(symbol, parsed, factSheet, result.model, result.tokenCount, 'stock', triggeredBy);
+    return parsed;
 }
 
+// ── Autonomous batch generation with rate limit handling ──────────────────────
+
 /**
- * Generate AI overviews for all active stocks
- * @param {string} triggeredBy - "scheduler" | "startup"
- * @returns {Object} { generated, skipped, failed, total }
+ * Generate AI overviews for all stocks, processing in chunks.
+ * Handles rate limits by backing off/stopping when quota is exhausted.
+ * Called by the scheduler after market close.
  */
 async function generateAll(triggeredBy = 'scheduler') {
     const config = getConfig();
-
     if (!config.apiKey) {
-        logger.warn('GEMINI_API_KEY not set — skipping AI overview generation');
-        return { generated: 0, skipped: 0, failed: 0, total: 0 };
+        logger.info('[AI] No GEMINI_API_KEY set — skipping AI generation');
+        return generationStats;
     }
 
-    const startTime = Date.now();
-    logger.info(`Starting AI overview generation for all stocks (triggeredBy: ${triggeredBy})...`);
-
-    const allStocks = await prisma.stock.findMany({
-        where: { lastTradedPrice: { gt: 0 } },
-        select: { symbol: true },
-        orderBy: { symbol: 'asc' }
-    });
-
-    let generated = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    for (const stock of allStocks) {
-        try {
-            const result = await generateForSymbol(stock.symbol, triggeredBy);
-            if (result) {
-                generated++;
-            } else {
-                skipped++;
-            }
-        } catch (error) {
-            logger.error(`AI generation error for ${stock.symbol}: ${error.message}`);
-            failed++;
-        }
-
-        // 500ms delay between calls
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CALLS));
+    if (isGenerating) {
+        logger.info('[AI] Generation already in progress — skipping');
+        return generationStats;
     }
 
-    const duration = Date.now() - startTime;
-    logger.info(`AI generation completed: ${generated} generated, ${skipped} skipped, ${failed} failed out of ${allStocks.length} in ${duration}ms`);
-
-    return { generated, skipped, failed, total: allStocks.length, duration };
-}
-
-/**
- * Generate market-level AI overview
- * @param {string} triggeredBy - "scheduler" | "startup"
- * @returns {Object|null} Generated market overview or null
- */
-async function generateMarketOverview(triggeredBy = 'scheduler') {
-    const config = getConfig();
-
-    if (!config.apiKey) {
-        logger.warn('GEMINI_API_KEY not set — skipping market overview generation');
-        return null;
-    }
+    isGenerating = true;
+    generationStats = { lastRun: new Date(), generated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
 
     try {
-        // Check cooldown
+        // Get stocks that need overviews (stale > 20 hours or missing)
+        const staleThreshold = new Date(Date.now() - 20 * 60 * 60 * 1000);
+
+        const allStocks = await prisma.stock.findMany({
+            where: { lastTradedPrice: { gt: 0 } },
+            select: { symbol: true },
+            orderBy: { symbol: 'asc' }
+        });
+
+        const existingOverviews = await prisma.aIOverview.findMany({
+            where: { type: 'stock' },
+            select: { symbol: true, updatedAt: true }
+        });
+
+        const overviewMap = new Map(existingOverviews.map(o => [o.symbol, o.updatedAt]));
+
+        // Filter to stocks needing refresh
+        const needsRefresh = allStocks.filter(s => {
+            const lastUpdated = overviewMap.get(s.symbol);
+            return !lastUpdated || lastUpdated < staleThreshold;
+        });
+
+        generationStats.total = needsRefresh.length;
+        generationStats.skipped = allStocks.length - needsRefresh.length;
+
+        if (needsRefresh.length === 0) {
+            logger.info('[AI] All overviews are fresh — nothing to generate');
+            return generationStats;
+        }
+
+        logger.info(`[AI] Starting generation: ${needsRefresh.length} stocks need refresh (${generationStats.skipped} already fresh)`);
+
+        let consecutive429 = 0;
+
+        // Process in chunks
+        for (let i = 0; i < needsRefresh.length; i += CHUNK_SIZE) {
+            if (!isGenerating) break; // allow external stop
+
+            const chunk = needsRefresh.slice(i, i + CHUNK_SIZE);
+            logger.info(`[AI] Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(needsRefresh.length / CHUNK_SIZE)} (${chunk.length} stocks)`);
+
+            for (const stock of chunk) {
+                if (!isGenerating) break;
+
+                try {
+                    const result = await generateForSymbol(stock.symbol, triggeredBy);
+                    if (result) {
+                        generationStats.generated++;
+                        consecutive429 = 0;
+                        logger.debug(`[AI] ✓ ${stock.symbol}`);
+                    } else {
+                        generationStats.failed++;
+                    }
+                } catch (err) {
+                    if (err.status === 429) {
+                        consecutive429++;
+                        logger.warn(`[AI] Rate limited (429) on ${stock.symbol} — consecutive: ${consecutive429}`);
+
+                        if (consecutive429 >= MAX_CONSECUTIVE_429) {
+                            logger.warn(`[AI] Daily quota likely exhausted after ${consecutive429} consecutive 429s. Stopping.`);
+                            generationStats.quotaExhausted = true;
+                            isGenerating = false;
+                            break;
+                        }
+
+                        // Back off and retry this stock
+                        logger.info(`[AI] Backing off ${BACKOFF_ON_429 / 1000}s before retry...`);
+                        await new Promise(r => setTimeout(r, BACKOFF_ON_429));
+
+                        try {
+                            const retryResult = await generateForSymbol(stock.symbol, triggeredBy);
+                            if (retryResult) {
+                                generationStats.generated++;
+                                consecutive429 = 0;
+                            } else {
+                                generationStats.failed++;
+                            }
+                        } catch (retryErr) {
+                            if (retryErr.status === 429) {
+                                consecutive429++;
+                                if (consecutive429 >= MAX_CONSECUTIVE_429) {
+                                    logger.warn('[AI] Daily quota exhausted after retry. Stopping.');
+                                    generationStats.quotaExhausted = true;
+                                    isGenerating = false;
+                                    break;
+                                }
+                            }
+                            generationStats.failed++;
+                        }
+                    } else {
+                        generationStats.failed++;
+                        logger.error(`[AI] Error for ${stock.symbol}: ${err.message}`);
+                    }
+                }
+
+                // delay between calls
+                await new Promise(r => setTimeout(r, DELAY_BETWEEN_CALLS));
+            }
+
+            // Pause between chunks (unless last chunk or stopped)
+            if (isGenerating && i + CHUNK_SIZE < needsRefresh.length) {
+                logger.info(`[AI] Chunk done. Pausing ${CHUNK_DELAY / 1000}s before next chunk...`);
+                await new Promise(r => setTimeout(r, CHUNK_DELAY));
+            }
+        }
+
+        logger.info(`[AI] Generation complete: ${generationStats.generated} generated, ${generationStats.failed} failed, ${generationStats.skipped} already fresh${generationStats.quotaExhausted ? ' (quota exhausted)' : ''}`);
+
+    } catch (error) {
+        logger.error(`[AI] Generation batch error: ${error.message}`);
+    } finally {
+        isGenerating = false;
+    }
+
+    return generationStats;
+}
+
+// ── Generate market overview ──────────────────────────────────────────────────
+
+async function generateMarketOverview(triggeredBy = 'scheduler') {
+    const config = getConfig();
+    if (!config.apiKey) return null;
+
+    try {
+        // Check cooldown (don't regenerate if updated within last 30 min)
         const existing = await prisma.aIOverview.findUnique({
             where: { symbol_type: { symbol: 'MARKET', type: 'market' } }
         });
 
-        if (existing && triggeredBy !== 'startup') {
+        if (existing) {
             const cooldownMs = config.cooldownMinutes * 60 * 1000;
             const elapsed = Date.now() - new Date(existing.updatedAt).getTime();
             if (elapsed < cooldownMs) {
+                logger.debug('[AI] Market overview still fresh, skipping');
                 return existing;
             }
         }
 
-        // Get market data
         const marketMetrics = await metricsOrchestrator.getMarketMetrics();
-        const marketSummary = await prisma.marketSummary.findFirst({
-            orderBy: { timestamp: 'desc' }
-        });
-
+        const marketSummary = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
         if (!marketSummary) return null;
 
         const prompt = buildMarketPrompt(marketMetrics, marketSummary);
@@ -391,73 +459,41 @@ async function generateMarketOverview(triggeredBy = 'scheduler') {
         try {
             result = await callGemini(prompt, config.model, config.apiKey);
         } catch (primaryErr) {
-            logger.warn(`Primary model failed for market overview: ${primaryErr.message}. Trying fallback...`);
+            if (primaryErr.status === 429) {
+                logger.warn('[AI] Rate limited on market overview — skipping');
+                return null;
+            }
             try {
                 result = await callGemini(prompt, config.fallbackModel, config.apiKey);
             } catch (fallbackErr) {
-                logger.error(`Fallback model also failed for market overview: ${fallbackErr.message}`);
+                logger.error(`[AI] Market overview generation failed: ${fallbackErr.message}`);
                 return null;
             }
         }
 
-        let narrative;
-        try {
-            narrative = JSON.parse(result.text);
-        } catch {
-            const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                narrative = JSON.parse(jsonMatch[0]);
-            } else {
-                logger.error('Failed to parse Gemini market overview response');
-                return null;
-            }
+        const parsed = extractJSON(result.text);
+        if (!parsed?.summary) {
+            logger.error('[AI] Failed to parse market overview response');
+            return null;
         }
 
-        narrative.generatedAt = new Date().toISOString();
+        await saveOverview('MARKET', parsed, { marketMetrics, marketSummary }, result.model, result.tokenCount, 'market', triggeredBy);
+        logger.info(`[AI] Market overview generated (${result.tokenCount} tokens, ${result.model})`);
+        return parsed;
 
-        const context = { marketMetrics, marketSummary };
-
-        const overview = await prisma.aIOverview.upsert({
-            where: { symbol_type: { symbol: 'MARKET', type: 'market' } },
-            update: {
-                context: JSON.stringify(context),
-                narrative: JSON.stringify(narrative),
-                modelVersion: result.model,
-                tokenCount: result.tokenCount,
-                triggeredBy,
-                updatedAt: new Date()
-            },
-            create: {
-                symbol: 'MARKET',
-                type: 'market',
-                context: JSON.stringify(context),
-                narrative: JSON.stringify(narrative),
-                modelVersion: result.model,
-                tokenCount: result.tokenCount,
-                triggeredBy
-            }
-        });
-
-        logger.info(`Market overview generated (${result.tokenCount} tokens, model: ${result.model})`);
-        return overview;
     } catch (error) {
-        logger.error(`Market overview generation failed: ${error.message}`);
+        logger.error(`[AI] Market overview error: ${error.message}`);
         return null;
     }
 }
 
-/**
- * Get stored AI overview for a symbol
- * @param {string} symbol - Stock symbol or 'MARKET'
- * @param {string} type - 'stock' or 'market'
- * @returns {Object|null} Parsed overview
- */
+// ── Read stored overview ──────────────────────────────────────────────────────
+
 async function getOverview(symbol, type = 'stock') {
     try {
         const overview = await prisma.aIOverview.findUnique({
             where: { symbol_type: { symbol: symbol.toUpperCase(), type } }
         });
-
         if (!overview) return null;
 
         return {
@@ -481,11 +517,24 @@ function safeJsonParse(str) {
     try { return JSON.parse(str); } catch { return null; }
 }
 
+// ── Status ────────────────────────────────────────────────────────────────────
+
+function getGenerationStatus() {
+    return { isGenerating, ...generationStats };
+}
+
+function stopGeneration() {
+    isGenerating = false;
+    logger.info('[AI] Generation stopped by request');
+}
+
 module.exports = {
     generateForSymbol,
     generateAll,
     generateMarketOverview,
     getOverview,
+    getGenerationStatus,
+    stopGeneration,
     buildFactSheet,
     buildPrompt,
     buildMarketPrompt

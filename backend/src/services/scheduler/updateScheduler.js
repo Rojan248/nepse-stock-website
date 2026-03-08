@@ -8,6 +8,7 @@ const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSy
 const watchdogService = require('../watchdog/WatchdogService');
 const alertChecker = require('../alertChecker');
 const metricsOrchestrator = require('../metrics/metricsOrchestrator');
+const aiOverviewService = require('../aiOverviewService');
 
 /**
  * Update Scheduler
@@ -194,8 +195,27 @@ const setupCronJobs = () => {
         await marketOperations.cleanOldSummaries(30);
     });
 
-    // AI Overview generation is triggered manually via batch scripts, not automatically.
-    // To regenerate, run: node scripts/batch-ai-autonomous.js --force
+    // AI Overview: Regenerate market overview after market close (15:15 NST, Sun-Thu)
+    schedule.scheduleJob('15 15 * * 0-4', async () => {
+        logger.info('[Scheduler] Generating market overview after market close...');
+        try {
+            await aiOverviewService.generateMarketOverview('scheduler');
+        } catch (e) {
+            logger.error(`[Scheduler] Market overview generation failed: ${e.message}`);
+        }
+    });
+
+    // AI Overview: Regenerate all stock overviews daily (15:30 NST, Sun-Thu)
+    // Processes in chunks with rate-limit awareness to stay within free-tier quotas
+    schedule.scheduleJob('30 15 * * 0-4', async () => {
+        logger.info('[Scheduler] Starting daily AI stock overview generation...');
+        try {
+            const stats = await aiOverviewService.generateAll('scheduler');
+            logger.info(`[Scheduler] AI generation done: ${stats.generated} generated, ${stats.failed} failed, ${stats.skipped} fresh${stats.quotaExhausted ? ' (quota exhausted — will resume tomorrow)' : ''}`);
+        } catch (e) {
+            logger.error(`[Scheduler] AI stock overview generation failed: ${e.message}`);
+        }
+    });
 
     // Watchdog (Every 10 minutes)
     schedule.scheduleJob('*/10 * * * *', async () => {
@@ -277,7 +297,8 @@ const getUpdateStatus = () => ({
         open: `${MARKET_OPEN_HOUR}:${MARKET_OPEN_MINUTE.toString().padStart(2, '0')}`,
         close: `${MARKET_CLOSE_HOUR}:${MARKET_CLOSE_MINUTE.toString().padStart(2, '0')}`
     },
-    dataSource: dataFetcher.getDataSource()
+    dataSource: dataFetcher.getDataSource(),
+    aiGeneration: aiOverviewService.getGenerationStatus()
 });
 
 /**
