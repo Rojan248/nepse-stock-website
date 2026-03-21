@@ -13,6 +13,7 @@ import SearchBar from '../components/SearchBar';
 import MarketSummarySection from '../components/MarketSummarySection';
 import StocksToolbar from '../components/StocksToolbar';
 import MarketNarrativeBanner from '../components/MarketNarrativeBanner';
+import AIPicks from '../components/AIPicks';
 import { useMarketData, useStockData } from '../hooks/useHomePageData';
 import { useMarketBreadth, useFilteredStocks } from '../hooks/useFilters';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -126,6 +127,8 @@ function HomePage({ globalSearch }) {
             </div>
 
             <TrendingBar />
+
+            <AIPicks />
 
             <section ref={stocksRef} className={`stocks-section scroll-fade ${stocksVisible ? 'visible' : ''}`}>
                 <StocksToolbar

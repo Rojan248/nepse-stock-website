@@ -22,7 +22,7 @@ export const formatPrice = (number) => {
  */
 export const formatPercent = (number) => {
     if (number === null || number === undefined) return '0.00%';
-    if (number === 0) return '+0.00%';
+    if (number === 0) return '0.00%';
     const sign = number >= 0 ? '+' : '';
     return `${sign}${parseFloat(number).toFixed(2)}%`;
 };

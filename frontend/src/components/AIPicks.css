@@ -1,0 +1,268 @@
+/* ── AI Stock Picks Section ── */
+
+.ai-picks-section {
+    margin: 24px 0;
+}
+
+.ai-picks-header {
+    margin-bottom: 16px;
+}
+
+.ai-picks-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.ai-picks-title h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.sparkle-icon {
+    color: #f59e0b;
+    animation: sparkle-pulse 2s ease-in-out infinite;
+}
+
+@keyframes sparkle-pulse {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+.ai-badge {
+    font-size: 0.675rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.ai-picks-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0;
+}
+
+/* ── Card Grid ── */
+
+.ai-picks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+/* ── Individual Pick Card ── */
+
+.ai-pick-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ai-pick-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.ai-pick-card:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* ── Header Row ── */
+
+.pick-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.pick-symbol-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pick-symbol {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.01em;
+}
+
+.pick-sector {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+/* ── Score Badge ── */
+
+.pick-score {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+    line-height: 1;
+}
+
+.score-strong {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #15803d;
+}
+
+.score-good {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1d4ed8;
+}
+
+.score-moderate {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #b45309;
+}
+
+.score-neutral {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* ── Company Name ── */
+
+.pick-name {
+    font-size: 0.8rem;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Price Row ── */
+
+.pick-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.pick-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.02em;
+}
+
+.pick-change {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.pick-change.positive {
+    color: #16a34a;
+}
+
+.pick-change.negative {
+    color: #dc2626;
+}
+
+/* ── Reasons ── */
+
+.pick-reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.pick-reason {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.reason-icon {
+    color: #f59e0b;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* ── CTA ── */
+
+.pick-cta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #3b82f6;
+    margin-top: 4px;
+    transition: gap 0.2s ease;
+}
+
+.ai-pick-card:hover .pick-cta {
+    gap: 8px;
+}
+
+/* ── Disclaimer ── */
+
+.ai-picks-disclaimer {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 12px;
+    font-style: italic;
+}
+
+/* ── Skeleton Cards ── */
+
+.skeleton-card {
+    pointer-events: none;
+    animation: skeleton-shimmer 1.5s infinite;
+}
+
+.skeleton-line {
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-line.wide { width: 80%; margin-bottom: 10px; }
+.skeleton-line.medium { width: 60%; margin-bottom: 8px; }
+.skeleton-line.narrow { width: 40%; }
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 640px) {
+    .ai-picks-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-picks-title h2 {
+        font-size: 1.1rem;
+    }
+}

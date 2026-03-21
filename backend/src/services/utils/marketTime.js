@@ -10,6 +10,7 @@
 
 const axios = require('axios');
 const logger = require('./logger');
+const { isNepseHoliday, getTodayNepseDate } = require('./nepseHolidays');
 
 // Store the difference between correct UTC time and system time
 // offset = CorrectUTC - SystemUTC
@@ -262,6 +263,7 @@ const MARKET_STATES = {
     OPEN: 'OPEN',
     CLOSED_TODAY: 'CLOSED_TODAY',
     WEEKEND: 'WEEKEND',
+    HOLIDAY: 'HOLIDAY',
     PRE_OPEN: 'PRE_OPEN',
     POST_CLOSE: 'POST_CLOSE'
 };
@@ -276,6 +278,11 @@ const getMarketState = () => {
     // Nepal market is closed on Friday (5) and Saturday (6)
     if (day === 5 || day === 6) {
         return MARKET_STATES.WEEKEND;
+    }
+
+    // Check public holidays
+    if (isNepseHoliday(getTodayNepseDate())) {
+        return MARKET_STATES.HOLIDAY;
     }
 
     const currentMinutes = hour * 60 + minute;

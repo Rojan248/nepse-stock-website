@@ -20,8 +20,8 @@ const resolveChange = (stock) => stock.change || stock.prices?.change || 0;
 
 /** Table-driven status predicates */
 const STATUS_PREDICATES = {
-    advanced:  (stock) => resolveChange(stock) > 0,
-    declined:  (stock) => resolveChange(stock) < 0,
+    advanced: (stock) => resolveChange(stock) > 0,
+    declined: (stock) => resolveChange(stock) < 0,
     unchanged: (stock) => resolveChange(stock) === 0,
 };
 
@@ -43,10 +43,10 @@ const normalizeSearch = (q) => (q ? q.toLowerCase().trim() : '');
 
 /** Table-driven filter pipeline — each entry is skipped when inactive */
 const FILTER_PIPELINE = [
-    { active: (f) => f.selectedSector !== 'all',     apply: (s, f) => matchesSector(s, f.selectedSector) },
-    { active: (f) => f.statusFilter !== 'all',       apply: (s, f) => matchesStatus(s, f.statusFilter) },
+    { active: (f) => f.selectedSector !== 'all', apply: (s, f) => matchesSector(s, f.selectedSector) },
+    { active: (f) => f.statusFilter !== 'all', apply: (s, f) => matchesStatus(s, f.statusFilter) },
     { active: (f) => !!normalizeSearch(f.globalSearch), apply: (s, f) => matchesSearch(s, normalizeSearch(f.globalSearch)) },
-    { active: (f) => f.showFavoritesOnly,            apply: (s, f) => f.favorites.includes(s.symbol) },
+    { active: (f) => f.showFavoritesOnly, apply: (s, f) => f.favorites.includes(s.symbol) },
 ];
 
 /** Apply all active filters to a stock list */
@@ -56,7 +56,7 @@ function applyFilters(stocks, filters) {
 }
 
 /** Get stock's change percent, resolving nested shapes */
-const getChangePercent = (stock) => stock.changePercent || stock.prices?.changePercent || 0;
+const getChangePercent = (stock) => stock.percentageChange ?? stock.changePercent ?? stock.prices?.changePercent ?? 0;
 
 /** Try to resolve breadth counts from the API summary */
 const resolveBreadthFromApi = (marketSummary) => ({

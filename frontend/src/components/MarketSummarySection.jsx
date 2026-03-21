@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import SummaryCard from './SummaryCard';
 import MarketBreadthCard from './MarketBreadthCard';
 import { formatNumber } from '../utils/formatting';
@@ -11,17 +11,26 @@ function formatTurnoverDisplay(raw) {
     return { value: (raw / 100000).toFixed(2), unit: 'L' };
 }
 
+/** Resolve the index change percent for the selected timeframe */
+function resolveIndexChange(marketSummary, timeframe) {
+    if (timeframe === '1D') {
+        return Number.isFinite(marketSummary?.indexChangePercent) ? marketSummary.indexChangePercent : undefined;
+    }
+    return marketSummary?.cumulative?.[timeframe] ?? undefined;
+}
+
 /** Market summary cards section */
 export default function MarketSummarySection({ marketSummary, marketStats, statusFilter, onStatusChange }) {
+    const [indexTimeframe, setIndexTimeframe] = useState('1D');
+
     const turnoverRaw = marketSummary?.totalTurnover ?? 0;
     const turnover = formatTurnoverDisplay(turnoverRaw);
 
     const indexValueDisplay = Number.isFinite(marketSummary?.indexValue)
         ? marketSummary.indexValue.toFixed(2)
         : '--';
-    const indexChangePercent = Number.isFinite(marketSummary?.indexChangePercent)
-        ? marketSummary.indexChangePercent
-        : undefined;
+
+    const indexChangePercent = resolveIndexChange(marketSummary, indexTimeframe);
 
     return (
         <section className="market-overview">
@@ -34,6 +43,9 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
                     value={indexValueDisplay}
                     change={indexChangePercent}
                     valueKey="nepse-index"
+                    timeframes={['1D', '1W', '1M']}
+                    selectedTimeframe={indexTimeframe}
+                    onTimeframeChange={setIndexTimeframe}
                 />
                 <div className="summary-card">
                     <div className="summary-label">TURNOVER</div>

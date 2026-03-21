@@ -34,9 +34,16 @@ function formatLargeNumber(n) {
     return Math.round(n).toLocaleString();
 }
 
+/** Format a signed percent value, e.g. "+2.50%" or "-1.30%" */
+const formatSignedPercent = (v, decimals = 2) =>
+    v == null ? null : `${v > 0 ? '+' : ''}${v.toFixed(decimals)}%`;
+
+/** Map a numeric value to a bullish/bearish CSS class */
+const trendClass = (v) => v > 0 ? 'trend-bullish' : v < 0 ? 'trend-bearish' : '';
+
 /** Format a price-vs-MA sub-label */
 const maSubLabel = (pctValue) =>
-    pctValue != null ? `${pctValue > 0 ? '+' : ''}${pctValue.toFixed(1)}%` : null;
+    formatSignedPercent(pctValue, 1);
 
 function SectorRankingSection({ rm, sector }) {
     if (!rm || (rm.sectorRank == null && rm.marketRank == null)) return null;
@@ -56,8 +63,8 @@ function SectorRankingSection({ rm, sector }) {
                 {rm.vsSectorAvg != null && (
                     <MetricItem
                         label="vs Sector Avg"
-                        value={`${rm.vsSectorAvg > 0 ? '+' : ''}${rm.vsSectorAvg.toFixed(2)}%`}
-                        cls={rm.vsSectorAvg > 0 ? 'trend-bullish' : rm.vsSectorAvg < 0 ? 'trend-bearish' : ''}
+                        value={formatSignedPercent(rm.vsSectorAvg)}
+                        cls={trendClass(rm.vsSectorAvg)}
                     />
                 )}
             </div>
@@ -117,8 +124,8 @@ function MomentumSection({ mm }) {
                         cls={mm.rsiZone === 'overbought' ? 'overbought' : mm.rsiZone === 'oversold' ? 'oversold' : ''} />
                 )}
                 {mm.rsi7 != null && <MetricItem label="RSI (7)" value={mm.rsi7.toFixed(1)} />}
-                {mm.roc10d != null && <MetricItem label="ROC 10d" value={`${mm.roc10d > 0 ? '+' : ''}${mm.roc10d.toFixed(2)}%`} />}
-                {mm.roc30d != null && <MetricItem label="ROC 30d" value={`${mm.roc30d > 0 ? '+' : ''}${mm.roc30d.toFixed(2)}%`} />}
+                {mm.roc10d != null && <MetricItem label="ROC 10d" value={formatSignedPercent(mm.roc10d)} />}
+                {mm.roc30d != null && <MetricItem label="ROC 30d" value={formatSignedPercent(mm.roc30d)} />}
             </div>
         </div>
     );
@@ -132,8 +139,8 @@ function WeekRangeSection({ pm }) {
             <div className="metrics-panel__grid">
                 {pm.high52w && <MetricItem label="52W High" value={fmt(pm.high52w)} cls="high" />}
                 {pm.low52w && <MetricItem label="52W Low" value={fmt(pm.low52w)} cls="low" />}
-                {pm.weeklyChange != null && <MetricItem label="Week Δ" value={`${pm.weeklyChange > 0 ? '+' : ''}${pm.weeklyChange.toFixed(2)}%`} />}
-                {pm.monthlyChange != null && <MetricItem label="Month Δ" value={`${pm.monthlyChange > 0 ? '+' : ''}${pm.monthlyChange.toFixed(2)}%`} />}
+                {pm.weeklyChange != null && <MetricItem label="Week Δ" value={formatSignedPercent(pm.weeklyChange)} />}
+                {pm.monthlyChange != null && <MetricItem label="Month Δ" value={formatSignedPercent(pm.monthlyChange)} />}
             </div>
         </div>
     );

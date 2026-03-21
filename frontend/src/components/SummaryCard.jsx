@@ -57,21 +57,24 @@ function ChangeBadge({ change }) {
 /**
  * SummaryCard Component with live update animations
  */
-function SummaryCard({ 
-    label, 
-    value, 
-    change, 
-    format = 'text', 
+function SummaryCard({
+    label,
+    value,
+    change,
+    format = 'text',
     icon = null,
     isPolling = false,
-    valueKey = ''
+    valueKey = '',
+    timeframes = null,
+    selectedTimeframe = null,
+    onTimeframeChange = null
 }) {
     const [isUpdated, setIsUpdated] = useState(false);
     const [direction, setDirection] = useState(null);
     const [refreshPulse, setRefreshPulse] = useState(false);
     const previousValueRef = useRef(value);
     const isFirstRender = useRef(true);
-    
+
     // Trigger refresh pulse when isPolling changes from true to false (data loaded)
     useEffect(() => {
         if (didFinishPolling(isPolling, isFirstRender.current)) {
@@ -81,35 +84,54 @@ function SummaryCard({
         }
         isFirstRender.current = false;
     }, [isPolling]);
-    
+
     // Detect value changes and trigger animation
     useEffect(() => {
         const prevValue = previousValueRef.current;
-        
+
         if (hasValueChanged(prevValue, value, isFirstRender.current)) {
             setDirection(computeDirection(prevValue, value));
             setIsUpdated(true);
-            
+
             const timer = setTimeout(() => {
                 setIsUpdated(false);
                 setDirection(null);
             }, ANIMATION_DURATION);
-            
+
             previousValueRef.current = value;
             return () => clearTimeout(timer);
         }
-        
+
         previousValueRef.current = value;
     }, [value]);
 
     const valueClasses = buildValueClasses(isPolling, refreshPulse, isUpdated, direction);
     const cardClass = `summary-card${refreshPulse ? ' card-refreshed' : ''}`;
-    
+
     return (
         <div className={cardClass}>
-            <div className="summary-label">
-                {icon && <span className="summary-icon">{icon}</span>}
-                <span>{label}</span>
+            <div className="summary-header">
+                <div className="summary-label">
+                    <span className="summary-label-content">
+                        {icon && <span className="summary-icon">{icon}</span>}
+                        {label}
+                    </span>
+                </div>
+
+                {timeframes && onTimeframeChange && (
+                    <div className="timeframe-toggles">
+                        {timeframes.map(tf => (
+                            <button
+                                key={tf}
+                                className={`timeframe-btn ${selectedTimeframe === tf ? 'active' : ''}`}
+                                onClick={() => onTimeframeChange(tf)}
+                                aria-label={`View ${tf} data`}
+                            >
+                                {tf}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className={valueClasses} data-key={valueKey}>

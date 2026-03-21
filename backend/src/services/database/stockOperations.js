@@ -124,8 +124,36 @@ const fetchStocksWithMapping = async (options, errorMsg) => {
         return stocks.map(mapStockOutput);
     }, [], errorMsg);
 };
+// ==================== Untraded Stock Reset ====================
+
+/** Check if a stock's daily metrics need resetting */
+/** Check if a stock's daily metrics need resetting */
+const needsReset = (s) => {
+    const activityFields = ['change', 'percentageChange', 'volume', 'turnover', 'totalTrades'];
+    const hasActivity = activityFields.some(f => s[f] !== 0);
+    return hasActivity || s.previousClose !== s.lastTradedPrice;
+};
+
+const RESET_DATA = { change: 0, percentageChange: 0, volume: 0, turnover: 0, totalTrades: 0 };
+
+/** Build Prisma update ops to reset daily metrics for stocks not in the traded list */
+const buildUntradedResetOps = async (tradedSymbols) => {
+    const untradedStocks = await prisma.stock.findMany({
+        where: { symbol: { notIn: tradedSymbols } },
+        select: { symbol: true, lastTradedPrice: true, previousClose: true, change: true, percentageChange: true, volume: true, turnover: true, totalTrades: true }
+    });
+
+    return untradedStocks
+        .filter(needsReset)
+        .map(s => prisma.stock.update({
+            where: { symbol: s.symbol },
+            data: { ...RESET_DATA, previousClose: s.lastTradedPrice }
+        }));
+};
 
 // ==================== Core Operations ====================
+
+const filterValidStocks = (stocks) => stocks.filter(s => s && s.symbol);
 
 const saveStocks = async (stocks) => {
     if (!Array.isArray(stocks) || stocks.length === 0) {
@@ -133,19 +161,24 @@ const saveStocks = async (stocks) => {
     }
 
     try {
-        const symbols = stocks.filter(s => s && s.symbol).map(s => s.symbol.toUpperCase());
+        const validStocks = filterValidStocks(stocks);
+        if (validStocks.length === 0) return { success: true, count: 0 };
+
+        const symbols = validStocks.map(s => s.symbol.toUpperCase());
         const existingStocks = await prisma.stock.findMany({
             where: { symbol: { in: symbols } },
             select: { symbol: true, lastTradedPrice: true }
         });
         const existingMap = new Map(existingStocks.map(s => [s.symbol, s.lastTradedPrice]));
 
-        const ops = stocks
-            .filter(s => s && s.symbol)
-            .map((stock) => buildStockSaveOp(normalizeStockInput(stock), existingMap));
+        const ops = validStocks.map((stock) => buildStockSaveOp(normalizeStockInput(stock), existingMap));
+
+        // Reset daily metrics for non-traded stocks and ensure previousClose == ltp
+        const resetOps = await buildUntradedResetOps(symbols);
+        ops.push(...resetOps);
 
         await prisma.$transaction(ops);
-        return { success: true, count: ops.length };
+        return { success: true, count: ops.length - 1 };
     } catch (error) {
         logger.error(`Error saving stocks: ${error.message}`);
         throw error;

@@ -222,6 +222,13 @@ export const getMarketMetrics = async () => {
     return fetchSimple('/market-metrics', {}, null, 'Failed to fetch market metrics');
 };
 
+/**
+ * Get AI-scored stock picks
+ */
+export const getAIStockPicks = async (limit = 10) => {
+    return fetchSimple('/stock-picks', { limit }, [], 'Failed to fetch AI stock picks');
+};
+
 // ==================== IPO APIs ====================
 
 /**

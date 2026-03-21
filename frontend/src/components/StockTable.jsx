@@ -50,8 +50,8 @@ function resolveStockFields(stock) {
 /** Get sign prefix for a change value */
 const changeSign = (val) => val > 0 ? '+' : val < 0 ? '-' : '';
 
-/** Format a change value with sign, or '-' if zero */
-const formatChangeValue = (v, sign) => (!v || v === 0) ? '-' : `${sign}${v?.toFixed(2)}`;
+/** Format a change value with sign, or '0.00' if zero */
+const formatChangeValue = (v, sign) => (v === null || v === undefined) ? '-' : (v === 0 ? '0.00' : `${sign}${v?.toFixed(2)}`);
 
 /** Get CSS class for a change value's direction */
 const changePillClass = (val) => val > 0 ? 'positive' : val < 0 ? 'negative' : '';
@@ -158,11 +158,50 @@ function FavoriteCell({ symbol, favorites, onToggleFavorite }) {
     );
 }
 
+/** Format change percent with sign, or fallback */
+const formatChangePercent = (v, sign) =>
+    (v === null || v === undefined) ? '-' : (v === 0 ? '0.00%' : `${sign}${v?.toFixed(2)}%`);
+
+/** Format volume, or fallback */
+const formatVolume = (v) =>
+    (v === null || v === undefined) ? '-' : (v === 0 ? '0' : formatNumber(v));
+
+/** Change pill sub-component */
+function ChangePill({ change, prevChange, sign }) {
+    const pillClass = changePillClass(change);
+    return (
+        <td className="text-right financial-cell">
+            <div className={`change-pill ${pillClass}`}>
+                <AnimatedCell
+                    value={Math.abs(change)}
+                    previousValue={Math.abs(prevChange || 0)}
+                    formatter={(v) => formatChangeValue(v, sign)}
+                />
+            </div>
+        </td>
+    );
+}
+
+/** Change percent badge sub-component */
+function ChangePercentBadge({ change, changePercent, prevChangePercent, sign }) {
+    const pillClass = changePillClass(change);
+    return (
+        <td className="text-right financial-cell">
+            <div className={`change-percent-badge ${pillClass}`}>
+                <AnimatedCell
+                    value={Math.abs(changePercent)}
+                    previousValue={Math.abs(prevChangePercent || 0)}
+                    formatter={(v) => formatChangePercent(v, sign)}
+                />
+            </div>
+        </td>
+    );
+}
+
 /** Single desktop stock table row */
 const StockRow = memo(function StockRow({ stock, onRowClick, getPreviousValue, favorites, onToggleFavorite }) {
     const f = resolveStockFields(stock);
     const sign = changeSign(f.change);
-    const pillClass = changePillClass(f.change);
 
     return (
         <tr key={f.symbol} onClick={() => onRowClick && onRowClick(stock)} className="clickable-row">
@@ -178,29 +217,13 @@ const StockRow = memo(function StockRow({ stock, onRowClick, getPreviousValue, f
                     showDirection={true}
                 />
             </td>
-            <td className="text-right financial-cell">
-                <div className={`change-pill ${pillClass}`}>
-                    <AnimatedCell
-                        value={Math.abs(f.change)}
-                        previousValue={Math.abs(getPreviousValue(f.symbol, 'change') || 0)}
-                        formatter={(v) => formatChangeValue(v, sign)}
-                    />
-                </div>
-            </td>
-            <td className="text-right financial-cell">
-                <div className={`change-percent-badge ${pillClass}`}>
-                    <AnimatedCell
-                        value={Math.abs(f.changePercent)}
-                        previousValue={Math.abs(getPreviousValue(f.symbol, 'changePercent') || 0)}
-                        formatter={(v) => (!v || v === 0) ? '-' : `${sign}${v?.toFixed(2)}%`}
-                    />
-                </div>
-            </td>
+            <ChangePill change={f.change} prevChange={getPreviousValue(f.symbol, 'change')} sign={sign} />
+            <ChangePercentBadge change={f.change} changePercent={f.changePercent} prevChangePercent={getPreviousValue(f.symbol, 'changePercent')} sign={sign} />
             <td className="text-right financial-cell volume-cell">
                 <AnimatedCell
                     value={f.volume}
                     previousValue={getPreviousValue(f.symbol, 'volume')}
-                    formatter={(v) => v === 0 ? '-' : formatNumber(v)}
+                    formatter={formatVolume}
                     showDirection={false}
                 />
             </td>

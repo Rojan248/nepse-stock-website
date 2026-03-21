@@ -12,6 +12,7 @@ const { getTimeSyncStatus, getNepseTimeString, getMarketState } = require('../se
 const { prisma } = require('../services/database/connection');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
 const aiOverviewService = require('../services/aiOverviewService');
+const stockPicks = require('../services/stockPicks');
 
 /**
  * Market API Routes
@@ -23,7 +24,7 @@ const serverStartTime = Date.now();
 
 /**
  * GET /api/market-summary
- * Get latest market summary
+ * Get latest market summary with cumulative changes
  */
 router.get('/market-summary', asyncHandler(async (req, res) => {
     const summary = await marketOperations.getLatestMarketSummary();
@@ -35,9 +36,14 @@ router.get('/market-summary', asyncHandler(async (req, res) => {
         });
     }
 
+    const cumulative = await marketOperations.getCumulativeMarketChanges(summary.indexValue);
+
     res.json({
         success: true,
-        data: summary
+        data: {
+            ...summary,
+            cumulative
+        }
     });
 }));
 
@@ -110,6 +116,22 @@ router.get('/market-metrics', asyncHandler(async (req, res) => {
     }
 
     res.json({ success: true, data: metrics });
+}));
+
+/**
+ * GET /api/stock-picks
+ * Get AI-scored stock recommendations based on technical metrics
+ */
+router.get('/stock-picks', asyncHandler(async (req, res) => {
+    const { limit = 10 } = req.query;
+    const picks = await stockPicks.getTopPicks(parseInt(limit));
+
+    res.json({
+        success: true,
+        data: picks,
+        count: picks.length,
+        timestamp: new Date().toISOString()
+    });
 }));
 
 /**
@@ -281,6 +303,40 @@ router.get('/trending', asyncHandler(async (req, res) => {
         data: validTrending,
         count: validTrending.length
     });
+}));
+
+/**
+ * POST /api/force-ai-generate
+ * Force AI overview regeneration for stale/all overviews
+ * Protected by Admin Key
+ * Query: ?all=true to regenerate everything (ignores freshness)
+ */
+router.post('/force-ai-generate', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
+    logger.info('Force AI generation requested via API');
+
+    // Generate market overview first
+    const marketResult = await aiOverviewService.generateMarketOverview('manual');
+
+    // Generate stock overviews (uses built-in staleness check)
+    const stats = await aiOverviewService.generateAll('manual');
+
+    res.json({
+        success: true,
+        data: {
+            marketOverview: marketResult ? 'generated' : 'skipped/failed',
+            stocks: stats
+        },
+        timestamp: new Date().toISOString()
+    });
+}));
+
+/**
+ * GET /api/ai-status
+ * Get AI generation status
+ */
+router.get('/ai-status', asyncHandler(async (req, res) => {
+    const status = aiOverviewService.getGenerationStatus();
+    res.json({ success: true, data: status });
 }));
 
 /**

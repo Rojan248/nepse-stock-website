@@ -23,6 +23,47 @@ const CHUNK_DELAY = 15000;         // 15s pause between chunks
 const MAX_CONSECUTIVE_429 = 3;     // 3 consecutive 429s = daily quota hit
 const BACKOFF_ON_429 = 65000;      // 65s backoff on single 429
 
+// ── API key rotation ─────────────────────────────────────────────────────────
+// Supports multiple Gemini API keys (comma-separated in GEMINI_API_KEYS env var).
+// When a key gets 429 (quota exhausted), it rotates to the next key.
+function loadApiKeys() {
+    const multiKeys = process.env.GEMINI_API_KEYS;
+    if (multiKeys) {
+        return multiKeys.split(',').map(k => k.trim()).filter(Boolean);
+    }
+    const single = process.env.GEMINI_API_KEY;
+    return single ? [single] : [];
+}
+
+const apiKeys = loadApiKeys();
+let currentKeyIndex = 0;
+const exhaustedKeys = new Set(); // track keys that hit daily quota
+
+function getCurrentApiKey() {
+    if (apiKeys.length === 0) return null;
+    return apiKeys[currentKeyIndex];
+}
+
+function rotateApiKey() {
+    exhaustedKeys.add(currentKeyIndex);
+    // Find next non-exhausted key
+    for (let i = 1; i <= apiKeys.length; i++) {
+        const nextIndex = (currentKeyIndex + i) % apiKeys.length;
+        if (!exhaustedKeys.has(nextIndex)) {
+            currentKeyIndex = nextIndex;
+            logger.info(`[AI] Rotated to API key ${nextIndex + 1}/${apiKeys.length}`);
+            return true;
+        }
+    }
+    logger.warn('[AI] All API keys exhausted');
+    return false; // all keys exhausted
+}
+
+function resetExhaustedKeys() {
+    exhaustedKeys.clear();
+    currentKeyIndex = 0;
+}
+
 // ── Runtime state ─────────────────────────────────────────────────────────────
 let isGenerating = false;
 let generationStats = { lastRun: null, generated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
@@ -85,8 +126,8 @@ function sanitizeNarrative(narrative) {
 
 function getConfig() {
     return {
-        apiKey: process.env.GEMINI_API_KEY,
-        model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+        apiKey: getCurrentApiKey(),
+        model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
         fallbackModel: process.env.GEMINI_MODEL_FALLBACK || 'gemini-2.0-flash',
         cooldownMinutes: parseInt(process.env.AI_OVERVIEW_COOLDOWN_MINUTES) || 30
     };
@@ -267,14 +308,14 @@ async function generateForSymbol(symbol, triggeredBy = 'scheduler') {
     const factSheet = buildFactSheet(stock, metrics);
     const prompt = buildPrompt(factSheet);
 
-    // Try primary, then fallback
+    // Try primary, then fallback (uses current rotating key)
     let result;
     try {
-        result = await callGemini(prompt, config.model, config.apiKey);
+        result = await callGemini(prompt, config.model, getCurrentApiKey());
     } catch (primaryErr) {
         if (primaryErr.status === 429) throw primaryErr; // let caller handle rate limits
         try {
-            result = await callGemini(prompt, config.fallbackModel, config.apiKey);
+            result = await callGemini(prompt, config.fallbackModel, getCurrentApiKey());
         } catch (fallbackErr) {
             if (fallbackErr.status === 429) throw fallbackErr;
             return null;
@@ -308,6 +349,7 @@ async function generateAll(triggeredBy = 'scheduler') {
     }
 
     isGenerating = true;
+    resetExhaustedKeys(); // fresh start — all keys available
     generationStats = { lastRun: new Date(), generated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
 
     try {
@@ -370,35 +412,58 @@ async function generateAll(triggeredBy = 'scheduler') {
                         logger.warn(`[AI] Rate limited (429) on ${stock.symbol} — consecutive: ${consecutive429}`);
 
                         if (consecutive429 >= MAX_CONSECUTIVE_429) {
-                            logger.warn(`[AI] Daily quota likely exhausted after ${consecutive429} consecutive 429s. Stopping.`);
-                            generationStats.quotaExhausted = true;
-                            isGenerating = false;
-                            break;
-                        }
-
-                        // Back off and retry this stock
-                        logger.info(`[AI] Backing off ${BACKOFF_ON_429 / 1000}s before retry...`);
-                        await new Promise(r => setTimeout(r, BACKOFF_ON_429));
-
-                        try {
-                            const retryResult = await generateForSymbol(stock.symbol, triggeredBy);
-                            if (retryResult) {
-                                generationStats.generated++;
+                            // Try rotating to another API key
+                            if (rotateApiKey()) {
+                                logger.info('[AI] Switched to next API key — resetting 429 counter');
                                 consecutive429 = 0;
+                                // Retry this stock with new key
+                                try {
+                                    const retryResult = await generateForSymbol(stock.symbol, triggeredBy);
+                                    if (retryResult) {
+                                        generationStats.generated++;
+                                    } else {
+                                        generationStats.failed++;
+                                    }
+                                } catch (retryErr) {
+                                    generationStats.failed++;
+                                    if (retryErr.status === 429) consecutive429++;
+                                }
                             } else {
+                                logger.warn('[AI] All API keys exhausted. Stopping.');
+                                generationStats.quotaExhausted = true;
+                                isGenerating = false;
+                                break;
+                            }
+                        } else {
+                            // Back off and retry with current key
+                            logger.info(`[AI] Backing off ${BACKOFF_ON_429 / 1000}s before retry...`);
+                            await new Promise(r => setTimeout(r, BACKOFF_ON_429));
+
+                            try {
+                                const retryResult = await generateForSymbol(stock.symbol, triggeredBy);
+                                if (retryResult) {
+                                    generationStats.generated++;
+                                    consecutive429 = 0;
+                                } else {
+                                    generationStats.failed++;
+                                }
+                            } catch (retryErr) {
+                                if (retryErr.status === 429) {
+                                    consecutive429++;
+                                    if (consecutive429 >= MAX_CONSECUTIVE_429) {
+                                        if (rotateApiKey()) {
+                                            logger.info('[AI] Switched to next API key after retry failure');
+                                            consecutive429 = 0;
+                                        } else {
+                                            logger.warn('[AI] All API keys exhausted after retry. Stopping.');
+                                            generationStats.quotaExhausted = true;
+                                            isGenerating = false;
+                                            break;
+                                        }
+                                    }
+                                }
                                 generationStats.failed++;
                             }
-                        } catch (retryErr) {
-                            if (retryErr.status === 429) {
-                                consecutive429++;
-                                if (consecutive429 >= MAX_CONSECUTIVE_429) {
-                                    logger.warn('[AI] Daily quota exhausted after retry. Stopping.');
-                                    generationStats.quotaExhausted = true;
-                                    isGenerating = false;
-                                    break;
-                                }
-                            }
-                            generationStats.failed++;
                         }
                     } else {
                         generationStats.failed++;
@@ -460,14 +525,25 @@ async function generateMarketOverview(triggeredBy = 'scheduler') {
             result = await callGemini(prompt, config.model, config.apiKey);
         } catch (primaryErr) {
             if (primaryErr.status === 429) {
-                logger.warn('[AI] Rate limited on market overview — skipping');
-                return null;
-            }
-            try {
-                result = await callGemini(prompt, config.fallbackModel, config.apiKey);
-            } catch (fallbackErr) {
-                logger.error(`[AI] Market overview generation failed: ${fallbackErr.message}`);
-                return null;
+                // Try rotating key
+                if (rotateApiKey()) {
+                    try {
+                        result = await callGemini(prompt, config.model, getCurrentApiKey());
+                    } catch (retryErr) {
+                        logger.warn(`[AI] Market overview failed on rotated key: ${retryErr.message}`);
+                        return null;
+                    }
+                } else {
+                    logger.warn('[AI] All API keys rate limited on market overview — skipping');
+                    return null;
+                }
+            } else {
+                try {
+                    result = await callGemini(prompt, config.fallbackModel, config.apiKey);
+                } catch (fallbackErr) {
+                    logger.error(`[AI] Market overview generation failed: ${fallbackErr.message}`);
+                    return null;
+                }
             }
         }
 

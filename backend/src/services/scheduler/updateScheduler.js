@@ -7,6 +7,8 @@ const marketOperations = require('../database/marketOperations');
 const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSync, MARKET_STATES } = require('../utils/marketTime');
 const watchdogService = require('../watchdog/WatchdogService');
 const alertChecker = require('../alertChecker');
+const { prisma } = require('../database/connection');
+const dataEnricher = require('../dataEnricher');
 const metricsOrchestrator = require('../metrics/metricsOrchestrator');
 const aiOverviewService = require('../aiOverviewService');
 
@@ -23,6 +25,8 @@ let lastUpdateTime = null;
 let updateCount = 0;
 let lastError = null;
 let currentMarketState = null;
+let previousMarketState = null;
+let aiTriggeredToday = false; // prevents double-trigger within same trading day
 
 // Market hours from environment or defaults
 const MARKET_OPEN_HOUR = parseInt(process.env.MARKET_OPEN_HOUR) || 10;
@@ -63,8 +67,8 @@ const shouldSkipUpdate = () => {
 
     logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDev}, NODE_ENV=${process.env.NODE_ENV}`);
 
-    if (currentState === MARKET_STATES.WEEKEND && !isDev) {
-        logger.info('Skipping update: Market is closed (WEEKEND)');
+    if ((currentState === MARKET_STATES.WEEKEND || currentState === MARKET_STATES.HOLIDAY) && !isDev) {
+        logger.info(`Skipping update: Market is closed (${currentState})`);
         return true;
     }
     return false;
@@ -164,6 +168,41 @@ const performUpdate = async () => {
 };
 
 /**
+ * Detect market close transition and trigger AI overview generation.
+ * Called every update cycle. When market transitions from OPEN to POST_CLOSE,
+ * waits a short delay for final data to settle, then starts AI generation.
+ */
+const checkMarketCloseTransition = () => {
+    const newState = getMarketState();
+
+    // Reset the daily trigger flag when market opens (new trading day)
+    if (newState === MARKET_STATES.OPEN) {
+        aiTriggeredToday = false;
+    }
+
+    // Detect OPEN → POST_CLOSE transition
+    if (previousMarketState === MARKET_STATES.OPEN && newState === MARKET_STATES.POST_CLOSE && !aiTriggeredToday) {
+        aiTriggeredToday = true;
+        logger.info('[Scheduler] Market just closed — triggering AI overview generation in 60s');
+
+        setTimeout(async () => {
+            try {
+                logger.info('[Scheduler] Generating market overview after market close...');
+                await aiOverviewService.generateMarketOverview('market-close');
+
+                logger.info('[Scheduler] Starting stock overview generation (chunked, rate-limited)...');
+                const stats = await aiOverviewService.generateAll('market-close');
+                logger.info(`[Scheduler] AI generation done: ${stats.generated} generated, ${stats.failed} failed, ${stats.skipped} fresh${stats.quotaExhausted ? ' (quota exhausted)' : ''}`);
+            } catch (e) {
+                logger.error(`[Scheduler] Post-close AI generation failed: ${e.message}`);
+            }
+        }, 60000); // 60s delay for final data update to finish
+    }
+
+    previousMarketState = newState;
+};
+
+/**
  * Handle repetitive interval scheduling dynamically
  */
 const scheduleNext = () => {
@@ -179,6 +218,7 @@ const scheduleNext = () => {
             } catch (error) {
                 logger.error(`Scheduled update failed: ${error.message}`);
             } finally {
+                checkMarketCloseTransition();
                 scheduleNext();
             }
         }
@@ -195,26 +235,9 @@ const setupCronJobs = () => {
         await marketOperations.cleanOldSummaries(30);
     });
 
-    // AI Overview: Regenerate market overview after market close (15:15 NST, Sun-Thu)
-    schedule.scheduleJob('15 15 * * 0-4', async () => {
-        logger.info('[Scheduler] Generating market overview after market close...');
-        try {
-            await aiOverviewService.generateMarketOverview('scheduler');
-        } catch (e) {
-            logger.error(`[Scheduler] Market overview generation failed: ${e.message}`);
-        }
-    });
-
-    // AI Overview: Regenerate all stock overviews daily (15:30 NST, Sun-Thu)
-    // Processes in chunks with rate-limit awareness to stay within free-tier quotas
-    schedule.scheduleJob('30 15 * * 0-4', async () => {
-        logger.info('[Scheduler] Starting daily AI stock overview generation...');
-        try {
-            const stats = await aiOverviewService.generateAll('scheduler');
-            logger.info(`[Scheduler] AI generation done: ${stats.generated} generated, ${stats.failed} failed, ${stats.skipped} fresh${stats.quotaExhausted ? ' (quota exhausted — will resume tomorrow)' : ''}`);
-        } catch (e) {
-            logger.error(`[Scheduler] AI stock overview generation failed: ${e.message}`);
-        }
+    // Reset AI trigger flag at midnight so catch-up works next day
+    schedule.scheduleJob('0 0 * * *', () => {
+        aiTriggeredToday = false;
     });
 
     // Watchdog (Every 10 minutes)
@@ -226,6 +249,56 @@ const setupCronJobs = () => {
             logger.error(`Scheduled watchdog failed: ${e.message}`);
         }
     });
+};
+
+/**
+ * Check if AI overviews were missed today and need catch-up generation.
+ * Runs on scheduler start — if it's a trading day past 15:30 and overviews are stale,
+ * triggers generation so restarts after the cron window don't skip a day.
+ */
+const checkAICatchUp = async () => {
+    try {
+        const config = { apiKey: process.env.GEMINI_API_KEY };
+        if (!config.apiKey) return;
+
+        const nst = getNSTTime();
+        const hour = nst.getHours();
+        const day = nst.getDay(); // 0=Sun
+
+        // Only catch up on trading days (Sun-Thu, non-holiday) after 15:00 NST
+        if (day === 5 || day === 6) return; // Fri/Sat weekend
+        if (hour < 15) return; // Market hasn't closed yet, transition trigger will handle it
+
+        // Skip public holidays
+        const currentState = getMarketState();
+        if (currentState === MARKET_STATES.HOLIDAY) return;
+
+        // Check if market overview is stale (older than 20 hours)
+        const staleThreshold = new Date(Date.now() - 20 * 60 * 60 * 1000);
+        const marketOverview = await prisma.aIOverview.findFirst({
+            where: { symbol: 'MARKET', type: 'market' },
+            select: { updatedAt: true }
+        });
+
+        const needsCatchUp = !marketOverview || marketOverview.updatedAt < staleThreshold;
+
+        if (needsCatchUp) {
+            aiTriggeredToday = true; // prevent transition trigger from double-firing
+            logger.info('[Scheduler] AI overviews are stale and cron window was missed — starting catch-up generation');
+            // Delay 60s to let initial data update finish first
+            setTimeout(async () => {
+                try {
+                    await aiOverviewService.generateMarketOverview('scheduler-catchup');
+                    const stats = await aiOverviewService.generateAll('scheduler-catchup');
+                    logger.info(`[Scheduler] AI catch-up done: ${stats.generated} generated, ${stats.failed} failed`);
+                } catch (e) {
+                    logger.error(`[Scheduler] AI catch-up failed: ${e.message}`);
+                }
+            }, 60000);
+        }
+    } catch (err) {
+        logger.error(`[Scheduler] AI catch-up check failed: ${err.message}`);
+    }
 };
 
 /**
@@ -241,6 +314,7 @@ const startScheduler = async () => {
     await initTimeSync();
 
     isRunning = true;
+    previousMarketState = getMarketState(); // snapshot to avoid false transition on first cycle
     logger.info('Starting NEPSE update scheduler...');
 
     // Initial update
@@ -249,6 +323,9 @@ const startScheduler = async () => {
     // Start recursive scheduling and background cron tasks
     scheduleNext();
     setupCronJobs();
+
+    // Check if AI overviews need catch-up (missed cron window)
+    await checkAICatchUp();
 
     const nst = getNSTTime();
     logger.info(`Scheduler started at ${nst.toISOString()} NST (from external time server)`);

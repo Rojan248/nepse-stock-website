@@ -179,9 +179,10 @@ const buildSummaryResult = (existingSummary, calc, breadth) => ({
         ? existingSummary.totalTransactions
         : (calc.trades || 0),
     activeCompanies: preferExisting(existingSummary.activeCompanies, calc.tradedCompanies),
-    // Breadth assignments now use preferExisting to strictly pass through official
-    // NEPSE breadth data when available from the API or database.
-    // Manual calculation (breadth.advanced) is only used as a fallback.
+    // Breadth assignments: NEPSE official API aggregates include Mutual Funds & Debentures.
+    // Since we explicitly filter non-equities out of `stocks`, our local `breadth.unchanged`
+    // will mathematically be 0 if the only unchanged entities that day were non-equities!
+    // Therefore, we MUST prefer the `existingSummary` (API payload) to match NEPSE's macro totals.
     advancedCompanies: preferExisting(existingSummary.advancedCompanies, breadth.advanced),
     declinedCompanies: preferExisting(existingSummary.declinedCompanies, breadth.declined),
     unchangedCompanies: preferExisting(existingSummary.unchangedCompanies, breadth.unchanged),
@@ -263,15 +264,17 @@ const deriveBreadthFromPrices = (stocks) => {
 
 const computeBreadthFromDb = async (prisma) => {
     try {
+        const validSymbols = Array.from(stockInfoMap.keys());
         const [advanced, declined, unchanged] = await Promise.all([
-            prisma.stock.count({ where: { percentageChange: { gt: 0 } } }),
-            prisma.stock.count({ where: { percentageChange: { lt: 0 } } }),
-            prisma.stock.count({ where: { OR: [{ percentageChange: 0 }, { percentageChange: null }] } })
+            prisma.stock.count({ where: { symbol: { in: validSymbols }, percentageChange: { gt: 0 } } }),
+            prisma.stock.count({ where: { symbol: { in: validSymbols }, percentageChange: { lt: 0 } } }),
+            prisma.stock.count({ where: { symbol: { in: validSymbols }, OR: [{ percentageChange: 0 }, { percentageChange: null }] } })
         ]);
 
         const noMeaningfulCounts = advanced === 0 && declined === 0;
         if (noMeaningfulCounts) {
             const stocks = await prisma.stock.findMany({
+                where: { symbol: { in: validSymbols } },
                 select: { lastTradedPrice: true, ltp: true, previousClose: true }
             });
             return deriveBreadthFromPrices(stocks);
