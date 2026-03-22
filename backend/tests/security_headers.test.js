@@ -12,9 +12,6 @@ jest.mock('../src/services/scheduler/updateScheduler', () => ({
     stopScheduler: jest.fn()
 }));
 
-jest.mock('../src/services/scheduler', () => ({
-    initScheduler: jest.fn()
-}));
 
 const createMockRouter = () => {
     const router = express.Router();

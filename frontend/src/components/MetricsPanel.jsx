@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { getStockMetrics } from '../services/api';
 import { Activity, Clock, Info } from 'lucide-react';
 import SignalBadges from './SignalBadges';
-import {
-    SectorRankingSection,
-    LiquiditySection,
-    MovingAveragesSection,
-    MomentumSection,
-    WeekRangeSection,
-} from './MetricsSections';
+import { SectorRankingSection } from './MetricsSector';
+import { LiquiditySection } from './MetricsLiquidity';
+import { MovingAveragesSection } from './MetricsMovingAverages';
+import { MomentumSection } from './MetricsMomentum';
+import { WeekRangeSection } from './MetricsWeekRange';
 import './MetricsPanel.css';
 
 /**
@@ -42,7 +40,7 @@ function MetricsPanelLoading() {
     );
 }
 
-function MetricsPanel({ symbol }) {
+function useStockMetrics(symbol) {
     const [metrics, setMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -66,16 +64,28 @@ function MetricsPanel({ symbol }) {
         return () => { cancelled = true; };
     }, [symbol]);
 
+    return { metrics, loading };
+}
+
+function computeMetricsFlags(metrics) {
+    const { trendMetrics: tm, momentumMetrics: mm, signals, dataDepth } = metrics;
+    const hasAdvanced = Boolean((tm && (tm.ma20 || tm.ma50)) || (mm && mm.rsi14 != null));
+    const histDays = dataDepth?.historicalDays || 0;
+    const showNotice = !hasAdvanced && Boolean(dataDepth?.message);
+    const showSignals = Boolean(signals && signals.length > 0);
+    return { hasAdvanced, histDays, showNotice, showSignals };
+}
+
+function MetricsPanel({ symbol }) {
+    const { metrics, loading } = useStockMetrics(symbol);
+
     if (loading) return <MetricsPanelLoading />;
     if (!metrics) return null;
 
     const cd = metrics.currentDay;
     const { priceMetrics: pm, trendMetrics: tm, momentumMetrics: mm, liquidityMetrics: lm, relativeMetrics: rm, signals, dataDepth } = metrics;
 
-    const hasAdvanced = Boolean((tm && (tm.ma20 || tm.ma50)) || (mm && mm.rsi14 != null));
-    const histDays = dataDepth?.historicalDays || 0;
-    const showNotice = !hasAdvanced && Boolean(dataDepth?.message);
-    const showSignals = Boolean(signals && signals.length > 0);
+    const { histDays, showNotice, showSignals } = computeMetricsFlags(metrics);
 
     return (
         <section className="metrics-panel sdp-animate-fade-in">

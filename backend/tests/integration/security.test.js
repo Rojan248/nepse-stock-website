@@ -16,9 +16,6 @@ jest.mock('../../src/services/scheduler/updateScheduler', () => ({
     getUpdateStatus: jest.fn().mockReturnValue({ isRunning: true })
 }));
 
-jest.mock('../../src/services/scheduler', () => ({
-    initScheduler: jest.fn()
-}));
 
 jest.mock('../../src/services/analytics', () => ({
     initialize: jest.fn(),

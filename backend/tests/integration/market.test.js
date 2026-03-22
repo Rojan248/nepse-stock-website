@@ -10,6 +10,7 @@ app.use('/api', marketRouter);
 // Mock dependencies
 jest.mock('../../src/services/database/marketOperations', () => ({
     getLatestMarketSummary: jest.fn().mockResolvedValue(global.testUtils.mockMarketSummary),
+    getCumulativeMarketChanges: jest.fn().mockResolvedValue({'1W': 1.5, '1M': -2.1}),
     getMarketSummaryHistory: jest.fn().mockResolvedValue([global.testUtils.mockMarketSummary]),
     getMarketStats: jest.fn().mockResolvedValue({
         latest: global.testUtils.mockMarketSummary,
