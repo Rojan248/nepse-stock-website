@@ -11,7 +11,6 @@ const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString, getMarketState } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
-const aiOverviewService = require('../services/aiOverviewService');
 const stockPicks = require('../services/stockPicks');
 
 /**
@@ -86,10 +85,12 @@ router.get('/market-stats', asyncHandler(async (req, res) => {
 
 /**
  * GET /api/market-overview
- * Get AI-generated market overview narrative
+ * Get market overview narrative (stored by manualAIUpdate script)
  */
 router.get('/market-overview', asyncHandler(async (req, res) => {
-    const overview = await aiOverviewService.getOverview('MARKET', 'market');
+    const overview = await prisma.aIOverview.findUnique({
+        where: { symbol_type: { symbol: 'MARKET', type: 'market' } }
+    });
 
     if (!overview) {
         return res.status(404).json({
@@ -98,7 +99,22 @@ router.get('/market-overview', asyncHandler(async (req, res) => {
         });
     }
 
-    res.json({ success: true, data: overview });
+    let narrative = overview.narrative;
+    try { 
+        narrative = JSON.parse(narrative); 
+    } catch (error) {
+        logger.error(`Failed to parse market overview narrative (ID: ${overview.id}): ${error.message}`);
+        narrative = { text: overview.narrative || null };
+    }
+
+    res.json({
+        success: true,
+        data: {
+            narrative,
+            generatedAt: overview.updatedAt,
+            modelVersion: overview.modelVersion
+        }
+    });
 }));
 
 /**
@@ -121,15 +137,29 @@ router.get('/market-metrics', asyncHandler(async (req, res) => {
 /**
  * GET /api/stock-picks
  * Get AI-scored stock recommendations based on technical metrics
+ * COMPLIANCE RESTRICTED: Requires admin auth and feature flag due to financial advisory regulations.
  */
-router.get('/stock-picks', asyncHandler(async (req, res) => {
+router.get('/stock-picks', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
+    // Governance feature flag
+    if (process.env.ENABLE_STOCK_PICKS !== 'true') {
+        logger.warn('Blocked attempt to access /api/stock-picks while feature is disabled for legal review');
+        return res.status(403).json({
+            success: false,
+            error: { message: 'Stock picks are currently disabled pending SEBON compliance and legal sign-off.' }
+        });
+    }
+
     const { limit = 10 } = req.query;
-    const picks = await stockPicks.getTopPicks(parseInt(limit));
+    const picks = await stockPicks.getTopPicks(parseInt(limit)); // Note: make sure stockPicks is required above if it isn't.
+
+    const disclaimer = "⚠️ Legal & Compliance Disclaimer: [FLAGGED FOR LEGAL REVIEW] The stock recommendations provided are for informational purposes only and do not constitute financial advice. We guarantee no accuracy. Past performance is not indicative of future results. Please consult a SEBON registered advisor.";
+    logger.info(`Served stock picks data to authenticated client. Disclaimer explicitly included.`);
 
     res.json({
         success: true,
         data: picks,
         count: picks.length,
+        disclaimer,
         timestamp: new Date().toISOString()
     });
 }));
@@ -305,39 +335,7 @@ router.get('/trending', asyncHandler(async (req, res) => {
     });
 }));
 
-/**
- * POST /api/force-ai-generate
- * Force AI overview regeneration for stale/all overviews
- * Protected by Admin Key
- * Query: ?all=true to regenerate everything (ignores freshness)
- */
-router.post('/force-ai-generate', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
-    logger.info('Force AI generation requested via API');
 
-    // Generate market overview first
-    const marketResult = await aiOverviewService.generateMarketOverview('manual');
-
-    // Generate stock overviews (uses built-in staleness check)
-    const stats = await aiOverviewService.generateAll('manual');
-
-    res.json({
-        success: true,
-        data: {
-            marketOverview: marketResult ? 'generated' : 'skipped/failed',
-            stocks: stats
-        },
-        timestamp: new Date().toISOString()
-    });
-}));
-
-/**
- * GET /api/ai-status
- * Get AI generation status
- */
-router.get('/ai-status', asyncHandler(async (req, res) => {
-    const status = aiOverviewService.getGenerationStatus();
-    res.json({ success: true, data: status });
-}));
 
 /**
  * POST /api/force-update

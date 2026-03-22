@@ -19,6 +19,56 @@ function shortName(name, maxLen = 28) {
     return name.slice(0, maxLen - 1) + '…';
 }
 
+/** Individual AI Pick Card */
+function PickCard({ pick, navigate }) {
+    const tier = getScoreTier(pick.score);
+    const isPositive = (pick.changePercent || 0) >= 0;
+
+    return (
+        <div
+            className="ai-pick-card"
+            onClick={() => navigate(`/stock/${pick.symbol}`)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && navigate(`/stock/${pick.symbol}`)}
+        >
+            <div className="pick-header">
+                <div className="pick-symbol-group">
+                    <span className="pick-symbol">{pick.symbol}</span>
+                    <span className="pick-sector">{pick.sector || 'N/A'}</span>
+                </div>
+                <div className={`pick-score ${tier.cls}`}>
+                    <BarChart3 size={14} />
+                    <span>{pick.score}</span>
+                </div>
+            </div>
+
+            <div className="pick-name">{shortName(pick.companyName)}</div>
+
+            <div className="pick-price-row">
+                <span className="pick-price">NPR {(pick.ltp || 0).toLocaleString('en-IN')}</span>
+                <span className={`pick-change ${isPositive ? 'positive' : 'negative'}`}>
+                    {isPositive ? '+' : ''}{(pick.changePercent || 0).toFixed(2)}%
+                </span>
+            </div>
+
+            <div className="pick-reasons">
+                {(pick.reasons || []).slice(0, 2).map((reason, i) => (
+                    <div key={i} className="pick-reason">
+                        <Zap size={12} className="reason-icon" />
+                        <span>{reason}</span>
+                    </div>
+                ))}
+            </div>
+
+            <div className="pick-cta">
+                <span>View Details</span>
+                <ChevronRight size={14} />
+            </div>
+        </div>
+    );
+}
+
 function AIPicks() {
     const [picks, setPicks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -73,55 +123,9 @@ function AIPicks() {
             </div>
 
             <div className="ai-picks-grid">
-                {picks.map((pick) => {
-                    const tier = getScoreTier(pick.score);
-                    const isPositive = (pick.changePercent || 0) >= 0;
-
-                    return (
-                        <div
-                            key={pick.symbol}
-                            className="ai-pick-card"
-                            onClick={() => navigate(`/stock/${pick.symbol}`)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => e.key === 'Enter' && navigate(`/stock/${pick.symbol}`)}
-                        >
-                            <div className="pick-header">
-                                <div className="pick-symbol-group">
-                                    <span className="pick-symbol">{pick.symbol}</span>
-                                    <span className="pick-sector">{pick.sector || 'N/A'}</span>
-                                </div>
-                                <div className={`pick-score ${tier.cls}`}>
-                                    <BarChart3 size={14} />
-                                    <span>{pick.score}</span>
-                                </div>
-                            </div>
-
-                            <div className="pick-name">{shortName(pick.companyName)}</div>
-
-                            <div className="pick-price-row">
-                                <span className="pick-price">NPR {(pick.ltp || 0).toLocaleString('en-IN')}</span>
-                                <span className={`pick-change ${isPositive ? 'positive' : 'negative'}`}>
-                                    {isPositive ? '+' : ''}{(pick.changePercent || 0).toFixed(2)}%
-                                </span>
-                            </div>
-
-                            <div className="pick-reasons">
-                                {(pick.reasons || []).slice(0, 2).map((reason, i) => (
-                                    <div key={i} className="pick-reason">
-                                        <Zap size={12} className="reason-icon" />
-                                        <span>{reason}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="pick-cta">
-                                <span>View Details</span>
-                                <ChevronRight size={14} />
-                            </div>
-                        </div>
-                    );
-                })}
+                {picks.map((pick) => (
+                    <PickCard key={pick.symbol} pick={pick} navigate={navigate} />
+                ))}
             </div>
 
             <p className="ai-picks-disclaimer">

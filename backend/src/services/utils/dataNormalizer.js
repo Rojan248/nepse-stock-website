@@ -178,6 +178,8 @@ const mapStockOutput = (stock, compact = false) => {
         turnover: stock.turnover,
         change: stock.change,
         changePercent,
+        percentageChange1W: stock.percentageChange1W,
+        percentageChange1M: stock.percentageChange1M,
         updatedAt: timestamp
     };
 

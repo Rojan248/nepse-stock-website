@@ -7,7 +7,7 @@ const { searchLimiter, adminLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
-const aiOverviewService = require('../services/aiOverviewService');
+const { prisma } = require('../services/database/connection');
 
 /**
  * Stock API Routes
@@ -225,7 +225,7 @@ router.get('/:symbol/metrics', asyncHandler(async (req, res) => {
 
 /**
  * GET /api/stocks/:symbol/overview
- * Get AI-generated overview for a stock
+ * Get stored overview for a stock
  */
 router.get('/:symbol/overview', asyncHandler(async (req, res) => {
     const { symbol } = req.params;
@@ -237,52 +237,36 @@ router.get('/:symbol/overview', asyncHandler(async (req, res) => {
         });
     }
 
-    const overview = await aiOverviewService.getOverview(symbol, 'stock');
+    const overview = await prisma.aIOverview.findUnique({
+        where: { symbol_type: { symbol: symbol.toUpperCase(), type: 'stock' } }
+    });
 
     if (!overview) {
         return res.status(404).json({
             success: false,
-            error: { message: `No AI overview available for '${symbol}'` }
+            error: { message: `No overview available for '${symbol}'` }
         });
     }
 
-    res.json({ success: true, data: overview });
-}));
-
-/**
- * POST /api/stocks/:symbol/overview/refresh
- * Manually trigger AI overview regeneration for a stock
- * Protected by Admin Key
- */
-router.post('/:symbol/overview/refresh', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
-    const { symbol } = req.params;
-
-    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'Invalid symbol format' }
-        });
-    }
-
-    // Compute fresh metrics first
-    await metricsOrchestrator.computeForSymbol(symbol);
-
-    // Generate fresh AI overview
-    const overview = await aiOverviewService.generateForSymbol(symbol, 'manual');
-
-    if (!overview) {
-        return res.status(500).json({
-            success: false,
-            error: { message: `Failed to generate AI overview for '${symbol}'` }
-        });
+    let narrative = overview.narrative;
+    try { 
+        narrative = JSON.parse(narrative); 
+    } catch (error) {
+        logger.error(`Failed to parse AI overview narrative (ID: ${overview.id}): ${error.message}`);
+        narrative = { text: overview.narrative || null };
     }
 
     res.json({
         success: true,
-        message: `AI overview refreshed for ${symbol}`,
-        data: overview
+        data: {
+            narrative,
+            generatedAt: overview.updatedAt,
+            modelVersion: overview.modelVersion
+        }
     });
 }));
+
+
 
 /**
  * GET /api/stocks/:symbol

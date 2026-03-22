@@ -14,6 +14,26 @@ const relative = require('./relative');
 const fundamentals = require('./fundamentals');
 const patterns = require('./patterns');
 
+function createMetricsUpsertConfig(symbol, today, metricsData) {
+    const { priceM, trendM, momentumM, liquidityM, relativeM, fundM, patternsM, signals } = metricsData;
+    const stringified = {
+        priceMetrics: JSON.stringify(priceM),
+        trendMetrics: JSON.stringify(trendM),
+        momentumMetrics: JSON.stringify(momentumM),
+        liquidityMetrics: JSON.stringify(liquidityM),
+        relativeMetrics: JSON.stringify(relativeM),
+        fundamentals: JSON.stringify(fundM),
+        patterns: JSON.stringify(patternsM),
+        signals: JSON.stringify(signals)
+    };
+
+    return {
+        where: { symbol_date: { symbol: symbol.toUpperCase(), date: today } },
+        update: { ...stringified, computedAt: new Date() },
+        create: { symbol: symbol.toUpperCase(), date: today, ...stringified }
+    };
+}
+
 /**
  * Compute all metrics for a single stock
  * @param {string} symbol - Stock symbol
@@ -22,82 +42,114 @@ const patterns = require('./patterns');
  */
 async function computeForSymbol(symbol, allStocks = null) {
     try {
-        // Fetch current stock data
         const stock = await prisma.stock.findUnique({
             where: { symbol: symbol.toUpperCase() }
         });
 
-        if (!stock || !stock.lastTradedPrice || stock.lastTradedPrice <= 0) {
+        const ltp = stock?.lastTradedPrice;
+        if (!ltp || ltp <= 0) {
             return null;
         }
 
-        // Fetch historical data (up to 235 trading days for 52w calculations)
         const history = await prisma.marketHistory.findMany({
             where: { symbol: symbol.toUpperCase() },
             orderBy: { date: 'desc' },
             take: 250
         });
 
-        // Compute all metric modules
-        const priceM = priceMetrics.compute(history, stock);
-        const trendM = movingAverages.compute(history, stock);
-        const momentumM = momentum.compute(history);
-        const liquidityM = liquidity.compute(history, stock);
-        const relativeM = await relative.compute(stock, allStocks);
-        const fundM = fundamentals.compute(stock);
-        const patternsM = patterns.compute(priceM, trendM, momentumM, liquidityM, relativeM, fundM);
-        const signals = patterns.buildSignals(patternsM, priceM, trendM, momentumM, liquidityM);
+        const metricsData = {
+            priceM: priceMetrics.compute(history, stock),
+            trendM: movingAverages.compute(history, stock),
+            momentumM: momentum.compute(history),
+            liquidityM: liquidity.compute(history, stock),
+            relativeM: await relative.compute(stock, allStocks),
+            fundM: fundamentals.compute(stock)
+        };
+        metricsData.patternsM = patterns.compute(metricsData.priceM, metricsData.trendM, metricsData.momentumM, metricsData.liquidityM, metricsData.relativeM, metricsData.fundM);
+        metricsData.signals = patterns.buildSignals(metricsData.patternsM, metricsData.priceM, metricsData.trendM, metricsData.momentumM, metricsData.liquidityM);
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Upsert metrics to database
-        await prisma.stockMetrics.upsert({
-            where: {
-                symbol_date: {
-                    symbol: symbol.toUpperCase(),
-                    date: today
-                }
-            },
-            update: {
-                priceMetrics: JSON.stringify(priceM),
-                trendMetrics: JSON.stringify(trendM),
-                momentumMetrics: JSON.stringify(momentumM),
-                liquidityMetrics: JSON.stringify(liquidityM),
-                relativeMetrics: JSON.stringify(relativeM),
-                fundamentals: JSON.stringify(fundM),
-                patterns: JSON.stringify(patternsM),
-                signals: JSON.stringify(signals),
-                computedAt: new Date()
-            },
-            create: {
-                symbol: symbol.toUpperCase(),
-                date: today,
-                priceMetrics: JSON.stringify(priceM),
-                trendMetrics: JSON.stringify(trendM),
-                momentumMetrics: JSON.stringify(momentumM),
-                liquidityMetrics: JSON.stringify(liquidityM),
-                relativeMetrics: JSON.stringify(relativeM),
-                fundamentals: JSON.stringify(fundM),
-                patterns: JSON.stringify(patternsM),
-                signals: JSON.stringify(signals)
-            }
-        });
+        await prisma.stockMetrics.upsert(createMetricsUpsertConfig(symbol, today, metricsData));
 
         return {
             symbol: symbol.toUpperCase(),
-            priceMetrics: priceM,
-            trendMetrics: trendM,
-            momentumMetrics: momentumM,
-            liquidityMetrics: liquidityM,
-            relativeMetrics: relativeM,
-            fundamentals: fundM,
-            patterns: patternsM,
-            signals
+            ...metricsData
         };
     } catch (error) {
         logger.error(`Metrics computation failed for ${symbol}: ${error.message}`);
         return null;
+    }
+}
+
+/** History mapper helper */
+function buildHistoryMap(allHistory) {
+    const historyMap = {};
+    for (const record of allHistory) {
+        if (!historyMap[record.symbol]) historyMap[record.symbol] = [];
+        historyMap[record.symbol].push(record);
+    }
+    return historyMap;
+}
+
+function getHistoricalChange(currentPrice, targetDate, symHistory) {
+    if (!symHistory || symHistory.length === 0) return null;
+    const target = symHistory.find(h => new Date(h.date) <= targetDate) || symHistory[symHistory.length - 1];
+    if (target?.closePrice > 0) {
+        return Number((((currentPrice - target.closePrice) / target.closePrice) * 100).toFixed(2));
+    }
+    return null;
+}
+
+/** Individual snapshot calculator */
+function calculateCumulativeForSymbol(stock, symHistory, target7d, target30d) {
+    if (!symHistory || symHistory.length === 0) return { pct1W: null, pct1M: null };
+    const pct1W = getHistoricalChange(stock.lastTradedPrice, target7d, symHistory);
+    const pct1M = getHistoricalChange(stock.lastTradedPrice, target30d, symHistory);
+    return { pct1W, pct1M };
+}
+
+/**
+ * Pre-calculate 1W and 1M changes sequentially for all stocks
+ */
+async function computeCumulativeStockMetrics(allStocks) {
+    logger.info('Computing 1W and 1M cumulative metrics for all stocks...');
+    try {
+        const now = Date.now();
+        const target7d = new Date(now - 7 * 24 * 60 * 60 * 1000);
+        const target30d = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+        const allHistory = await prisma.marketHistory.findMany({
+            orderBy: { date: 'desc' }
+        });
+
+        const historyMap = buildHistoryMap(allHistory);
+        const updates = [];
+        
+        for (const stock of allStocks) {
+            const symHistory = historyMap[stock.symbol];
+            const { pct1W, pct1M } = calculateCumulativeForSymbol(stock, symHistory, target7d, target30d);
+            
+            const hasNoData = pct1W === null && pct1M === null && !symHistory;
+            if (hasNoData) continue;
+
+            updates.push(prisma.stock.update({
+                where: { symbol: stock.symbol },
+                data: {
+                    percentageChange1W: pct1W,
+                    percentageChange1M: pct1M
+                }
+            }));
+        }
+
+        if (updates.length > 0) {
+            // Batch transact updates
+            await prisma.$transaction(updates);
+            logger.info(`Updated cumulative metrics for ${updates.length} stocks.`);
+        }
+    } catch (error) {
+        logger.error(`Error computing cumulative stock metrics: ${error.message}`);
     }
 }
 
@@ -121,6 +173,9 @@ async function computeAll() {
             }
         });
 
+        // Compute and pre-cache 1W and 1M changes inline!
+        await computeCumulativeStockMetrics(allStocks);
+
         let computed = 0;
         let failed = 0;
 
@@ -143,150 +198,8 @@ async function computeAll() {
     }
 }
 
-/**
- * Get latest metrics for a symbol
- * @param {string} symbol - Stock symbol
- * @returns {Object|null} Parsed metrics or null
- */
-async function getMetrics(symbol) {
-    try {
-        const upperSymbol = symbol.toUpperCase();
-
-        // Always fetch current stock data for "today" metrics
-        const stock = await prisma.stock.findUnique({
-            where: { symbol: upperSymbol }
-        });
-
-        if (!stock) return null;
-
-        // Build current-day data that's always available
-        const currentDay = {
-            price: stock.lastTradedPrice,
-            previousClose: stock.previousClose,
-            open: stock.openPrice,
-            high: stock.highPrice,
-            low: stock.lowPrice,
-            change: stock.change,
-            changePercent: stock.percentageChange,
-            volume: stock.volume,
-            turnover: stock.turnover,
-            totalTrades: stock.totalTrades,
-            sector: stock.sector,
-            companyName: stock.companyName,
-            updatedAt: stock.updatedAt
-        };
-
-        // Fetch computed advanced metrics (may be sparse initially)
-        const metrics = await prisma.stockMetrics.findFirst({
-            where: { symbol: upperSymbol },
-            orderBy: { date: 'desc' }
-        });
-
-        // Check historical depth for data-readiness info
-        const historyCount = await prisma.marketHistory.count({
-            where: { symbol: upperSymbol }
-        });
-
-        const result = {
-            symbol: upperSymbol,
-            currentDay,
-            dataDepth: {
-                historicalDays: historyCount,
-                hasEnoughForMA20: historyCount >= 20,
-                hasEnoughForMA50: historyCount >= 50,
-                hasEnoughForRSI: historyCount >= 14,
-                hasEnoughFor52w: historyCount >= 200,
-                message: historyCount < 14
-                    ? `Accumulating data (${historyCount}/14 days for basic indicators)`
-                    : historyCount < 50
-                    ? `Building history (${historyCount}/50 days for full analysis)`
-                    : null
-            }
-        };
-
-        if (metrics) {
-            result.date = metrics.date;
-            result.computedAt = metrics.computedAt;
-            result.priceMetrics = safeJsonParse(metrics.priceMetrics);
-            result.trendMetrics = safeJsonParse(metrics.trendMetrics);
-            result.momentumMetrics = safeJsonParse(metrics.momentumMetrics);
-            result.liquidityMetrics = safeJsonParse(metrics.liquidityMetrics);
-            result.relativeMetrics = safeJsonParse(metrics.relativeMetrics);
-            result.fundamentals = safeJsonParse(metrics.fundamentals);
-            result.patterns = safeJsonParse(metrics.patterns);
-            result.signals = safeJsonParse(metrics.signals);
-        }
-
-        return result;
-    } catch (error) {
-        logger.error(`Failed to get metrics for ${symbol}: ${error.message}`);
-        return null;
-    }
-}
-
-/**
- * Get aggregate market metrics
- * @returns {Object} Aggregate market-level metrics
- */
-async function getMarketMetrics() {
-    try {
-        const allStocks = await prisma.stock.findMany({
-            where: { lastTradedPrice: { gt: 0 } }
-        });
-
-        const advancing = allStocks.filter(s => (s.change || 0) > 0).length;
-        const declining = allStocks.filter(s => (s.change || 0) < 0).length;
-        const unchanged = allStocks.filter(s => (s.change || 0) === 0).length;
-
-        const totalVolume = allStocks.reduce((sum, s) => sum + (s.volume || 0), 0);
-        const totalTurnover = allStocks.reduce((sum, s) => sum + (s.turnover || 0), 0);
-
-        // Sector breakdown
-        const sectorMap = {};
-        for (const stock of allStocks) {
-            const sector = stock.sector || 'Others';
-            if (!sectorMap[sector]) {
-                sectorMap[sector] = { count: 0, advancing: 0, declining: 0, totalChange: 0 };
-            }
-            sectorMap[sector].count++;
-            sectorMap[sector].totalChange += (stock.percentageChange || 0);
-            if ((stock.change || 0) > 0) sectorMap[sector].advancing++;
-            if ((stock.change || 0) < 0) sectorMap[sector].declining++;
-        }
-
-        const sectors = Object.entries(sectorMap).map(([name, data]) => ({
-            name,
-            ...data,
-            avgChange: data.count > 0 ? data.totalChange / data.count : 0
-        })).sort((a, b) => b.avgChange - a.avgChange);
-
-        return {
-            totalStocks: allStocks.length,
-            advancing,
-            declining,
-            unchanged,
-            breadthRatio: allStocks.length > 0 ? advancing / allStocks.length : 0,
-            totalVolume,
-            totalTurnover,
-            sectors
-        };
-    } catch (error) {
-        logger.error(`Market metrics computation failed: ${error.message}`);
-        return null;
-    }
-}
-
-/**
- * Safe JSON parse helper
- */
-function safeJsonParse(str) {
-    if (!str) return null;
-    try {
-        return JSON.parse(str);
-    } catch {
-        return null;
-    }
-}
+// ── Re-export read-only queries from metricsReader ────────────────────────────
+const { getMetrics, getMarketMetrics } = require('./metricsReader');
 
 module.exports = {
     computeForSymbol,

@@ -39,11 +39,23 @@ const FIELD_MAP = [
 ];
 
 /** Resolve common stock fields from various API shapes */
-function resolveStockFields(stock) {
+function resolveStockFields(stock, timeframe = '1D') {
     const result = {};
     for (const [key, fields, fallback] of FIELD_MAP) {
         result[key] = resolveFirst(stock, fields, fallback);
     }
+    
+    // Override absolute and percentage change if historical timeframe is chosen
+    if (timeframe === '1W') {
+        const pct = stock.percentageChange1W;
+        result.changePercent = pct;
+        result.change = pct == null ? null : (pct === 0 ? 0 : result.ltp - (result.ltp / (1 + pct / 100)));
+    } else if (timeframe === '1M') {
+        const pct = stock.percentageChange1M;
+        result.changePercent = pct;
+        result.change = pct == null ? null : (pct === 0 ? 0 : result.ltp - (result.ltp / (1 + pct / 100)));
+    }
+    
     return result;
 }
 
@@ -166,32 +178,15 @@ const formatChangePercent = (v, sign) =>
 const formatVolume = (v) =>
     (v === null || v === undefined) ? '-' : (v === 0 ? '0' : formatNumber(v));
 
-/** Change pill sub-component */
-function ChangePill({ change, prevChange, sign }) {
-    const pillClass = changePillClass(change);
+/** Unified change cell sub-component avoiding duplication */
+function AnimatedChangeCell({ value, prevValue, changeClass, containerClass, formatter, sign }) {
     return (
         <td className="text-right financial-cell">
-            <div className={`change-pill ${pillClass}`}>
+            <div className={`${containerClass} ${changeClass}`}>
                 <AnimatedCell
-                    value={Math.abs(change)}
-                    previousValue={Math.abs(prevChange || 0)}
-                    formatter={(v) => formatChangeValue(v, sign)}
-                />
-            </div>
-        </td>
-    );
-}
-
-/** Change percent badge sub-component */
-function ChangePercentBadge({ change, changePercent, prevChangePercent, sign }) {
-    const pillClass = changePillClass(change);
-    return (
-        <td className="text-right financial-cell">
-            <div className={`change-percent-badge ${pillClass}`}>
-                <AnimatedCell
-                    value={Math.abs(changePercent)}
-                    previousValue={Math.abs(prevChangePercent || 0)}
-                    formatter={(v) => formatChangePercent(v, sign)}
+                    value={Math.abs(value)}
+                    previousValue={Math.abs(prevValue || 0)}
+                    formatter={(v) => formatter(v, sign)}
                 />
             </div>
         </td>
@@ -199,8 +194,8 @@ function ChangePercentBadge({ change, changePercent, prevChangePercent, sign }) 
 }
 
 /** Single desktop stock table row */
-const StockRow = memo(function StockRow({ stock, onRowClick, getPreviousValue, favorites, onToggleFavorite }) {
-    const f = resolveStockFields(stock);
+const StockRow = memo(function StockRow({ stock, onRowClick, getPreviousValue, favorites, onToggleFavorite, timeframe }) {
+    const f = resolveStockFields(stock, timeframe);
     const sign = changeSign(f.change);
 
     return (
@@ -217,8 +212,22 @@ const StockRow = memo(function StockRow({ stock, onRowClick, getPreviousValue, f
                     showDirection={true}
                 />
             </td>
-            <ChangePill change={f.change} prevChange={getPreviousValue(f.symbol, 'change')} sign={sign} />
-            <ChangePercentBadge change={f.change} changePercent={f.changePercent} prevChangePercent={getPreviousValue(f.symbol, 'changePercent')} sign={sign} />
+            <AnimatedChangeCell 
+                value={f.change} 
+                prevValue={getPreviousValue(f.symbol, 'change')} 
+                changeClass={changePillClass(f.change)} 
+                containerClass="change-pill" 
+                formatter={formatChangeValue} 
+                sign={sign} 
+            />
+            <AnimatedChangeCell 
+                value={f.changePercent} 
+                prevValue={getPreviousValue(f.symbol, 'changePercent')} 
+                changeClass={changePillClass(f.change)} 
+                containerClass="change-percent-badge" 
+                formatter={formatChangePercent} 
+                sign={sign} 
+            />
             <td className="text-right financial-cell volume-cell">
                 <AnimatedCell
                     value={f.volume}
@@ -232,8 +241,8 @@ const StockRow = memo(function StockRow({ stock, onRowClick, getPreviousValue, f
 });
 
 /** Single mobile stock card */
-function MobileStockCard({ stock, onRowClick, getPreviousValue }) {
-    const f = resolveStockFields(stock);
+function MobileStockCard({ stock, onRowClick, getPreviousValue, timeframe }) {
+    const f = resolveStockFields(stock, timeframe);
     const sign = changeSign(f.change);
     const priceClass = f.change > 0 ? 'price-up' : f.change < 0 ? 'price-down' : 'price-unchanged';
 
@@ -295,7 +304,7 @@ function PaginationControls({ currentPage, totalPages, onPageChange }) {
 const getStockKey = (stock) => stock.symbol || stock._id;
 
 /** Mobile card list view */
-function MobileStockView({ sortedStocks, onRowClick, getPreviousValue }) {
+function MobileStockView({ sortedStocks, onRowClick, getPreviousValue, timeframe }) {
     return (
         <div className="mobile-card-container">
             {sortedStocks.map((stock) => (
@@ -304,6 +313,7 @@ function MobileStockView({ sortedStocks, onRowClick, getPreviousValue }) {
                     stock={stock}
                     onRowClick={onRowClick}
                     getPreviousValue={getPreviousValue}
+                    timeframe={timeframe}
                 />
             ))}
         </div>
@@ -311,7 +321,7 @@ function MobileStockView({ sortedStocks, onRowClick, getPreviousValue }) {
 }
 
 /** Desktop table view */
-function DesktopStockView({ sortedStocks, sortConfig, handleSort, isPolling, onRowClick, getPreviousValue, favorites, onToggleFavorite }) {
+function DesktopStockView({ sortedStocks, sortConfig, handleSort, isPolling, onRowClick, getPreviousValue, favorites, onToggleFavorite, timeframe }) {
     return (
         <div className="table-container desktop-table-container">
             <table className="stock-table">
@@ -336,6 +346,7 @@ function DesktopStockView({ sortedStocks, sortConfig, handleSort, isPolling, onR
                             getPreviousValue={getPreviousValue}
                             favorites={favorites}
                             onToggleFavorite={onToggleFavorite}
+                            timeframe={timeframe}
                         />
                     ))}
                 </tbody>
@@ -359,7 +370,8 @@ function StockTable({
     favorites = [],
     onToggleFavorite
 }) {
-    const { sortedStocks, sortConfig, handleSort } = useSortedStocks(stocks);
+    const [timeframe, setTimeframe] = useState('1D');
+    const { sortedStocks, sortConfig, handleSort } = useSortedStocks(stocks, 'symbol', 'asc', timeframe);
     const getPreviousValue = usePreviousStockValues(stocks);
     const isMobile = useMediaQuery('(max-width: 768px)');
     const shouldShowPagination = showPagination && totalPages > 1;
@@ -368,6 +380,24 @@ function StockTable({
 
     return (
         <div className="stock-table-wrapper">
+            <div className="flex items-center justify-end mb-4 pr-1">
+                <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
+                    {['1D', '1W', '1M'].map(tf => (
+                        <button
+                            key={tf}
+                            onClick={() => setTimeframe(tf)}
+                            className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                                timeframe === tf 
+                                    ? 'bg-blue-600 text-white shadow' 
+                                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                            }`}
+                        >
+                            {tf}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <ViewComponent
                 sortedStocks={sortedStocks}
                 sortConfig={sortConfig}
@@ -377,6 +407,7 @@ function StockTable({
                 getPreviousValue={getPreviousValue}
                 favorites={favorites}
                 onToggleFavorite={onToggleFavorite}
+                timeframe={timeframe}
             />
 
             {shouldShowPagination && (

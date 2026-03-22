@@ -10,7 +10,6 @@ const alertChecker = require('../alertChecker');
 const { prisma } = require('../database/connection');
 const dataEnricher = require('../dataEnricher');
 const metricsOrchestrator = require('../metrics/metricsOrchestrator');
-const aiOverviewService = require('../aiOverviewService');
 
 /**
  * Update Scheduler
@@ -26,7 +25,6 @@ let updateCount = 0;
 let lastError = null;
 let currentMarketState = null;
 let previousMarketState = null;
-let aiTriggeredToday = false; // prevents double-trigger within same trading day
 
 // Market hours from environment or defaults
 const MARKET_OPEN_HOUR = parseInt(process.env.MARKET_OPEN_HOUR) || 10;
@@ -58,19 +56,32 @@ const isMarketOpen = () => {
 
 
 /**
- * Check if the update cycle should be skipped (e.g. weekends in production)
+ * Check if the update cycle should be skipped
  * @returns {boolean} True if update should be skipped
  */
 const shouldSkipUpdate = () => {
     const currentState = getMarketState();
-    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
+    
+    // Check if development/mock mode is active
+    let isDevMode = false;
+    if (process.env.NODE_ENV === 'development') isDevMode = true;
+    if (process.env.USE_MOCK_DATA === 'true') isDevMode = true;
 
-    logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDev}, NODE_ENV=${process.env.NODE_ENV}`);
+    // Determine if it is a non-trading day
+    let isNonTradingDay = false;
+    if (currentState === MARKET_STATES.WEEKEND) isNonTradingDay = true;
+    if (currentState === MARKET_STATES.HOLIDAY) isNonTradingDay = true;
 
-    if ((currentState === MARKET_STATES.WEEKEND || currentState === MARKET_STATES.HOLIDAY) && !isDev) {
-        logger.info(`Skipping update: Market is closed (${currentState})`);
-        return true;
+    logger.info(`Scheduler Debug: State=${currentState}, isDev=${isDevMode}, NODE_ENV=${process.env.NODE_ENV}`);
+
+    // If it's a closed day and we are NOT in dev mode, skip update
+    if (isNonTradingDay) {
+        if (!isDevMode) {
+            logger.info(`Skipping update: Market is closed (${currentState})`);
+            return true;
+        }
     }
+    
     return false;
 };
 
@@ -168,37 +179,11 @@ const performUpdate = async () => {
 };
 
 /**
- * Detect market close transition and trigger AI overview generation.
- * Called every update cycle. When market transitions from OPEN to POST_CLOSE,
- * waits a short delay for final data to settle, then starts AI generation.
+ * Detect market close transition.
+ * Called every update cycle.
  */
 const checkMarketCloseTransition = () => {
     const newState = getMarketState();
-
-    // Reset the daily trigger flag when market opens (new trading day)
-    if (newState === MARKET_STATES.OPEN) {
-        aiTriggeredToday = false;
-    }
-
-    // Detect OPEN → POST_CLOSE transition
-    if (previousMarketState === MARKET_STATES.OPEN && newState === MARKET_STATES.POST_CLOSE && !aiTriggeredToday) {
-        aiTriggeredToday = true;
-        logger.info('[Scheduler] Market just closed — triggering AI overview generation in 60s');
-
-        setTimeout(async () => {
-            try {
-                logger.info('[Scheduler] Generating market overview after market close...');
-                await aiOverviewService.generateMarketOverview('market-close');
-
-                logger.info('[Scheduler] Starting stock overview generation (chunked, rate-limited)...');
-                const stats = await aiOverviewService.generateAll('market-close');
-                logger.info(`[Scheduler] AI generation done: ${stats.generated} generated, ${stats.failed} failed, ${stats.skipped} fresh${stats.quotaExhausted ? ' (quota exhausted)' : ''}`);
-            } catch (e) {
-                logger.error(`[Scheduler] Post-close AI generation failed: ${e.message}`);
-            }
-        }, 60000); // 60s delay for final data update to finish
-    }
-
     previousMarketState = newState;
 };
 
@@ -208,8 +193,16 @@ const checkMarketCloseTransition = () => {
 const scheduleNext = () => {
     if (!isRunning) return;
 
-    const isDev = process.env.NODE_ENV === 'development' || process.env.USE_MOCK_DATA === 'true';
-    const interval = (isMarketOpen() || isDev) ? MARKET_OPEN_INTERVAL : MARKET_CLOSED_INTERVAL;
+    let isDevMode = false;
+    if (process.env.NODE_ENV === 'development') isDevMode = true;
+    if (process.env.USE_MOCK_DATA === 'true') isDevMode = true;
+
+    let interval = MARKET_CLOSED_INTERVAL;
+    if (isMarketOpen()) {
+        interval = MARKET_OPEN_INTERVAL;
+    } else if (isDevMode) {
+        interval = MARKET_OPEN_INTERVAL;
+    }
 
     schedulerJob = setTimeout(async () => {
         if (isRunning) {
@@ -251,55 +244,6 @@ const setupCronJobs = () => {
     });
 };
 
-/**
- * Check if AI overviews were missed today and need catch-up generation.
- * Runs on scheduler start — if it's a trading day past 15:30 and overviews are stale,
- * triggers generation so restarts after the cron window don't skip a day.
- */
-const checkAICatchUp = async () => {
-    try {
-        const config = { apiKey: process.env.GEMINI_API_KEY };
-        if (!config.apiKey) return;
-
-        const nst = getNSTTime();
-        const hour = nst.getHours();
-        const day = nst.getDay(); // 0=Sun
-
-        // Only catch up on trading days (Sun-Thu, non-holiday) after 15:00 NST
-        if (day === 5 || day === 6) return; // Fri/Sat weekend
-        if (hour < 15) return; // Market hasn't closed yet, transition trigger will handle it
-
-        // Skip public holidays
-        const currentState = getMarketState();
-        if (currentState === MARKET_STATES.HOLIDAY) return;
-
-        // Check if market overview is stale (older than 20 hours)
-        const staleThreshold = new Date(Date.now() - 20 * 60 * 60 * 1000);
-        const marketOverview = await prisma.aIOverview.findFirst({
-            where: { symbol: 'MARKET', type: 'market' },
-            select: { updatedAt: true }
-        });
-
-        const needsCatchUp = !marketOverview || marketOverview.updatedAt < staleThreshold;
-
-        if (needsCatchUp) {
-            aiTriggeredToday = true; // prevent transition trigger from double-firing
-            logger.info('[Scheduler] AI overviews are stale and cron window was missed — starting catch-up generation');
-            // Delay 60s to let initial data update finish first
-            setTimeout(async () => {
-                try {
-                    await aiOverviewService.generateMarketOverview('scheduler-catchup');
-                    const stats = await aiOverviewService.generateAll('scheduler-catchup');
-                    logger.info(`[Scheduler] AI catch-up done: ${stats.generated} generated, ${stats.failed} failed`);
-                } catch (e) {
-                    logger.error(`[Scheduler] AI catch-up failed: ${e.message}`);
-                }
-            }, 60000);
-        }
-    } catch (err) {
-        logger.error(`[Scheduler] AI catch-up check failed: ${err.message}`);
-    }
-};
 
 /**
  * Start the update scheduler
@@ -324,13 +268,16 @@ const startScheduler = async () => {
     scheduleNext();
     setupCronJobs();
 
-    // Check if AI overviews need catch-up (missed cron window)
-    await checkAICatchUp();
+
+    let statusLabel = 'CLOSED';
+    if (isMarketOpen()) {
+        statusLabel = 'OPEN';
+    }
 
     const nst = getNSTTime();
     logger.info(`Scheduler started at ${nst.toISOString()} NST (from external time server)`);
     logger.info(`Market hours: ${MARKET_OPEN_HOUR}:${MARKET_OPEN_MINUTE.toString().padStart(2, '0')} - ${MARKET_CLOSE_HOUR}:${MARKET_CLOSE_MINUTE.toString().padStart(2, '0')} NST`);
-    logger.info(`Current market status: ${isMarketOpen() ? 'OPEN' : 'CLOSED'} (${currentMarketState})`);
+    logger.info(`Current market status: ${statusLabel} (${currentMarketState})`);
 };
 
 
@@ -374,8 +321,7 @@ const getUpdateStatus = () => ({
         open: `${MARKET_OPEN_HOUR}:${MARKET_OPEN_MINUTE.toString().padStart(2, '0')}`,
         close: `${MARKET_CLOSE_HOUR}:${MARKET_CLOSE_MINUTE.toString().padStart(2, '0')}`
     },
-    dataSource: dataFetcher.getDataSource(),
-    aiGeneration: aiOverviewService.getGenerationStatus()
+    dataSource: dataFetcher.getDataSource()
 });
 
 /**

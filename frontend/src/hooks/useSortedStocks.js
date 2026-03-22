@@ -1,23 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
-
-/** Resolve the sort value for a stock, handling nested price fields */
-function resolveSortValue(stock, key) {
-    if (key === 'ltp') return stock.ltp || stock.prices?.ltp || 0;
-    return stock[key];
-}
-
-/** Compare two values with directional multiplier */
-function compareValues(aVal, bVal, dir) {
-    if (aVal < bVal) return -dir;
-    if (aVal > bVal) return dir;
-    return 0;
-}
+import { resolveSortValue, compareValues } from './sortHelpers';
 
 /**
  * Custom hook for sorting stock arrays.
  * Returns sorted stocks, current sort config, and a sort handler.
  */
-export function useSortedStocks(stocks, initialKey = 'symbol', initialDirection = 'asc') {
+export function useSortedStocks(stocks, initialKey = 'symbol', initialDirection = 'asc', timeframe = '1D') {
     const [sortConfig, setSortConfig] = useState({ key: initialKey, direction: initialDirection });
 
     const handleSort = useCallback((key) => {
@@ -31,12 +19,12 @@ export function useSortedStocks(stocks, initialKey = 'symbol', initialDirection 
         const dir = sortConfig.direction === 'asc' ? 1 : -1;
         return [...stocks].sort((a, b) =>
             compareValues(
-                resolveSortValue(a, sortConfig.key),
-                resolveSortValue(b, sortConfig.key),
+                resolveSortValue(a, sortConfig.key, timeframe),
+                resolveSortValue(b, sortConfig.key, timeframe),
                 dir
             )
         );
-    }, [stocks, sortConfig]);
+    }, [stocks, sortConfig, timeframe]);
 
     return { sortedStocks, sortConfig, handleSort };
 }

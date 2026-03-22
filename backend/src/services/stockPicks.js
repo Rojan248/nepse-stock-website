@@ -17,6 +17,7 @@
 
 const { prisma } = require('./database/connection');
 const logger = require('./utils/logger');
+const { buildReasons } = require('./stockPickReasons');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ function safeJSON(str) {
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /** Linearly map val from [inLo,inHi] to [outLo,outHi], clamped */
-function mapRange(val, inLo, inHi, outLo, outHi) {
+function mapRange({ val, inLo, inHi, outLo, outHi }) {
     if (val == null) return outLo;
     const t = clamp((val - inLo) / (inHi - inLo), 0, 1);
     return outLo + t * (outHi - outLo);
@@ -51,14 +52,14 @@ function scoreTrend(trend) {
 
     // Price above MA20 (0-5)
     if (trend.priceVsMa20 != null) {
-        s += mapRange(trend.priceVsMa20, -5, 10, 0, 5);
+        s += mapRange({ val: trend.priceVsMa20, inLo: -5, inHi: 10, outLo: 0, outHi: 5 });
     } else {
         s += 2;
     }
 
     // Price above MA50 (0-3)
     if (trend.priceVsMa50 != null) {
-        s += mapRange(trend.priceVsMa50, -10, 15, 0, 3);
+        s += mapRange({ val: trend.priceVsMa50, inLo: -10, inHi: 15, outLo: 0, outHi: 3 });
     } else {
         s += 1;
     }
@@ -71,75 +72,61 @@ function scoreTrend(trend) {
     return clamp(s, 0, 20);
 }
 
+function getRsiScore(rsi14) {
+    if (rsi14 == null) return 4;
+    if (rsi14 > 75) return 3;
+    if (rsi14 > 65) return 7; 
+    if (rsi14 >= 40) return 10;
+    if (rsi14 >= 30) return 6;
+    return 2;
+}
+
+function getRocScore(mom) {
+    let s = 0;
+    s += mom.roc10d != null ? mapRange({ val: mom.roc10d, inLo: -5, inHi: 10, outLo: 0, outHi: 5 }) : 2;
+    s += mom.roc30d != null ? mapRange({ val: mom.roc30d, inLo: -10, inHi: 15, outLo: 0, outHi: 5 }) : 2;
+    return s;
+}
+
 /**
  * Momentum score (0-20): RSI in healthy range + positive ROC
  */
 function scoreMomentum(mom) {
     if (!mom) return 5;
-    let s = 0;
-
-    // RSI14 scoring — sweet spot is 40-65 (healthy momentum, not overbought)
-    if (mom.rsi14 != null) {
-        if (mom.rsi14 >= 40 && mom.rsi14 <= 65) s += 10;      // ideal zone
-        else if (mom.rsi14 >= 30 && mom.rsi14 < 40) s += 6;    // recovering
-        else if (mom.rsi14 > 65 && mom.rsi14 <= 75) s += 7;    // strong but watch
-        else if (mom.rsi14 > 75) s += 3;                        // overbought risk
-        else s += 2;                                             // oversold
-    } else {
-        s += 4;
-    }
-
-    // ROC 10-day (0-5)
-    if (mom.roc10d != null) {
-        s += mapRange(mom.roc10d, -5, 10, 0, 5);
-    } else {
-        s += 2;
-    }
-
-    // ROC 30-day (0-5)
-    if (mom.roc30d != null) {
-        s += mapRange(mom.roc30d, -10, 15, 0, 5);
-    } else {
-        s += 2;
-    }
-
+    const s = getRsiScore(mom.rsi14) + getRocScore(mom);
     return clamp(s, 0, 20);
+}
+
+function getDistanceScore(distFromHigh52w) {
+    if (distFromHigh52w == null) return 4;
+    const dist = Math.abs(distFromHigh52w);
+    if (dist > 40) return 3;
+    if (dist >= 10) return 8;
+    if (dist >= 5) return 6;
+    return 4;
+}
+
+function getStreakScore(price) {
+    let s = 0;
+    if (price.consecutiveUp >= 3) s += 3;
+    else if (price.consecutiveUp >= 2) s += 2;
+    else if (price.consecutiveUp >= 1) s += 1;
+    if (price.consecutiveDown >= 3) s -= 3;
+    return s;
 }
 
 /**
  * Price position score (0-15): room to grow based on 52w range
- * Stocks near 52w low get higher score (more upside), near high get less
  */
 function scorePricePosition(price) {
     if (!price) return 5;
-    let s = 0;
+    let s = getDistanceScore(price.distFromHigh52w) + getStreakScore(price);
 
-    // Distance from 52w high — closer to high means less room
-    // We reward stocks that still have room to grow (10-40% below high)
-    if (price.distFromHigh52w != null) {
-        const dist = Math.abs(price.distFromHigh52w);
-        if (dist >= 10 && dist <= 40) s += 8;       // sweet spot: room to grow
-        else if (dist >= 5 && dist < 10) s += 6;     // near high, still some room
-        else if (dist < 5) s += 4;                    // very near high
-        else if (dist > 40) s += 3;                   // too far from high — may be falling
-    } else {
-        s += 4;
-    }
-
-    // Positive weekly change (0-4)
     if (price.weeklyChange != null) {
-        s += mapRange(price.weeklyChange, -3, 8, 0, 4);
+        s += mapRange({ val: price.weeklyChange, inLo: -3, inHi: 8, outLo: 0, outHi: 4 });
     } else {
         s += 1;
     }
-
-    // Consecutive up days bonus (0-3)
-    if (price.consecutiveUp >= 3) s += 3;
-    else if (price.consecutiveUp >= 2) s += 2;
-    else if (price.consecutiveUp >= 1) s += 1;
-
-    // Consecutive down days penalty
-    if (price.consecutiveDown >= 3) s -= 3;
 
     return clamp(s, 0, 15);
 }
@@ -153,7 +140,7 @@ function scoreLiquidity(liq) {
 
     // Liquidity score from the module (0-100 mapped to 0-10)
     if (liq.liquidityScore != null) {
-        s += mapRange(liq.liquidityScore, 0, 100, 0, 10);
+        s += mapRange({ val: liq.liquidityScore, inLo: 0, inHi: 100, outLo: 0, outHi: 10 });
     } else {
         s += 3;
     }
@@ -176,10 +163,28 @@ function scoreSector(rel) {
     let s = 5; // neutral baseline
 
     if (rel.vsSectorAvg != null) {
-        s += mapRange(rel.vsSectorAvg, -5, 10, -3, 5);
+        s += mapRange({ val: rel.vsSectorAvg, inLo: -5, inHi: 10, outLo: -3, outHi: 5 });
     }
 
     return clamp(s, 0, 10);
+}
+
+const PATTERN_WEIGHTS = {
+    bullishMomentum: 2, bearishMomentum: -2, volumeBreakout: 2,
+    overbought: -1, oversold: 1, sectorOutperformer: 1,
+    sectorUnderperformer: -1, postBonusAdjustment: -2, lowLiquidity: -2
+};
+
+function getPatternModifiers(patterns) {
+    if (!patterns) return 0;
+    return Object.entries(PATTERN_WEIGHTS).reduce((sum, [key, weight]) => sum + (patterns[key] ? weight : 0), 0);
+}
+
+function getSignalModifiers(signals) {
+    if (!signals || !Array.isArray(signals)) return 0;
+    const bullishCount = signals.filter(s => s.sentiment === 'bullish').length;
+    const bearishCount = signals.filter(s => s.sentiment === 'bearish').length;
+    return Math.min(bullishCount, 2) - Math.min(bearishCount, 2);
 }
 
 /**
@@ -187,28 +192,7 @@ function scoreSector(rel) {
  */
 function scoreSignals(patterns, signals) {
     if (!patterns && !signals) return 5;
-    let s = 5; // neutral baseline
-
-    if (patterns) {
-        if (patterns.bullishMomentum) s += 2;
-        if (patterns.bearishMomentum) s -= 2;
-        if (patterns.volumeBreakout) s += 2;
-        if (patterns.overbought) s -= 1;
-        if (patterns.oversold) s += 1;   // opportunity
-        if (patterns.sectorOutperformer) s += 1;
-        if (patterns.sectorUnderperformer) s -= 1;
-        if (patterns.postBonusAdjustment) s -= 2; // uncertain price action
-        if (patterns.lowLiquidity) s -= 2;
-    }
-
-    // Count bullish vs bearish signals
-    if (signals && Array.isArray(signals)) {
-        const bullishCount = signals.filter(s => s.sentiment === 'bullish').length;
-        const bearishCount = signals.filter(s => s.sentiment === 'bearish').length;
-        s += Math.min(bullishCount, 2); // cap bonus at +2
-        s -= Math.min(bearishCount, 2); // cap penalty at -2
-    }
-
+    const s = 5 + getPatternModifiers(patterns) + getSignalModifiers(signals);
     return clamp(s, 0, 10);
 }
 
@@ -220,69 +204,16 @@ function scoreMediumTerm(price, trend) {
 
     // Monthly change (0-5 bonus or penalty)
     if (price?.monthlyChange != null) {
-        s += mapRange(price.monthlyChange, -10, 20, -3, 5);
+        s += mapRange({ val: price.monthlyChange, inLo: -10, inHi: 20, outLo: -3, outHi: 5 });
     }
 
-    // Price above MA180 — long-term bullish signal
-    if (trend?.priceVsMa180 != null && trend.priceVsMa180 > 0) {
-        s += 2;
-    } else if (trend?.priceVsMa180 != null && trend.priceVsMa180 < -10) {
-        s -= 1;
+    const p180 = trend?.priceVsMa180;
+    if (p180 != null) {
+        if (p180 > 0) s += 2;
+        else if (p180 < -10) s -= 1;
     }
 
     return clamp(s, 0, 10);
-}
-
-// ── Reason Builder ────────────────────────────────────────────────────────────
-
-function buildReasons(stock, trend, mom, price, liq, rel, patterns) {
-    const reasons = [];
-
-    // Trend
-    if (trend?.trend === 'bullish') reasons.push('Price is in an uptrend, trading above key averages');
-    else if (trend?.trend === 'bearish') reasons.push('Price is trending below key averages');
-
-    // Momentum
-    if (mom?.rsi14 != null) {
-        if (mom.rsi14 >= 40 && mom.rsi14 <= 65) reasons.push('Healthy momentum — not too hot, not too cold');
-        else if (mom.rsi14 > 70) reasons.push('Strong momentum, but may be overheated');
-        else if (mom.rsi14 < 30) reasons.push('Significantly oversold — could be a recovery opportunity');
-    }
-
-    // ROC
-    if (mom?.roc10d != null && mom.roc10d > 3) {
-        reasons.push(`Price rose ${mom.roc10d.toFixed(1)}% over the last 10 days`);
-    }
-
-    // 52-week position
-    if (price?.distFromHigh52w != null) {
-        const dist = Math.abs(price.distFromHigh52w);
-        if (dist >= 10 && dist <= 30) reasons.push(`About ${dist.toFixed(0)}% below its highest price this year — room to grow`);
-        else if (dist < 5) reasons.push('Trading near its highest price this year');
-    }
-
-    // Volume
-    if (liq?.isVolumeSpike) reasons.push('Saw a spike in trading volume today — increased interest');
-    if (patterns?.highLiquidity) reasons.push('Actively traded with good liquidity');
-
-    // Sector
-    if (rel?.vsSectorAvg != null && rel.vsSectorAvg > 2) {
-        reasons.push(`Outperforming its ${stock.sector || ''} sector peers`);
-    }
-
-    // Patterns
-    if (patterns?.goldenCross || patterns?.volumeBreakout) reasons.push('Showing positive technical patterns');
-    if (price?.consecutiveUp >= 3) reasons.push(`On a ${price.consecutiveUp}-day winning streak`);
-
-    // Monthly momentum
-    if (price?.monthlyChange != null && price.monthlyChange > 5) {
-        reasons.push(`Up ${price.monthlyChange.toFixed(1)}% over the past month`);
-    }
-
-    // Fallback
-    if (reasons.length === 0) reasons.push('Neutral outlook — no strong signals in either direction');
-
-    return reasons.slice(0, 4); // max 4 reasons
 }
 
 // ── Main Scoring ──────────────────────────────────────────────────────────────
@@ -312,7 +243,7 @@ function scoreStock(stock, metrics) {
         liqScore + sectorScore + signalScore + medTermScore
     );
 
-    const reasons = buildReasons(stock, trend, mom, price, liq, rel, pats);
+    const reasons = buildReasons(stock, { trend, mom, price, liq, rel, patterns: pats });
 
     return {
         score: clamp(totalScore, 0, 100),

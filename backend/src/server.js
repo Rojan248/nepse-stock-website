@@ -130,13 +130,6 @@ const startServer = async () => {
         const analytics = require('./services/analytics');
         await analytics.initialize();
 
-        // Validate Gemini AI configuration
-        if (!process.env.GEMINI_API_KEY) {
-            logger.warn('GEMINI_API_KEY not set — AI overview features will be disabled');
-        } else {
-            logger.info(`Gemini AI configured (model: ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'})`);
-        }
-        // AI catch-up for stale overviews is handled by the scheduler (checkAICatchUp)
 
         // Start Express server
         const server = app.listen(PORT, '0.0.0.0', () => {

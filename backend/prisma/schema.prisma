@@ -24,6 +24,8 @@ model Stock {
   turnover        Float?
   change          Float?
   percentageChange Float?
+  percentageChange1W Float?
+  percentageChange1M Float?
   // 52-week range sourced from NEPSE /security/{id} endpoint
   high52w         Float?
   low52w          Float?
