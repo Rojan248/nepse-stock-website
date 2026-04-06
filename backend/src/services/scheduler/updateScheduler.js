@@ -184,6 +184,15 @@ const performUpdate = async () => {
  */
 const checkMarketCloseTransition = () => {
     const newState = getMarketState();
+    
+    // Detect transition from OPEN to CLOSED
+    if (previousMarketState === MARKET_STATES.OPEN && newState === MARKET_STATES.CLOSED) {
+        logger.info('Market transition detected: OPEN -> CLOSED. Taking End-of-Day snapshot.');
+        stockOperations.snapshotDailyMarket().catch(err => {
+            logger.error(`Automated EOD Snapshot failed: ${err.message}`);
+        });
+    }
+    
     previousMarketState = newState;
 };
 
@@ -222,6 +231,16 @@ const scheduleNext = () => {
  * Setup daily and periodic cron jobs
  */
 const setupCronJobs = () => {
+    // EOD Fallback (3:30 PM NST every Sun-Thu)
+    schedule.scheduleJob('30 15 * * 0-4', async () => {
+        logger.info('Running fallback EOD snapshot (3:30 PM NST)...');
+        try {
+            await stockOperations.snapshotDailyMarket();
+        } catch (e) {
+            logger.error(`Fallback EOD snapshot failed: ${e.message}`);
+        }
+    });
+
     // Daily cleanup
     schedule.scheduleJob('0 0 * * *', async () => {
         logger.info('Running daily cleanup...');

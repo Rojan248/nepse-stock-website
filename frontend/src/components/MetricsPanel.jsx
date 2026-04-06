@@ -67,12 +67,20 @@ function useStockMetrics(symbol) {
     return { metrics, loading };
 }
 
+function hasTrendData(tm) {
+    return Boolean(tm && (tm.ma20 || tm.ma50));
+}
+
+function hasMomentumData(mm) {
+    return Boolean(mm && mm.rsi14 != null);
+}
+
 function computeMetricsFlags(metrics) {
     const { trendMetrics: tm, momentumMetrics: mm, signals, dataDepth } = metrics;
-    const hasAdvanced = Boolean((tm && (tm.ma20 || tm.ma50)) || (mm && mm.rsi14 != null));
+    const hasAdvanced = hasTrendData(tm) || hasMomentumData(mm);
     const histDays = dataDepth?.historicalDays || 0;
     const showNotice = !hasAdvanced && Boolean(dataDepth?.message);
-    const showSignals = Boolean(signals && signals.length > 0);
+    const showSignals = Array.isArray(signals) && signals.length > 0;
     return { hasAdvanced, histDays, showNotice, showSignals };
 }
 

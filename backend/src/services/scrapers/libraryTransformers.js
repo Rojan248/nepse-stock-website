@@ -145,9 +145,25 @@ const extractTradingMetrics = (security, ltp) => {
     return {
         volume,
         turnover: round2(turnover),
-        totalTrades: resolveInt(security, ['noOfTrades', 'totalTrades']),
+        totalTrades: resolveInt(security, ['totalTrades', 'noOfTransactions', 'noOfTrades']),
         supplyDemand: buildSupplyDemand(security)
     };
+};
+
+/** Force changes to zero if volume is zero to prevent stale API metrics */
+const enforceVolumeZeroChanges = (changes, volume) => {
+    if (volume === 0 || isNaN(volume)) {
+        return {
+            ...changes,
+            displayChange: 0,
+            displayChangePercent: 0,
+            intradayChange: 0,
+            intradayChangePercent: 0,
+            overnightChange: 0,
+            overnightChangePercent: 0
+        };
+    }
+    return changes;
 };
 
 // ── Security price resolution ───────────────────────────────────────
@@ -214,7 +230,14 @@ const transformSecurity = (security, marketOpen, staticStockMap, isMarketOpenFn)
     const prevClose = parseFloat(security.previousClose) || 0;
     const ltp = resolveLtp(security, prevClose, staticStockMap, symbol);
     const open = parseFloat(security.openPrice) || ltp;
-    const changes = calculatePriceChanges(ltp, prevClose, open, parseFloat(security.percentageChange));
+    
+    // Extract metrics first so we have the volume
+    const metrics = extractTradingMetrics(security, ltp);
+    
+    // Calculate initial changes then enforce zero if volume is 0
+    let changes = calculatePriceChanges(ltp, prevClose, open, parseFloat(security.percentageChange));
+    changes = enforceVolumeZeroChanges(changes, metrics.volume);
+    
     const { sector, sectorId } = determineSector(symbol, security, staticStockMap);
 
     return {
@@ -225,7 +248,7 @@ const transformSecurity = (security, marketOpen, staticStockMap, isMarketOpenFn)
         sectorId,
         ...buildPriceFields(security, { ltp, prevClose, open, changes }),
         isMarketOpen: resolveMarketOpen(marketOpen, isMarketOpenFn),
-        ...extractTradingMetrics(security, ltp),
+        ...metrics,
         lastUpdated: new Date().toISOString()
     };
 };

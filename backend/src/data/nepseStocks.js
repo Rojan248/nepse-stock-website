@@ -37,7 +37,7 @@ const NEPSE_STOCKS = [
     { symbol: 'GRDBL', name: 'Green Development Bank Limited', sector: 'Development Banks', base: 340 },
     { symbol: 'JBBL', name: 'Jyoti Bikas Bank Limited', sector: 'Development Banks', base: 300 },
     { symbol: 'KSBBL', name: 'Kamana Sewa Bikas Bank Limited', sector: 'Development Banks', base: 320 },
-    { symbol: 'KRBL', name: 'Karnali Development Bank Limited', sector: 'Development Banks', base: 400 },
+
     { symbol: 'LBBL', name: 'Lumbini Bikas Bank Limited', sector: 'Development Banks', base: 290 },
     { symbol: 'MLBL', name: 'Mahalaxmi Bikas Bank Limited', sector: 'Development Banks', base: 310 },
     { symbol: 'MDB', name: 'Miteri Development Bank Limited', sector: 'Development Banks', base: 390 },
@@ -47,7 +47,7 @@ const NEPSE_STOCKS = [
     { symbol: 'SADBL', name: 'Shangrila Development Bank Limited', sector: 'Development Banks', base: 280 },
     { symbol: 'SHINE', name: 'Shine Resunga Development Bank Ltd.', sector: 'Development Banks', base: 340 },
     { symbol: 'SINDU', name: 'Sindhu Bikas Bank Limited', sector: 'Development Banks', base: 260 },
-    { symbol: 'SBBLJ', name: 'Sana Bikash Bank Limited', sector: 'Development Banks', base: 290 },
+
 
     // ============================================
     // FINANCE COMPANIES (15 companies)
@@ -75,7 +75,7 @@ const NEPSE_STOCKS = [
     { symbol: 'AKJCL', name: 'Arun Kabeli Power Limited', sector: 'Hydro Power', base: 184 },
     { symbol: 'AKPL', name: 'Arun Kabeli Power Ltd.', sector: 'Hydro Power', base: 242 },
     { symbol: 'API', name: 'Api Power Company Ltd.', sector: 'Hydro Power', base: 320 },
-    { symbol: 'AVU', name: 'Avyan Urja Company Limited', sector: 'Hydro Power', base: 195 },
+
     { symbol: 'BARUN', name: 'Barun Hydropower Co. Ltd.', sector: 'Hydro Power', base: 360 },
     { symbol: 'BEDC', name: 'Bindhyabasini Energy Development Company Ltd.', sector: 'Hydro Power', base: 180 },
     { symbol: 'BGWT', name: 'Bagwati Hydropower Development Company Limited', sector: 'Hydro Power', base: 165 },
@@ -91,7 +91,7 @@ const NEPSE_STOCKS = [
     { symbol: 'DORDI', name: 'Dordi Khola Jalavidhyut Company Ltd.', sector: 'Hydro Power', base: 320 },
     { symbol: 'GHL', name: 'Green Hydropower Company Limited', sector: 'Hydro Power', base: 180 },
     { symbol: 'GLH', name: 'Gulmi Hydropower Company Limited', sector: 'Hydro Power', base: 195 },
-    { symbol: 'GMBU', name: 'Gaumbu Hydropower Limited', sector: 'Hydro Power', base: 165 },
+
     { symbol: 'GVL', name: 'Ghalemdi Hydropower Limited', sector: 'Hydro Power', base: 175 },
     { symbol: 'HDHPC', name: 'Himal Dolakha Hydropower Company Limited', sector: 'Hydro Power', base: 190 },
     { symbol: 'HHL', name: 'Himalaya Hydropower Limited', sector: 'Hydro Power', base: 210 },
@@ -103,7 +103,7 @@ const NEPSE_STOCKS = [
     { symbol: 'KKHC', name: 'Khani Khola Hydropower Co. Ltd.', sector: 'Hydro Power', base: 160 },
     { symbol: 'KPCL', name: 'Kalika Power Company Limited', sector: 'Hydro Power', base: 280 },
     { symbol: 'LEC', name: 'Liberty Energy Company Ltd.', sector: 'Hydro Power', base: 310 },
-    { symbol: 'LPPL', name: 'Lalitpur Power Limited', sector: 'Hydro Power', base: 195 },
+
     { symbol: 'MBJC', name: 'Madhya Bhotekoshi Jalavidhyut Company Ltd.', sector: 'Hydro Power', base: 490 },
     { symbol: 'MEHL', name: 'Molung Hydropower Limited', sector: 'Hydro Power', base: 178 },
     { symbol: 'MHCL', name: 'Mandakini Hydropower Limited', sector: 'Hydro Power', base: 230 },
@@ -112,7 +112,7 @@ const NEPSE_STOCKS = [
     { symbol: 'MKHL', name: 'Mai Khola Hydropower Limited', sector: 'Hydro Power', base: 195 },
     { symbol: 'MKJC', name: 'Mai Khola Jalabidhyut Company Limited', sector: 'Hydro Power', base: 188 },
     { symbol: 'MMKJL', name: 'Middle Marsyangdi Hydropower', sector: 'Hydro Power', base: 210 },
-    { symbol: 'MPHL', name: 'Mountain Power Hydropower Limited', sector: 'Hydro Power', base: 178 },
+
     { symbol: 'MSHL', name: 'Modi Khola Hydropower Limited', sector: 'Hydro Power', base: 185 },
     { symbol: 'NHDL', name: 'Nepal Hydro Developers Limited', sector: 'Hydro Power', base: 195 },
     { symbol: 'NHPC', name: 'National Hydro Power Company Limited', sector: 'Hydro Power', base: 140 },
@@ -144,7 +144,7 @@ const NEPSE_STOCKS = [
     { symbol: 'SPHL', name: 'Sindhu Power Limited', sector: 'Hydro Power', base: 195 },
     { symbol: 'SSHL', name: 'Sunkoshi Mai Hydropower Limited', sector: 'Hydro Power', base: 188 },
     { symbol: 'TAMOR', name: 'Tamor Hydropower Limited', sector: 'Hydro Power', base: 175 },
-    { symbol: 'TPCL', name: 'Terhathum Power Company Limited', sector: 'Hydro Power', base: 178 },
+
     { symbol: 'TPC', name: 'Tamakoshi Power Company Limited', sector: 'Hydro Power', base: 280 },
     { symbol: 'UMHL', name: 'United Modi Hydropower Ltd.', sector: 'Hydro Power', base: 230 },
     { symbol: 'UNHPL', name: 'Upper Nepal Hydropower Limited', sector: 'Hydro Power', base: 350 },
@@ -168,10 +168,10 @@ const NEPSE_STOCKS = [
     { symbol: 'CLI', name: 'Citizens Life Insurance Company Limited', sector: 'Life Insurance', base: 420 },
     { symbol: 'GLICL', name: 'Gurans Life Insurance Company Ltd.', sector: 'Life Insurance', base: 440 },
     { symbol: 'ILI', name: 'IME Life Insurance Company Limited', sector: 'Life Insurance', base: 395 },
-    { symbol: 'JLIC', name: 'Jyoti Life Insurance Company Limited', sector: 'Life Insurance', base: 410 },
+    { symbol: 'SJLIC', name: 'Jyoti Life Insurance Company Limited', sector: 'Life Insurance', base: 410 },
     { symbol: 'JLI', name: 'Janata Life Insurance Company Limited', sector: 'Life Insurance', base: 385 },
     { symbol: 'LICN', name: 'Life Insurance Corporation (Nepal) Limited', sector: 'Life Insurance', base: 795 },
-    { symbol: 'MLIC', name: 'Mahalaxmi Life Insurance Limited', sector: 'Life Insurance', base: 380 },
+    { symbol: 'PMLI', name: 'Mahalaxmi Life Insurance Limited', sector: 'Life Insurance', base: 380 },
     { symbol: 'NLICL', name: 'National Life Insurance Company Limited', sector: 'Life Insurance', base: 825 },
     { symbol: 'NLIC', name: 'Nepal Life Insurance Co. Ltd.', sector: 'Life Insurance', base: 610 },
     { symbol: 'PLIC', name: 'Prime Life Insurance Company Limited', sector: 'Life Insurance', base: 470 },
@@ -323,7 +323,7 @@ const NEPSE_STOCKS = [
     { symbol: 'CHDC', name: 'Chhyangdi Hydropower Development Company Limited', sector: 'Hydro Power', base: 175 },
     { symbol: 'EDCL', name: 'Energy Development Company Limited', sector: 'Hydro Power', base: 188 },
     { symbol: 'FOWEP', name: 'Fowad Energy Limited', sector: 'Hydro Power', base: 172 },
-    { symbol: 'GHPL', name: 'Greenlife Hydropower Limited', sector: 'Hydro Power', base: 178 },
+    { symbol: 'GLH', name: 'Greenlife Hydropower Limited', sector: 'Hydro Power', base: 178 },
     { symbol: 'HPIL', name: 'Himalayan Power Industries Limited', sector: 'Hydro Power', base: 195 },
     { symbol: 'ICPL', name: 'Indo-China Hydropower Limited', sector: 'Hydro Power', base: 182 },
     { symbol: 'JFPL', name: 'Jalapa Hydropower Limited', sector: 'Hydro Power', base: 175 },
@@ -335,16 +335,16 @@ const NEPSE_STOCKS = [
     { symbol: 'TSHL', name: 'Trishuli Hydropower Limited', sector: 'Hydro Power', base: 188 },
 
     // More Microfinance
-    { symbol: 'AULBS', name: 'Adhikhola Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 580 },
+    { symbol: 'AKBSL', name: 'Adhikhola Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 580 },
     { symbol: 'EMLBF', name: 'Everest Microfinance Bittiya Sanstha Limited', sector: 'Microfinance', base: 620 },
     { symbol: 'GNLB', name: 'Gandaki Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 595 },
     { symbol: 'KBLBS', name: 'Kanchan Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 575 },
-    { symbol: 'MLFLB', name: 'Mahuli Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 560 },
+    { symbol: 'MSLB', name: 'Mahuli Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 560 },
     { symbol: 'NCLBS', name: 'Nepal Community Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 585 },
     { symbol: 'PLBS', name: 'Pashchim Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 610 },
     { symbol: 'SFLBS', name: 'Sajha Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 595 },
     { symbol: 'SNLB', name: 'Sana Nepal Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 580 },
-    { symbol: 'SSLBS', name: 'Sarathi Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 605 },
+    { symbol: 'NSLB', name: 'Sarathi Laghubitta Bittiya Sanstha Limited', sector: 'Microfinance', base: 605 },
 
     // More Insurance
     { symbol: 'BALI', name: 'Bali Insurance Company Limited', sector: 'Non Life Insurance', base: 495 },
@@ -407,7 +407,7 @@ const NEPSE_STOCKS = [
     { symbol: 'DHEL', name: 'Daramkhola Hydro Energy Limited', sector: 'Hydro Power', base: 572.5 },
     { symbol: 'HIMSTAR', name: 'Him Star Urja Company Limited', sector: 'Hydro Power', base: 848 },
     { symbol: 'MABEL', name: 'Mabilung Energy Limited', sector: 'Hydro Power', base: 697.9 },
-    { symbol: 'MKCH', name: 'Maya Khola Hydropower Company Limited', sector: 'Hydro Power', base: 369.9 },
+    { symbol: 'MKHC', name: 'Maya Khola Hydropower Company Limited', sector: 'Hydro Power', base: 369.9 },
     { symbol: 'VLUCL', name: 'Vision Lumbini Urja Company Limited', sector: 'Hydro Power', base: 579 },
     { symbol: 'SYPNL', name: 'SY Panel Nepal Limited', sector: 'Manufacturing And Processing', base: 622.6 },
 
@@ -427,13 +427,13 @@ const NEPSE_STOCKS = [
     { symbol: 'BANDIPUR', name: 'Bandipur Cablecar and Tourism Limited', sector: 'Hotels And Tourism', base: 762.1 },
     { symbol: 'MEN', name: 'Mountain Energy Nepal Limited', sector: 'Hydro Power', base: 560 },
     // December 2025 Listings
-    { symbol: 'MKCCL', name: 'Maula Kali Cable Car Limited', sector: 'Hotels And Tourism', base: 100 },
+
     { symbol: 'NIVIX', name: 'Nivix Pharmaceuticals Limited', sector: 'Manufacturing And Processing', base: 100 },
     { symbol: 'BJHL', name: 'Bhujung Hydropower Limited', sector: 'Hydro Power', base: 100 },
-    { symbol: 'RSM', name: 'Reliance Spinning Mills Limited', sector: 'Manufacturing And Processing', base: 820.8 },
+    { symbol: 'RSML', name: 'Reliance Spinning Mills Limited', sector: 'Manufacturing And Processing', base: 820.8 },
     { symbol: 'SKHEL', name: 'Suryakunda Hydro Electric Limited', sector: 'Hydro Power', base: 100 },
     { symbol: 'RLEL', name: 'Ridge Line Energy Limited', sector: 'Hydro Power', base: 100 },
-    { symbol: 'SALAPA', name: 'Salapa Bikas Bank Limited', sector: 'Development Banks', base: 100 },
+    { symbol: 'SABBL', name: 'Salapa Bikas Bank Limited', sector: 'Development Banks', base: 100 },
 ];
 
 /**

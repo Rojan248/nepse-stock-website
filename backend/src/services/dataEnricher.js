@@ -179,13 +179,12 @@ const buildSummaryResult = (existingSummary, calc, breadth) => ({
         ? existingSummary.totalTransactions
         : (calc.trades || 0),
     activeCompanies: preferExisting(existingSummary.activeCompanies, calc.tradedCompanies),
-    // Breadth assignments: NEPSE official API aggregates include Mutual Funds & Debentures.
-    // Since we explicitly filter non-equities out of `stocks`, our local `breadth.unchanged`
-    // will mathematically be 0 if the only unchanged entities that day were non-equities!
-    // Therefore, we MUST prefer the `existingSummary` (API payload) to match NEPSE's macro totals.
-    advancedCompanies: preferExisting(existingSummary.advancedCompanies, breadth.advanced),
-    declinedCompanies: preferExisting(existingSummary.declinedCompanies, breadth.declined),
-    unchangedCompanies: preferExisting(existingSummary.unchangedCompanies, breadth.unchanged),
+    // Breadth: Prioritize our local calculation from the 350 filtered equities.
+    // This ensures the dashboard totals precisely match the 350 stocks we watch and display.
+    // Inactive/dormant stocks (volume = 0) correctly fall into the 'unchanged' bucket.
+    advancedCompanies: breadth.advanced,
+    declinedCompanies: breadth.declined,
+    unchangedCompanies: breadth.unchanged,
     timestamp: new Date().toISOString()
 });
 

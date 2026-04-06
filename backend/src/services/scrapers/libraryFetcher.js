@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 const { stockInfoMap: staticStockMap } = require('../../data/nepseStocks');
 const { SECTOR_IDS, ALL_SECTORS, MAX_RETRIES, RETRY_DELAY, CONCURRENCY_LIMIT, TIMEOUT } = require('./libraryConfig');
 const { transformSecurity: transformSecurityLib, sanitizeSymbol } = require('./libraryTransformers');
-const { fetchMissingSecurities } = require('./missingSecuritiesFetcher');
+const { fetchMissingSecurities, enrichWithOHLC } = require('./missingSecuritiesFetcher');
 const { fetchMarketSummary } = require('./marketSummaryFetcher');
 
 /**
@@ -250,7 +250,19 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
         const mergedSecurities = mergeSecurityResponses(responses);
         logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${fetchPromises.length} primary source(s)`);
 
-        const tradedSymbols = new Set(mergedSecurities.map(s => s.symbol));
+        // ── OHLC Enrichment ─────────────────────────────────────────────
+        // The securityDailyTradeStat bulk endpoint does NOT return
+        // openPrice, highPrice, or lowPrice. We must fetch them from
+        // the per-security detail endpoint for every traded stock.
+        const ohlcDeps = {
+            nepseAxios: deps.nepseAxiosClient,
+            BASE_URL: deps.baseUrl,
+            nepseHttpsAgent: deps.httpsAgent,
+            createHeaders: deps.createHeadersFn
+        };
+        const enrichedSecurities = await enrichWithOHLC(mergedSecurities, token, ohlcDeps);
+
+        const tradedSymbols = new Set(enrichedSecurities.map(s => s.symbol));
         const missingCompanies = companyList
             .filter(c => c.status === 'A' && !tradedSymbols.has(c.symbol))
             .filter(c => deps.isKnownSymbolFn(c.symbol));
@@ -258,7 +270,7 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
         logger.info(`Found ${missingCompanies.length} active EQUITY stocks missing from trade report. Fetching details...`);
 
         const missingSecurities = await deps.fetchMissingSecuritiesFn(missingCompanies, token);
-        const allSecurities = [...mergedSecurities, ...missingSecurities];
+        const allSecurities = [...enrichedSecurities, ...missingSecurities];
 
         logger.info(`Total securities after merging: ${allSecurities.length}`);
 

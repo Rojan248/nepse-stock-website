@@ -38,6 +38,23 @@ const FIELD_MAP = [
     ['volume', ['volume', 'trading.volume'], 0],
 ];
 
+/** Map timeframe to its source field on the stock object */
+const TIMEFRAME_FIELD = {
+    '1W': 'percentageChange1W',
+    '1M': 'percentageChange1M',
+};
+
+/** Apply historical timeframe override to resolved fields */
+function applyTimeframeOverride(result, stock, timeframe) {
+    const field = TIMEFRAME_FIELD[timeframe];
+    if (!field) return;
+
+    const pct = stock[field];
+    result.changePercent = pct;
+    result.change = pct == null ? null : (pct === 0 ? 0 : result.ltp - (result.ltp / (1 + pct / 100)));
+    if (pct == null) result.volume = null;
+}
+
 /** Resolve common stock fields from various API shapes */
 function resolveStockFields(stock, timeframe = '1D') {
     const result = {};
@@ -45,16 +62,7 @@ function resolveStockFields(stock, timeframe = '1D') {
         result[key] = resolveFirst(stock, fields, fallback);
     }
     
-    // Override absolute and percentage change if historical timeframe is chosen
-    if (timeframe === '1W') {
-        const pct = stock.percentageChange1W;
-        result.changePercent = pct;
-        result.change = pct == null ? null : (pct === 0 ? 0 : result.ltp - (result.ltp / (1 + pct / 100)));
-    } else if (timeframe === '1M') {
-        const pct = stock.percentageChange1M;
-        result.changePercent = pct;
-        result.change = pct == null ? null : (pct === 0 ? 0 : result.ltp - (result.ltp / (1 + pct / 100)));
-    }
+    applyTimeframeOverride(result, stock, timeframe);
     
     return result;
 }
@@ -184,7 +192,7 @@ function AnimatedChangeCell({ value, prevValue, changeClass, containerClass, for
         <td className="text-right financial-cell">
             <div className={`${containerClass} ${changeClass}`}>
                 <AnimatedCell
-                    value={Math.abs(value)}
+                    value={value == null ? null : Math.abs(value)}
                     previousValue={Math.abs(prevValue || 0)}
                     formatter={(v) => formatter(v, sign)}
                 />
@@ -246,6 +254,11 @@ function MobileStockCard({ stock, onRowClick, getPreviousValue, timeframe }) {
     const sign = changeSign(f.change);
     const priceClass = f.change > 0 ? 'price-up' : f.change < 0 ? 'price-down' : 'price-unchanged';
 
+    const changeFormatter = (v) => {
+        if (f.change == null) return '-';
+        return `${sign}${v?.toFixed(2)} (${f.changePercent?.toFixed(2)}%)`;
+    };
+
     return (
         <div className="stock-card" key={f.symbol} onClick={() => onRowClick && onRowClick(stock)}>
             <div className="card-header">
@@ -263,9 +276,9 @@ function MobileStockCard({ stock, onRowClick, getPreviousValue, timeframe }) {
                 <span className="stock-name">{f.companyName}</span>
                 <span className={`stock-change stock-card-change ${priceClass}`}>
                     <AnimatedCell
-                        value={Math.abs(f.change)}
+                        value={f.change == null ? null : Math.abs(f.change)}
                         previousValue={Math.abs(getPreviousValue(f.symbol, 'change') || 0)}
-                        formatter={(v) => `${sign}${v?.toFixed(2)} (${f.changePercent?.toFixed(2)}%)`}
+                        formatter={changeFormatter}
                     />
                 </span>
             </div>

@@ -19,17 +19,18 @@ const { prisma } = require('../services/database/connection');
  * Get all stocks with optional pagination
  */
 router.get('/', asyncHandler(async (req, res) => {
-    const { skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 'asc', compact } = req.query;
+    const { skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 'asc', compact, activeOnly = 'true' } = req.query;
 
     const stocks = await stockOperations.getAllStocks({
         skip: parseInt(skip),
         limit: parseInt(limit),
         sortBy,
         sortOrder: sortOrder === 'desc' ? -1 : 1,
-        compact: compact === 'true'
+        compact: compact === 'true',
+        includeZeroLtp: activeOnly !== 'true'
     });
 
-    const count = await stockOperations.getStockCount();
+    const count = await stockOperations.getStockCount(activeOnly !== 'true');
 
     res.json({
         success: true,
@@ -42,6 +43,7 @@ router.get('/', asyncHandler(async (req, res) => {
         }
     });
 }));
+
 
 /**
  * GET /api/stocks/search

@@ -62,15 +62,9 @@ async function generateMetricsObject(history, stock, allStocks) {
         fundM: fundamentals.compute(stock)
     };
     
-    metricsData.patternsM = patterns.compute(
-        metricsData.priceM, metricsData.trendM, metricsData.momentumM, 
-        metricsData.liquidityM, metricsData.relativeM, metricsData.fundM
-    );
+    metricsData.patternsM = patterns.compute(metricsData);
     
-    metricsData.signals = patterns.buildSignals(
-        metricsData.patternsM, metricsData.priceM, metricsData.trendM, 
-        metricsData.momentumM, metricsData.liquidityM
-    );
+    metricsData.signals = patterns.buildSignals(metricsData);
     
     return metricsData;
 }

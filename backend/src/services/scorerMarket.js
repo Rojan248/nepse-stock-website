@@ -13,10 +13,7 @@ function getDistanceScore(distFromHigh52w) {
 }
 
 function getStreakScore(price) {
-    let s = 0;
-    if (price.consecutiveUp >= 3) s += 3;
-    else if (price.consecutiveUp >= 2) s += 2;
-    else if (price.consecutiveUp >= 1) s += 1;
+    let s = Math.min(price.consecutiveUp || 0, 3);
     if (price.consecutiveDown >= 3) s -= 3;
     return s;
 }
@@ -37,6 +34,13 @@ function scorePricePosition(price) {
     return clamp(s, 0, 15);
 }
 
+function getVolumeHealthScore(avgVolume20d) {
+    if (avgVolume20d == null) return 0;
+    if (avgVolume20d > 5000) return 2;
+    if (avgVolume20d > 1000) return 1;
+    return 0;
+}
+
 /**
  * Liquidity score (0-15): higher trading activity = better
  */
@@ -55,8 +59,7 @@ function scoreLiquidity(liq) {
     if (liq.isVolumeSpike) s += 3;
 
     // Average volume health (0-2)
-    if (liq.avgVolume20d != null && liq.avgVolume20d > 5000) s += 2;
-    else if (liq.avgVolume20d != null && liq.avgVolume20d > 1000) s += 1;
+    s += getVolumeHealthScore(liq.avgVolume20d);
 
     return clamp(s, 0, 15);
 }
