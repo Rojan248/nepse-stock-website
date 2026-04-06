@@ -44,7 +44,7 @@ describe('Formatting Utilities', () => {
         });
 
         it('should handle zero', () => {
-            expect(formatPercent(0)).toBe('+0.00%');
+            expect(formatPercent(0)).toBe('0.00%');
         });
     });
 

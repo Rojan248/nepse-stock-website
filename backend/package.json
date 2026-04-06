@@ -45,6 +45,7 @@
     "jsonwebtoken": "^9.0.3",
     "nepse-api-helper": "^2.6.0",
     "node-schedule": "^2.1.1",
+    "puppeteer": "^24.40.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
