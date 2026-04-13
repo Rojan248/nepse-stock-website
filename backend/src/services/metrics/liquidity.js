@@ -27,14 +27,14 @@ function compute(history, currentStock) {
     if (!history || history.length === 0) return result;
 
     // Count actual trading days (volume > 0)
-    const tradingDays = history.filter(h => h.volume != null && h.volume > 0);
+    const tradingDays = history.filter(h => h.volume != null && Number(h.volume) > 0);
     result.tradingDays = tradingDays.length;
 
     if (tradingDays.length === 0) return result;
 
     // Average volumes — fall back to MeroLagani 30-day avg when local history is short
-    const volumes20 = tradingDays.slice(0, 20).map(h => h.volume);
-    const volumes50 = tradingDays.slice(0, 50).map(h => h.volume);
+    const volumes20 = tradingDays.slice(0, 20).map(h => Number(h.volume));
+    const volumes50 = tradingDays.slice(0, 50).map(h => Number(h.volume));
 
     if (volumes20.length > 0) {
         result.avgVolume20d = volumes20.reduce((a, b) => a + b, 0) / volumes20.length;

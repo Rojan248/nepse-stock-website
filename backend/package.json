@@ -11,6 +11,10 @@
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate dev --name init",
     "migrate:json": "node scripts/migrate-json-to-sqlite.js",
+    "seed:history": "node scripts/seedHistoricalData.js",
+    "seed:multi-day": "node scripts/seedMultiDayHistory.js",
+    "db:clear-mock": "node scripts/clearMockData.js",
+    "backfill:metrics": "node scripts/backfillMetrics.js",
     "test": "jest --config jest.config.js",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -45,7 +49,6 @@
     "jsonwebtoken": "^9.0.3",
     "nepse-api-helper": "^2.6.0",
     "node-schedule": "^2.1.1",
-    "puppeteer": "^24.40.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {

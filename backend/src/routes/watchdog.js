@@ -22,6 +22,31 @@ router.post('/verify', adminLimiter, requireAdminKey, asyncHandler(async (req, r
 }));
 
 /**
+ * Trigger a targeted re-fetch and fix for a specific stock symbol
+ * Protected by Admin Key
+ */
+router.post('/fix/:symbol', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
+    const { symbol } = req.params;
+    const result = await watchdogService.fixSpecificStock(symbol.toUpperCase());
+    res.json({
+        success: result.success,
+        data: result
+    });
+}));
+
+/**
+ * Trigger an audit for zero-volume price anomalies
+ * Protected by Admin Key
+ */
+router.post('/audit-zero-volume', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
+    const result = await watchdogService.auditZeroVolume();
+    res.json({
+        success: !result.error,
+        data: result
+    });
+}));
+
+/**
  * Get latest verification reports
  * Protected by Admin Key and Rate Limiter (same middleware stack as /verify)
  */

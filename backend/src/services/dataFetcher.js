@@ -9,6 +9,7 @@ const { recordSyncSuccess, recordSyncFailure } = require('./utils/alertService')
 const NEPSE_STOCKS = require('../data/nepseStocks');
 
 // Import consolidated enrichment functions from dataEnricher
+const { normalizeStockData } = require('./utils/dataNormalizer');
 const {
     parsePrice,
     updateMarketBreadth,
@@ -405,9 +406,65 @@ const handleFetchSuccess = async (data, source) => {
 
     // Record successful sync for alertService
     recordSyncSuccess(source);
+    
+    // Phase 2: Standardize all stocks using the NEW normalization utility
+    if (Array.isArray(data.stocks)) {
+        data.stocks = data.stocks.map(s => normalizeStockData(s, source)).filter(Boolean);
+        data.source = source; // Explicitly set source on data object
+    }
 
     logger.info(`✓ Successfully fetched data using ${source} (${data.stocks?.length || 0} stocks)`);
     return data;
+};
+
+/**
+ * Check for price anomalies between incoming data and current database state.
+ * Rejects data if a single stock moves by more than ±15% (NEPSE circuit breaker limit).
+ * @param {Array} incomingStocks - Array of normalized incoming stocks
+ * @returns {Promise<boolean>} True if internal anomalies detected
+ */
+const hasPriceAnomalies = async (incomingStocks) => {
+    if (!incomingStocks || incomingStocks.length === 0) return false;
+
+    try {
+        const symbols = incomingStocks.map(s => s.symbol);
+        const existingStocks = await prisma.stock.findMany({
+            where: { symbol: { in: symbols } },
+            select: { symbol: true, lastTradedPrice: true }
+        });
+
+        const existingMap = new Map(existingStocks.map(s => [s.symbol, s.lastTradedPrice]));
+
+        for (const stock of incomingStocks) {
+            const oldPrice = existingMap.get(stock.symbol);
+            if (!oldPrice || oldPrice === 0) continue;
+
+            const newPrice = stock.lastTradedPrice;
+            if (!newPrice || newPrice === 0) continue;
+
+            const delta = Math.abs(newPrice - oldPrice) / oldPrice;
+            
+            // NEPSE circuit breaker is usually 10%, but 15% is a safe "data glitch" threshold
+            if (delta > 0.15) {
+                logger.error(`[Anomaly] Rejecting data: ${stock.symbol} moved ${ (delta * 100).toFixed(1) }% (${oldPrice} -> ${newPrice})`);
+                return true; 
+            }
+        }
+    } catch (error) {
+        logger.error(`Anomaly detection failed: ${error.message}`);
+        return false; // Fail safe
+    }
+    return false;
+};
+
+/**
+ * Handle fetch failure - logs and records error
+ * @param {string} source - Source name
+ * @param {Error} error - The error encountered
+ */
+const handleFetchFailure = (source, error) => {
+    logger.warn(`${source} fetcher failed: ${error.message}`);
+    // Optional: record failure in metrics
 };
 
 /**
@@ -449,11 +506,17 @@ const attemptSingleFetcher = async ({ fetcher, name }) => {
         const data = await fetcher.fetchData();
 
         if (data && isValidData(data)) {
+            // Phase 2: Pre-write Anomaly Detection
+            if (await hasPriceAnomalies(data.stocks)) {
+                logger.warn(`${name} data rejected due to price anomalies. Trying next source...`);
+                return null;
+            }
+
             return await handleFetchSuccess(data, name);
         }
         logger.warn(`${name} fetcher returned invalid data, trying next...`);
     } catch (error) {
-        logger.warn(`${name} fetcher failed: ${error.message}`);
+        handleFetchFailure(name, error);
     }
     return null;
 };
@@ -578,5 +641,6 @@ module.exports = {
     updateMarketBreadth,
     scrapeOfficialWebsite,
     syncMarketDataFromWeb,
-    fetchPreviousTradingDayData
+    fetchPreviousTradingDayData,
+    hasPriceAnomalies
 };

@@ -136,6 +136,13 @@ export const getStockBySymbol = async (symbol) => {
 };
 
 /**
+ * Get stock price history with technical indicators
+ */
+export const getStockHistory = async (symbol, days = 180) => {
+    return fetchSimple(`/stocks/${symbol}/history`, { days }, [], `Failed to fetch history for ${symbol}`);
+};
+
+/**
  * Search stocks by symbol or company name
  */
 export const searchStocks = async (query) => {

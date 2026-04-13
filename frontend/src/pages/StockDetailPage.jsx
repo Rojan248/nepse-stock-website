@@ -9,6 +9,8 @@ import Badge from '../components/ui/Badge';
 import { MarketDepth, Floorsheet } from '../components/depth';
 import AIOverviewCard from '../components/AIOverviewCard';
 import MetricsPanel from '../components/MetricsPanel';
+import StockChart from '../components/StockChart';
+import { getStockHistory } from '../services/api';
 import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass } from '../utils/formatting';
 import './StockDetailPage.css';
 
@@ -281,6 +283,30 @@ function useDepthData(activeTab, symbol) {
     return { data, loading };
 }
 
+/** Fetches historical price data for charting */
+function useHistoryData(symbol) {
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!symbol) return;
+        const fetchHistory = async () => {
+            setLoading(true);
+            try {
+                const result = await getStockHistory(symbol);
+                setData(result || []);
+            } catch (err) {
+                console.error('Failed to fetch history:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchHistory();
+    }, [symbol]);
+
+    return { data, loading };
+}
+
 // ==================== StockDetailPage ====================
 
 function StockDetailPage() {
@@ -292,6 +318,7 @@ function StockDetailPage() {
 
     useHealthCheck();
     const { data: depthData, loading: depthLoading } = useDepthData(activeTab, symbol);
+    const { data: historyData, loading: historyLoading } = useHistoryData(symbol);
 
     const relatedStocks = useMemo(
         () => stocks.filter(s => s.sector === stock?.sector && s.symbol !== stock?.symbol).slice(0, 5),
@@ -328,6 +355,13 @@ function StockDetailPage() {
                 </button>
 
                 <StockHeader stock={stock} p={p} navigate={navigate} />
+                
+                <StockChart 
+                    symbol={symbol} 
+                    data={historyData} 
+                    isLoading={historyLoading} 
+                />
+
                 <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
                 <div className="sdp__tab-content">

@@ -8,113 +8,76 @@
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { generateMarketNarrative, generateStockNarrative, calculateSectors } = require('./narrativeHelpers');
+const aiService = require('../src/services/ai/AiService');
+const { calculateSectors } = require('../src/services/ai/narrativeHelpers');
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+async function main() {
+  console.log('=== Manual AI Overview Update (via AiService) ===\n');
 
-async function generateAndSaveMarketOverview(stocks) {
-  const marketSummary = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
-  if (!marketSummary) {
-    console.error('No market summary found in database!');
+  const stocks = await prisma.stock.findMany({
+    where: { lastTradedPrice: { gt: 0 } }
+  });
+
+  if (stocks.length === 0) {
+    console.error('No stocks found in database!');
     process.exit(1);
   }
 
-  const sectors = calculateSectors(stocks);
+  // 1. Generate Market Overview
+  console.log('1. Generating Market Overview...');
+  const marketSummary = await prisma.marketSummary.findFirst({ orderBy: { timestamp: 'desc' } });
+  if (marketSummary) {
+    const sectors = calculateSectors(stocks);
+    await aiService.generateNarrative('MARKET', 'market', { 
+        marketSummary, 
+        sectors: sectors.slice(0, 8),
+        triggeredBy: 'manual' 
+    });
+    console.log('   ✓ Market overview complete');
+  }
 
-  const marketNarrative = generateMarketNarrative(marketSummary, sectors);
-  marketNarrative.generatedAt = new Date().toISOString();
-
-  await prisma.aIOverview.upsert({
-    where: { symbol_type: { symbol: 'MARKET', type: 'market' } },
-    update: {
-      narrative: JSON.stringify(marketNarrative),
-      context: JSON.stringify({ marketSummary, sectors: sectors.slice(0, 8) }),
-      modelVersion: 'manual-generation',
-      tokenCount: 0,
-      triggeredBy: 'manual',
-      updatedAt: new Date()
-    },
-    create: {
-      symbol: 'MARKET',
-      type: 'market',
-      narrative: JSON.stringify(marketNarrative),
-      context: JSON.stringify({ marketSummary, sectors: sectors.slice(0, 8) }),
-      modelVersion: 'manual-generation',
-      tokenCount: 0,
-      triggeredBy: 'manual'
-    }
-  });
-
-  console.log('   ✓ Market overview saved');
-  return marketNarrative;
-}
-
-async function saveStockToDb(stock) {
-  const narrative = generateStockNarrative(stock);
-  narrative.generatedAt = new Date().toISOString();
-
-  await prisma.aIOverview.upsert({
-    where: { symbol_type: { symbol: stock.symbol.toUpperCase(), type: 'stock' } },
-    update: {
-      narrative: JSON.stringify(narrative),
-      context: JSON.stringify({
-        symbol: stock.symbol, ltp: stock.lastTradedPrice, change: stock.change,
-        percentageChange: stock.percentageChange || stock.changePercent
-      }),
-      modelVersion: 'manual-generation',
-      tokenCount: 0,
-      triggeredBy: 'manual',
-      updatedAt: new Date()
-    },
-    create: {
-      symbol: stock.symbol.toUpperCase(),
-      type: 'stock',
-      narrative: JSON.stringify(narrative),
-      context: JSON.stringify({
-        symbol: stock.symbol, ltp: stock.lastTradedPrice, change: stock.change,
-        percentageChange: stock.percentageChange || stock.changePercent
-      }),
-      modelVersion: 'manual-generation',
-      tokenCount: 0,
-      triggeredBy: 'manual'
-    }
-  });
-}
-
-async function generateAndSaveStockOverviews(stocks) {
+  // 2. Generate Stock Overviews
+  console.log(`2. Generating stock overviews for ${stocks.length} stocks...`);
   let generated = 0;
   let failed = 0;
+  let limitReached = false;
 
   for (const stock of stocks) {
     try {
-      await saveStockToDb(stock);
-      generated++;
+      const result = await aiService.generateNarrative(stock.symbol.toUpperCase(), 'stock', { 
+          stock,
+          triggeredBy: 'manual' 
+      });
+      
+      if (result) {
+        generated++;
+      } else {
+        // If result is null, it likely hit a rate/budget limit
+        limitReached = true;
+        break;
+      }
+      
       if (generated % 50 === 0) console.log(`   Progress: ${generated}/${stocks.length} stocks done`);
     } catch (err) {
       failed++;
       console.error(`   ✗ ${stock.symbol}: ${err.message}`);
     }
   }
-  return { generated, failed };
-}
-
-async function main() {
-  console.log('=== Manual AI Overview Update ===\n');
-
-  const stocks = await prisma.stock.findMany({
-    where: { lastTradedPrice: { gt: 0 } }
-  });
-
-  console.log('1. Generating Market Overview...');
-  await generateAndSaveMarketOverview(stocks);
-
-  console.log(`2. Generating stock overviews for ${stocks.length} stocks...`);
-  const { generated, failed } = await generateAndSaveStockOverviews(stocks);
 
   console.log(`\n=== Done ===`);
+  if (limitReached) {
+    console.warn('⚠️ WARNING: Process stopped because AI limits or budget were reached.');
+  }
   console.log(`Market overview: ✓`);
   console.log(`Stock overviews: ${generated} generated, ${failed} failed`);
-  console.log(`Total: ${generated + 1} overviews updated`);
+  
+  const usage = await aiService.getDailyUsage();
+  if (usage) {
+      console.log(`\nToday's AI Stats:`);
+      console.log(`- Calls: ${usage.callCount}`);
+      console.log(`- Tokens: ${usage.tokenCount}`);
+      console.log(`- Est. Cost: $${usage.costUSD.toFixed(4)}`);
+  }
 
   await prisma.$disconnect();
 }

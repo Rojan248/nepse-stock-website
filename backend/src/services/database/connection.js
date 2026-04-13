@@ -8,8 +8,16 @@ const connectDB = async () => {
     try {
         if (!isInitialized) {
             await prisma.$connect();
+            
+            // Enable WAL mode for better concurrency in SQLite
+            try {
+                await prisma.$executeRawUnsafe('PRAGMA journal_mode=WAL;');
+                logger.info('Database connected (Prisma) - WAL mode enabled');
+            } catch (walError) {
+                logger.warn(`Failed to enable WAL mode: ${walError.message}`);
+            }
+            
             isInitialized = true;
-            logger.info('Database connected (Prisma)');
         }
         return true;
     } catch (error) {

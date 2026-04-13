@@ -143,10 +143,28 @@ const normalizeStockInput = (stock) => {
         ...extractPriceFields(stock, prices),
         ...extractTradingFields(stock, trading),
         ...extractChangeFields(stock, prices),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        lastSource: stock.lastSource || null
     };
 
     return result;
+};
+
+/**
+ * Standardize stock data from ANY source into a strictly strictly enforced internal shape.
+ * This is the primary normalization utility for Phase 2.
+ * @param {Object} rawData - Raw stock data from scrapers or API helpers
+ * @param {string} source - Name of the data source
+ * @returns {Object} Strictly normalized stock data
+ */
+const normalizeStockData = (rawData, source) => {
+    const normalized = normalizeStockInput(rawData);
+    if (!normalized) return null;
+
+    // Attach provenance tracking
+    normalized.lastSource = source;
+
+    return normalized;
 };
 
 /**
@@ -202,6 +220,7 @@ const mapStockOutput = (stock, compact = false) => {
 
 module.exports = {
     normalizeStockInput,
+    normalizeStockData,
     mapStockOutput,
     normalizeSectorName,
     sectorMatches

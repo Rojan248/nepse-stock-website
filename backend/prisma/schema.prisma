@@ -14,27 +14,28 @@ model Stock {
   symbol         String   @unique
   companyName    String
   sector         String?
-  lastTradedPrice Float?
-  previousClose   Float?
-  openPrice       Float?
-  highPrice       Float?
-  lowPrice        Float?
-  volume          Float?
+  lastTradedPrice Decimal?
+  previousClose   Decimal?
+  openPrice       Decimal?
+  highPrice       Decimal?
+  lowPrice        Decimal?
+  volume          Decimal?
   totalTrades     Int?
-  turnover        Float?
-  change          Float?
-  percentageChange Float?
-  percentageChange1W Float?
-  percentageChange1M Float?
+  turnover        Decimal?
+  change          Decimal?
+  percentageChange Decimal?
+  percentageChange1W Decimal?
+  percentageChange1M Decimal?
   // 52-week range sourced from NEPSE /security/{id} endpoint
-  high52w         Float?
-  low52w          Float?
+  high52w         Decimal?
+  low52w          Decimal?
   nepseSecurityId String?  // NEPSE internal security ID for API lookups
   // Externally-sourced technical indicators (MeroLagani — no auth needed)
-  ma180Ext        Float?   // 180-day moving average from MeroLagani
-  ma120Ext        Float?   // 120-day moving average from MeroLagani
-  yearlyYield     Float?   // 1-year price yield % from MeroLagani
-  avgVol30dExt    Float?   // 30-day avg volume from MeroLagani
+  ma180Ext        Decimal?   // 180-day moving average from MeroLagani
+  ma120Ext        Decimal?   // 120-day moving average from MeroLagani
+  yearlyYield     Decimal?   // 1-year price yield % from MeroLagani
+  avgVol30dExt    Decimal?   // 30-day avg volume from MeroLagani
+  lastSource     String?
   updatedAt      DateTime @default(now()) @updatedAt
 
   history        MarketHistory[]
@@ -46,14 +47,14 @@ model MarketHistory {
   id          Int      @id @default(autoincrement())
   symbol      String
   date        DateTime
-  openPrice   Float?
-  closePrice  Float?
-  highPrice   Float?
-  lowPrice    Float?
-  volume      Float?
-  turnover    Float?
-  change      Float?
-  percentageChange Float?
+  openPrice   Decimal?
+  closePrice  Decimal?
+  highPrice   Decimal?
+  lowPrice    Decimal?
+  volume      Decimal?
+  turnover    Decimal?
+  change      Decimal?
+  percentageChange Decimal?
 
   stock       Stock?   @relation(fields: [symbol], references: [symbol], onDelete: Cascade)
 
@@ -62,12 +63,12 @@ model MarketHistory {
 
 model MarketSummary {
   id                Int      @id @default(autoincrement())
-  indexValue        Float?
-  indexChange       Float?
-  indexChangePercent Float?
-  totalTurnover     Float?
-  totalVolume       Float?
-  totalTransactions Float?
+  indexValue        Decimal?
+  indexChange       Decimal?
+  indexChangePercent Decimal?
+  totalTurnover     Decimal?
+  totalVolume       Decimal?
+  totalTransactions Decimal?
   activeCompanies   Int?
   advancedCompanies Int?
   declinedCompanies Int?
@@ -78,9 +79,9 @@ model MarketSummary {
 model SectorIndex {
   id              Int      @id @default(autoincrement())
   topic           String   // e.g., "Banking", "NEPSE Index"
-  indexValue      Float
-  change          Float
-  percentageChange Float
+  indexValue      Decimal
+  change          Decimal
+  percentageChange Decimal
   timestamp       DateTime @default(now())
 }
 
@@ -91,7 +92,7 @@ model Ipo {
   sector      String?
   issueDate   DateTime?
   closingDate DateTime?
-  price       Float?
+  price       Decimal?
   units       Int?
   status      String?
   issueManager String?
@@ -174,7 +175,7 @@ model Trade {
   symbol      String
   type        String   // "buy" | "sell"
   quantity    Int
-  price       Float
+  price       Decimal
   date        DateTime
   note        String?
   createdAt   DateTime @default(now())
@@ -192,7 +193,7 @@ model Alert {
   userId     Int
   symbol     String
   condition  String    // "above" | "below" | "pct_change"
-  threshold  Float
+  threshold  Decimal
   enabled    Boolean   @default(true)
   createdAt  DateTime  @default(now())
 
@@ -207,7 +208,7 @@ model AlertDelivery {
   id          Int      @id @default(autoincrement())
   alertId     Int
   triggeredAt DateTime @default(now())
-  priceAtTrigger Float
+  priceAtTrigger Decimal
   channel     String   // "in-app" | "email" | "webhook"
 
   alert       Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
@@ -249,4 +250,19 @@ model AIOverview {
 
   @@unique([symbol, type])
   @@index([symbol])
+}
+
+model Lock {
+  id        String   @id
+  owner     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model AIUsage {
+  id         Int      @id @default(autoincrement())
+  date       DateTime @unique @default(now())
+  tokenCount Int      @default(0)
+  costUSD    Decimal  @default(0)
+  callCount  Int      @default(0)
 }

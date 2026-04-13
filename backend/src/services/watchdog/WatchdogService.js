@@ -9,6 +9,7 @@ const dataFetcher = require('../dataFetcher');
 
 const prisma = new PrismaClient();
 const LOG_FILE = path.join(__dirname, '../../../logs/watchdog_verification.json');
+const updateLock = require('../utils/updateLock');
 
 // --- Extracted helpers (reduce cc in class methods) ---
 
@@ -76,7 +77,15 @@ class WatchdogService {
     async verify() {
         logger.info('[Watchdog] Starting verification cycle...');
 
-        const localData = await this.getLocalData();
+        // Phase 3: Acquire Distributed Lock
+        const hasLock = await updateLock.acquireLock('watchdog');
+        if (!hasLock) {
+            logger.warn('[Watchdog] Verification skipped: Lock held by another instance/service');
+            return { status: 'SKIPPED', reason: 'Lock held by others' };
+        }
+
+        try {
+            const localData = await this.getLocalData();
         const externalDataSettled = await Promise.allSettled(
             this.providers.map(p => p.fetchMarketSummary())
         );
@@ -96,7 +105,11 @@ class WatchdogService {
         await this.saveReport(report);
         logger.info('[Watchdog] Verification completed.');
         return report;
+    } finally {
+        // Phase 3: Release Distributed Lock
+        await updateLock.releaseLock('watchdog');
     }
+}
 
     async attemptCorrection(report) {
         try {
@@ -132,6 +145,87 @@ class WatchdogService {
         logger.info('[Watchdog] Correction applied successfully.');
         report.correctionApplied = true;
         report.correctionDetails = 'Restored previous trading day breadth data';
+    }
+
+    /**
+     * Target a single stock for immediate correction.
+     * Fetches from multiple external providers and takes the majority consensus.
+     * @param {string} symbol - Stock symbol to fix
+     */
+    async fixSpecificStock(symbol) {
+        logger.info(`[Watchdog] Targeted re-fetch initiated for: ${symbol}`);
+        
+        try {
+            // Fetch from external providers specifically for this stock
+            const results = await Promise.allSettled(
+                this.providers.map(p => p.fetchStockData(symbol))
+            );
+
+            const validData = results
+                .filter(r => r.status === 'fulfilled' && r.value && !r.value.error)
+                .map(r => r.value);
+
+            if (validData.length === 0) {
+                logger.warn(`[Watchdog] No external data found for ${symbol}`);
+                return { success: false, reason: 'No external data' };
+            }
+
+            // Simple majority consensus or first valid for now
+            // In a production system, we'd compare prices, but here we'll take the first non-zero LTP
+            const correctData = validData.find(d => d.lastTradedPrice > 0) || validData[0];
+            
+            // Standardize and save
+            const { normalizeStockData } = require('../utils/dataNormalizer');
+            const normalized = normalizeStockData(correctData, `watchdog_fix_${correctData.source || 'unknown'}`);
+            
+            const stockOperations = require('../database/stockOperations');
+            await stockOperations.saveStocks([normalized]);
+            
+            logger.info(`[Watchdog] Fixed ${symbol} using data from ${correctData.source}`);
+            return { success: true, source: correctData.source, data: normalized };
+        } catch (error) {
+            logger.error(`[Watchdog] Targeted fix failed for ${symbol}: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Audit for stocks that have 0 volume but non-zero price changes (likely data glitches).
+     * Triggers targeted re-fetches for detected anomalies.
+     */
+    async auditZeroVolume() {
+        logger.info('[Watchdog] Starting zero-volume anomaly audit...');
+        
+        try {
+            const anomalies = await prisma.stock.findMany({
+                where: {
+                    volume: 0,
+                    OR: [
+                        { change: { not: 0 } },
+                        { percentageChange: { not: 0 } }
+                    ]
+                },
+                select: { symbol: true, change: true }
+            });
+
+            if (anomalies.length === 0) {
+                logger.info('[Watchdog] No zero-volume anomalies detected.');
+                return { anomaliesFound: 0 };
+            }
+
+            logger.warn(`[Watchdog] Found ${anomalies.length} zero-volume anomalies.`);
+            
+            const results = [];
+            for (const anomaly of anomalies) {
+                const res = await this.fixSpecificStock(anomaly.symbol);
+                results.push({ symbol: anomaly.symbol, ...res });
+            }
+
+            return { anomaliesFound: anomalies.length, results };
+        } catch (error) {
+            logger.error(`[Watchdog] Zero-volume audit failed: ${error.message}`);
+            return { error: error.message };
+        }
     }
 
     async getLocalData() {

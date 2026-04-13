@@ -35,7 +35,7 @@ function createMetricsUpsertConfig(symbol, today, metricsData) {
     };
 }
 
-async function fetchMetricsDependencies(symbol) {
+async function fetchMetricsDependencies(symbol, targetDate = null) {
     const stock = await prisma.stock.findUnique({
         where: { symbol: symbol.toUpperCase() }
     });
@@ -44,7 +44,10 @@ async function fetchMetricsDependencies(symbol) {
     if (!isValid) return null;
 
     const history = await prisma.marketHistory.findMany({
-        where: { symbol: symbol.toUpperCase() },
+        where: { 
+            symbol: symbol.toUpperCase(),
+            ...(targetDate ? { date: { lte: targetDate } } : {})
+        },
         orderBy: { date: 'desc' },
         take: 250
     });
@@ -75,14 +78,14 @@ async function generateMetricsObject(history, stock, allStocks) {
  * @param {Array|null} allStocks - All stocks for relative comparison (optional)
  * @returns {Object|null} Computed metrics or null on error
  */
-async function computeForSymbol(symbol, allStocks = null) {
+async function computeForSymbol(symbol, targetDate = null, allStocks = null) {
     try {
-        const deps = await fetchMetricsDependencies(symbol);
+        const deps = await fetchMetricsDependencies(symbol, targetDate);
         if (!deps) return null;
         
         const metricsData = await generateMetricsObject(deps.history, deps.stock, allStocks);
         
-        const today = new Date();
+        const today = targetDate ? new Date(targetDate) : new Date();
         today.setHours(0, 0, 0, 0);
 
         await prisma.stockMetrics.upsert(createMetricsUpsertConfig(symbol, today, metricsData));

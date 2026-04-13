@@ -7,9 +7,20 @@ function canCompare(newData, oldData) {
     return newData != null && oldData != null && newData !== oldData;
 }
 
-/** Are two parsed numbers both valid and different? */
+/** Are two parsed numbers both valid and different above a threshold? */
+const SIGNIFICANCE_THRESHOLD = 0.001; // 0.1%
+
 function areDifferentNumbers(a, b) {
-    return !isNaN(a) && !isNaN(b) && a !== b;
+    const valA = parseFloat(a);
+    const valB = parseFloat(b);
+    if (isNaN(valA) || isNaN(valB)) return false;
+    if (valA === valB) return false;
+    
+    // Check if the percentage difference exceeds the threshold
+    const diff = Math.abs(valA - valB);
+    const avg = (Math.abs(valA) + Math.abs(valB)) / 2;
+    if (avg === 0) return diff > 0;
+    return (diff / avg) > SIGNIFICANCE_THRESHOLD;
 }
 
 /** Resolve a stable key for an array item (symbol > id > index) */
@@ -207,12 +218,12 @@ export function useAnimatedValue(value, key, isPolling = false) {
 
     useEffect(() => {
         const prevValue = previousValueRef.current;
-        const hasChanged = prevValue !== value && prevValue !== undefined && value !== undefined;
+        const hasSignificantChange = areDifferentNumbers(prevValue, value);
 
         setDisplayValue(value);
         previousValueRef.current = value;
 
-        if (!hasChanged) return;
+        if (!hasSignificantChange) return;
 
         setDirection(getDirection(prevValue, value));
         setIsChanged(true);

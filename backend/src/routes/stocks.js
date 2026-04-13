@@ -304,6 +304,64 @@ router.get('/:symbol', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/stocks/:symbol/history
+ * Get historical price data with technical indicators
+ */
+router.get('/:symbol/history', asyncHandler(async (req, res) => {
+    const { symbol } = req.params;
+    const { days = 180 } = req.query;
+
+    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Invalid symbol format' }
+        });
+    }
+
+    const history = await prisma.marketHistory.findMany({
+        where: { symbol: symbol.toUpperCase() },
+        orderBy: { date: 'asc' },
+        take: parseInt(days)
+    });
+
+    if (history.length === 0) {
+        return res.json({ success: true, symbol, data: [] });
+    }
+
+    const metrics = await prisma.stockMetrics.findMany({
+        where: { symbol: symbol.toUpperCase() },
+        orderBy: { date: 'asc' }
+    });
+
+    // Create a map for O(1) metrics lookup
+    const metricsMap = new Map(metrics.map(m => [m.date.toISOString().split('T')[0], m]));
+
+    const combinedData = history.map(h => {
+        const dateStr = h.date.toISOString().split('T')[0];
+        const m = metricsMap.get(dateStr);
+        const trend = m ? JSON.parse(m.trendMetrics || '{}') : {};
+
+        return {
+            date: dateStr, // lightweight-charts accepts "YYYY-MM-DD"
+            open: parseFloat(h.openPrice),
+            high: parseFloat(h.highPrice),
+            low: parseFloat(h.lowPrice),
+            close: parseFloat(h.closePrice),
+            volume: parseFloat(h.volume || 0),
+            ma20: trend.ma20 || null,
+            ma50: trend.ma50 || null
+        };
+    });
+
+    res.json({
+        success: true,
+        symbol: symbol.toUpperCase(),
+        count: combinedData.length,
+        data: combinedData
+    });
+}));
+
+/**
  * GET /api/stocks/:symbol/depth
  * Get market depth (Level 2 data) and floorsheet for a stock
  */

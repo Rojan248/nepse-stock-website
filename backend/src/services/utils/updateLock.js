@@ -1,103 +1,122 @@
 /**
- * Simple mutex lock to prevent race conditions between Scheduler and Watchdog
- * When Watchdog is correcting data, the Scheduler should not overwrite it
+ * Distributed mutex lock using SQLite/Prisma to prevent race conditions 
+ * between multiple Node.js instances (e.g. Scheduler and Watchdog).
  */
 
+const { prisma } = require('../database/connection');
 const logger = require('./logger');
 
-let isLocked = false;
-let lockOwner = null;
-let lockExpiry = null;
-
+const LOCK_ID = 'NEPSE_UPDATE_LOCK';
 const LOCK_DURATION_MS = 60000; // 1 minute lock
-
-/** Helper to check if lock is expired */
-const isLockExpired = () => isLocked && lockExpiry && Date.now() >= lockExpiry;
-
-/** Helper to check if lock is currently active */
-const isLockActive = () => isLocked && lockExpiry && Date.now() < lockExpiry;
 
 /**
  * Acquire the update lock
- * @param {string} owner - Identifier for who is acquiring the lock
- * @returns {boolean} True if lock was acquired, false if already held
+ * @param {string} owner - Identifier for who is acquiring the lock (e.g. 'scheduler', 'watchdog')
+ * @returns {Promise<boolean>} True if lock was acquired, false if already held
  */
-const acquireLock = (owner) => {
-    // Check if lock is held and not expired
-    if (isLockActive()) {
-        logger.debug(`[UpdateLock] Lock denied to '${owner}' - held by '${lockOwner}'`);
+const acquireLock = async (owner) => {
+    const now = new Date();
+    
+    try {
+        // Find existing lock
+        const existingLock = await prisma.lock.findUnique({
+            where: { id: LOCK_ID }
+        });
+
+        // Check if lock exists and is active
+        if (existingLock && existingLock.expiresAt > now) {
+            if (existingLock.owner === owner) {
+                // Already held by this owner, extend it
+                await prisma.lock.update({
+                    where: { id: LOCK_ID },
+                    data: { expiresAt: new Date(Date.now() + LOCK_DURATION_MS) }
+                });
+                return true;
+            }
+            logger.debug(`[UpdateLock] Lock denied to '${owner}' - held by '${existingLock.owner}'`);
+            return false;
+        }
+
+        // Lock doesn't exist or is expired, acquire it (upsert)
+        await prisma.lock.upsert({
+            where: { id: LOCK_ID },
+            create: {
+                id: LOCK_ID,
+                owner,
+                expiresAt: new Date(Date.now() + LOCK_DURATION_MS)
+            },
+            update: {
+                owner,
+                expiresAt: new Date(Date.now() + LOCK_DURATION_MS)
+            }
+        });
+
+        logger.debug(`[UpdateLock] Lock acquired by '${owner}' (expires in ${LOCK_DURATION_MS / 1000}s)`);
+        return true;
+    } catch (error) {
+        logger.error(`[UpdateLock] Failed to acquire lock: ${error.message}`);
         return false;
     }
-
-    // Acquire lock
-    isLocked = true;
-    lockOwner = owner;
-    lockExpiry = Date.now() + LOCK_DURATION_MS;
-    logger.debug(`[UpdateLock] Lock acquired by '${owner}' (expires in ${LOCK_DURATION_MS / 1000}s)`);
-    return true;
 };
 
 /**
  * Release the update lock
  * @param {string} owner - Identifier for who is releasing (must match acquirer)
  */
-const releaseLock = (owner) => {
-    if (lockOwner === owner) {
-        logger.debug(`[UpdateLock] Lock released by '${owner}'`);
-        isLocked = false;
-        lockOwner = null;
-        lockExpiry = null;
-    }
-};
+const releaseLock = async (owner) => {
+    try {
+        const existingLock = await prisma.lock.findUnique({
+            where: { id: LOCK_ID }
+        });
 
-/**
- * Check if lock is held by a specific owner
- * @param {string} owner - Owner to check
- * @returns {boolean} True if locked by this owner
- */
-const isLockedBy = (owner) => {
-    // Also check expiry
-    if (isLockExpired()) {
-        // Lock expired, auto-release
-        logger.debug(`[UpdateLock] Lock expired, auto-releasing from '${lockOwner}'`);
-        isLocked = false;
-        lockOwner = null;
-        lockExpiry = null;
-        return false;
+        if (existingLock && existingLock.owner === owner) {
+            await prisma.lock.delete({
+                where: { id: LOCK_ID }
+            });
+            logger.debug(`[UpdateLock] Lock released by '${owner}'`);
+        }
+    } catch (error) {
+        logger.error(`[UpdateLock] Failed to release lock: ${error.message}`);
     }
-    return lockOwner === owner && isLocked;
 };
 
 /**
  * Check if any lock is active (regardless of owner)
- * @returns {boolean} True if any lock is active
+ * @returns {Promise<boolean>} True if any lock is active
  */
-const isAnyLockActive = () => {
-    // Check expiry
-    if (isLockExpired()) {
-        isLocked = false;
-        lockOwner = null;
-        lockExpiry = null;
+const isAnyLockActive = async () => {
+    try {
+        const existingLock = await prisma.lock.findUnique({
+            where: { id: LOCK_ID }
+        });
+        return !!(existingLock && existingLock.expiresAt > new Date());
+    } catch (error) {
         return false;
     }
-    return isLocked;
 };
 
 /**
  * Get current lock status
- * @returns {Object} Lock status
+ * @returns {Promise<Object>} Lock status
  */
-const getLockStatus = () => ({
-    isLocked: isAnyLockActive(),
-    lockOwner,
-    lockExpiry: lockExpiry ? new Date(lockExpiry).toISOString() : null,
-    remainingMs: lockExpiry ? Math.max(0, lockExpiry - Date.now()) : 0
-});
+const getLockStatus = async () => {
+    const existingLock = await prisma.lock.findUnique({
+        where: { id: LOCK_ID }
+    });
+    
+    const active = !!(existingLock && existingLock.expiresAt > new Date());
+    
+    return {
+        isLocked: active,
+        lockOwner: active ? existingLock.owner : null,
+        lockExpiry: active ? existingLock.expiresAt.toISOString() : null,
+        remainingMs: active ? Math.max(0, existingLock.expiresAt.getTime() - Date.now()) : 0
+    };
+};
 
 module.exports = {
     acquireLock,
     releaseLock,
-    isLockedBy,
     isAnyLockActive,
     getLockStatus
 };

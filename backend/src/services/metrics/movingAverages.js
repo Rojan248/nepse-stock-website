@@ -10,7 +10,7 @@
  * @returns {Array} Filtered records with volume > 0
  */
 function filterTradingDays(history) {
-    return history.filter(h => h.volume != null && h.volume > 0);
+    return history.filter(h => h.volume != null && Number(h.volume) > 0);
 }
 
 /**
@@ -47,7 +47,7 @@ function compute(history, currentStock) {
         trend: 'neutral'     // 'bullish' | 'bearish' | 'neutral'
     };
 
-    const currentPrice = currentStock?.lastTradedPrice || null;
+    const currentPrice = currentStock?.lastTradedPrice ? Number(currentStock.lastTradedPrice) : null;
 
     if (!history || history.length === 0) {
         // No local history — apply MeroLagani external fallbacks
@@ -57,7 +57,7 @@ function compute(history, currentStock) {
 
     // Filter zero-volume days for MA calculations
     const tradingDays = filterTradingDays(history);
-    const prices = tradingDays.map(h => h.closePrice).filter(p => p != null && p > 0);
+    const prices = tradingDays.map(h => Number(h.closePrice)).filter(p => p != null && p > 0);
 
     if (prices.length === 0) {
         _applyExtFallbacks(result, currentStock, currentPrice, 0);

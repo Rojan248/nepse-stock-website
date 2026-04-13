@@ -10,6 +10,8 @@ const alertChecker = require('../alertChecker');
 const { prisma } = require('../database/connection');
 const dataEnricher = require('../dataEnricher');
 const metricsOrchestrator = require('../metrics/metricsOrchestrator');
+const backupDb = require('../../scripts/backupDb');
+const updateLock = require('../utils/updateLock');
 
 /**
  * Update Scheduler
@@ -138,6 +140,13 @@ const performUpdate = async () => {
         return false;
     }
 
+    // Phase 3: Acquire Distributed Lock
+    const hasLock = await updateLock.acquireLock('scheduler');
+    if (!hasLock) {
+        logger.warn('[Scheduler] Update skipped: Lock held by another instance/service');
+        return false;
+    }
+
     try {
         const data = await dataFetcher.fetchLatestData();
 
@@ -171,10 +180,12 @@ const performUpdate = async () => {
         logger.info(`Update cycle completed in ${duration}ms (Source: ${data.source})`);
         return true;
 
-    } catch (error) {
         logger.error(`Update cycle failed: ${error.message}`);
         lastError = error.message;
         return false;
+    } finally {
+        // Phase 3: Release Distributed Lock
+        await updateLock.releaseLock('scheduler');
     }
 };
 
@@ -259,6 +270,18 @@ const setupCronJobs = () => {
             await watchdogService.verify();
         } catch (e) {
             logger.error(`Scheduled watchdog failed: ${e.message}`);
+        }
+    });
+
+    // Hourly Backups (Only during market hours as requested)
+    schedule.scheduleJob('0 * * * *', async () => {
+        if (isMarketOpen()) {
+            logger.info('Running scheduled hourly backup during market hours...');
+            try {
+                backupDb.backup();
+            } catch (e) {
+                logger.error(`Scheduled backup failed: ${e.message}`);
+            }
         }
     });
 };

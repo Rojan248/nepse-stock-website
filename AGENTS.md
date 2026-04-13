@@ -20,6 +20,7 @@ This project has documented patterns and conventions in `.agent/skills/`.
 | **PM2 Deployment** | `.agent/skills/deployment-pm2/SKILL.md` | Production deployment, process management |
 | **CSS Animations** | `.agent/skills/css-animations/SKILL.md` | Transitions, keyframes, micro-interactions |
 | **UI/UX Patterns** | `.agent/skills/ui-ux-patterns/SKILL.md` | Colors, cards, typography, layouts |
+| **Caveman** | `.agent/skills/caveman/SKILL.md` | Low token, high accuracy communication |
 
 ## Quick Reference
 
@@ -32,7 +33,8 @@ This project has documented patterns and conventions in `.agent/skills/`.
     ├── testing-jest/SKILL.md      # Test writing patterns
     ├── deployment-pm2/SKILL.md    # Deployment configuration
     ├── css-animations/SKILL.md    # Animation & transitions
-    └── ui-ux-patterns/SKILL.md    # Design system patterns
+    ├── ui-ux-patterns/SKILL.md    # Design system patterns
+    └── caveman/SKILL.md           # Caveman communication style
 ```
 
 ## Project Structure
