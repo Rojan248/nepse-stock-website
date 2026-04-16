@@ -3,6 +3,7 @@ const router = express.Router();
 const { prisma } = require('../services/database/connection');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAuth } = require('../middleware/authMiddleware');
+const portfolioCalculator = require('../services/portfolioCalculator');
 const logger = require('../services/utils/logger');
 
 // ==================== Portfolio CRUD ====================
@@ -95,6 +96,39 @@ router.delete('/:id/trades/:tradeId', requireAuth, asyncHandler(async (req, res)
 }));
 
 // ==================== Holdings Computation ====================
+
+// GET /api/portfolios/:id/summary — computed holdings with detailed P&L
+router.get('/:id/summary', requireAuth, asyncHandler(async (req, res) => {
+    const portfolioId = parseInt(req.params.id);
+    const pnlData = await portfolioCalculator.calculatePortfolioPnL(req.user.userId, portfolioId);
+    
+    // Verify portfolio exists and belongs to user
+    const portfolio = await prisma.portfolio.findFirst({
+        where: { id: portfolioId, userId: req.user.userId },
+        select: { id: true, name: true }
+    });
+
+    if (!portfolio) {
+        return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
+    }
+
+    res.json({
+        success: true,
+        data: {
+            portfolio,
+            ...pnlData
+        }
+    });
+}));
+
+// GET /api/portfolios/summary — aggregate P&L for all user portfolios
+router.get('/summary', requireAuth, asyncHandler(async (req, res) => {
+    const pnlData = await portfolioCalculator.calculatePortfolioPnL(req.user.userId);
+    res.json({
+        success: true,
+        data: pnlData
+    });
+}));
 
 // GET /api/portfolios/:id/holdings — computed holdings with P&L
 router.get('/:id/holdings', requireAuth, asyncHandler(async (req, res) => {

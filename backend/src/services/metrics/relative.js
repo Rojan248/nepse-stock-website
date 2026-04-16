@@ -4,6 +4,7 @@
  */
 
 const { prisma } = require('../database/connection');
+const logger = require('../utils/logger');
 
 /**
  * Compute relative metrics for a stock
@@ -69,7 +70,7 @@ async function compute(currentStock, allStocks = null) {
 
     } catch (error) {
         // Fail gracefully — relative metrics are non-critical
-        console.error(`Relative metrics error for ${currentStock.symbol}: ${error.message}`);
+        logger.error(`Relative metrics error for ${currentStock.symbol}: ${error.message}`);
     }
 
     return result;

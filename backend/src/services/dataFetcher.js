@@ -6,7 +6,6 @@ const customScraper = require('./scrapers/customScraper');
 const mockFetcher = require('./scrapers/mockFetcher');
 const logger = require('./utils/logger');
 const { recordSyncSuccess, recordSyncFailure } = require('./utils/alertService');
-const NEPSE_STOCKS = require('../data/nepseStocks');
 
 // Import consolidated enrichment functions from dataEnricher
 const { normalizeStockData } = require('./utils/dataNormalizer');

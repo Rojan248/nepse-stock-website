@@ -171,14 +171,54 @@ const saveStocks = async (stocks) => {
         });
         const existingMap = new Map(existingStocks.map(s => [s.symbol, s.lastTradedPrice]));
 
-        const ops = validStocks.map((stock) => buildStockSaveOp(normalizeStockInput(stock), existingMap));
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const ops = validStocks.flatMap((stock) => {
+            const normalized = normalizeStockInput(stock);
+            const stockOp = buildStockSaveOp(normalized, existingMap);
+            
+            const { change, pChange } = ensurePriceConsistency(normalized);
+            const historyOp = prisma.marketHistory.upsert({
+                where: {
+                    symbol_date: {
+                        symbol: normalized.symbol,
+                        date: today
+                    }
+                },
+                update: {
+                    openPrice: normalized.openPrice,
+                    closePrice: normalized.lastTradedPrice,
+                    highPrice: normalized.highPrice,
+                    lowPrice: normalized.lowPrice,
+                    volume: normalized.volume,
+                    turnover: normalized.turnover,
+                    change,
+                    percentageChange: pChange
+                },
+                create: {
+                    symbol: normalized.symbol,
+                    date: today,
+                    openPrice: normalized.openPrice,
+                    closePrice: normalized.lastTradedPrice,
+                    highPrice: normalized.highPrice,
+                    lowPrice: normalized.lowPrice,
+                    volume: normalized.volume,
+                    turnover: normalized.turnover,
+                    change,
+                    percentageChange: pChange
+                }
+            });
+
+            return [stockOp, historyOp];
+        });
 
         // Reset daily metrics for non-traded stocks and ensure previousClose == ltp
         const resetOps = await buildUntradedResetOps(symbols);
         ops.push(...resetOps);
 
         await prisma.$transaction(ops);
-        return { success: true, count: ops.length - 1 };
+        return { success: true, count: validStocks.length };
     } catch (error) {
         logger.error(`Error saving stocks: ${error.message}`);
         throw error;

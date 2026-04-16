@@ -1,3 +1,4 @@
+const logger = require('../services/utils/logger');
 /**
  * Comprehensive IPO Seed Script - Seeds realistic Nepal IPO data
  */
@@ -202,11 +203,11 @@ const ipos = [
 ];
 
 async function seedIPOs() {
-    console.log('🌱 Seeding comprehensive IPO data...\n');
+    logger.info('🌱 Seeding comprehensive IPO data...\n');
 
     // Clear existing IPOs first
     await prisma.ipo.deleteMany({});
-    console.log('  ✓ Cleared existing IPO data\n');
+    logger.info('  ✓ Cleared existing IPO data\n');
 
     await prisma.ipo.createMany({ data: ipos });
 
@@ -217,7 +218,7 @@ async function seedIPOs() {
             closed: '🔴',
             completed: '✅'
         }[ipo.status];
-        console.log(`  ${statusIcon} ${ipo.companyName}`);
+        logger.info(`  ${statusIcon} ${ipo.companyName}`);
     }
 
     // Get counts
@@ -230,17 +231,17 @@ async function seedIPOs() {
 
     const counts = { open, upcoming, closed, completed };
 
-    console.log('\n📊 IPO Statistics:');
-    console.log(`   Open:      ${counts.open}`);
-    console.log(`   Upcoming:  ${counts.upcoming}`);
-    console.log(`   Closed:    ${counts.closed}`);
-    console.log(`   Completed: ${counts.completed}`);
-    console.log(`   ─────────────────`);
-    console.log(`   Total:     ${counts.open + counts.upcoming + counts.closed + counts.completed}`);
+    logger.info('\n📊 IPO Statistics:');
+    logger.info(`   Open:      ${counts.open}`);
+    logger.info(`   Upcoming:  ${counts.upcoming}`);
+    logger.info(`   Closed:    ${counts.closed}`);
+    logger.info(`   Completed: ${counts.completed}`);
+    logger.info(`   ─────────────────`);
+    logger.info(`   Total:     ${counts.open + counts.upcoming + counts.closed + counts.completed}`);
 
-    console.log('\n✅ IPO seeding completed successfully!');
+    logger.info('\n✅ IPO seeding completed successfully!');
 }
 
 seedIPOs()
-    .catch(console.error)
+    .catch(logger.error)
     .finally(() => prisma.$disconnect());

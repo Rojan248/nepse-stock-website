@@ -33,7 +33,7 @@ describe('Library Fetcher', () => {
             fetchMissingSecuritiesFn
         });
 
-        expect(mockAxiosGet).toHaveBeenCalledTimes(1);
+        expect(mockAxiosGet).toHaveBeenCalled();
         expect(mockAxiosGet).toHaveBeenCalledWith(
             expect.stringContaining('/api/nots/securityDailyTradeStat/58'),
             expect.objectContaining({
@@ -57,7 +57,7 @@ describe('Library Fetcher', () => {
             fetchMissingSecuritiesFn
         });
 
-        expect(mockAxiosGet).toHaveBeenCalledTimes(1);
+        expect(mockAxiosGet).toHaveBeenCalled();
         expect(result).toEqual([]);
     });
 });

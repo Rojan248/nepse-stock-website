@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nepse-stock-platform
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=file:/app/backend/prisma/dev.db
+    volumes:
+      - nepse-sqlite-data:/app/backend/prisma
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  nepse-sqlite-data:
+    name: nepse_sqlite_data

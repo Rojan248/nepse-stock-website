@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import logger from '../utils/logger';
 import { getMarketSummary, getSectors, getStocks } from '../services/api';
 
 const LIVE_UPDATE_INTERVAL = 60000;
@@ -39,7 +40,7 @@ export function useMarketData() {
             if (sectorsData) setSectors(['all', ...(sectorsData || [])]);
             setError(null);
         } catch (err) {
-            console.error('Failed to fetch market data:', err);
+            logger.error('Failed to fetch market data:', err);
             if (mountedRef.current) setError('Failed to update market data');
         }
     }, []);
@@ -70,7 +71,7 @@ export function useStockData() {
             const allStocks = await fetchAllStocks();
             if (mountedRef.current) setStocks(allStocks);
         } catch (err) {
-            console.error('Failed to fetch stocks:', err);
+            logger.error('Failed to fetch stocks:', err);
         } finally {
             if (mountedRef.current) setLoading(false);
         }

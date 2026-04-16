@@ -5,7 +5,6 @@
 
 const axios = require('axios');
 const https = require('https');
-const cheerio = require('cheerio');
 const logger = require('../utils/logger');
 const { TIMEOUT, HEADERS } = require('./proxyConfig');
 const { transformNepAlphaStock, transformShareSansarStock, transformMarketSummary, transformStock } = require('./apiTransformers');
@@ -26,32 +25,7 @@ const createClient = (baseURL, customHeaders = {}) => axios.create({
     headers: { ...HEADERS.default, ...customHeaders }
 });
 
-/**
- * Parse a single row from ShareSansar live trading table
- * @param {Object} $ - Cheerio instance
- * @param {Object} cells - Cheerio cells selection
- * @returns {Object|null} Transformed stock or null
- */
-const parseShareSansarRow = ($, cells) => {
-    if (cells.length === 0) return null;
-
-    const rawItem = {
-        symbol: $(cells[1]).text().trim(),
-        ltp: $(cells[2]).text().replace(/,/g, '').trim(),
-        change: $(cells[3]).text().replace(/,/g, '').trim(),
-        percentChange: $(cells[4]).text().replace(/,/g, '').trim(),
-        open: $(cells[5]).text().replace(/,/g, '').trim(),
-        high: $(cells[6]).text().replace(/,/g, '').trim(),
-        low: $(cells[7]).text().replace(/,/g, '').trim(),
-        volume: $(cells[8]).text().replace(/,/g, '').trim(),
-        previousClose: $(cells[9]).text().replace(/,/g, '').trim()
-    };
-
-    if (rawItem.symbol && rawItem.ltp !== '') {
-        return transformShareSansarStock(rawItem);
-    }
-    return null;
-};
+// ShareSansar Parsing routines disabled due to WAF HTML restrictions.
 
 /**
  * Extract array of securities from different possible response structures
@@ -96,53 +70,12 @@ const fetchFromNepAlpha = async () => {
 };
 
 /**
- * Parse ShareSansar HTML into stocks array
- * @param {string} html
- * @returns {Array} Array of parsed stocks
- */
-const parseShareSansarHtml = (html) => {
-    const $ = cheerio.load(html);
-    const rows = $('table tbody tr');
-    const stocks = [];
-
-    if (rows.length > 0) {
-        rows.each((i, el) => {
-            const parsed = parseShareSansarRow($, $(el).find('td'));
-            if (parsed) stocks.push(parsed);
-        });
-    }
-    return stocks;
-};
-
-/**
  * Fetch from ShareSansar API
+ * Disabled to remove Cheerio dependencies.
  * @returns {Promise<Object|null>} Standardized data or null
  */
 const fetchFromShareSansar = async () => {
-    try {
-        const client = axios.create({
-            timeout: TIMEOUT,
-            headers: HEADERS.shareSansar
-        });
-
-        const response = await client.get('https://www.sharesansar.com/live-trading');
-
-        if (response.data && typeof response.data === 'string') {
-            const stocks = parseShareSansarHtml(response.data);
-
-            if (stocks.length > 0) {
-                return {
-                    stocks,
-                    ipos: [],
-                    marketSummary: null,
-                    source: 'sharesansar',
-                    timestamp: new Date().toISOString()
-                };
-            }
-        }
-    } catch (error) {
-        logger.debug(`ShareSansar fetch failed: ${error.message}`);
-    }
+    logger.debug(`ShareSansar fetch disabled due to DOM restrictions.`);
     return null;
 };
 

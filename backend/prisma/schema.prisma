@@ -58,7 +58,8 @@ model MarketHistory {
 
   stock       Stock?   @relation(fields: [symbol], references: [symbol], onDelete: Cascade)
 
-  @@index([symbol, date])
+  @@unique([symbol, date])
+  @@index([symbol])
 }
 
 model MarketSummary {
@@ -196,6 +197,7 @@ model Alert {
   threshold  Decimal
   enabled    Boolean   @default(true)
   createdAt  DateTime  @default(now())
+  triggeredAt DateTime?
 
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries AlertDelivery[]

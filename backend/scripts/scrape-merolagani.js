@@ -14,8 +14,8 @@
 
 require('dotenv').config();
 const axios   = require('axios');
-const cheerio = require('cheerio');
 const { prisma } = require('../src/services/database/connection');
+const logger = require('../src/services/utils/logger');
 
 const BASE_URL    = 'https://merolagani.com/CompanyDetail.aspx?symbol=';
 const CONCURRENCY = 5;
@@ -29,10 +29,7 @@ const SINGLE = (symIdx !== -1 && symIdx + 1 < args.length && args[symIdx + 1])
     ? args[symIdx + 1].toUpperCase()
     : null;
 
-const log  = (...a) => console.log(`[${new Date().toISOString()}]`, ...a);
-const warn = (...a) => console.warn(`[${new Date().toISOString()}] WARN`, ...a);
-
-// ── HTML scraper ──────────────────────────────────────────────────────────────
+// ── HTML scraper (Regex-based to avoid cheerio dependency) ────────────────────
 async function scrapeStock(symbol) {
     const url = BASE_URL + symbol;
     const res = await axios.get(url, {
@@ -44,13 +41,18 @@ async function scrapeStock(symbol) {
         }
     });
 
-    const $ = cheerio.load(res.data);
+    const html = res.data;
     const data = { symbol };
 
-    $('th').each((_, el) => {
-        const key = $(el).text().trim();
-        const val = $(el).next('td').text().trim().replace(/,/g, '');
-        if (!key || !val) return;
+    // Regex to find th/td pairs
+    const pairRegex = /<th[^>]*>([\s\S]*?)<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let match;
+
+    while ((match = pairRegex.exec(html)) !== null) {
+        const key = match[1].replace(/<[^>]*>/g, '').trim();
+        const val = match[2].replace(/<[^>]*>/g, '').trim().replace(/,/g, '');
+        
+        if (!key || !val) continue;
 
         if (key.includes('180 Day')) {
             const n = parseFloat(val);
@@ -65,7 +67,7 @@ async function scrapeStock(symbol) {
             const n = parseFloat(val);
             if (!isNaN(n)) data.avgVol30dExt = n;
         }
-    });
+    }
 
     return data;
 }
@@ -86,7 +88,7 @@ async function processInBatches(items, batchSize, fn) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-    log('Starting MeroLagani scraper...');
+    logger.info('Starting MeroLagani scraper...');
 
     let stocks;
     if (SINGLE) {
@@ -95,7 +97,7 @@ async function main() {
             select: { symbol: true, ma180Ext: true }
         });
         if (stocks.length === 0) {
-            log(`Symbol ${SINGLE} not found in database.`);
+            logger.warn(`Symbol ${SINGLE} not found in database.`);
             return;
         }
     } else {
@@ -109,16 +111,16 @@ async function main() {
         ? stocks
         : stocks.filter(s => s.ma180Ext == null);
 
-    log(`Stocks to process: ${toProcess.length} (total: ${stocks.length}, skip: ${stocks.length - toProcess.length})`);
+    logger.info(`Stocks to process: ${toProcess.length} (total: ${stocks.length}, skip: ${stocks.length - toProcess.length})`);
 
     const counters = { updated: 0, skipped: 0, failed: 0, noData: 0 };
 
-    const results = await processInBatches(toProcess, CONCURRENCY, async (stock) => {
+    await processInBatches(toProcess, CONCURRENCY, async (stock) => {
         try {
             const data = await scrapeStock(stock.symbol);
 
             if (data.ma180Ext == null && data.ma120Ext == null && data.yearlyYield == null && data.avgVol30dExt == null) {
-                warn(`${stock.symbol}: no indicators found on MeroLagani page`);
+                logger.warn(`${stock.symbol}: no indicators found on MeroLagani page`);
                 counters.noData++;
                 return;
             }
@@ -134,24 +136,24 @@ async function main() {
                 data: update
             });
 
-            log(`  ${stock.symbol}: ma180=${data.ma180Ext} ma120=${data.ma120Ext} yield=${data.yearlyYield}% vol30d=${data.avgVol30dExt}`);
+            logger.info(`  ${stock.symbol}: ma180=${data.ma180Ext} ma120=${data.ma120Ext} yield=${data.yearlyYield}% vol30d=${data.avgVol30dExt}`);
             counters.updated++;
         } catch (err) {
-            warn(`${stock.symbol}: ${err.message}`);
+            logger.warn(`${stock.symbol}: ${err.message}`);
             counters.failed++;
         }
     });
 
-    log('\n=== Done ===');
-    log(`Updated:  ${counters.updated}`);
-    log(`No data:  ${counters.noData}`);
-    log(`Failed:   ${counters.failed}`);
-    log(`Skipped:  ${stocks.length - toProcess.length} (already had data)`);
+    logger.info('=== Done ===');
+    logger.info(`Updated:  ${counters.updated}`);
+    logger.info(`No data:  ${counters.noData}`);
+    logger.info(`Failed:   ${counters.failed}`);
+    logger.info(`Skipped:  ${stocks.length - toProcess.length} (already had data)`);
 
     await prisma.$disconnect();
 }
 
 main().catch(e => {
-    console.error('Fatal:', e);
+    logger.error('Fatal: ' + e.message);
     process.exit(1);
 });

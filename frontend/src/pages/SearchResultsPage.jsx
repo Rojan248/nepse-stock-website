@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import logger from '../utils/logger';
 import { searchStocks } from '../services/api';
 import StockTable from '../components/StockTable';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -25,7 +26,7 @@ function SearchResultsPage() {
                 const data = await searchStocks(query);
                 setResults(data.stocks || []);
             } catch (error) {
-                console.error('Search failed:', error);
+                logger.error('Search failed:', error);
                 setResults([]);
             } finally {
                 setLoading(false);

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { performance } = require('perf_hooks');
 const stockOperations = require('../services/database/stockOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
@@ -318,11 +319,14 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
         });
     }
 
-    const history = await prisma.marketHistory.findMany({
+    const startTime = performance.now();
+
+    const historyDesc = await prisma.marketHistory.findMany({
         where: { symbol: symbol.toUpperCase() },
-        orderBy: { date: 'asc' },
+        orderBy: { date: 'desc' },
         take: parseInt(days)
     });
+    const history = historyDesc.reverse();
 
     if (history.length === 0) {
         return res.json({ success: true, symbol, data: [] });
@@ -352,6 +356,9 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
             ma50: trend.ma50 || null
         };
     });
+
+    const endTime = performance.now();
+    logger.info(`GET /api/stocks/${symbol}/history execution time: ${(endTime - startTime).toFixed(2)}ms`);
 
     res.json({
         success: true,

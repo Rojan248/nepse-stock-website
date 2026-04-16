@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import logger from '../utils/logger';
 
 // ==================== Change Detection Helpers ====================
 
@@ -146,7 +147,7 @@ async function executeFetch(fetchFn, isInitial, ctx) {
     } catch (err) {
         if (!ctx.mountedRef.current) return;
         ctx.setError(err.message || 'Failed to fetch data');
-        console.error('Live data fetch error:', err);
+        logger.error('Live data fetch error:', err);
     } finally {
         if (ctx.mountedRef.current) {
             ctx.setIsLoading(false);

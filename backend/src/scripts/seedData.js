@@ -1,3 +1,4 @@
+const logger = require('../services/utils/logger');
 /**
  * Seed Data Script (Local Storage Version)
  * Populates local JSON storage with extensive dummy data
@@ -15,16 +16,16 @@ const randomFloat = (min, max) => parseFloat((Math.random() * (max - min) + min)
 
 const seedData = async () => {
     try {
-        console.log('Initializing Local Storage...');
+        logger.info('Initializing Local Storage...');
         initializeLocalStorage();
 
         // 0. Clean up existing stocks (Delete all)
-        console.log('Cleaning up existing stocks...');
+        logger.info('Cleaning up existing stocks...');
         stockOps.clearAllStocks();
-        console.log('Deleted old stock records.');
+        logger.info('Deleted old stock records.');
 
         // 1. Seed Stocks
-        console.log(`Seeding ${NEPSE_STOCKS.length} Real NEPSE Stocks...`);
+        logger.info(`Seeding ${NEPSE_STOCKS.length} Real NEPSE Stocks...`);
         const stocks = [];
 
         // Generate stock data for each base stock
@@ -92,10 +93,10 @@ const seedData = async () => {
 
         // Save all stocks
         stockOps.saveStocks(stocks);
-        console.log(`Saved ${stocks.length} stocks to local storage.`);
+        logger.info(`Saved ${stocks.length} stocks to local storage.`);
 
         // 2. Seed Market Summary
-        console.log('Seeding Market Summary...');
+        logger.info('Seeding Market Summary...');
         marketOps.saveMarketSummary({
             indexValue: 2045.67,
             indexChange: 12.45,
@@ -109,10 +110,10 @@ const seedData = async () => {
             unchangedCompanies: unchanged,
             status: 'OPEN'
         });
-        console.log('Saved market summary.');
+        logger.info('Saved market summary.');
 
         // 3. Seed IPOs
-        console.log('Seeding IPOs...');
+        logger.info('Seeding IPOs...');
         const ipos = [
             {
                 companyName: 'Sarbottam Cement Limited',
@@ -145,15 +146,15 @@ const seedData = async () => {
 
         // Save all IPOs
         ipoOps.saveIPOs(ipos);
-        console.log(`Saved ${ipos.length} IPOs.`);
+        logger.info(`Saved ${ipos.length} IPOs.`);
 
         // Force immediate save to disk
         saveAllData();
 
-        console.log('Data seeding completed! ✅');
+        logger.info('Data seeding completed! ✅');
         process.exit(0);
     } catch (error) {
-        console.error(`Error seeding data: ${error.message}`);
+        logger.error(`Error seeding data: ${error.message}`);
         process.exit(1);
     }
 };

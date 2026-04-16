@@ -1,5 +1,4 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
 const logger = require('../utils/logger');
 const https = require('https');
 const http = require('http');
@@ -92,16 +91,7 @@ const fetchData = async () => {
         logger.debug(`Custom scraper: Merolagani API failed: ${error.message}`);
     }
 
-    // Strategy 3: Merolagani DOM Scraper (Absolute Last Resort)
-    try {
-        const domData = await fetchFromMerolaganiDOM();
-        if (hasValidStockData(domData)) {
-            logger.info('✓ Custom scraper: Data recovered via Merolagani DOM scraping');
-            return domData;
-        }
-    } catch (error) {
-        logger.debug(`Custom scraper: Merolagani DOM scraping failed: ${error.message}`);
-    }
+    // Strategy 3 (DOM Scraping) has been retired from the MVP completely.
 
     logger.warn('Custom scraper: All Tier 3 sources failed.');
     return null;
@@ -180,53 +170,6 @@ const transformMerolaganiAPIStock = (item) => ({
     turnover: resolveFloat(item, ['t']),
     lastUpdated: new Date().toISOString()
 });
-
-/**
- * Last Resort: Scrape Merolagani Market Table via DOM
- */
-const fetchFromMerolaganiDOM = async () => {
-    const url = 'https://merolagani.com/LatestMarket.aspx';
-    const response = await axios.get(url, { 
-        timeout: TIMEOUT,
-        headers: { 'User-Agent': BROWSER_HEADERS['User-Agent'] }
-    });
-
-    const $ = cheerio.load(response.data);
-    const stocks = [];
-    
-    // Select the table with live market data
-    $('#ctl00_ContentPlaceHolder1_LiveMarket table tr').each((i, row) => {
-        if (i === 0) return; // Skip header
-        const cols = $(row).find('td');
-        if (cols.length < 8) return;
-
-        const symbol = $(cols[0]).text().trim();
-        if (!symbol) return;
-
-        const ltp = parseFloat($(cols[1]).text().replace(/,/g, ''));
-        const change = parseFloat($(cols[2]).text().replace(/,/g, ''));
-        const cp = parseFloat($(cols[3]).text().replace(/,/g, ''));
-        const prevClose = ltp - change;
-
-        stocks.push({
-            symbol,
-            companyName: $(cols[0]).attr('title') || symbol,
-            lastTradedPrice: ltp,
-            previousClose: prevClose,
-            change,
-            percentageChange: cp,
-            volume: resolveInt({ v: $(cols[6]).text() }, ['v']),
-            turnover: 0, // Not easily available in simple table
-            lastUpdated: new Date().toISOString()
-        });
-    });
-
-    return stocks.length > 0 ? {
-        stocks,
-        source: 'merolagani-dom',
-        timestamp: new Date().toISOString()
-    } : null;
-};
 
 module.exports = {
     fetchData

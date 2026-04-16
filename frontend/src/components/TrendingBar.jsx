@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Flame } from 'lucide-react';
+import logger from '../utils/logger';
 import axios from 'axios';
 import './TrendingBar.css';
 
@@ -29,7 +30,7 @@ const TrendingBar = () => {
                 setTrending(response.data.data || []);
             }
         } catch (error) {
-            console.error('Failed to fetch trending stocks:', error);
+            logger.error('Failed to fetch trending stocks:', error);
         } finally {
             setLoading(false);
         }

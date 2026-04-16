@@ -10,6 +10,8 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 const TIMEOUT = 10000;
 
+import logger from '../utils/logger';
+
 // Create axios instance
 const api = axios.create({
     baseURL: API_URL,
@@ -24,9 +26,9 @@ const api = axios.create({
 api.interceptors.response.use(
     (response) => response.data,
     (error) => {
-        console.error('API Error:', error.message);
+        logger.error('API Error:', error.message);
         if (error.response) {
-            console.error('Response:', error.response.status, error.response.data);
+            logger.error('Response:', error.response.status, error.response.data);
         }
         return Promise.reject(error);
     }
@@ -56,7 +58,7 @@ const safeApiCall = async (apiCall, defaultValue, errorMsg) => {
     try {
         return await apiCall();
     } catch (error) {
-        console.error(errorMsg, error);
+        logger.error(errorMsg, error);
         return defaultValue;
     }
 };
@@ -333,7 +335,7 @@ export const createPortfolio = (name) => api.post('/portfolios', { name }).then(
 export const deletePortfolio = (id) => api.delete(`/portfolios/${id}`);
 export const addTrade = (portfolioId, trade) => api.post(`/portfolios/${portfolioId}/trades`, trade).then(r => (r.data || r));
 export const deleteTrade = (portfolioId, tradeId) => api.delete(`/portfolios/${portfolioId}/trades/${tradeId}`);
-export const getPortfolioHoldings = (id) => api.get(`/portfolios/${id}/holdings`).then(r => (r.data || r));
+export const getPortfolioSummary = (id) => api.get(`/portfolios/${id}/summary`).then(r => (r.data || r));
 
 // ==================== Alert APIs ====================
 

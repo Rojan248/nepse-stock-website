@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Activity, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import logger from '../utils/logger';
 
 // ==================== Constants ====================
 
@@ -30,7 +31,7 @@ function useHealthPolling() {
                 if (!res.ok) throw new Error('API Unreachable');
                 setHealth(await res.json());
             } catch (err) {
-                if (import.meta.env.DEV) console.error('Health check:', err);
+                if (import.meta.env.DEV) logger.error('Health check:', err);
                 setHealth(null);
             } finally {
                 setLoading(false);

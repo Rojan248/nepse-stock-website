@@ -1,3 +1,4 @@
+const logger = require('../services/utils/logger');
 const { prisma } = require('../services/database/connection');
 const n = require('nepse-api-helper');
 const { nepseAxios } = require('nepse-api-helper/dist/http');
@@ -46,7 +47,7 @@ function createUpsertOperation(item, targetDate) {
 }
 
 async function scrapeBack(days = 30) {
-    console.log(`Starting to scrape the last ${days} days of NEPSE history from official site...`);
+    logger.info(`Starting to scrape the last ${days} days of NEPSE history from official site...`);
     
     await n.nepseClient.initialize({ useWasm: true });
     const w = await n.loadWasmModule();
@@ -58,28 +59,28 @@ async function scrapeBack(days = 30) {
         if (targetDate.getDay() === 5 || targetDate.getDay() === 6) continue;
 
         const dateStr = targetDate.toISOString().split('T')[0];
-        console.log(`Fetching data for ${dateStr}...`);
+        logger.info(`Fetching data for ${dateStr}...`);
 
         try {
             const content = await fetchHistoricalData(dateStr, w);
             
             if (content.length > 0) {
-                console.log(`Found ${content.length} records. Upserting to Database...`);
+                logger.info(`Found ${content.length} records. Upserting to Database...`);
                 const ops = content.map(item => createUpsertOperation(item, targetDate));
                 await prisma.$transaction(ops);
             } else {
-                console.log(`No trading data found for ${dateStr} (likely a holiday).`);
+                logger.info(`No trading data found for ${dateStr} (likely a holiday).`);
             }
             
         } catch (error) {
-            console.error(`Failed on ${dateStr}: ${error.message}`);
+            logger.error(`Failed on ${dateStr}: ${error.message}`);
         }
         
         // Wait 2 seconds to not spam the official NEPSE server
         await new Promise(r => setTimeout(r, 2000));
     }
     
-    console.log('Backfill complete!');
+    logger.info('Backfill complete!');
 }
 
-scrapeBack(30).then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+scrapeBack(30).then(() => process.exit(0)).catch(e => { logger.error(e); process.exit(1); });

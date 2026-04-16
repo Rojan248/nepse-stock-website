@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
+import logger from '../utils/logger';
 import { getServerHealth, getStockDepth } from '../services/api';
 import { useStockDetail } from '../hooks/useStocks';
 import { useStocks } from '../hooks/useStocks';
@@ -275,7 +276,7 @@ function useDepthData(activeTab, symbol) {
         const fetchDepth = async () => {
             setLoading(true);
             try { setData(await getStockDepth(symbol)); }
-            catch (err) { console.error('Failed to fetch depth:', err); }
+            catch (err) { logger.error('Failed to fetch depth:', err); }
             finally { setLoading(false); }
         };
         fetchDepth();
@@ -296,7 +297,7 @@ function useHistoryData(symbol) {
                 const result = await getStockHistory(symbol);
                 setData(result || []);
             } catch (err) {
-                console.error('Failed to fetch history:', err);
+                logger.error('Failed to fetch history:', err);
             } finally {
                 setLoading(false);
             }

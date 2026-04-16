@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import logger from '../utils/logger';
 
 export const useLocalStorage = (key, initialValue) => {
     const [storedValue, setStoredValue] = useState(() => {
@@ -7,7 +8,7 @@ export const useLocalStorage = (key, initialValue) => {
             return item ? JSON.parse(item) : initialValue;
         }
         catch (error) {
-            console.error(error);
+            logger.error(`LocalStorage read error for key "${key}":`, error);
             return initialValue;
         }
     });
@@ -19,7 +20,7 @@ export const useLocalStorage = (key, initialValue) => {
             window.localStorage.setItem(key, JSON.stringify(valueToStore));
         }
         catch (error) {
-            console.error(error);
+            logger.error(`LocalStorage write error for key "${key}":`, error);
         }
     };
 

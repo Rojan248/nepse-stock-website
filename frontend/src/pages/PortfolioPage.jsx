@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { getPortfolios, createPortfolio, deletePortfolio, addTrade, deleteTrade, getPortfolioHoldings } from '../services/api';
+import { getPortfolios, createPortfolio, deletePortfolio, addTrade, deleteTrade, getPortfolioSummary } from '../services/api';
+import { PortfolioSummary, HoldingsTable } from '../components/PortfolioSummary';
 
 // ==================== Custom Hook ====================
 
@@ -29,7 +30,7 @@ function usePortfolioData() {
 
     useEffect(() => {
         if (!selectedId) { setHoldings(null); return; }
-        getPortfolioHoldings(selectedId)
+        getPortfolioSummary(selectedId)
             .then(data => setHoldings(data))
             .catch(() => setHoldings(null));
     }, [selectedId, portfolios]);
@@ -88,64 +89,6 @@ function usePortfolioData() {
 }
 
 // ==================== Sub-Components ====================
-
-function SummaryBox({ label, value, color }) {
-    return (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-main)', borderRadius: 10, padding: '1rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{label}</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: color || 'var(--text-primary)' }}>{value}</div>
-        </div>
-    );
-}
-
-/** Determine P&L color */
-const plColor = (value) => value >= 0 ? 'var(--success)' : 'var(--danger)';
-
-function HoldingsSummary({ summary }) {
-    if (!summary) return null;
-    return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-            <SummaryBox label="Total Cost" value={`NPR ${summary.totalCost.toLocaleString()}`} />
-            <SummaryBox label="Market Value" value={`NPR ${summary.totalValue.toLocaleString()}`} />
-            <SummaryBox label="Total P&L" value={`NPR ${summary.totalPL.toLocaleString()}`} color={plColor(summary.totalPL)} />
-            <SummaryBox label="Return" value={`${summary.totalPLPercent}%`} color={plColor(summary.totalPLPercent)} />
-        </div>
-    );
-}
-
-function HoldingsTable({ holdings }) {
-    if (!holdings?.length) return null;
-    return (
-        <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                <thead>
-                    <tr style={{ borderBottom: '2px solid var(--border-main)', textAlign: 'left' }}>
-                        <th style={{ padding: '0.5rem' }}>Symbol</th>
-                        <th style={{ padding: '0.5rem' }}>Qty</th>
-                        <th style={{ padding: '0.5rem' }}>Avg Cost</th>
-                        <th style={{ padding: '0.5rem' }}>LTP</th>
-                        <th style={{ padding: '0.5rem' }}>Value</th>
-                        <th style={{ padding: '0.5rem' }}>P&L</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {holdings.map(h => (
-                        <tr key={h.symbol} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                            <td style={{ padding: '0.5rem', fontWeight: 600 }}>{h.symbol}</td>
-                            <td style={{ padding: '0.5rem' }}>{h.quantity}</td>
-                            <td style={{ padding: '0.5rem' }}>{h.avgCost}</td>
-                            <td style={{ padding: '0.5rem' }}>{h.currentPrice}</td>
-                            <td style={{ padding: '0.5rem' }}>{h.marketValue.toLocaleString()}</td>
-                            <td style={{ padding: '0.5rem', color: plColor(h.unrealizedPL), fontWeight: 600 }}>
-                                {h.unrealizedPL >= 0 ? '+' : ''}{h.unrealizedPL.toLocaleString()} ({h.unrealizedPLPercent}%)
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
 
 function TradeForm({ onSubmit }) {
     const [form, setForm] = useState(EMPTY_TRADE);
@@ -277,7 +220,7 @@ function PortfolioPage() {
 
             {selected && (
                 <>
-                    <HoldingsSummary summary={holdings?.summary} />
+                    <PortfolioSummary summary={holdings?.summary} />
                     <HoldingsTable holdings={holdings?.holdings} />
                     <TradeForm onSubmit={handleAddTrade} />
                     <TradeHistory trades={selected.trades} onDeleteTrade={handleDeleteTrade} />

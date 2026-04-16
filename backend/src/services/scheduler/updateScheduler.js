@@ -6,11 +6,10 @@ const ipoOperations = require('../database/ipoOperations');
 const marketOperations = require('../database/marketOperations');
 const { getNepseNow, getNepseNowSync, getMarketState, isMarketActive, initTimeSync, MARKET_STATES } = require('../utils/marketTime');
 const watchdogService = require('../watchdog/WatchdogService');
-const alertChecker = require('../alertChecker');
+const alertEngine = require('../alertEngine');
 const { prisma } = require('../database/connection');
 const dataEnricher = require('../dataEnricher');
 const metricsOrchestrator = require('../metrics/metricsOrchestrator');
-const backupDb = require('../../scripts/backupDb');
 const updateLock = require('../utils/updateLock');
 
 /**
@@ -162,11 +161,13 @@ const performUpdate = async () => {
         updateCount++;
         lastError = null;
 
-        // Check price alerts after successful data update
+        // Check price alerts asynchronously after successful data update
         try {
-            await alertChecker.checkAlerts();
+            alertEngine.checkAlerts(data.stocks).catch(alertErr => {
+                logger.error(`Alert Engine background fault: ${alertErr.message}`);
+            });
         } catch (alertErr) {
-            logger.error(`Alert check failed after update: ${alertErr.message}`);
+            logger.error(`Alert Engine initialization failed: ${alertErr.message}`);
         }
 
         // Compute metrics after successful data update
@@ -273,17 +274,7 @@ const setupCronJobs = () => {
         }
     });
 
-    // Hourly Backups (Only during market hours as requested)
-    schedule.scheduleJob('0 * * * *', async () => {
-        if (isMarketOpen()) {
-            logger.info('Running scheduled hourly backup during market hours...');
-            try {
-                backupDb.backup();
-            } catch (e) {
-                logger.error(`Scheduled backup failed: ${e.message}`);
-            }
-        }
-    });
+    // Hourly Backups feature migrated to shell script layer instead of Node.js.
 };
 
 
