@@ -6,6 +6,42 @@ import StockTable from '../components/StockTable';
 import LoadingSpinner from '../components/LoadingSpinner';
 import './SearchResultsPage.css';
 
+const SearchEmptyState = () => (
+    <div className="search-empty-card animate-up">
+        <div className="search-illustration search-illustration--empty">
+            <div className="glass-lens"></div>
+            <div className="search-line"></div>
+        </div>
+        <h3>Begin Your Search</h3>
+        <p>Explore the Nepal Stock Exchange. Enter a symbol or company name to get started.</p>
+    </div>
+);
+
+const SearchNoResults = ({ query, onBrowse }) => (
+    <div className="search-empty-card animate-up">
+        <div className="search-illustration search-illustration--none">
+            <div className="search-circle"></div>
+            <div className="search-cross"></div>
+        </div>
+        <h3>No Results Found</h3>
+        <p>We couldn't find any stocks matching <strong>"{query}"</strong>. Double check the symbol or explore all sectors.</p>
+        <button className="btn btn-primary btn-elevated" onClick={onBrowse}>
+            View All Stocks
+        </button>
+    </div>
+);
+
+const SearchResultsList = ({ results, onRowClick }) => (
+    <section className="results-section">
+        <p className="results-count">{results.length} stock{results.length !== 1 ? 's' : ''} found</p>
+        <StockTable
+            stocks={results}
+            onRowClick={onRowClick}
+            showPagination={false}
+        />
+    </section>
+);
+
 function SearchResultsPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -56,35 +92,9 @@ function SearchResultsPage() {
                 </p>
             </header>
 
-            {!query && (
-                <div className="no-query">
-                    <span className="icon">🔍</span>
-                    <h3>Enter a search term</h3>
-                    <p>Use the search bar to find stocks by symbol or company name</p>
-                </div>
-            )}
-
-            {query && results.length === 0 && (
-                <div className="no-results">
-                    <span className="icon">😔</span>
-                    <h3>No Results Found</h3>
-                    <p>No stocks match your search for "{query}"</p>
-                    <button className="btn btn-primary" onClick={() => navigate('/')}>
-                        Browse All Stocks
-                    </button>
-                </div>
-            )}
-
-            {results.length > 0 && (
-                <section className="results-section">
-                    <p className="results-count">{results.length} stock{results.length !== 1 ? 's' : ''} found</p>
-                    <StockTable
-                        stocks={results}
-                        onRowClick={handleStockClick}
-                        showPagination={false}
-                    />
-                </section>
-            )}
+            {!query && <SearchEmptyState />}
+            {query && results.length === 0 && <SearchNoResults query={query} onBrowse={() => navigate('/')} />}
+            {results.length > 0 && <SearchResultsList results={results} onRowClick={handleStockClick} />}
         </div>
     );
 }

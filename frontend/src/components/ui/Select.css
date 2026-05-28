@@ -62,7 +62,7 @@
     /* As requested */
     z-index: 50;
     /* As requested */
-    animation: fadeIn 0.1s ease-out;
+    animation: scaleIn 0.2s var(--ease-out-expo) forwards;
 }
 
 .ui-select-option {

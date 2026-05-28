@@ -76,6 +76,21 @@ jest.mock('../../src/services/database/connection', () => ({
 }));
 
 describe('Market API Endpoints', () => {
+    const ADMIN_KEY = 'test-admin-key';
+    const originalAdminKey = process.env.ADMIN_API_KEY;
+
+    beforeAll(() => {
+        process.env.ADMIN_API_KEY = ADMIN_KEY;
+    });
+
+    afterAll(() => {
+        if (originalAdminKey === undefined) {
+            delete process.env.ADMIN_API_KEY;
+        } else {
+            process.env.ADMIN_API_KEY = originalAdminKey;
+        }
+    });
+
     describe('GET /api/market-summary', () => {
         it('should return market summary', async () => {
             const res = await request(app).get('/api/market-summary');
@@ -141,7 +156,7 @@ describe('Market API Endpoints', () => {
 
         it('should allow requests with valid admin key', async () => {
             const res = await request(app).get('/api/health/extended')
-                .set('x-admin-key', 'test-admin-key');
+                .set('x-admin-key', ADMIN_KEY);
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);

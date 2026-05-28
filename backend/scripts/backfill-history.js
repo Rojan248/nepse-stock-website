@@ -12,14 +12,21 @@
  *   - 235 days: 52-week high/low
  *
  * Usage:
- *   node scripts/backfill-history.js              # skip symbols with >=50 rows
+ *   node scripts/backfill-history.js              # skip symbols with current history
  *   node scripts/backfill-history.js --force      # re-fetch all symbols
  *   node scripts/backfill-history.js --symbol NABIL  # single symbol
  *   node scripts/backfill-history.js --min-days 235  # target depth
+ *   node scripts/backfill-history.js --stale-days 5  # refresh symbols older than N days
  */
 
 const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
+const { sleep, log, warn, error } = require('./scriptUtils');
+const {
+    fetchOfficialCompanyList,
+    buildOrdinaryShareMap
+} = require('../src/services/nepseCompanyDirectory');
+const { normalizeSymbol } = require('../src/services/dataEnricher');
 
 const prisma = new PrismaClient();
 
@@ -28,17 +35,63 @@ const FORCE = ARGS.includes('--force');
 const SINGLE_SYMBOL = ARGS.includes('--symbol') ? ARGS[ARGS.indexOf('--symbol') + 1] : null;
 const MIN_DAYS_IDX = ARGS.indexOf('--min-days');
 const TARGET_DAYS = MIN_DAYS_IDX !== -1 ? parseInt(ARGS[MIN_DAYS_IDX + 1]) : 235;
+const STALE_DAYS_IDX = ARGS.indexOf('--stale-days');
+const STALE_DAYS = STALE_DAYS_IDX !== -1 ? parseInt(ARGS[STALE_DAYS_IDX + 1]) : 5;
 
 // Rate limiting
 const DELAY_BETWEEN_STOCKS = 1200; // ms between stocks
 const DELAY_ON_ERROR = 5000;       // ms on rate-limit or error
 const MAX_RETRIES = 2;
+const SHARE_SANSAR_PAGE_SIZE = 50;
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+function parseNumber(value) {
+    if (value == null || value === '') return null;
+    const parsed = Number(String(value).replace(/,/g, ''));
+    return Number.isFinite(parsed) ? parsed : null;
+}
 
-const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
-const warn = (msg) => console.warn(`[${new Date().toISOString()}] WARN: ${msg}`);
-const error = (msg) => console.error(`[${new Date().toISOString()}] ERROR: ${msg}`);
+function parseBusinessDate(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value || '')) {
+        return new Date(`${value}T00:00:00.000Z`);
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function dayRange(date) {
+    const start = parseBusinessDate(date);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 1);
+    return { start, end };
+}
+
+function validateOhlcv(row) {
+    const date = parseBusinessDate(row.date);
+    const open = parseNumber(row.open);
+    const high = parseNumber(row.high);
+    const low = parseNumber(row.low);
+    const close = parseNumber(row.close);
+    const volume = parseNumber(row.volume);
+    const turnover = parseNumber(row.turnover);
+
+    if (!date) return { ok: false, reason: 'invalid date' };
+    if (!close || close <= 0) return { ok: false, reason: 'invalid close' };
+    if (volume != null && volume < 0) return { ok: false, reason: 'negative volume' };
+    if (turnover != null && turnover < 0) return { ok: false, reason: 'negative turnover' };
+
+    const ceiling = Math.max(...[open, close, low].filter(v => v != null));
+    const floor = Math.min(...[open, close, high].filter(v => v != null));
+    if (high != null && high < ceiling) return { ok: false, reason: 'high below traded price' };
+    if (low != null && low > floor) return { ok: false, reason: 'low above traded price' };
+
+    return { ok: true, row: { date, open, high, low, close, volume, turnover } };
+}
 
 /**
  * Fetch historical OHLCV data from MeroLagani
@@ -99,6 +152,130 @@ async function fetchFromMeroLagani(symbol) {
     rows = rows.filter(r => r.close && r.close > 0 && r.date instanceof Date && !isNaN(r.date));
 
     return rows.length > 0 ? rows : null;
+}
+
+function extractShareSansarContext(html, headers, pageUrl, symbol) {
+    const token = html.match(/<meta name="_token" content="([^"]+)"/)?.[1];
+    const directCompany = html.match(/<div id="companyid"[^>]*>([^<]+)<\/div>/)?.[1]?.trim();
+    const cookie = (headers['set-cookie'] || []).map(value => value.split(';')[0]).join('; ');
+
+    if (token && directCompany) {
+        return { token, company: directCompany, cookie, pageUrl };
+    }
+
+    let company = null;
+    const companyPattern = /"id":(\d+),"symbol":"([^"]+)","companyname":/g;
+    let match;
+    while ((match = companyPattern.exec(html)) !== null) {
+        if (match[2].replace(/\\\//g, '/') === symbol) {
+            company = match[1];
+            break;
+        }
+    }
+
+    if (!token || !company) return null;
+    return { token, company, cookie, pageUrl };
+}
+
+async function fetchShareSansarCompanyContext(symbol) {
+    const primaryPageUrl = `https://www.sharesansar.com/company/${encodeURIComponent(symbol.toLowerCase())}`;
+    const fallbackPageUrl = 'https://www.sharesansar.com/company/nabil';
+
+    try {
+        const res = await axios.get(primaryPageUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html'
+            },
+            timeout: 20000
+        });
+        const context = extractShareSansarContext(res.data, res.headers, primaryPageUrl, symbol);
+        if (context) return context;
+    } catch (err) {
+        if (!err.response || ![404, 403].includes(err.response.status)) throw err;
+    }
+
+    const res = await axios.get(fallbackPageUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html'
+        },
+        timeout: 20000
+    });
+
+    const fallbackContext = extractShareSansarContext(res.data, res.headers, fallbackPageUrl, symbol);
+    if (!fallbackContext) {
+        throw new Error(`company context not found for ${symbol}`);
+    }
+
+    return fallbackContext;
+}
+
+function buildShareSansarHistoryForm(company, start) {
+    const form = new URLSearchParams();
+    form.set('draw', '1');
+    form.set('start', String(start));
+    form.set('length', String(SHARE_SANSAR_PAGE_SIZE));
+    form.set('company', company);
+
+    [
+        'published_date',
+        'open',
+        'high',
+        'low',
+        'close',
+        'per_change',
+        'traded_quantity',
+        'traded_amount'
+    ].forEach((name, index) => {
+        form.set(`columns[${index}][data]`, name);
+    });
+
+    form.set('order[0][column]', '0');
+    form.set('order[0][dir]', 'desc');
+    return form;
+}
+
+async function fetchFromShareSansarApi(symbol) {
+    const { token, company, cookie, pageUrl } = await fetchShareSansarCompanyContext(symbol);
+    const targetRows = Math.max(TARGET_DAYS + 75, 365);
+    const allRows = [];
+
+    for (let start = 0; start < targetRows; start += SHARE_SANSAR_PAGE_SIZE) {
+        const response = await axios.post(
+            'https://www.sharesansar.com/company-price-history',
+            buildShareSansarHistoryForm(company, start).toString(),
+            {
+                timeout: 20000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'application/json, text/javascript, */*; q=0.01',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRF-Token': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': pageUrl,
+                    ...(cookie ? { Cookie: cookie } : {})
+                }
+            }
+        );
+
+        const rows = response.data?.data;
+        if (!Array.isArray(rows) || rows.length === 0) break;
+        allRows.push(...rows);
+        if (rows.length < SHARE_SANSAR_PAGE_SIZE) break;
+    }
+
+    const mapped = allRows.map(row => ({
+        date: row.published_date,
+        open: row.open,
+        high: row.high,
+        low: row.low,
+        close: row.close,
+        volume: row.traded_quantity,
+        turnover: row.traded_amount
+    }));
+
+    return mapped.length > 0 ? mapped : null;
 }
 
 /**
@@ -184,6 +361,7 @@ async function fetchFromNepseAlpha(symbol) {
  */
 async function fetchHistoricalData(symbol) {
     const sources = [
+        { name: 'ShareSansar API', fn: () => fetchFromShareSansarApi(symbol) },
         { name: 'MeroLagani', fn: () => fetchFromMeroLagani(symbol) },
         { name: 'NepseAlpha', fn: () => fetchFromNepseAlpha(symbol) },
         { name: 'ShareSansar', fn: () => fetchFromShareSansarPage(symbol) }
@@ -211,14 +389,46 @@ async function fetchHistoricalData(symbol) {
     return null;
 }
 
-/**
- * Better store function: batch upsert using createMany with skipDuplicates
- */
-async function storeHistoryBatch(symbol, rows) {
-    // Sort rows oldest-first, compute change
-    const sorted = [...rows].sort((a, b) => a.date - b.date);
+async function updateStockFromLatestHistory(symbol, enrichedRows) {
+    if (enrichedRows.length === 0) return false;
 
-    // Compute change/percentageChange from sequential close prices
+    const latest = enrichedRows[enrichedRows.length - 1];
+    const previous = enrichedRows[enrichedRows.length - 2];
+
+    await prisma.stock.update({
+        where: { symbol },
+        data: {
+            lastTradedPrice: latest.closePrice,
+            previousClose: previous?.closePrice ?? latest.closePrice,
+            openPrice: latest.openPrice,
+            highPrice: latest.highPrice,
+            lowPrice: latest.lowPrice,
+            volume: latest.volume,
+            turnover: latest.turnover,
+            change: latest.change,
+            percentageChange: latest.percentageChange
+        }
+    });
+
+    return true;
+}
+
+async function storeHistoryBatch(symbol, rows) {
+    const normalizedByDay = new Map();
+    let invalid = 0;
+
+    for (const row of rows) {
+        const result = validateOhlcv(row);
+        if (!result.ok) {
+            invalid++;
+            continue;
+        }
+
+        normalizedByDay.set(result.row.date.toISOString().slice(0, 10), result.row);
+    }
+
+    const sorted = Array.from(normalizedByDay.values()).sort((a, b) => a.date - b.date);
+
     const enriched = sorted.map((row, i) => {
         let change = null;
         let percentageChange = null;
@@ -229,61 +439,47 @@ async function storeHistoryBatch(symbol, rows) {
         return {
             symbol,
             date: row.date,
+            openPrice: row.open,
             closePrice: row.close,
             highPrice: row.high || null,
             lowPrice: row.low || null,
             volume: row.volume || null,
-            turnover: null,
+            turnover: row.turnover || null,
             change,
             percentageChange
         };
     });
 
-    // Use createMany with skipDuplicates (requires unique constraint on symbol+date)
-    // Since we may not have that constraint, use individual upserts with try-catch
-    let stored = 0;
+    let created = 0;
+    let updated = 0;
     let skipped = 0;
 
-    // Try createMany first (will fail if no unique constraint, but worth trying)
-    try {
-        const result = await prisma.marketHistory.createMany({
-            data: enriched,
-            skipDuplicates: true
-        });
-        stored = result.count;
-        skipped = enriched.length - stored;
-        return { stored, skipped };
-    } catch (e) {
-        // Fall back to individual creates
-    }
-
-    // Individual creates
     for (const row of enriched) {
         try {
-            const dayStart = new Date(row.date);
-            dayStart.setHours(0, 0, 0, 0);
-            const dayEnd = new Date(dayStart);
-            dayEnd.setDate(dayEnd.getDate() + 1);
+            const { start, end } = dayRange(row.date);
             const existing = await prisma.marketHistory.findFirst({
                 where: {
                     symbol: row.symbol,
-                    date: { gte: dayStart, lt: dayEnd }
+                    date: { gte: start, lt: end }
                 },
                 select: { id: true }
             });
 
             if (!existing) {
                 await prisma.marketHistory.create({ data: row });
-                stored++;
+                created++;
             } else {
-                skipped++;
+                await prisma.marketHistory.update({ where: { id: existing.id }, data: row });
+                updated++;
             }
         } catch (e) {
             skipped++;
         }
     }
 
-    return { stored, skipped };
+    const currentUpdated = await updateStockFromLatestHistory(symbol, enriched);
+
+    return { created, updated, skipped, invalid, currentUpdated };
 }
 
 async function main() {
@@ -292,15 +488,30 @@ async function main() {
     log(`Force: ${FORCE}`);
     if (SINGLE_SYMBOL) log(`Focusing on: ${SINGLE_SYMBOL}`);
 
-    // Get all stock symbols from DB
-    const stocks = await prisma.stock.findMany({
-        select: { symbol: true },
-        ...(SINGLE_SYMBOL ? { where: { symbol: SINGLE_SYMBOL } } : {})
-    });
+    log('Fetching official ordinary-share directory...');
+    const ordinaryShareMap = buildOrdinaryShareMap(await fetchOfficialCompanyList());
+    if (ordinaryShareMap.size === 0) {
+        throw new Error('Could not load ordinary-share list from NEPSE company directory');
+    }
 
-    if (stocks.length === 0) {
+    const dbStocks = await prisma.stock.findMany({
+        select: { symbol: true },
+        ...(SINGLE_SYMBOL ? { where: { symbol: normalizeSymbol(SINGLE_SYMBOL) } } : {})
+    });
+    const stocks = dbStocks.filter(stock => ordinaryShareMap.has(normalizeSymbol(stock.symbol)));
+
+    if (dbStocks.length === 0) {
         error('No stocks found in database. Run the server first to populate stocks.');
         process.exit(1);
+    }
+    if (stocks.length === 0 && SINGLE_SYMBOL) {
+        error(`${SINGLE_SYMBOL} is not an active ordinary share in NEPSE's company directory.`);
+        process.exit(1);
+    }
+
+    const excluded = dbStocks.length - stocks.length;
+    if (excluded > 0) {
+        log(`Excluded ${excluded} non-ordinary securities from this backfill.`);
     }
 
     log(`Found ${stocks.length} stocks to process`);
@@ -312,15 +523,27 @@ async function main() {
         const { symbol } = stocks[i];
         stats.processed++;
 
-        // Check existing history depth
         if (!FORCE) {
-            const count = await prisma.marketHistory.count({ where: { symbol } });
+            const [count, latest] = await Promise.all([
+                prisma.marketHistory.count({ where: { symbol } }),
+                prisma.marketHistory.findFirst({
+                    where: { symbol },
+                    orderBy: { date: 'desc' },
+                    select: { date: true }
+                })
+            ]);
+            const staleCutoff = new Date();
+            staleCutoff.setUTCDate(staleCutoff.getUTCDate() - STALE_DAYS);
+
             if (count >= TARGET_DAYS) {
-                log(`[${i + 1}/${stocks.length}] ${symbol}: already has ${count} rows, skipping`);
-                stats.skipped++;
-                continue;
+                if (latest?.date && latest.date >= staleCutoff) {
+                    log(`[${i + 1}/${stocks.length}] ${symbol}: already has ${count} rows through ${latest.date.toISOString().slice(0, 10)}, skipping`);
+                    stats.skipped++;
+                    continue;
+                }
+                log(`[${i + 1}/${stocks.length}] ${symbol}: has ${count} rows but latest is ${latest?.date?.toISOString().slice(0, 10) || 'unknown'}, refreshing...`);
             }
-            if (count > 0) {
+            else if (count > 0) {
                 log(`[${i + 1}/${stocks.length}] ${symbol}: has ${count}/${TARGET_DAYS} rows, fetching more...`);
             } else {
                 log(`[${i + 1}/${stocks.length}] ${symbol}: no history, fetching...`);
@@ -344,10 +567,10 @@ async function main() {
             stats.failed++;
             failed.push(symbol);
         } else {
-            const { stored, skipped } = await storeHistoryBatch(symbol, result.data);
+            const { created, updated, skipped, invalid, currentUpdated } = await storeHistoryBatch(symbol, result.data);
             stats.fetched++;
-            stats.totalStored += stored;
-            log(`  ${symbol}: stored ${stored} new rows, ${skipped} already existed`);
+            stats.totalStored += created;
+            log(`  ${symbol}: created ${created}, updated ${updated}, skipped ${skipped}, invalid ${invalid}, current=${currentUpdated ? 'updated' : 'unchanged'}`);
         }
 
         // Rate limit between stocks

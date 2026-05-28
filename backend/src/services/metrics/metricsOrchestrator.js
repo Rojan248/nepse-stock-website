@@ -15,6 +15,24 @@ const fundamentals = require('./fundamentals');
 const patterns = require('./patterns');
 const { computeCumulativeStockMetrics } = require('./cumulativeMetrics');
 
+function numericOrNull(value) {
+    if (value == null) return null;
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function extractFilterMetrics(metricsData) {
+    const { priceM, trendM, momentumM } = metricsData;
+    return {
+        ma20: numericOrNull(trendM.ma20),
+        ma50: numericOrNull(trendM.ma50),
+        ma180: numericOrNull(trendM.ma180),
+        rsi14: numericOrNull(momentumM.rsi14),
+        high52w: numericOrNull(priceM.high52w),
+        low52w: numericOrNull(priceM.low52w)
+    };
+}
+
 function createMetricsUpsertConfig(symbol, today, metricsData) {
     const { priceM, trendM, momentumM, liquidityM, relativeM, fundM, patternsM, signals } = metricsData;
     const stringified = {
@@ -27,11 +45,13 @@ function createMetricsUpsertConfig(symbol, today, metricsData) {
         patterns: JSON.stringify(patternsM),
         signals: JSON.stringify(signals)
     };
+    const filterMetrics = extractFilterMetrics(metricsData);
+    const data = { ...stringified, ...filterMetrics };
 
     return {
         where: { symbol_date: { symbol: symbol.toUpperCase(), date: today } },
-        update: { ...stringified, computedAt: new Date() },
-        create: { symbol: symbol.toUpperCase(), date: today, ...stringified }
+        update: { ...data, computedAt: new Date() },
+        create: { symbol: symbol.toUpperCase(), date: today, ...data }
     };
 }
 
@@ -102,7 +122,7 @@ async function computeForSymbol(symbol, targetDate = null, allStocks = null) {
 const processStockBatch = (allStocks) => 
     allStocks.reduce(async (accPromise, stock) => {
         const acc = await accPromise;
-        const result = await computeForSymbol(stock.symbol, allStocks);
+        const result = await computeForSymbol(stock.symbol, null, allStocks);
         return {
             computed: acc.computed + (result ? 1 : 0),
             failed: acc.failed + (result ? 0 : 1)

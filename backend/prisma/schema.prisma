@@ -41,6 +41,7 @@ model Stock {
   history        MarketHistory[]
 
   @@index([sector])
+  @@index([updatedAt])
 }
 
 model MarketHistory {
@@ -60,6 +61,7 @@ model MarketHistory {
 
   @@unique([symbol, date])
   @@index([symbol])
+  @@index([date])
 }
 
 model MarketSummary {
@@ -234,24 +236,17 @@ model StockMetrics {
   signals          String?  // JSON: array of signal objects [{type, label, sentiment}]
   computedAt       DateTime @default(now())
 
+  // Granular metrics for fast server-side filtering
+  ma20        Decimal?
+  ma50        Decimal?
+  ma180       Decimal?
+  rsi14       Decimal?
+  high52w     Decimal?
+  low52w      Decimal?
+
   @@unique([symbol, date])
   @@index([symbol])
-}
-
-model AIOverview {
-  id           Int      @id @default(autoincrement())
-  symbol       String
-  type         String   @default("stock") // "stock" | "market"
-  context      String?  // JSON: fact sheet / input data snapshot
-  narrative    String?  // JSON: { summary, bullets, outlook, generatedAt }
-  modelVersion String?
-  tokenCount   Int?
-  triggeredBy  String?  // "scheduler" | "manual" | "startup"
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now()) @updatedAt
-
-  @@unique([symbol, type])
-  @@index([symbol])
+  @@index([date])
 }
 
 model Lock {
@@ -259,12 +254,4 @@ model Lock {
   owner     String
   expiresAt DateTime
   createdAt DateTime @default(now())
-}
-
-model AIUsage {
-  id         Int      @id @default(autoincrement())
-  date       DateTime @unique @default(now())
-  tokenCount Int      @default(0)
-  costUSD    Decimal  @default(0)
-  callCount  Int      @default(0)
 }

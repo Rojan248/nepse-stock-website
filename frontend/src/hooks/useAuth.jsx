@@ -91,6 +91,7 @@ export function AuthProvider({ children }) {
                 // Don't retry the refresh endpoint itself or already-retried requests
                 if (
                     error.response?.status === 401 &&
+                    !originalRequest.skipAuthRefresh &&
                     !originalRequest._retry &&
                     !originalRequest.url?.includes('/auth/refresh')
                 ) {

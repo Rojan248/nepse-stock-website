@@ -11,6 +11,7 @@ const { prisma } = require('../database/connection');
 const dataEnricher = require('../dataEnricher');
 const metricsOrchestrator = require('../metrics/metricsOrchestrator');
 const updateLock = require('../utils/updateLock');
+const streamManager = require('../streamManager');
 
 /**
  * Update Scheduler
@@ -33,9 +34,12 @@ const MARKET_OPEN_MINUTE = parseInt(process.env.MARKET_OPEN_MINUTE) || 0;
 const MARKET_CLOSE_HOUR = parseInt(process.env.MARKET_CLOSE_HOUR) || 15;
 const MARKET_CLOSE_MINUTE = parseInt(process.env.MARKET_CLOSE_MINUTE) || 0;
 
-// Update intervals - changed to 10 seconds for market open
-const MARKET_OPEN_INTERVAL = parseInt(process.env.NEPSE_UPDATE_INTERVAL) || 60000; // 60 seconds
+// Update intervals. Full stock refresh stays intentionally moderate to avoid hammering NEPSE.
+const MARKET_OPEN_INTERVAL = parseInt(process.env.NEPSE_UPDATE_INTERVAL) || 45000; // 45 seconds
 const MARKET_CLOSED_INTERVAL = 60 * 60 * 1000; // 1 hour
+const MAX_BACKOFF_MULTIPLIER = 4;
+const SCHEDULE_JITTER_RATIO = 0.12;
+let lastScheduledIntervalMs = null;
 
 /**
  * Get current Nepal Standard Time (uses external time server)
@@ -177,10 +181,12 @@ const performUpdate = async () => {
             logger.error(`Metrics computation failed after update: ${metricsErr.message}`);
         }
 
+        streamManager.emit('marketUpdated', { timestamp: new Date(), type: 'update' });
+
         const duration = Date.now() - startTime;
         logger.info(`Update cycle completed in ${duration}ms (Source: ${data.source})`);
         return true;
-
+    } catch (error) {
         logger.error(`Update cycle failed: ${error.message}`);
         lastError = error.message;
         return false;
@@ -188,6 +194,19 @@ const performUpdate = async () => {
         // Phase 3: Release Distributed Lock
         await updateLock.releaseLock('scheduler');
     }
+};
+
+const withJitter = (interval) => {
+    const jitterRange = Math.floor(interval * SCHEDULE_JITTER_RATIO);
+    if (jitterRange <= 0) return interval;
+    const offset = Math.floor(Math.random() * (jitterRange * 2 + 1)) - jitterRange;
+    return Math.max(10000, interval + offset);
+};
+
+const getAdaptiveInterval = (baseInterval) => {
+    const failures = dataFetcher.getFetchStatus().consecutiveFailures || 0;
+    const multiplier = Math.min(MAX_BACKOFF_MULTIPLIER, 1 + failures);
+    return withJitter(baseInterval * multiplier);
 };
 
 /**
@@ -224,6 +243,8 @@ const scheduleNext = () => {
     } else if (isDevMode) {
         interval = MARKET_OPEN_INTERVAL;
     }
+    interval = getAdaptiveInterval(interval);
+    lastScheduledIntervalMs = interval;
 
     schedulerJob = setTimeout(async () => {
         if (isRunning) {
@@ -257,11 +278,6 @@ const setupCronJobs = () => {
     schedule.scheduleJob('0 0 * * *', async () => {
         logger.info('Running daily cleanup...');
         await marketOperations.cleanOldSummaries(30);
-    });
-
-    // Reset AI trigger flag at midnight so catch-up works next day
-    schedule.scheduleJob('0 0 * * *', () => {
-        aiTriggeredToday = false;
     });
 
     // Watchdog (Every 10 minutes)
@@ -349,6 +365,7 @@ const getUpdateStatus = () => ({
     lastUpdateTime: lastUpdateTime ? lastUpdateTime.toISOString() : null,
     updateCount,
     lastError,
+    lastScheduledIntervalMs,
     currentNST: getNSTTime().toISOString(),
     marketHours: {
         open: `${MARKET_OPEN_HOUR}:${MARKET_OPEN_MINUTE.toString().padStart(2, '0')}`,

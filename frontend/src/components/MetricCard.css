@@ -13,9 +13,9 @@
 }
 
 .metric-card:hover {
-    border-color: #cbd5e1;
-    box-shadow: var(--shadow-md);
-    transform: translateY(-3px);
+    border-color: var(--primary-accent);
+    box-shadow: 0 12px 24px -1px rgba(0, 0, 0, 0.1), 0 4px 12px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-5px);
 }
 
 /* Typography */

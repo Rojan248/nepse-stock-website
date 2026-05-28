@@ -1,92 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { getPortfolios, createPortfolio, deletePortfolio, addTrade, deleteTrade, getPortfolioSummary } from '../services/api';
+import { useState } from 'react';
 import { PortfolioSummary, HoldingsTable } from '../components/PortfolioSummary';
-
-// ==================== Custom Hook ====================
+import { usePortfolioData } from '../hooks/usePortfolioData';
 
 const EMPTY_TRADE = { symbol: '', type: 'buy', quantity: '', price: '', date: '' };
-
-function usePortfolioData() {
-    const { user } = useAuth();
-    const [portfolios, setPortfolios] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedId, setSelectedId] = useState(null);
-    const [holdings, setHoldings] = useState(null);
-    const [error, setError] = useState('');
-
-    const loadPortfolios = useCallback(() => {
-        getPortfolios()
-            .then(data => {
-                const list = Array.isArray(data) ? data : [];
-                setPortfolios(list);
-                if (list.length > 0 && !selectedId) setSelectedId(list[0].id);
-            })
-            .catch(() => setPortfolios([]))
-            .finally(() => setLoading(false));
-    }, [selectedId]);
-
-    useEffect(() => { loadPortfolios(); }, []);
-
-    useEffect(() => {
-        if (!selectedId) { setHoldings(null); return; }
-        getPortfolioSummary(selectedId)
-            .then(data => setHoldings(data))
-            .catch(() => setHoldings(null));
-    }, [selectedId, portfolios]);
-
-    const handleCreate = async (name) => {
-        if (!name.trim()) return;
-        try {
-            const p = await createPortfolio(name.trim());
-            setSelectedId(p.id);
-            loadPortfolios();
-        } catch (err) {
-            setError(err.response?.data?.error?.message || 'Failed to create');
-        }
-    };
-
-    const handleDelete = async (id) => {
-        try {
-            await deletePortfolio(id);
-            if (selectedId === id) setSelectedId(null);
-            loadPortfolios();
-        } catch { setError('Failed to delete portfolio'); }
-    };
-
-    const handleAddTrade = async (tradeForm) => {
-        setError('');
-        if (!selectedId) return;
-        try {
-            await addTrade(selectedId, {
-                symbol: tradeForm.symbol.toUpperCase(),
-                type: tradeForm.type,
-                quantity: parseInt(tradeForm.quantity),
-                price: parseFloat(tradeForm.price),
-                date: tradeForm.date
-            });
-            loadPortfolios();
-            return true; // signal success so the form can reset
-        } catch (err) {
-            setError(err.response?.data?.error?.message || 'Failed to add trade');
-            return false;
-        }
-    };
-
-    const handleDeleteTrade = async (tradeId) => {
-        try {
-            await deleteTrade(selectedId, tradeId);
-            loadPortfolios();
-        } catch { setError('Failed to delete trade'); }
-    };
-
-    const selected = portfolios.find(p => p.id === selectedId);
-
-    return {
-        portfolios, loading, selectedId, setSelectedId, holdings,
-        error, selected, handleCreate, handleDelete, handleAddTrade, handleDeleteTrade
-    };
-}
 
 // ==================== Sub-Components ====================
 
@@ -95,7 +11,15 @@ function TradeForm({ onSubmit }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const success = await onSubmit(form);
+        const submitted = new FormData(e.currentTarget);
+        const trade = {
+            symbol: submitted.get('symbol') || form.symbol,
+            type: submitted.get('type') || form.type,
+            quantity: submitted.get('quantity') || form.quantity,
+            price: submitted.get('price') || form.price,
+            date: submitted.get('date') || form.date
+        };
+        const success = await onSubmit(trade);
         if (success) setForm(EMPTY_TRADE);
     };
 
@@ -105,18 +29,18 @@ function TradeForm({ onSubmit }) {
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-main)', borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' }}>
             <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1rem' }}>Add Trade</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <input value={form.symbol} onChange={update('symbol')} placeholder="Symbol" required
+                <input name="symbol" value={form.symbol} onChange={update('symbol')} placeholder="Symbol" required
                     style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border-main)', width: 100 }} />
-                <select value={form.type} onChange={update('type')}
+                <select name="type" value={form.type} onChange={update('type')}
                     style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border-main)' }}>
                     <option value="buy">Buy</option>
                     <option value="sell">Sell</option>
                 </select>
-                <input type="number" value={form.quantity} onChange={update('quantity')} placeholder="Qty" required min="1"
+                <input name="quantity" type="number" value={form.quantity} onChange={update('quantity')} placeholder="Qty" required min="1"
                     style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border-main)', width: 80 }} />
-                <input type="number" step="0.01" value={form.price} onChange={update('price')} placeholder="Price" required
+                <input name="price" type="number" step="0.01" value={form.price} onChange={update('price')} placeholder="Price" required
                     style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border-main)', width: 100 }} />
-                <input type="date" value={form.date} onChange={update('date')} required
+                <input name="date" type="date" value={form.date} onChange={update('date')} required
                     style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border-main)' }} />
                 <button type="submit" className="auth-btn" style={{ width: 'auto', padding: '0.5rem 1rem', marginTop: 0 }}>Add</button>
             </form>

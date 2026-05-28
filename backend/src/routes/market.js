@@ -11,7 +11,6 @@ const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString, getMarketState } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
-const stockPicks = require('../services/stockPicks');
 
 /**
  * Market API Routes
@@ -20,6 +19,92 @@ const stockPicks = require('../services/stockPicks');
 
 // Server start time for uptime calculation
 const serverStartTime = Date.now();
+
+const FRESHNESS_LIMITS_SECONDS = {
+    OPEN: 120,
+    PRE_OPEN: 15 * 60,
+    CLOSED: 6 * 60 * 60,
+    POST_CLOSE: 6 * 60 * 60,
+    WEEKEND: 24 * 60 * 60,
+    HOLIDAY: 24 * 60 * 60
+};
+
+const FETCH_FAILURE_PROBLEM_THRESHOLD = 3;
+
+const secondsSince = (date) => {
+    if (!date) return null;
+    const parsed = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return Math.floor((Date.now() - parsed.getTime()) / 1000);
+};
+
+const getLatestStockSync = async () => {
+    const latestStock = await prisma.stock.findFirst({
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true }
+    });
+    return latestStock?.updatedAt || null;
+};
+
+const evaluateHealth = async () => {
+    const updateStatus = scheduler.getUpdateStatus();
+    const fetchStatus = dataFetcher.getFetchStatus();
+    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
+    const marketState = getMarketState();
+
+    const [marketStats, stockCount, latestStockSync] = await Promise.all([
+        marketOperations.getMarketStats(),
+        stockOperations.getStockCount(),
+        getLatestStockSync()
+    ]);
+
+    const lastSyncSecondsAgo = secondsSince(latestStockSync);
+    const freshnessLimitSeconds = FRESHNESS_LIMITS_SECONDS[marketState] || FRESHNESS_LIMITS_SECONDS.CLOSED;
+    const isFresh = lastSyncSecondsAgo !== null && lastSyncSecondsAgo <= freshnessLimitSeconds;
+
+    const problems = [];
+    const warnings = [];
+
+    if (!updateStatus.isRunning) problems.push('scheduler is not running');
+    if (stockCount <= 100) problems.push(`stock count too low (${stockCount})`);
+    if (!marketStats.hasData) problems.push('market summary data is missing');
+    if (updateStatus.circuitBreaker?.isOpen) problems.push('circuit breaker is open');
+    if (fetchStatus.consecutiveFailures >= FETCH_FAILURE_PROBLEM_THRESHOLD && !isFresh) {
+        problems.push(`${fetchStatus.consecutiveFailures} consecutive fetch failures`);
+    }
+    if (updateStatus.isMarketOpen && !isFresh) problems.push(`market data stale during open market (${lastSyncSecondsAgo ?? 'unknown'}s old)`);
+
+    if (fetchStatus.consecutiveFailures > 0 && (fetchStatus.consecutiveFailures < FETCH_FAILURE_PROBLEM_THRESHOLD || isFresh)) {
+        const errorDetail = updateStatus.lastError || fetchStatus.lastError;
+        warnings.push(`${fetchStatus.consecutiveFailures} recent fetch failure${errorDetail ? `: ${errorDetail}` : ''}`);
+    }
+    if (!updateStatus.isMarketOpen && !isFresh) {
+        warnings.push(`stored market data is older than preferred for ${marketState} (${lastSyncSecondsAgo ?? 'unknown'}s)`);
+    }
+    if (fetchStatus.rateLimitEvents > 0) {
+        warnings.push(`${fetchStatus.rateLimitEvents} rate-limit-like event(s) observed`);
+    }
+
+    const status = problems.length > 0 ? 'degraded' : 'healthy';
+
+    return {
+        status,
+        problems,
+        warnings,
+        updateStatus,
+        fetchStatus,
+        uptimeSeconds,
+        marketState,
+        marketStats,
+        stockCount,
+        freshness: {
+            lastStockSync: latestStockSync ? latestStockSync.toISOString() : null,
+            lastSyncSecondsAgo,
+            freshnessLimitSeconds,
+            isFresh
+        }
+    };
+};
 
 /**
  * GET /api/market-summary
@@ -84,40 +169,6 @@ router.get('/market-stats', asyncHandler(async (req, res) => {
 }));
 
 /**
- * GET /api/market-overview
- * Get market overview narrative (stored by manualAIUpdate script)
- */
-router.get('/market-overview', asyncHandler(async (req, res) => {
-    const overview = await prisma.aIOverview.findUnique({
-        where: { symbol_type: { symbol: 'MARKET', type: 'market' } }
-    });
-
-    if (!overview) {
-        return res.status(404).json({
-            success: false,
-            error: { message: 'No market overview available yet' }
-        });
-    }
-
-    let narrative = overview.narrative;
-    try { 
-        narrative = JSON.parse(narrative); 
-    } catch (error) {
-        logger.error(`Failed to parse market overview narrative (ID: ${overview.id}): ${error.message}`);
-        narrative = { text: overview.narrative || null };
-    }
-
-    res.json({
-        success: true,
-        data: {
-            narrative,
-            generatedAt: overview.updatedAt,
-            modelVersion: overview.modelVersion
-        }
-    });
-}));
-
-/**
  * GET /api/market-metrics
  * Get aggregate market-level metrics
  */
@@ -135,56 +186,18 @@ router.get('/market-metrics', asyncHandler(async (req, res) => {
 }));
 
 /**
- * GET /api/stock-picks
- * Get AI-scored stock recommendations based on technical metrics
- * COMPLIANCE RESTRICTED: Requires admin auth and feature flag due to financial advisory regulations.
- */
-router.get('/stock-picks', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
-    // Governance feature flag
-    if (process.env.ENABLE_STOCK_PICKS !== 'true') {
-        logger.warn('Blocked attempt to access /api/stock-picks while feature is disabled for legal review');
-        return res.status(403).json({
-            success: false,
-            error: { message: 'Stock picks are currently disabled pending SEBON compliance and legal sign-off.' }
-        });
-    }
-
-    const { limit = 10 } = req.query;
-    const picks = await stockPicks.getTopPicks(parseInt(limit)); // Note: make sure stockPicks is required above if it isn't.
-
-    const disclaimer = "⚠️ Legal & Compliance Disclaimer: [FLAGGED FOR LEGAL REVIEW] The stock recommendations provided are for informational purposes only and do not constitute financial advice. We guarantee no accuracy. Past performance is not indicative of future results. Please consult a SEBON registered advisor.";
-    logger.info(`Served stock picks data to authenticated client. Disclaimer explicitly included.`);
-
-    res.json({
-        success: true,
-        data: picks,
-        count: picks.length,
-        disclaimer,
-        timestamp: new Date().toISOString()
-    });
-}));
-
-/**
  * GET /api/health
  * Server health check with update status
  */
 router.get('/health', asyncHandler(async (req, res) => {
-    const updateStatus = scheduler.getUpdateStatus();
-    const fetchStatus = dataFetcher.getFetchStatus();
-    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
-
-    const marketStats = await marketOperations.getMarketStats();
-    const stockCount = await stockOperations.getStockCount();
-
-    // Determine overall health status
-    // NOTE: consecutiveFailures is tracked in dataFetcher (fetchStatus), not scheduler (updateStatus)
-    const isHealthy = fetchStatus.consecutiveFailures < 3 &&
-        stockCount > 100 &&
-        !(updateStatus.circuitBreaker?.isOpen);
+    const health = await evaluateHealth();
+    const { updateStatus, fetchStatus, uptimeSeconds, marketStats, stockCount } = health;
 
     res.json({
         success: true,
-        status: isHealthy ? 'healthy' : 'degraded',
+        status: health.status,
+        problems: health.problems,
+        warnings: health.warnings,
         server: {
             uptime: uptimeSeconds,
             uptimeFormatted: formatUptime(uptimeSeconds),
@@ -197,23 +210,66 @@ router.get('/health', asyncHandler(async (req, res) => {
             updateCount: updateStatus.updateCount,
             failureCount: updateStatus.failureCount,
             consecutiveFailures: fetchStatus.consecutiveFailures,
-            lastError: updateStatus.lastError
+            lastError: updateStatus.lastError,
+            lastScheduledIntervalMs: updateStatus.lastScheduledIntervalMs
         },
         market: {
             isOpen: updateStatus.isMarketOpen,
             currentNST: updateStatus.currentNST,
             hours: updateStatus.marketHours,
-            state: getMarketState()
+            state: health.marketState
         },
         data: {
             source: fetchStatus.dataSource,
             stockCount,
             hasMarketData: marketStats.hasData,
-            isHealthy: fetchStatus.isHealthy
+            freshness: health.freshness,
+            isHealthy: fetchStatus.isHealthy && health.problems.length === 0
+        },
+        fetcher: {
+            lastUpdateTime: fetchStatus.lastUpdateTime,
+            lastFetchStartedAt: fetchStatus.lastFetchStartedAt,
+            lastFetchDurationMs: fetchStatus.lastFetchDurationMs,
+            lastSuccessfulDurationMs: fetchStatus.lastSuccessfulDurationMs,
+            lastError: fetchStatus.lastError,
+            rateLimitEvents: fetchStatus.rateLimitEvents,
+            sourceStats: fetchStatus.sourceStats
         },
         resilience: {
             circuitBreaker: updateStatus.circuitBreaker,
             alerting: updateStatus.alerting
+        }
+    });
+}));
+
+router.get('/health/live', asyncHandler(async (req, res) => {
+    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
+    res.json({
+        success: true,
+        status: 'alive',
+        uptime: uptimeSeconds,
+        timestamp: new Date().toISOString()
+    });
+}));
+
+router.get('/health/ready', asyncHandler(async (req, res) => {
+    const health = await evaluateHealth();
+    const ready = health.status === 'healthy';
+    res.status(ready ? 200 : 503).json({
+        success: ready,
+        status: ready ? 'ready' : 'not_ready',
+        problems: health.problems,
+        warnings: health.warnings,
+        data: {
+            stockCount: health.stockCount,
+            hasMarketData: health.marketStats.hasData,
+            freshness: health.freshness
+        },
+        fetcher: {
+            consecutiveFailures: health.fetchStatus.consecutiveFailures,
+            lastError: health.fetchStatus.lastError,
+            lastFetchDurationMs: health.fetchStatus.lastFetchDurationMs,
+            rateLimitEvents: health.fetchStatus.rateLimitEvents
         }
     });
 }));

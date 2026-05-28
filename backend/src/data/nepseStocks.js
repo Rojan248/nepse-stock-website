@@ -345,8 +345,18 @@ const NEPSE_STOCKS = [
     { symbol: 'PURE', name: 'Pure Energy Limited', sector: 'Hydro Power', base: 918.1 },
     { symbol: 'SAIL', name: 'Shreenagar Agritech Industries Limited', sector: 'Manufacturing And Processing', base: 814 },
     { symbol: 'OMPL', name: 'Om Megashree Pharmaceuticals Limited', sector: 'Manufacturing And Processing', base: 1243 },
+    { symbol: 'PCIL', name: 'Palpa Cement Industries Limited', sector: 'Manufacturing And Processing', base: 100 },
+    { symbol: 'NLO', name: 'Nepal Lube Oil Limited', sector: 'Manufacturing And Processing', base: 100 },
     { symbol: 'JHAPA', name: 'Jhapa Energy Limited', sector: 'Hydro Power', base: 1255 },
+    { symbol: 'KHPL', name: 'Kalinchock Hydropower Limited', sector: 'Hydro Power', base: 100 },
+    { symbol: 'SIPD', name: 'Shikhar Power Development Limited', sector: 'Hydro Power', base: 100 },
+    { symbol: 'SKHL', name: 'Super Khudi Hydropower Limited', sector: 'Hydro Power', base: 100 },
+    { symbol: 'SMHL', name: 'Super Madi Hydropower Limited', sector: 'Hydro Power', base: 100 },
+    { symbol: 'SOHL', name: 'Solu Hydropower Limited', sector: 'Hydro Power', base: 100 },
+    { symbol: 'SPDL', name: 'Synergy Power Development Ltd.', sector: 'Hydro Power', base: 100 },
     { symbol: 'BANDIPUR', name: 'Bandipur Cablecar and Tourism Limited', sector: 'Hotels And Tourism', base: 762.1 },
+    { symbol: 'HFIN', name: 'Hotel Forest Inn Limited', sector: 'Hotels And Tourism', base: 100 },
+    { symbol: 'NMBMF', name: 'NMB Microfinance Bittiya Sanstha Ltd.', sector: 'Microfinance', base: 100 },
     { symbol: 'MEN', name: 'Mountain Energy Nepal Limited', sector: 'Hydro Power', base: 560 },
     // December 2025 Listings
 

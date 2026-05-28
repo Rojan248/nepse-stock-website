@@ -1,14 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import logger from '../utils/logger';
-import { getServerHealth, getStockDepth } from '../services/api';
+import { getStockDepth } from '../services/api';
 import { useStockDetail } from '../hooks/useStocks';
 import { useStocks } from '../hooks/useStocks';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
 import { MarketDepth, Floorsheet } from '../components/depth';
-import AIOverviewCard from '../components/AIOverviewCard';
 import MetricsPanel from '../components/MetricsPanel';
 import StockChart from '../components/StockChart';
 import { getStockHistory } from '../services/api';
@@ -36,14 +34,20 @@ const OHLC_FIELDS = [
 /** Resolve a value with a chain of fallbacks */
 const fallback = (...values) => values.find(v => v != null) ?? 0;
 
+const toNumber = (value, fallbackValue = 0) => {
+    if (value === null || value === undefined || value === '') return fallbackValue;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallbackValue;
+};
+
 /** Resolve the last traded price from various API shapes */
 function resolveLtp(stock, prices, trading) {
-    return getField(stock, prices, trading, 'ltp') || stock.close || 0;
+    return toNumber(getField(stock, prices, trading, 'ltp') || stock.close);
 }
 
 /** Resolve the previous close price from various API shapes */
 function resolvePreviousClose(stock, prices, trading) {
-    return getField(stock, prices, trading, 'previousClose') || stock.close || 0;
+    return toNumber(getField(stock, prices, trading, 'previousClose') || stock.close);
 }
 
 /** Display LTP falls back to previous close when LTP is zero */
@@ -64,14 +68,14 @@ function resolveStockPrices(stock) {
         ltp,
         previousClose: pc,
         displayLtp: dLtp,
-        volume: getField(stock, t, p, 'volume'),
-        turnover: getField(stock, t, p, 'turnover'),
-        change: fallback(stock.change, p.change),
-        changePercent: fallback(stock.changePercent, p.changePercent),
+        volume: toNumber(getField(stock, t, p, 'volume')),
+        turnover: toNumber(getField(stock, t, p, 'turnover')),
+        change: toNumber(fallback(stock.change, p.change)),
+        changePercent: toNumber(fallback(stock.changePercent, p.changePercent)),
     };
 
     for (const [key, ...aliases] of OHLC_FIELDS) {
-        result[key] = getField(stock, p, t, ...aliases) || dLtp;
+        result[key] = toNumber(getField(stock, p, t, ...aliases), dLtp) || dLtp;
     }
 
     return result;
@@ -192,9 +196,9 @@ function PriceSummary({ p }) {
 
 /** Single related stock row */
 function RelatedStockRow({ s, navigate }) {
-    const change = s.change ?? 0;
-    const changePercent = s.changePercent ?? 0;
-    const ltp = s.ltp || s.close || 0;
+    const change = toNumber(s.change);
+    const changePercent = toNumber(s.changePercent);
+    const ltp = toNumber(s.ltp || s.close);
 
     return (
         <div className="sdp__related-row" onClick={() => navigate(`/stock/${s.symbol}`)}>
@@ -228,7 +232,6 @@ function TabContent({ activeTab, p, relatedStocks, sector, navigate, symbol, dep
     if (activeTab === 'overview') {
         return (
             <>
-                <AIOverviewCard symbol={symbol} />
                 <KeyMetrics p={p} />
                 <MetricsPanel symbol={symbol} />
                 <PriceSummary p={p} />
@@ -251,21 +254,6 @@ function TabContent({ activeTab, p, relatedStocks, sector, navigate, symbol, dep
 }
 
 // ==================== Custom Hooks ====================
-
-/** Periodically checks server health status */
-function useHealthCheck(intervalMs = 30000) {
-    const [status, setStatus] = useState(null);
-    useEffect(() => {
-        const check = async () => {
-            const health = await getServerHealth();
-            setStatus(health?.status === 'ok' ? 'healthy' : 'degraded');
-        };
-        check();
-        const id = setInterval(check, intervalMs);
-        return () => clearInterval(id);
-    }, [intervalMs]);
-    return status;
-}
 
 /** Lazily fetches depth data when a depth-related tab is active */
 function useDepthData(activeTab, symbol) {
@@ -317,7 +305,6 @@ function StockDetailPage() {
     const { stocks } = useStocks(1, 100);
     const [activeTab, setActiveTab] = useState('overview');
 
-    useHealthCheck();
     const { data: depthData, loading: depthLoading } = useDepthData(activeTab, symbol);
     const { data: historyData, loading: historyLoading } = useHistoryData(symbol);
 

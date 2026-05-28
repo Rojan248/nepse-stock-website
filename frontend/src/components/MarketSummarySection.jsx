@@ -5,18 +5,25 @@ import { formatNumber } from '../utils/formatting';
 
 /** Format raw turnover into { value, unit } */
 function formatTurnoverDisplay(raw) {
-    if (raw >= 10000000) {
-        return { value: (raw / 10000000).toFixed(2), unit: 'Cr' };
+    const value = toFiniteNumber(raw) ?? 0;
+    if (value >= 10000000) {
+        return { value: (value / 10000000).toFixed(2), unit: 'Cr' };
     }
-    return { value: (raw / 100000).toFixed(2), unit: 'L' };
+    return { value: (value / 100000).toFixed(2), unit: 'L' };
+}
+
+function toFiniteNumber(value) {
+    if (value === null || value === undefined || value === '') return undefined;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : undefined;
 }
 
 /** Resolve the index change percent for the selected timeframe */
 function resolveIndexChange(marketSummary, timeframe) {
     if (timeframe === '1D') {
-        return Number.isFinite(marketSummary?.indexChangePercent) ? marketSummary.indexChangePercent : undefined;
+        return toFiniteNumber(marketSummary?.indexChangePercent);
     }
-    return marketSummary?.cumulative?.[timeframe] ?? undefined;
+    return toFiniteNumber(marketSummary?.cumulative?.[timeframe]);
 }
 
 /** Market summary cards section */
@@ -26,8 +33,9 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
     const turnoverRaw = marketSummary?.totalTurnover ?? 0;
     const turnover = formatTurnoverDisplay(turnoverRaw);
 
-    const indexValueDisplay = Number.isFinite(marketSummary?.indexValue)
-        ? marketSummary.indexValue.toFixed(2)
+    const indexValue = toFiniteNumber(marketSummary?.indexValue);
+    const indexValueDisplay = indexValue !== undefined
+        ? indexValue.toFixed(2)
         : '--';
 
     const indexChangePercent = resolveIndexChange(marketSummary, indexTimeframe);
@@ -38,39 +46,49 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
                 <h2 className="section-title text-2xl" style={{ margin: 0 }}>Market Summary</h2>
             </div>
             <div className="market-cards">
-                <SummaryCard
-                    label="NEPSE Index"
-                    value={indexValueDisplay}
-                    change={indexChangePercent}
-                    valueKey="nepse-index"
-                    timeframes={['1D', '1W', '1M']}
-                    selectedTimeframe={indexTimeframe}
-                    onTimeframeChange={setIndexTimeframe}
-                />
-                <div className="summary-card">
-                    <div className="summary-label">TURNOVER</div>
-                    <div className="summary-value turnover-value">
-                        <span className="currency-symbol turnover-currency">NPR</span>
-                        <span className="number">{turnover.value}</span>
-                        <span className="unit turnover-unit">{turnover.unit}</span>
+                <div className="animate-up delay-1">
+                    <SummaryCard
+                        label="NEPSE Index"
+                        value={indexValueDisplay}
+                        change={indexChangePercent}
+                        valueKey="nepse-index"
+                        timeframes={['1D', '1W', '1M']}
+                        selectedTimeframe={indexTimeframe}
+                        onTimeframeChange={setIndexTimeframe}
+                    />
+                </div>
+                <div className="animate-up delay-2">
+                    <div className="summary-card">
+                        <div className="summary-label">TURNOVER</div>
+                        <div className="summary-value turnover-value">
+                            <span className="currency-symbol turnover-currency">NPR</span>
+                            <span className="number">{turnover.value}</span>
+                            <span className="unit turnover-unit">{turnover.unit}</span>
+                        </div>
                     </div>
                 </div>
-                <SummaryCard
-                    label="Transactions"
-                    value={formatNumber(marketSummary?.totalTransactions)}
-                    valueKey="transactions"
-                />
-                <SummaryCard
-                    label="Volume"
-                    value={formatNumber(marketSummary?.totalVolume)}
-                    valueKey="volume"
+                <div className="animate-up delay-3">
+                    <SummaryCard
+                        label="Transactions"
+                        value={formatNumber(marketSummary?.totalTransactions)}
+                        valueKey="transactions"
+                    />
+                </div>
+                <div className="animate-up delay-4">
+                    <SummaryCard
+                        label="Volume"
+                        value={formatNumber(marketSummary?.totalVolume)}
+                        valueKey="volume"
+                    />
+                </div>
+            </div>
+            <div className="animate-up delay-5">
+                <MarketBreadthCard
+                    marketStats={marketStats}
+                    statusFilter={statusFilter}
+                    onFilterChange={onStatusChange}
                 />
             </div>
-            <MarketBreadthCard
-                marketStats={marketStats}
-                statusFilter={statusFilter}
-                onFilterChange={onStatusChange}
-            />
         </section>
     );
 }

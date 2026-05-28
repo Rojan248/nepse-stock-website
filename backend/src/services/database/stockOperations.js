@@ -33,10 +33,25 @@ const safeDbOperation = async (operation, defaultValue, errorMsg, shouldThrow = 
 const shouldPreservePrice = (existingLtp, newLtp) =>
     existingLtp && existingLtp > 0 && newLtp === 0;
 
+const preserveIfMissing = (incoming, existing, field) => {
+    if (incoming[field] && incoming[field] > 0) return incoming[field];
+    return existing?.[field] && existing[field] > 0 ? existing[field] : incoming[field];
+};
+
+const mergeSparsePriceFields = (data, existing) => ({
+    ...data,
+    previousClose: preserveIfMissing(data, existing, 'previousClose'),
+    openPrice: preserveIfMissing(data, existing, 'openPrice'),
+    highPrice: preserveIfMissing(data, existing, 'highPrice'),
+    lowPrice: preserveIfMissing(data, existing, 'lowPrice')
+});
+
 /** Build the Prisma operation for a single stock save (upsert or timestamp-only update) */
 const buildStockSaveOp = (data, existingMap) => {
-    const existingLtp = existingMap.get(data.symbol);
-    const newLtp = data.lastTradedPrice || 0;
+    const existing = existingMap.get(data.symbol);
+    const existingLtp = existing?.lastTradedPrice;
+    const mergedData = mergeSparsePriceFields(data, existing);
+    const newLtp = mergedData.lastTradedPrice || 0;
 
     if (shouldPreservePrice(existingLtp, newLtp)) {
         logger.debug(`[${data.symbol}] Preserving existing LTP=${existingLtp} (incoming LTP=0)`);
@@ -48,8 +63,8 @@ const buildStockSaveOp = (data, existingMap) => {
 
     return prisma.stock.upsert({
         where: { symbol: data.symbol },
-        update: data,
-        create: data
+        update: mergedData,
+        create: mergedData
     });
 };
 
@@ -167,15 +182,16 @@ const saveStocks = async (stocks) => {
         const symbols = validStocks.map(s => s.symbol.toUpperCase());
         const existingStocks = await prisma.stock.findMany({
             where: { symbol: { in: symbols } },
-            select: { symbol: true, lastTradedPrice: true }
+            select: { symbol: true, lastTradedPrice: true, previousClose: true, openPrice: true, highPrice: true, lowPrice: true }
         });
-        const existingMap = new Map(existingStocks.map(s => [s.symbol, s.lastTradedPrice]));
+        const existingMap = new Map(existingStocks.map(s => [s.symbol, s]));
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const ops = validStocks.flatMap((stock) => {
-            const normalized = normalizeStockInput(stock);
+            const rawNormalized = normalizeStockInput(stock);
+            const normalized = mergeSparsePriceFields(rawNormalized, existingMap.get(rawNormalized.symbol));
             const stockOp = buildStockSaveOp(normalized, existingMap);
             
             const { change, pChange } = ensurePriceConsistency(normalized);

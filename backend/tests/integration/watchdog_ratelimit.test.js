@@ -29,13 +29,18 @@ app.use('/api/watchdog', watchdogRouter);
 
 describe('Watchdog API Rate Limiting', () => {
     const ADMIN_KEY = 'test-admin-key';
+    const originalAdminKey = process.env.ADMIN_API_KEY;
 
     beforeAll(() => {
         process.env.ADMIN_API_KEY = ADMIN_KEY;
     });
 
     afterAll(() => {
-        delete process.env.ADMIN_API_KEY;
+        if (originalAdminKey === undefined) {
+            delete process.env.ADMIN_API_KEY;
+        } else {
+            process.env.ADMIN_API_KEY = originalAdminKey;
+        }
     });
 
     it('should enforce 429 rate limit after 5 requests', async () => {

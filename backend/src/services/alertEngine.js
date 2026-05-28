@@ -13,6 +13,43 @@ const CONDITION_EVALUATORS = {
     }
 };
 
+async function processStockAlerts(stock, symbolAlerts, now) {
+    let triggeredCount = 0;
+    const currentPrice = stock.lastTradedPrice ? new Decimal(stock.lastTradedPrice) : null;
+    if (!currentPrice) return 0;
+
+    const prevClose = stock.previousClose ? new Decimal(stock.previousClose) : null;
+
+    for (const alert of symbolAlerts) {
+        const evaluator = CONDITION_EVALUATORS[alert.condition];
+        if (!evaluator) continue;
+
+        const threshold = new Decimal(alert.threshold);
+        const isTriggered = evaluator(currentPrice, threshold, prevClose);
+
+        if (isTriggered) {
+            await prisma.$transaction([
+                prisma.alertDelivery.create({
+                    data: {
+                        alertId: alert.id,
+                        priceAtTrigger: currentPrice,
+                        triggeredAt: now,
+                        channel: 'in-app'
+                    }
+                }),
+                prisma.alert.update({
+                    where: { id: alert.id },
+                    data: { triggeredAt: now }
+                })
+            ]);
+
+            logger.info(`Alert Triggered -> Symbol: ${alert.symbol} | Condition: ${alert.condition} | Threshold: ${threshold.toNumber()} | Current: ${currentPrice.toNumber()}`);
+            triggeredCount++;
+        }
+    }
+    return triggeredCount;
+}
+
 /**
  * Checks pending active alerts against the most recent stock tick frame.
  * @param {Array} currentStockPrices - Raw stock objects directly from fetcher containing symbol, lastTradedPrice, etc.
@@ -48,39 +85,7 @@ const checkAlerts = async (currentStockPrices) => {
             const symbolAlerts = groupedAlerts[stock.symbol];
             if (!symbolAlerts || symbolAlerts.length === 0) continue;
 
-            const currentPrice = stock.lastTradedPrice ? new Decimal(stock.lastTradedPrice) : null;
-            if (!currentPrice) continue;
-            
-            const prevClose = stock.previousClose ? new Decimal(stock.previousClose) : null;
-
-            for (const alert of symbolAlerts) {
-                const evaluator = CONDITION_EVALUATORS[alert.condition];
-                if (!evaluator) continue;
-
-                const threshold = new Decimal(alert.threshold);
-                const isTriggered = evaluator(currentPrice, threshold, prevClose);
-
-                if (isTriggered) {
-                    // Update Transaction ensuring consistent delivery footprint
-                    await prisma.$transaction([
-                        prisma.alertDelivery.create({
-                            data: {
-                                alertId: alert.id,
-                                priceAtTrigger: currentPrice,
-                                triggeredAt: now,
-                                channel: 'in-app'
-                            }
-                        }),
-                        prisma.alert.update({
-                            where: { id: alert.id },
-                            data: { triggeredAt: now }
-                        })
-                    ]);
-
-                    logger.info(`Alert Triggered -> Symbol: ${alert.symbol} | Condition: ${alert.condition} | Threshold: ${threshold.toNumber()} | Current: ${currentPrice.toNumber()}`);
-                    triggeredCount++;
-                }
-            }
+            triggeredCount += await processStockAlerts(stock, symbolAlerts, now);
         }
 
         if (triggeredCount > 0) {

@@ -2,8 +2,9 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import logger from '../utils/logger';
 import { getMarketSummary, getSectors, getStocks } from '../services/api';
 
-const LIVE_UPDATE_INTERVAL = 60000;
+const FALLBACK_UPDATE_INTERVAL = 5 * 60000; // 5 minute fallback
 const FETCH_PAGE_SIZE = 100;
+const STREAM_URL = (import.meta.env.VITE_API_URL || '/api') + '/stream';
 
 /** Fetch a single page of stocks from the API */
 async function fetchPage(page) {
@@ -31,13 +32,15 @@ export function useMarketData() {
     const fetchMarket = useCallback(async (isInitial = false) => {
         if (!mountedRef.current) return;
         try {
-            const [summary, sectorsData] = await Promise.all([
-                getMarketSummary(),
-                isInitial ? getSectors() : Promise.resolve(null)
-            ]);
+            const summaryPromise = getMarketSummary();
+            const sectorsPromise = isInitial ? getSectors() : Promise.resolve(null);
+
+            const [summary, sectorsData] = await Promise.all([summaryPromise, sectorsPromise]);
+
             if (!mountedRef.current) return;
+
             setMarketSummary({ ...summary, _updateId: Date.now() });
-            if (sectorsData) setSectors(['all', ...(sectorsData || [])]);
+            if (sectorsData) setSectors(['all', ...sectorsData]);
             setError(null);
         } catch (err) {
             logger.error('Failed to fetch market data:', err);
@@ -48,9 +51,20 @@ export function useMarketData() {
     useEffect(() => {
         mountedRef.current = true;
         fetchMarket(true);
-        intervalRef.current = setInterval(() => fetchMarket(false), LIVE_UPDATE_INTERVAL);
+
+        const source = new EventSource(STREAM_URL);
+        source.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'update') fetchMarket(false);
+            } catch (e) {}
+        };
+
+        intervalRef.current = setInterval(() => fetchMarket(false), FALLBACK_UPDATE_INTERVAL);
+
         return () => {
             mountedRef.current = false;
+            source.close();
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
     }, [fetchMarket]);
@@ -80,9 +94,20 @@ export function useStockData() {
     useEffect(() => {
         mountedRef.current = true;
         loadAll(true);
-        intervalRef.current = setInterval(() => loadAll(false), LIVE_UPDATE_INTERVAL);
+
+        const source = new EventSource(STREAM_URL);
+        source.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'update') loadAll(false);
+            } catch (e) {}
+        };
+
+        intervalRef.current = setInterval(() => loadAll(false), FALLBACK_UPDATE_INTERVAL);
+
         return () => {
             mountedRef.current = false;
+            source.close();
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
     }, [loadAll]);

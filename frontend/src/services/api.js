@@ -12,6 +12,11 @@ const TIMEOUT = 10000;
 
 import logger from '../utils/logger';
 
+const isSilentStatus = (error, silentStatuses = []) => {
+    const status = error?.response?.status;
+    return status && silentStatuses.includes(status);
+};
+
 // Create axios instance
 const api = axios.create({
     baseURL: API_URL,
@@ -26,9 +31,12 @@ const api = axios.create({
 api.interceptors.response.use(
     (response) => response.data,
     (error) => {
-        logger.error('API Error:', error.message);
-        if (error.response) {
-            logger.error('Response:', error.response.status, error.response.data);
+        const silentStatuses = error.config?.silentStatuses || [];
+        if (!isSilentStatus(error, silentStatuses)) {
+            logger.error('API Error:', error.message);
+            if (error.response) {
+                logger.error('Response:', error.response.status, error.response.data);
+            }
         }
         return Promise.reject(error);
     }
@@ -54,11 +62,13 @@ const unwrapPayload = (response) => {
  * @param {string} errorMsg - Error message for logging
  * @returns {Promise<any>} API result or default value
  */
-const safeApiCall = async (apiCall, defaultValue, errorMsg) => {
+const safeApiCall = async (apiCall, defaultValue, errorMsg, options = {}) => {
     try {
         return await apiCall();
     } catch (error) {
-        logger.error(errorMsg, error);
+        if (!isSilentStatus(error, options.silentStatuses || [])) {
+            logger.error(errorMsg, error);
+        }
         return defaultValue;
     }
 };
@@ -71,13 +81,17 @@ const safeApiCall = async (apiCall, defaultValue, errorMsg) => {
  * @param {string} errorMsg - Error message
  * @returns {Promise<any>}
  */
-const fetchSimple = async (endpoint, params = {}, defaultValue = [], errorMsg = 'API error') => {
+const fetchSimple = async (endpoint, params = {}, defaultValue = [], errorMsg = 'API error', options = {}) => {
     return safeApiCall(async () => {
-        const response = await api.get(endpoint, { params });
+        const response = await api.get(endpoint, {
+            params,
+            silentStatuses: options.silentStatuses,
+            skipAuthRefresh: options.skipAuthRefresh
+        });
         if (!response) return defaultValue;
         const payload = unwrapPayload(response);
         return payload.data || payload || defaultValue;
-    }, defaultValue, errorMsg);
+    }, defaultValue, errorMsg, options);
 };
 
 /**
@@ -100,9 +114,13 @@ const resolveListPayload = (payload, listKey) => {
  * @param {string} listKey - specific key to look for in payload (optional)
  * @returns {Promise<Object>} { data: [], total: 0, ...otherProps }
  */
-const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey = null) => {
+const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey = null, options = {}) => {
     return safeApiCall(async () => {
-        const payload = await api.get(endpoint, { params });
+        const payload = await api.get(endpoint, {
+            params,
+            silentStatuses: options.silentStatuses,
+            skipAuthRefresh: options.skipAuthRefresh
+        });
         if (!payload) return { data: [], total: 0 };
 
         // Auto-detect list array if not specified
@@ -111,7 +129,7 @@ const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey 
 
         // Return structured list response, preserving other payload props (pagination, statistics)
         return { ...payload, data: data || [], total };
-    }, { data: [], total: 0 }, errorMsg);
+    }, { data: [], total: 0 }, errorMsg, options);
 };
 
 // ==================== Stock APIs ====================
@@ -211,31 +229,10 @@ export const getStockMetrics = async (symbol) => {
 };
 
 /**
- * Get AI-generated overview for a stock
- */
-export const getStockOverview = async (symbol) => {
-    return fetchSimple(`/stocks/${symbol}/overview`, {}, null, `Failed to fetch overview for ${symbol}`);
-};
-
-/**
- * Get AI-generated market overview
- */
-export const getMarketOverview = async () => {
-    return fetchSimple('/market-overview', {}, null, 'Failed to fetch market overview');
-};
-
-/**
  * Get aggregate market metrics
  */
 export const getMarketMetrics = async () => {
     return fetchSimple('/market-metrics', {}, null, 'Failed to fetch market metrics');
-};
-
-/**
- * Get AI-scored stock picks
- */
-export const getAIStockPicks = async (limit = 10) => {
-    return fetchSimple('/stock-picks', { limit }, [], 'Failed to fetch AI stock picks');
 };
 
 // ==================== IPO APIs ====================
@@ -287,22 +284,6 @@ export const getMarketHistory = async (hours = 24) => {
     return fetchSimple('/market-history', { hours }, [], 'Failed to fetch market history');
 };
 
-/**
- * Get server health status
- */
-export const getServerHealth = async () => {
-    return safeApiCall(async () => {
-        const response = await api.get('/health');
-        return {
-            status: response.status,
-            server: response.server,
-            scheduler: response.scheduler,
-            market: response.market,
-            data: response.data
-        };
-    }, null, 'Failed to fetch server health');
-};
-
 // ==================== Utility Functions ====================
 
 /**
@@ -319,34 +300,34 @@ export const checkAPIHealth = async () => {
 
 // ==================== Watchlist APIs ====================
 
-export const getWatchlists = () => api.get('/watchlists').then(r => (r.data || r));
-export const createWatchlist = (name) => api.post('/watchlists', { name }).then(r => (r.data || r));
-export const renameWatchlist = (id, name) => api.put(`/watchlists/${id}`, { name }).then(r => (r.data || r));
+export const getWatchlists = () => api.get('/watchlists').then(unwrapPayload);
+export const createWatchlist = (name) => api.post('/watchlists', { name }).then(unwrapPayload);
+export const renameWatchlist = (id, name) => api.put(`/watchlists/${id}`, { name }).then(unwrapPayload);
 export const deleteWatchlist = (id) => api.delete(`/watchlists/${id}`);
-export const addWatchlistItem = (id, symbol) => api.post(`/watchlists/${id}/items`, { symbol }).then(r => (r.data || r));
+export const addWatchlistItem = (id, symbol) => api.post(`/watchlists/${id}/items`, { symbol }).then(unwrapPayload);
 export const removeWatchlistItem = (id, symbol) => api.delete(`/watchlists/${id}/items/${symbol}`);
-export const importWatchlistItems = (id, symbols) => api.post(`/watchlists/${id}/import`, { symbols }).then(r => (r.data || r));
-export const getSharedWatchlist = (slug) => api.get(`/watchlists/shared/${slug}`).then(r => (r.data || r));
+export const importWatchlistItems = (id, symbols) => api.post(`/watchlists/${id}/import`, { symbols }).then(unwrapPayload);
+export const getSharedWatchlist = (slug) => api.get(`/watchlists/shared/${slug}`).then(unwrapPayload);
 
 // ==================== Portfolio APIs ====================
 
-export const getPortfolios = () => api.get('/portfolios').then(r => (r.data || r));
-export const createPortfolio = (name) => api.post('/portfolios', { name }).then(r => (r.data || r));
+export const getPortfolios = () => api.get('/portfolios').then(unwrapPayload);
+export const createPortfolio = (name) => api.post('/portfolios', { name }).then(unwrapPayload);
 export const deletePortfolio = (id) => api.delete(`/portfolios/${id}`);
-export const addTrade = (portfolioId, trade) => api.post(`/portfolios/${portfolioId}/trades`, trade).then(r => (r.data || r));
+export const addTrade = (portfolioId, trade) => api.post(`/portfolios/${portfolioId}/trades`, trade).then(unwrapPayload);
 export const deleteTrade = (portfolioId, tradeId) => api.delete(`/portfolios/${portfolioId}/trades/${tradeId}`);
-export const getPortfolioSummary = (id) => api.get(`/portfolios/${id}/summary`).then(r => (r.data || r));
+export const getPortfolioSummary = (id) => api.get(`/portfolios/${id}/summary`).then(unwrapPayload);
 
 // ==================== Alert APIs ====================
 
-export const getAlerts = () => api.get('/alerts').then(r => (r.data || r));
-export const createAlert = (alert) => api.post('/alerts', alert).then(r => (r.data || r));
-export const updateAlert = (id, data) => api.put(`/alerts/${id}`, data).then(r => (r.data || r));
+export const getAlerts = () => api.get('/alerts').then(unwrapPayload);
+export const createAlert = (alert) => api.post('/alerts', alert).then(unwrapPayload);
+export const updateAlert = (id, data) => api.put(`/alerts/${id}`, data).then(unwrapPayload);
 export const deleteAlert = (id) => api.delete(`/alerts/${id}`);
 
 // ==================== Watchlist Share ====================
 
-export const shareWatchlist = (id) => api.post(`/watchlists/${id}/share`).then(r => (r.data || r));
-export const unshareWatchlist = (id) => api.post(`/watchlists/${id}/unshare`).then(r => (r.data || r));
+export const shareWatchlist = (id) => api.post(`/watchlists/${id}/share`).then(unwrapPayload);
+export const unshareWatchlist = (id) => api.post(`/watchlists/${id}/unshare`).then(unwrapPayload);
 
 export default api;

@@ -56,8 +56,56 @@ const marketOpenClient = axios.create({
 let lastDataSource = null;
 let lastUpdateTime = null;
 let consecutiveFailures = 0;
+let lastError = null;
+let lastFetchDurationMs = null;
+let lastFetchStartedAt = null;
+let lastSuccessfulDurationMs = null;
+let rateLimitEvents = 0;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
+
+const sourceStats = {};
+
+const emptySourceStats = () => ({
+    attempts: 0,
+    successes: 0,
+    failures: 0,
+    invalid: 0,
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    lastDurationMs: null,
+    lastError: null
+});
+
+const ensureSourceStats = (source) => {
+    if (!sourceStats[source]) sourceStats[source] = emptySourceStats();
+    return sourceStats[source];
+};
+
+const recordSourceAttempt = (source, status, durationMs, error = null) => {
+    const stats = ensureSourceStats(source);
+    stats.attempts++;
+    stats.lastAttemptAt = new Date().toISOString();
+    stats.lastDurationMs = durationMs;
+
+    if (status === 'success') {
+        stats.successes++;
+        stats.lastSuccessAt = stats.lastAttemptAt;
+        stats.lastError = null;
+        return;
+    }
+
+    if (status === 'invalid') {
+        stats.invalid++;
+    } else {
+        stats.failures++;
+    }
+
+    stats.lastError = error?.message || status;
+    if (error?.response?.status === 429 || /429|rate/i.test(error?.message || '')) {
+        rateLimitEvents++;
+    }
+};
 
 // ==================== Market Meta Fetching ====================
 
@@ -381,10 +429,10 @@ const ensureMarketSummary = async (data) => {
 const filterEquityStocks = (data) => {
     if (!Array.isArray(data.stocks)) return;
     const before = data.stocks.length;
-    data.stocks = data.stocks.filter(s => isKnownSymbol(s.symbol));
+    data.stocks = data.stocks.filter(s => s.isOrdinaryShare === true || isKnownSymbol(s.symbol));
     const removed = before - data.stocks.length;
     if (removed > 0) {
-        logger.info(`handleFetchSuccess: Filtered out ${removed} non-equity securities (${before} → ${data.stocks.length})`);
+        logger.info(`handleFetchSuccess: Filtered out ${removed} non-ordinary securities (${before} → ${data.stocks.length})`);
     }
 };
 
@@ -402,6 +450,7 @@ const handleFetchSuccess = async (data, source) => {
     lastDataSource = data.source || source;
     lastUpdateTime = new Date();
     consecutiveFailures = 0;
+    lastError = null;
 
     // Record successful sync for alertService
     recordSyncSuccess(source);
@@ -463,6 +512,7 @@ const hasPriceAnomalies = async (incomingStocks) => {
  */
 const handleFetchFailure = (source, error) => {
     logger.warn(`${source} fetcher failed: ${error.message}`);
+    lastError = error.message;
     // Optional: record failure in metrics
 };
 
@@ -484,6 +534,8 @@ const checkDevModeOverride = async () => {
             if (data) {
                 lastDataSource = 'mock';
                 lastUpdateTime = new Date();
+                consecutiveFailures = 0;
+                lastError = null;
                 logger.info(`✓ [Mock] Generated data for ${data.stocks.length} stocks`);
                 return data;
             }
@@ -500,22 +552,30 @@ const checkDevModeOverride = async () => {
  * @returns {Object|null} Valid data object or null
  */
 const attemptSingleFetcher = async ({ fetcher, name }) => {
+    const started = Date.now();
     try {
         logger.debug(`Attempting ${name} fetcher...`);
         const data = await fetcher.fetchData();
+        const duration = Date.now() - started;
 
         if (data && isValidData(data)) {
             // Phase 2: Pre-write Anomaly Detection
             if (await hasPriceAnomalies(data.stocks)) {
                 logger.warn(`${name} data rejected due to price anomalies. Trying next source...`);
+                recordSourceAttempt(name, 'invalid', duration, new Error('price anomalies'));
                 return null;
             }
 
-            return await handleFetchSuccess(data, name);
+            const result = await handleFetchSuccess(data, name);
+            recordSourceAttempt(name, 'success', duration);
+            return result;
         }
         logger.warn(`${name} fetcher returned invalid data, trying next...`);
+        recordSourceAttempt(name, 'invalid', duration, new Error('invalid data'));
     } catch (error) {
+        const duration = Date.now() - started;
         handleFetchFailure(name, error);
+        recordSourceAttempt(name, 'failure', duration, error);
     }
     return null;
 };
@@ -527,11 +587,18 @@ const attemptSingleFetcher = async ({ fetcher, name }) => {
  * @returns {Object|null} Data object or null if all sources fail
  */
 const fetchLatestData = async () => {
+    const fetchStarted = Date.now();
+    lastFetchStartedAt = new Date(fetchStarted);
     logger.info('Starting data fetch cycle...');
 
     // 1. Development Mode Override
     const devData = await checkDevModeOverride();
-    if (devData) return devData;
+    if (devData) {
+        lastFetchDurationMs = Date.now() - fetchStarted;
+        lastSuccessfulDurationMs = lastFetchDurationMs;
+        lastError = null;
+        return devData;
+    }
 
     // 2. Fetcher Strategy
     const fetchers = [
@@ -543,10 +610,16 @@ const fetchLatestData = async () => {
     // 3. Attempt Fetchers
     for (const config of fetchers) {
         const data = await attemptSingleFetcher(config);
-        if (data) return data;
+        if (data) {
+            lastFetchDurationMs = Date.now() - fetchStarted;
+            lastSuccessfulDurationMs = lastFetchDurationMs;
+            return data;
+        }
     }
 
     // 4. All sources failed
+    lastFetchDurationMs = Date.now() - fetchStarted;
+    lastError = 'All data sources failed';
     consecutiveFailures++;
     recordSyncFailure('all-sources', `All data sources failed. Consecutive failures: ${consecutiveFailures}`);
     logger.error(`All data sources failed. Consecutive failures: ${consecutiveFailures}`);
@@ -624,7 +697,13 @@ const getLastUpdateTime = () => lastUpdateTime;
 const getFetchStatus = () => ({
     dataSource: lastDataSource,
     lastUpdateTime: lastUpdateTime ? lastUpdateTime.toISOString() : null,
+    lastFetchStartedAt: lastFetchStartedAt ? lastFetchStartedAt.toISOString() : null,
+    lastFetchDurationMs,
+    lastSuccessfulDurationMs,
+    lastError,
     consecutiveFailures,
+    rateLimitEvents,
+    sourceStats,
     isHealthy: consecutiveFailures < 3
 });
 

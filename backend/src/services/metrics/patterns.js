@@ -30,33 +30,46 @@ function isPostBonusAdjustment(priceMetrics, fundamentals, liquidityMetrics) {
  * @returns {Object} patterns
  */
 function computeExtremesPatterns(priceM) {
-    const has52wRange = priceM?.high52w != null && priceM?.low52w != null && priceM.high52w !== priceM.low52w;
+    if (!priceM) return { nearHigh52w: false, nearLow52w: false };
+
+    const hasHigh = priceM.high52w != null;
+    const hasLow = priceM.low52w != null;
+    const hasRange = hasHigh && hasLow && priceM.high52w !== priceM.low52w;
+
+    if (!hasRange) return { nearHigh52w: false, nearLow52w: false };
+
+    const distHigh = priceM.distFromHigh52w != null ? Math.abs(priceM.distFromHigh52w) : 100;
+    const distLow = priceM.distFromLow52w != null ? priceM.distFromLow52w : 100;
+
     return {
-        nearHigh52w: Boolean(has52wRange && priceM?.distFromHigh52w != null && Math.abs(priceM.distFromHigh52w) <= 5),
-        nearLow52w: Boolean(has52wRange && priceM?.distFromLow52w != null && priceM.distFromLow52w <= 5)
+        nearHigh52w: distHigh <= 5,
+        nearLow52w: distLow <= 5
     };
 }
 
-function computeMomentumPatterns(trendM, momentumM, postBonusAdjustment) {
-    let bullishMomentum = false;
-    let bearishMomentum = false;
+function computeBullishMomentum(trendM, momentumM) {
+    if (trendM?.trend !== 'bullish') return false;
+    if (momentumM?.rsi14 == null) return false;
+    return momentumM.rsi14 > 50 && momentumM.rsi14 < 70;
+}
 
-    if (!postBonusAdjustment) {
-        bullishMomentum = !!(
-            trendM?.trend === 'bullish' &&
-            momentumM?.rsi14 != null && momentumM.rsi14 > 50 &&
-            momentumM.rsi14 < 70
-        );
-        bearishMomentum = !!(
-            trendM?.trend === 'bearish' &&
-            momentumM?.rsi14 != null && momentumM.rsi14 < 50 &&
-            momentumM.rsi14 > 30
-        );
-    } else {
-        bullishMomentum = !!(momentumM?.roc10d > 5 && momentumM?.rsi14 > 55);
+function computeBearishMomentum(trendM, momentumM) {
+    if (trendM?.trend !== 'bearish') return false;
+    if (momentumM?.rsi14 == null) return false;
+    return momentumM.rsi14 < 50 && momentumM.rsi14 > 30;
+}
+
+function computeMomentumPatterns(trendM, momentumM, postBonusAdjustment) {
+    if (postBonusAdjustment) {
+        const rocGood = momentumM?.roc10d > 5;
+        const rsiGood = momentumM?.rsi14 > 55;
+        return { bullishMomentum: rocGood && rsiGood, bearishMomentum: false };
     }
 
-    return { bullishMomentum, bearishMomentum };
+    return {
+        bullishMomentum: computeBullishMomentum(trendM, momentumM),
+        bearishMomentum: computeBearishMomentum(trendM, momentumM)
+    };
 }
 
 function computeLiquidityPatterns(liquidityM) {
@@ -75,6 +88,13 @@ function computeSectorPatterns(relativeM) {
     };
 }
 
+function isVolumeBreakout(liquidityM, priceM, trendM) {
+    if (!liquidityM?.isVolumeSpike) return false;
+    const priceUp = priceM?.consecutiveUp >= 2;
+    const trendBullish = trendM?.trend === 'bullish';
+    return priceUp || trendBullish;
+}
+
 /**
  * Compute pattern flags from all metrics
  * @param {Object} metrics - Combined metrics object
@@ -82,17 +102,21 @@ function computeSectorPatterns(relativeM) {
  */
 function compute({ priceM, trendM, momentumM, liquidityM, relativeM, fundM }) {
     const postBonusAdjustment = isPostBonusAdjustment(priceM, fundM, liquidityM);
-    
+    const momentumPatterns = computeMomentumPatterns(trendM, momentumM, postBonusAdjustment);
+    const liquidityPatterns = computeLiquidityPatterns(liquidityM);
+    const extremesPatterns = computeExtremesPatterns(priceM);
+    const sectorPatterns = computeSectorPatterns(relativeM);
+
     return {
         postBonusAdjustment,
-        volumeBreakout: !!(liquidityM?.isVolumeSpike && (priceM?.consecutiveUp >= 2 || (trendM?.trend === 'bullish'))),
-        ...computeMomentumPatterns(trendM, momentumM, postBonusAdjustment),
+        volumeBreakout: isVolumeBreakout(liquidityM, priceM, trendM),
+        ...momentumPatterns,
         overbought: momentumM?.rsiZone === 'overbought',
         oversold: momentumM?.rsiZone === 'oversold',
-        trendReversal: !!(trendM?.goldenCross || trendM?.deathCross),
-        ...computeLiquidityPatterns(liquidityM),
-        ...computeExtremesPatterns(priceM),
-        ...computeSectorPatterns(relativeM)
+        trendReversal: Boolean(trendM?.goldenCross || trendM?.deathCross),
+        ...liquidityPatterns,
+        ...extremesPatterns,
+        ...sectorPatterns
     };
 }
 

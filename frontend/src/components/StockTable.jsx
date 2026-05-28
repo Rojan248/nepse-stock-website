@@ -38,6 +38,14 @@ const FIELD_MAP = [
     ['volume', ['volume', 'trading.volume'], 0],
 ];
 
+const NUMERIC_FIELDS = new Set(['ltp', 'change', 'changePercent', 'volume']);
+
+const toNumberOrNull = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 /** Map timeframe to its source field on the stock object */
 const TIMEFRAME_FIELD = {
     '1W': 'percentageChange1W',
@@ -49,7 +57,7 @@ function applyTimeframeOverride(result, stock, timeframe) {
     const field = TIMEFRAME_FIELD[timeframe];
     if (!field) return;
 
-    const pct = stock[field];
+    const pct = toNumberOrNull(stock[field]);
     result.changePercent = pct;
     result.change = pct == null ? null : (pct === 0 ? 0 : result.ltp - (result.ltp / (1 + pct / 100)));
     if (pct == null) result.volume = null;
@@ -59,7 +67,8 @@ function applyTimeframeOverride(result, stock, timeframe) {
 function resolveStockFields(stock, timeframe = '1D') {
     const result = {};
     for (const [key, fields, fallback] of FIELD_MAP) {
-        result[key] = resolveFirst(stock, fields, fallback);
+        const value = resolveFirst(stock, fields, fallback);
+        result[key] = NUMERIC_FIELDS.has(key) ? toNumberOrNull(value) ?? fallback : value;
     }
     
     applyTimeframeOverride(result, stock, timeframe);
@@ -71,7 +80,10 @@ function resolveStockFields(stock, timeframe = '1D') {
 const changeSign = (val) => val > 0 ? '+' : val < 0 ? '-' : '';
 
 /** Format a change value with sign, or '0.00' if zero */
-const formatChangeValue = (v, sign) => (v === null || v === undefined) ? '-' : (v === 0 ? '0.00' : `${sign}${v?.toFixed(2)}`);
+const formatChangeValue = (v, sign) => {
+    const numeric = toNumberOrNull(v);
+    return numeric == null ? '-' : (numeric === 0 ? '0.00' : `${sign}${numeric.toFixed(2)}`);
+};
 
 /** Get CSS class for a change value's direction */
 const changePillClass = (val) => val > 0 ? 'positive' : val < 0 ? 'negative' : '';
@@ -180,7 +192,10 @@ function FavoriteCell({ symbol, favorites, onToggleFavorite }) {
 
 /** Format change percent with sign, or fallback */
 const formatChangePercent = (v, sign) =>
-    (v === null || v === undefined) ? '-' : (v === 0 ? '0.00%' : `${sign}${v?.toFixed(2)}%`);
+    {
+        const numeric = toNumberOrNull(v);
+        return numeric == null ? '-' : (numeric === 0 ? '0.00%' : `${sign}${numeric.toFixed(2)}%`);
+    };
 
 /** Format volume, or fallback */
 const formatVolume = (v) =>
@@ -255,8 +270,10 @@ function MobileStockCard({ stock, onRowClick, getPreviousValue, timeframe }) {
     const priceClass = f.change > 0 ? 'price-up' : f.change < 0 ? 'price-down' : 'price-unchanged';
 
     const changeFormatter = (v) => {
-        if (f.change == null) return '-';
-        return `${sign}${v?.toFixed(2)} (${f.changePercent?.toFixed(2)}%)`;
+        const change = toNumberOrNull(v);
+        const changePercent = toNumberOrNull(f.changePercent);
+        if (change == null || changePercent == null) return '-';
+        return `${sign}${change.toFixed(2)} (${changePercent.toFixed(2)}%)`;
     };
 
     return (

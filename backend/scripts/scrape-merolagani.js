@@ -29,6 +29,30 @@ const SINGLE = (symIdx !== -1 && symIdx + 1 < args.length && args[symIdx + 1])
     ? args[symIdx + 1].toUpperCase()
     : null;
 
+const KEY_MAPPERS = {
+    '180 Day': 'ma180Ext',
+    '120 Day': 'ma120Ext',
+    '1 Year Yield': 'yearlyYield',
+    '30-Day Avg Volume': 'avgVol30dExt'
+};
+
+function extractIndicators(html, data) {
+    const pairRegex = /<th[^>]*>([\s\S]*?)<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let match;
+
+    while ((match = pairRegex.exec(html)) !== null) {
+        const key = match[1].replace(/<[^>]*>/g, '').trim();
+        const val = match[2].replace(/<[^>]*>/g, '').trim().replace(/,/g, '');
+        if (!key || !val) continue;
+
+        const mapperKey = Object.keys(KEY_MAPPERS).find(k => key.includes(k));
+        if (mapperKey) {
+            const n = parseFloat(val);
+            if (!isNaN(n)) data[KEY_MAPPERS[mapperKey]] = n;
+        }
+    }
+}
+
 // ── HTML scraper (Regex-based to avoid cheerio dependency) ────────────────────
 async function scrapeStock(symbol) {
     const url = BASE_URL + symbol;
@@ -41,34 +65,8 @@ async function scrapeStock(symbol) {
         }
     });
 
-    const html = res.data;
     const data = { symbol };
-
-    // Regex to find th/td pairs
-    const pairRegex = /<th[^>]*>([\s\S]*?)<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi;
-    let match;
-
-    while ((match = pairRegex.exec(html)) !== null) {
-        const key = match[1].replace(/<[^>]*>/g, '').trim();
-        const val = match[2].replace(/<[^>]*>/g, '').trim().replace(/,/g, '');
-        
-        if (!key || !val) continue;
-
-        if (key.includes('180 Day')) {
-            const n = parseFloat(val);
-            if (!isNaN(n)) data.ma180Ext = n;
-        } else if (key.includes('120 Day')) {
-            const n = parseFloat(val);
-            if (!isNaN(n)) data.ma120Ext = n;
-        } else if (key.includes('1 Year Yield')) {
-            const n = parseFloat(val);
-            if (!isNaN(n)) data.yearlyYield = n;
-        } else if (key.includes('30-Day Avg Volume')) {
-            const n = parseFloat(val);
-            if (!isNaN(n)) data.avgVol30dExt = n;
-        }
-    }
-
+    extractIndicators(res.data, data);
     return data;
 }
 
@@ -86,26 +84,44 @@ async function processInBatches(items, batchSize, fn) {
     return results;
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-async function main() {
-    logger.info('Starting MeroLagani scraper...');
-
-    let stocks;
+async function fetchTargetStocks() {
     if (SINGLE) {
-        stocks = await prisma.stock.findMany({
+        const stocks = await prisma.stock.findMany({
             where: { symbol: SINGLE },
             select: { symbol: true, ma180Ext: true }
         });
         if (stocks.length === 0) {
             logger.warn(`Symbol ${SINGLE} not found in database.`);
-            return;
+            return null;
         }
-    } else {
-        stocks = await prisma.stock.findMany({
-            select: { symbol: true, ma180Ext: true },
-            orderBy: { symbol: 'asc' }
-        });
+        return stocks;
     }
+    return await prisma.stock.findMany({
+        select: { symbol: true, ma180Ext: true },
+        orderBy: { symbol: 'asc' }
+    });
+}
+
+function hasNoData(data) {
+    const keys = ['ma180Ext', 'ma120Ext', 'yearlyYield', 'avgVol30dExt'];
+    return keys.every(key => data[key] == null);
+}
+
+function buildUpdateQuery(data) {
+    const update = {};
+    if (data.ma180Ext != null)    update.ma180Ext    = data.ma180Ext;
+    if (data.ma120Ext != null)    update.ma120Ext    = data.ma120Ext;
+    if (data.yearlyYield != null) update.yearlyYield = data.yearlyYield;
+    if (data.avgVol30dExt != null) update.avgVol30dExt = data.avgVol30dExt;
+    return update;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+async function main() {
+    logger.info('Starting MeroLagani scraper...');
+
+    const stocks = await fetchTargetStocks();
+    if (!stocks) return;
 
     const toProcess = FORCE
         ? stocks
@@ -119,21 +135,15 @@ async function main() {
         try {
             const data = await scrapeStock(stock.symbol);
 
-            if (data.ma180Ext == null && data.ma120Ext == null && data.yearlyYield == null && data.avgVol30dExt == null) {
+            if (hasNoData(data)) {
                 logger.warn(`${stock.symbol}: no indicators found on MeroLagani page`);
                 counters.noData++;
                 return;
             }
 
-            const update = {};
-            if (data.ma180Ext != null)    update.ma180Ext    = data.ma180Ext;
-            if (data.ma120Ext != null)    update.ma120Ext    = data.ma120Ext;
-            if (data.yearlyYield != null) update.yearlyYield = data.yearlyYield;
-            if (data.avgVol30dExt != null) update.avgVol30dExt = data.avgVol30dExt;
-
             await prisma.stock.update({
                 where: { symbol: stock.symbol },
-                data: update
+                data: buildUpdateQuery(data)
             });
 
             logger.info(`  ${stock.symbol}: ma180=${data.ma180Ext} ma120=${data.ma120Ext} yield=${data.yearlyYield}% vol30d=${data.avgVol30dExt}`);

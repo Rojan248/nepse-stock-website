@@ -1,7 +1,7 @@
 const https = require('https');
 const logger = require('../utils/logger');
 const { stockInfoMap: staticStockMap } = require('../../data/nepseStocks');
-const { SECTOR_IDS, ALL_SECTORS, MAX_RETRIES, RETRY_DELAY, CONCURRENCY_LIMIT, TIMEOUT } = require('./libraryConfig');
+const { SECTOR_IDS, ALL_SECTORS, MAX_RETRIES, RETRY_DELAY, CONCURRENCY_LIMIT, TIMEOUT, OHLC_ENRICH_INTERVAL } = require('./libraryConfig');
 const { transformSecurity: transformSecurityLib, sanitizeSymbol } = require('./libraryTransformers');
 const { fetchMissingSecurities, enrichWithOHLC } = require('./missingSecuritiesFetcher');
 const { fetchMarketSummary } = require('./marketSummaryFetcher');
@@ -22,6 +22,7 @@ let createHeaders = null;
 let BASE_URL = null;
 let isInitialized = false;
 let initializationPromise = null;
+let lastOhlcEnrichmentAt = 0;
 
 // Custom HTTPS agent for NEPSE requests only
 const nepseHttpsAgent = new https.Agent({
@@ -92,6 +93,14 @@ const INIT_MODES = [
     { useWasm: false, label: 'TypeScript mode' },
 ];
 
+const isAuthError = (error) =>
+    error?.response?.status === 401 || /status code 401|unauthorized/i.test(error?.message || '');
+
+const resetLibrarySession = () => {
+    isInitialized = false;
+    initializationPromise = null;
+};
+
 /**
  * Initialize the NEPSE library, trying WASM first then TypeScript fallback
  */
@@ -140,11 +149,21 @@ function computeRankings(securities, k = 50) {
     return lists;
 }
 
+function shouldEnrichOHLC(force = false) {
+    if (force) return true;
+    const now = Date.now();
+    if (!lastOhlcEnrichmentAt || now - lastOhlcEnrichmentAt >= OHLC_ENRICH_INTERVAL) {
+        lastOhlcEnrichmentAt = now;
+        return true;
+    }
+    return false;
+}
+
 /**
  * Fetch all stock data using the library
  * @returns {Object|null} Standardized data object or null on failure
  */
-const fetchData = async () => {
+const fetchDataOnce = async () => {
     try {
         if (!await ensureInitialized()) return null;
 
@@ -177,9 +196,21 @@ const fetchData = async () => {
 
     } catch (error) {
         logger.error(`Library fetcher error: ${error.message}`);
-        isInitialized = false;
-        initializationPromise = null;
+        resetLibrarySession();
+        if (isAuthError(error)) throw error;
         return null;
+    }
+};
+
+const fetchData = async () => {
+    try {
+        return await fetchDataOnce();
+    } catch (error) {
+        if (!isAuthError(error)) return null;
+
+        logger.warn('Library fetcher auth expired; refreshing NEPSE session and retrying once...');
+        resetLibrarySession();
+        return await fetchDataOnce();
     }
 };
 
@@ -190,7 +221,7 @@ const fetchData = async () => {
  * @param {Object} security - Transformed security object
  * @returns {boolean} True if equity security
  */
-const { isKnownSymbol } = require('../dataEnricher');
+const { getOrdinaryShareSymbols, isKnownSymbol, normalizeSymbol } = require('../dataEnricher');
 
 /**
  * Merge parallel trade stat responses into a single unique array
@@ -224,7 +255,19 @@ const resolveDeps = (runtimeDeps) => ({
 
 /** Filter and transform raw securities to equity-only list */
 const filterEquitySecurities = (allSecurities, transformFn, isKnownFn) => {
-    return allSecurities.map(s => transformFn(s)).filter(s => isKnownFn(s.symbol));
+    return allSecurities
+        .map(s => transformFn(s))
+        .filter(s => s && isKnownFn(s.symbol))
+        .map(s => ({ ...s, isOrdinaryShare: true }));
+};
+
+const buildOrdinarySymbolFilter = (companyList, fallbackFn) => {
+    const ordinarySymbols = getOrdinaryShareSymbols(companyList);
+    if (ordinarySymbols.size === 0) {
+        return (symbol) => fallbackFn(symbol);
+    }
+
+    return (symbol) => ordinarySymbols.has(normalizeSymbol(symbol));
 };
 
 /**
@@ -234,6 +277,7 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
     try {
         const deps = resolveDeps(runtimeDeps);
         const headers = deps.createHeadersFn(token);
+        const isOrdinaryShareSymbol = buildOrdinarySymbolFilter(companyList, deps.isKnownSymbolFn);
 
         const fetchPromises = ALL_SECTORS.map(sectorId =>
             deps.nepseAxiosClient.get(`${deps.baseUrl}/api/nots/securityDailyTradeStat/${sectorId}`, {
@@ -241,6 +285,7 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
                 httpsAgent: deps.httpsAgent,
                 timeout: 10000
             }).catch(err => {
+                if (isAuthError(err)) throw err;
                 logger.error(`Error fetching Sector ${sectorId}: ${err.message}`);
                 return { data: [] };
             })
@@ -260,12 +305,19 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
             nepseHttpsAgent: deps.httpsAgent,
             createHeaders: deps.createHeadersFn
         };
-        const enrichedSecurities = await enrichWithOHLC(mergedSecurities, token, ohlcDeps);
+        const shouldFetchDetails = shouldEnrichOHLC(runtimeDeps.forceOhlcEnrichment);
+        const enrichedSecurities = shouldFetchDetails
+            ? await enrichWithOHLC(mergedSecurities, token, ohlcDeps)
+            : mergedSecurities;
 
-        const tradedSymbols = new Set(enrichedSecurities.map(s => s.symbol));
+        if (!shouldFetchDetails) {
+            logger.info(`OHLC Enrichment: skipped; next detail refresh after ${Math.ceil((OHLC_ENRICH_INTERVAL - (Date.now() - lastOhlcEnrichmentAt)) / 1000)}s`);
+        }
+
+        const tradedSymbols = new Set(enrichedSecurities.map(s => normalizeSymbol(s.symbol)));
         const missingCompanies = companyList
-            .filter(c => c.status === 'A' && !tradedSymbols.has(c.symbol))
-            .filter(c => deps.isKnownSymbolFn(c.symbol));
+            .filter(c => c.status === 'A' && !tradedSymbols.has(normalizeSymbol(c.symbol)))
+            .filter(c => isOrdinaryShareSymbol(c.symbol));
 
         logger.info(`Found ${missingCompanies.length} active EQUITY stocks missing from trade report. Fetching details...`);
 
@@ -274,8 +326,8 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
 
         logger.info(`Total securities after merging: ${allSecurities.length}`);
 
-        const transformed = filterEquitySecurities(allSecurities, deps.transformSecurityFn, deps.isKnownSymbolFn);
-        logger.info(`Filtered to ${transformed.length} equity securities (excluded mutual funds, bonds, debentures)`);
+        const transformed = filterEquitySecurities(allSecurities, deps.transformSecurityFn, isOrdinaryShareSymbol);
+        logger.info(`Filtered to ${transformed.length} ordinary share securities (excluded mutual funds, bonds, debentures, preferred/promoter instruments)`);
 
         return transformed;
 
@@ -352,6 +404,7 @@ const fetchCompanyList = async (token) => {
         });
         return res.data;
     } catch (error) {
+        if (isAuthError(error)) throw error;
         logger.warn(`Error fetching company list: ${error.message}`);
         return [];
     }
@@ -362,6 +415,7 @@ module.exports = {
     initializeLibrary,
     isKnownSymbol,
     __test__: {
-        fetchSecuritiesWithPrices
+        fetchSecuritiesWithPrices,
+        shouldEnrichOHLC
     }
 };

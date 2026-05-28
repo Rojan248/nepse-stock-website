@@ -21,6 +21,7 @@ const authRouter = require('./routes/auth');
 const watchlistRouter = require('./routes/watchlists');
 const portfolioRouter = require('./routes/portfolios');
 const alertRouter = require('./routes/alerts');
+const streamRouter = require('./routes/stream');
 
 /**
  * NEPSE Backend Server
@@ -75,6 +76,7 @@ app.use('/api/stocks', stocksRouter);
 app.use('/api/ipos', iposRouter);
 app.use('/api', marketRouter);
 app.use('/api/watchdog', watchdogRouter);
+app.use('/api/stream', streamRouter);
 
 // Root endpoint (handled by static files in production)
 if (process.env.NODE_ENV !== 'production') {

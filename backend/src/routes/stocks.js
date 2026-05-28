@@ -227,51 +227,6 @@ router.get('/:symbol/metrics', asyncHandler(async (req, res) => {
 }));
 
 /**
- * GET /api/stocks/:symbol/overview
- * Get stored overview for a stock
- */
-router.get('/:symbol/overview', asyncHandler(async (req, res) => {
-    const { symbol } = req.params;
-
-    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'Invalid symbol format' }
-        });
-    }
-
-    const overview = await prisma.aIOverview.findUnique({
-        where: { symbol_type: { symbol: symbol.toUpperCase(), type: 'stock' } }
-    });
-
-    if (!overview) {
-        return res.status(404).json({
-            success: false,
-            error: { message: `No overview available for '${symbol}'` }
-        });
-    }
-
-    let narrative = overview.narrative;
-    try { 
-        narrative = JSON.parse(narrative); 
-    } catch (error) {
-        logger.error(`Failed to parse AI overview narrative (ID: ${overview.id}): ${error.message}`);
-        narrative = { text: overview.narrative || null };
-    }
-
-    res.json({
-        success: true,
-        data: {
-            narrative,
-            generatedAt: overview.updatedAt,
-            modelVersion: overview.modelVersion
-        }
-    });
-}));
-
-
-
-/**
  * GET /api/stocks/:symbol
  * Get specific stock by symbol
  */

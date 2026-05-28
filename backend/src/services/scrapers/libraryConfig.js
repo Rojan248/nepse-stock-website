@@ -8,6 +8,7 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 const CONCURRENCY_LIMIT = 5;
 const TIMEOUT = 8000;
+const OHLC_ENRICH_INTERVAL = parseInt(process.env.NEPSE_OHLC_ENRICH_INTERVAL_MS) || 5 * 60 * 1000;
 
 // Sector ID mapping from NEPSE API
 const SECTOR_IDS = {
@@ -55,6 +56,7 @@ module.exports = {
     MAX_RETRIES,
     RETRY_DELAY,
     CONCURRENCY_LIMIT,
+    OHLC_ENRICH_INTERVAL,
     TIMEOUT,
     SECTOR_IDS,
     ALL_SECTORS,

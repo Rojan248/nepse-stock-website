@@ -20,12 +20,12 @@
 /* --- Container --- */
 .market-box {
     background: var(--color-bg);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     padding: 24px;
     font-family: var(--font-family);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    border: 1px solid #f5f5f5;
-    color: #171717;
+    box-shadow: var(--shadow-premium);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
     margin-top: 2rem;
     /* Fade in the whole chart */
     animation: fadeInUp 0.8s ease-out forwards;
@@ -108,12 +108,13 @@
 .bar-area {
     flex: 1;
     height: 34px;
-    background-color: rgba(245, 245, 245, 0.5);
-    border-radius: 6px;
+    background-color: var(--border-subtle);
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     position: relative;
     overflow: hidden;
+    box-shadow: var(--shadow-inner);
 }
 
 
@@ -122,9 +123,9 @@
     height: 100%;
     /* Gradient Background for Premium Feel */
     background: linear-gradient(90deg, var(--color-bar-primary) 0%, var(--color-bar-secondary) 100%);
-    border-radius: 6px;
+    border-radius: var(--radius-lg);
     position: relative;
-    box-shadow: 0 2px 5px rgba(59, 130, 246, 0.25);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 
     /* Use custom property for animation */
     width: var(--target-width, 0);

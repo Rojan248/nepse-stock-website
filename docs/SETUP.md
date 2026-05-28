@@ -180,28 +180,23 @@ cd frontend && npm run dev
 Located in `backend/scripts/`:
 
 ### Data Audit
-Check database for anomalies (zero LTP, stale data):
+Check recent market snapshots and market breadth:
 ```bash
 cd backend
-node scripts/auditData.js
+npm run ops -- summary --take 2
+npm run ops -- breadth
 ```
 
 ### End-of-Day Snapshot
 Manually trigger historical data capture:
 ```bash
-node scripts/runEOD.js
-```
-
-### Fix Zero Stocks
-Repair stocks with zero values:
-```bash
-node scripts/fix-zero-stocks.js
+npm run ops -- eod
 ```
 
 ### Run Watchdog
 Manually trigger data verification:
 ```bash
-node scripts/run-watchdog.js
+npm run ops -- watchdog
 ```
 
 ---

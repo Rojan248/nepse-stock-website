@@ -6,6 +6,41 @@
 const { prisma } = require('../database/connection');
 const logger = require('../utils/logger');
 
+async function fetchStocksForComparison(allStocks) {
+    if (allStocks) return allStocks;
+    return await prisma.stock.findMany({
+        where: { lastTradedPrice: { gt: 0 } },
+        select: {
+            symbol: true,
+            sector: true,
+            percentageChange: true,
+            lastTradedPrice: true
+        }
+    });
+}
+
+function computeSectorMetrics(result, currentStock, allStocks, stockChange) {
+    const sectorStocks = allStocks.filter(s => s.sector === currentStock.sector && s.lastTradedPrice > 0);
+
+    if (sectorStocks.length > 0) {
+        const sectorChanges = sectorStocks.map(s => s.percentageChange || 0);
+        result.sectorAvgChange = sectorChanges.reduce((a, b) => a + b, 0) / sectorChanges.length;
+        result.vsSectorAvg = stockChange - result.sectorAvgChange;
+
+        const sectorSorted = [...sectorStocks].sort((a, b) => (b.percentageChange || 0) - (a.percentageChange || 0));
+        result.sectorRank = sectorSorted.findIndex(s => s.symbol === currentStock.symbol) + 1;
+        result.sectorTotal = sectorStocks.length;
+    }
+}
+
+function computeMarketMetrics(result, currentStock, allStocks) {
+    const marketSorted = [...allStocks]
+        .filter(s => s.lastTradedPrice > 0)
+        .sort((a, b) => (b.percentageChange || 0) - (a.percentageChange || 0));
+    result.marketRank = marketSorted.findIndex(s => s.symbol === currentStock.symbol) + 1;
+    result.marketTotal = marketSorted.length;
+}
+
 /**
  * Compute relative metrics for a stock
  * @param {Object} currentStock - Current stock data with sector
@@ -25,48 +60,13 @@ async function compute(currentStock, allStocks = null) {
     if (!currentStock || !currentStock.sector) return result;
 
     try {
-        // Fetch all stocks if not provided
-        if (!allStocks) {
-            allStocks = await prisma.stock.findMany({
-                where: { lastTradedPrice: { gt: 0 } },
-                select: {
-                    symbol: true,
-                    sector: true,
-                    percentageChange: true,
-                    lastTradedPrice: true
-                }
-            });
-        }
-
+        allStocks = await fetchStocksForComparison(allStocks);
         if (allStocks.length === 0) return result;
 
         const stockChange = currentStock.percentageChange || 0;
 
-        // Sector metrics
-        const sectorStocks = allStocks
-            .filter(s => s.sector === currentStock.sector && s.lastTradedPrice > 0);
-
-        if (sectorStocks.length > 0) {
-            // Sector average change
-            const sectorChanges = sectorStocks
-                .map(s => s.percentageChange || 0);
-            result.sectorAvgChange = sectorChanges.reduce((a, b) => a + b, 0) / sectorChanges.length;
-            result.vsSectorAvg = stockChange - result.sectorAvgChange;
-
-            // Sector rank (sort by % change descending)
-            const sectorSorted = [...sectorStocks].sort(
-                (a, b) => (b.percentageChange || 0) - (a.percentageChange || 0)
-            );
-            result.sectorRank = sectorSorted.findIndex(s => s.symbol === currentStock.symbol) + 1;
-            result.sectorTotal = sectorStocks.length;
-        }
-
-        // Market rank
-        const marketSorted = [...allStocks]
-            .filter(s => s.lastTradedPrice > 0)
-            .sort((a, b) => (b.percentageChange || 0) - (a.percentageChange || 0));
-        result.marketRank = marketSorted.findIndex(s => s.symbol === currentStock.symbol) + 1;
-        result.marketTotal = marketSorted.length;
+        computeSectorMetrics(result, currentStock, allStocks, stockChange);
+        computeMarketMetrics(result, currentStock, allStocks);
 
     } catch (error) {
         // Fail gracefully — relative metrics are non-critical

@@ -115,6 +115,21 @@ const fetchMissingSecurities = async (companies, token, deps) => {
     return results;
 };
 
+function mergeOHLCData(sec, mcs) {
+    return {
+        ...sec,
+        openPrice: mcs.openPrice || sec.openPrice || 0,
+        highPrice: mcs.highPrice || sec.highPrice || 0,
+        lowPrice: mcs.lowPrice || sec.lowPrice || 0,
+        totalTradeQuantity: mcs.totalTradeQuantity || sec.totalTradeQuantity || 0,
+        totalTradedQuantity: mcs.totalTradeQuantity || sec.totalTradedQuantity || 0,
+        totalTrades: mcs.totalTrades || sec.totalTrades || 0,
+        totalTradedValue: mcs.totalTradedValue || sec.totalTradedValue || 0,
+        fiftyTwoWeekHigh: mcs.fiftyTwoWeekHigh || 0,
+        fiftyTwoWeekLow: mcs.fiftyTwoWeekLow || 0
+    };
+}
+
 /**
  * Enrich traded securities with OHLC data from per-security endpoint.
  * The bulk securityDailyTradeStat endpoint lacks openPrice/highPrice/lowPrice,
@@ -141,18 +156,7 @@ const enrichWithOHLC = async (securities, token, deps) => {
         if (!mcs) return sec;
 
         enriched++;
-        return {
-            ...sec,
-            openPrice: mcs.openPrice || sec.openPrice || 0,
-            highPrice: mcs.highPrice || sec.highPrice || 0,
-            lowPrice: mcs.lowPrice || sec.lowPrice || 0,
-            totalTradeQuantity: mcs.totalTradeQuantity || sec.totalTradeQuantity || 0,
-            totalTradedQuantity: mcs.totalTradeQuantity || sec.totalTradedQuantity || 0,
-            totalTrades: mcs.totalTrades || sec.totalTrades || 0,
-            totalTradedValue: mcs.totalTradedValue || sec.totalTradedValue || 0,
-            fiftyTwoWeekHigh: mcs.fiftyTwoWeekHigh || 0,
-            fiftyTwoWeekLow: mcs.fiftyTwoWeekLow || 0
-        };
+        return mergeOHLCData(sec, mcs);
     });
 
     const duration = Date.now() - startTime;

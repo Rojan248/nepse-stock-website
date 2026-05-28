@@ -8,6 +8,8 @@
     "build:fresh": "cd frontend && npm run build",
     "start:prod": "cd backend && pm2 start ecosystem.config.js --env production",
     "test": "cd backend && npm test && cd ../frontend && npm test",
+    "verify": "cd backend && npm run verify && cd ../frontend && npm test -- --run && npm run build",
+    "verify:stable": "npm run verify && cd backend && npm run stable",
     "setup": "npm run install:all && npm run build:fresh"
   },
   "keywords": [

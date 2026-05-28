@@ -62,14 +62,20 @@
     --radius-lg: 8px;
     --radius-full: 9999px;
 
-    /* Shadows */
-    --shadow-premium: 0 4px 30px rgba(0, 0, 0, 0.05);
+    /* Shadows - Premium Layered System */
+    --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-blur: blur(12px);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.3);
 
     /* Transitions */
-    --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
 
     --container-max: 1400px;
@@ -400,8 +406,42 @@ select:focus {
 :root {
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
     --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+
+/* Base Entrance Animations */
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.animate-up { animation: slideInUp 0.6s var(--ease-out-expo) forwards; }
+.animate-down { animation: slideInDown 0.6s var(--ease-out-expo) forwards; }
+.animate-fade { animation: fadeIn 0.4s ease forwards; }
+.animate-scale { animation: scaleIn 0.3s var(--ease-out-expo) forwards; }
+
+/* Staggered Delay Utilities */
+.delay-1 { animation-delay: 100ms; }
+.delay-2 { animation-delay: 200ms; }
+.delay-3 { animation-delay: 300ms; }
+.delay-4 { animation-delay: 400ms; }
+.delay-5 { animation-delay: 500ms; }
 
 /* Fade Up */
 .scroll-fade {
@@ -450,6 +490,15 @@ select:focus {
 .scroll-scale.visible {
     opacity: 1;
     transform: scale(1);
+}
+
+@keyframes pulse-soft {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+.pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
 }
 
 /* Staggered Children Animation */

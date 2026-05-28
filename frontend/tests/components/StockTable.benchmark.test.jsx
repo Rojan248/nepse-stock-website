@@ -3,6 +3,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import StockTable from '../../src/components/StockTable';
 import { BrowserRouter } from 'react-router-dom';
 
+const routerFutureFlags = { v7_startTransition: true, v7_relativeSplatPath: true };
+
 const mockStocks = Array.from({ length: 10 }, (_, i) => ({
     symbol: `STOCK${i}`,
     ltp: 100 + i,
@@ -39,7 +41,7 @@ describe('StockTable Benchmark', () => {
         mockMatchMedia(false); // Desktop
 
         render(
-            <BrowserRouter>
+            <BrowserRouter future={routerFutureFlags}>
                 <StockTable stocks={mockStocks} />
             </BrowserRouter>
         );
@@ -59,7 +61,7 @@ describe('StockTable Benchmark', () => {
         mockMatchMedia(true); // Mobile
 
         render(
-            <BrowserRouter>
+            <BrowserRouter future={routerFutureFlags}>
                 <StockTable stocks={mockStocks} />
             </BrowserRouter>
         );

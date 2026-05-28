@@ -1,129 +1,75 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, LineSeries } from 'lightweight-charts';
 
-/**
- * StockChart Component
- * Renders an interactive candlestick/line chart using TradingView's lightweight-charts.
- * 
- * @param {Object} props
- * @param {string} props.symbol - Stock symbol
- * @param {Array} props.data - Historical data array [{date, open, high, low, close, ma20, ma50}]
- * @param {boolean} props.isLoading - Loading state
- */
-const StockChart = ({ symbol, data, isLoading }) => {
-    const chartContainerRef = useRef();
+const normalizeChartData = (data) => {
+    const byDate = new Map();
+
+    for (const item of data || []) {
+        if (!item?.date) continue;
+        byDate.set(item.date.split('T')[0], item);
+    }
+
+    return [...byDate.entries()]
+        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+        .map(([date, item]) => ({ date, item }));
+};
+
+function useStockChart(chartContainerRef, data, showMA20, showMA50) {
     const chartRef = useRef();
     const candlestickSeriesRef = useRef();
     const ma20SeriesRef = useRef();
     const ma50SeriesRef = useRef();
 
-    const [showMA20, setShowMA20] = useState(false);
-    const [showMA50, setShowMA50] = useState(false);
-
     useEffect(() => {
-        if (!chartContainerRef.current) return;
+        if (!chartContainerRef.current || chartRef.current) return;
 
-        // Initialize Chart
         const chart = createChart(chartContainerRef.current, {
-            layout: {
-                background: { type: ColorType.Solid, color: '#111111' },
-                textColor: '#d1d4dc',
-            },
-            grid: {
-                vertLines: { color: 'rgba(42, 46, 57, 0.5)' },
-                horzLines: { color: 'rgba(42, 46, 57, 0.5)' },
-            },
-            rightPriceScale: {
-                borderColor: 'rgba(197, 203, 206, 0.8)',
-            },
-            timeScale: {
-                borderColor: 'rgba(197, 203, 206, 0.8)',
-                timeVisible: true,
-                secondsVisible: false,
-            },
-            crosshair: {
-                mode: 0,
-            },
+            layout: { background: { type: ColorType.Solid, color: '#111111' }, textColor: '#d1d4dc' },
+            grid: { vertLines: { color: 'rgba(42, 46, 57, 0.5)' }, horzLines: { color: 'rgba(42, 46, 57, 0.5)' } },
+            rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.8)' },
+            timeScale: { borderColor: 'rgba(197, 203, 206, 0.8)', timeVisible: true, secondsVisible: false },
+            crosshair: { mode: 0 },
             width: chartContainerRef.current.clientWidth,
             height: 400,
         });
 
-        // Add Series
-        const candlestickSeries = chart.addCandlestickSeries({
-            upColor: '#26a69a',
-            downColor: '#ef5350',
-            borderVisible: false,
-            wickUpColor: '#26a69a',
-            wickDownColor: '#ef5350',
+        candlestickSeriesRef.current = chart.addSeries(CandlestickSeries, {
+            upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
+            wickUpColor: '#26a69a', wickDownColor: '#ef5350',
         });
 
-        const ma20Series = chart.addLineSeries({
-            color: '#2196F3',
-            lineWidth: 2,
-            title: 'MA20',
-            visible: false,
-        });
-
-        const ma50Series = chart.addLineSeries({
-            color: '#FF9800',
-            lineWidth: 2,
-            title: 'MA50',
-            visible: false,
-        });
+        ma20SeriesRef.current = chart.addSeries(LineSeries, { color: '#2196F3', lineWidth: 2, title: 'MA20', visible: false });
+        ma50SeriesRef.current = chart.addSeries(LineSeries, { color: '#FF9800', lineWidth: 2, title: 'MA50', visible: false });
 
         chartRef.current = chart;
-        candlestickSeriesRef.current = candlestickSeries;
-        ma20SeriesRef.current = ma20Series;
-        ma50SeriesRef.current = ma50Series;
 
-        // Handle Resize
-        const handleResize = () => {
-            chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-        };
+        const handleResize = () => chart.applyOptions({ width: chartContainerRef.current.clientWidth });
         window.addEventListener('resize', handleResize);
 
         return () => {
             window.removeEventListener('resize', handleResize);
             chart.remove();
+            chartRef.current = undefined;
+            candlestickSeriesRef.current = undefined;
+            ma20SeriesRef.current = undefined;
+            ma50SeriesRef.current = undefined;
         };
     }, []);
 
-    // Update data
     useEffect(() => {
         if (!data || data.length === 0 || !candlestickSeriesRef.current) return;
 
-        const formattedData = data.map(item => ({
-            time: item.date.split('T')[0], // YYYY-MM-DD
-            open: item.open,
-            high: item.high,
-            low: item.low,
-            close: item.close,
-        }));
+        const chartData = normalizeChartData(data);
 
-        candlestickSeriesRef.current.setData(formattedData);
+        candlestickSeriesRef.current.setData(chartData.map(({ date, item }) => ({
+            time: date, open: item.open, high: item.high, low: item.low, close: item.close,
+        })));
 
-        // Prep MA data
-        const ma20Data = data
-            .filter(item => item.ma20 !== null)
-            .map(item => ({
-                time: item.date.split('T')[0],
-                value: item.ma20
-            }));
-        
-        const ma50Data = data
-            .filter(item => item.ma50 !== null)
-            .map(item => ({
-                time: item.date.split('T')[0],
-                value: item.ma50
-            }));
-
-        ma20SeriesRef.current.setData(ma20Data);
-        ma50SeriesRef.current.setData(ma50Data);
-
+        ma20SeriesRef.current.setData(chartData.filter(({ item }) => item.ma20).map(({ date, item }) => ({ time: date, value: item.ma20 })));
+        ma50SeriesRef.current.setData(chartData.filter(({ item }) => item.ma50).map(({ date, item }) => ({ time: date, value: item.ma50 })));
         chartRef.current.timeScale().fitContent();
     }, [data]);
 
-    // Handle MA Visibility
     useEffect(() => {
         if (ma20SeriesRef.current) ma20SeriesRef.current.applyOptions({ visible: showMA20 });
     }, [showMA20]);
@@ -131,6 +77,23 @@ const StockChart = ({ symbol, data, isLoading }) => {
     useEffect(() => {
         if (ma50SeriesRef.current) ma50SeriesRef.current.applyOptions({ visible: showMA50 });
     }, [showMA50]);
+}
+
+/**
+ * StockChart Component
+ * Renders an interactive candlestick/line chart using TradingView's lightweight-charts.
+ *
+ * @param {Object} props
+ * @param {string} props.symbol - Stock symbol
+ * @param {Array} props.data - Historical data array [{date, open, high, low, close, ma20, ma50}]
+ * @param {boolean} props.isLoading - Loading state
+ */
+const StockChart = ({ symbol, data, isLoading }) => {
+    const chartContainerRef = useRef();
+    const [showMA20, setShowMA20] = useState(false);
+    const [showMA50, setShowMA50] = useState(false);
+
+    useStockChart(chartContainerRef, data, showMA20, showMA50);
 
     return (
         <div style={{ position: 'relative', background: '#111', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
@@ -147,17 +110,19 @@ const StockChart = ({ symbol, data, isLoading }) => {
                     </label>
                 </div>
             </div>
-            
-            {isLoading ? (
-                <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+
+            <div ref={chartContainerRef} style={{ width: '100%', height: '400px' }} />
+
+            {isLoading && (
+                <div style={{ position: 'absolute', inset: '52px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', background: '#111' }}>
                     Loading data...
                 </div>
-            ) : data.length === 0 ? (
-                <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+            )}
+
+            {!isLoading && data.length === 0 && (
+                <div style={{ position: 'absolute', inset: '52px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', background: '#111' }}>
                     No historical data available for this symbol.
                 </div>
-            ) : (
-                <div ref={chartContainerRef} style={{ width: '100%', height: '400px' }} />
             )}
         </div>
     );

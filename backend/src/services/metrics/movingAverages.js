@@ -26,6 +26,50 @@ function calcSMA(prices, period) {
     return sum / period;
 }
 
+function computeLocalMAs(prices, result, price) {
+    result.ma20  = calcSMA(prices, 20);
+    result.ma50  = calcSMA(prices, 50);
+    result.ma120 = calcSMA(prices, 120);
+    result.ma180 = calcSMA(prices, 180);
+
+    if (result.ma20)  result.priceVsMa20  = ((price - result.ma20)  / result.ma20)  * 100;
+    if (result.ma50)  result.priceVsMa50  = ((price - result.ma50)  / result.ma50)  * 100;
+    if (result.ma120) result.priceVsMa120 = ((price - result.ma120) / result.ma120) * 100;
+    if (result.ma180) result.priceVsMa180 = ((price - result.ma180) / result.ma180) * 100;
+}
+
+function detectCrosses(prices, result) {
+    if (prices.length >= 181) {
+        const prevPrices = prices.slice(1);
+        const prevMa50  = calcSMA(prevPrices, 50);
+        const prevMa180 = calcSMA(prevPrices, 180);
+
+        if (result.ma50 && result.ma180 && prevMa50 && prevMa180) {
+            if (prevMa50 < prevMa180 && result.ma50 > result.ma180) result.goldenCross = true;
+            if (prevMa50 > prevMa180 && result.ma50 < result.ma180) result.deathCross  = true;
+        }
+    }
+}
+
+function determineTrend(result, price) {
+    const isBullShort = result.ma20 && result.ma50 && price > result.ma20 && result.ma20 > result.ma50;
+    const isBearShort = result.ma20 && result.ma50 && price < result.ma20 && result.ma20 < result.ma50;
+    if (isBullShort) return 'bullish';
+    if (isBearShort) return 'bearish';
+
+    const isBullMid = result.ma120 && result.ma180 && result.ma120 > result.ma180 && price > result.ma180;
+    const isBearMid = result.ma120 && result.ma180 && result.ma120 < result.ma180 && price < result.ma180;
+    if (isBullMid) return 'bullish';
+    if (isBearMid) return 'bearish';
+
+    const isBullLong = result.ma180 && price > result.ma180 * 1.03;
+    const isBearLong = result.ma180 && price < result.ma180 * 0.97;
+    if (isBullLong) return 'bullish';
+    if (isBearLong) return 'bearish';
+
+    return 'neutral';
+}
+
 /**
  * Compute moving average metrics
  * @param {Array} history - MarketHistory records sorted by date DESC
@@ -67,47 +111,16 @@ function compute(history, currentStock) {
     const price = currentPrice || prices[0];
 
     // Compute MAs from local history
-    result.ma20  = calcSMA(prices, 20);
-    result.ma50  = calcSMA(prices, 50);
-    result.ma120 = calcSMA(prices, 120);
-    result.ma180 = calcSMA(prices, 180);
-
-    // Price vs MA percentages
-    if (result.ma20)  result.priceVsMa20  = ((price - result.ma20)  / result.ma20)  * 100;
-    if (result.ma50)  result.priceVsMa50  = ((price - result.ma50)  / result.ma50)  * 100;
-    if (result.ma120) result.priceVsMa120 = ((price - result.ma120) / result.ma120) * 100;
-    if (result.ma180) result.priceVsMa180 = ((price - result.ma180) / result.ma180) * 100;
+    computeLocalMAs(prices, result, price);
 
     // Golden Cross / Death Cross detection
-    if (prices.length >= 181) {
-        const prevPrices = prices.slice(1); // shift by one day
-        const prevMa50  = calcSMA(prevPrices, 50);
-        const prevMa180 = calcSMA(prevPrices, 180);
+    detectCrosses(prices, result);
 
-        if (result.ma50 && result.ma180 && prevMa50 && prevMa180) {
-            if (prevMa50 < prevMa180 && result.ma50 > result.ma180) result.goldenCross = true;
-            if (prevMa50 > prevMa180 && result.ma50 < result.ma180) result.deathCross  = true;
-        }
-    }
-
-    // Apply MeroLagani fallbacks for any MAs still null after local computation
+    // Apply MeroLagani fallbacks
     _applyExtFallbacks(result, currentStock, price, prices.length);
 
     // Determine trend
-    if (result.ma20 && result.ma50) {
-        // Primary: computed from local history
-        if      (price > result.ma20 && result.ma20 > result.ma50) result.trend = 'bullish';
-        else if (price < result.ma20 && result.ma20 < result.ma50) result.trend = 'bearish';
-    } else if (result.ma120 && result.ma180) {
-        // Fallback trend signal: MA120 vs MA180 relationship (uses MeroLagani data)
-        // MA120 > MA180 means near-term avg above long-term avg → upward momentum
-        if      (result.ma120 > result.ma180 && price > result.ma180) result.trend = 'bullish';
-        else if (result.ma120 < result.ma180 && price < result.ma180) result.trend = 'bearish';
-    } else if (result.ma180 && price) {
-        // Minimal fallback: price vs MA180 only
-        if      (price > result.ma180 * 1.03) result.trend = 'bullish';
-        else if (price < result.ma180 * 0.97) result.trend = 'bearish';
-    }
+    result.trend = determineTrend(result, price);
 
     return result;
 }

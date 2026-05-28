@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatNumber, formatPercent, formatPrice } from '../utils/formatting';
 
 // Common summary box component
 function SummaryBox({ label, value, color }) {
@@ -13,11 +14,8 @@ function SummaryBox({ label, value, color }) {
 // Determines conditional generic color based on threshold relative to 0
 const plColor = (value) => {
     if (!value || value === 0) return 'var(--text-primary)';
-    return value > 0 ? 'var(--success)' : 'var(--danger)'; 
+    return value > 0 ? 'var(--success)' : 'var(--danger)';
 };
-
-// Formats NPR currency elegantly 
-const formatNPR = (num) => `NPR ${Math.round(num || 0).toLocaleString()}`;
 
 /**
  * Renders the top-level aggregate dashboard blocks
@@ -27,24 +25,24 @@ export function PortfolioSummary({ summary }) {
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-            <SummaryBox label="Total Invested" value={formatNPR(summary.totalInvested)} />
-            <SummaryBox label="Market Value" value={formatNPR(summary.totalCurrentValue)} />
-            <SummaryBox 
-                label="Total P&L" 
-                value={formatNPR(summary.totalPnL)} 
-                color={plColor(summary.totalPnL)} 
+            <SummaryBox label="Total Invested" value={formatPrice(summary.totalInvested)} />
+            <SummaryBox label="Market Value" value={formatPrice(summary.totalCurrentValue)} />
+            <SummaryBox
+                label="Total P&L"
+                value={formatPrice(summary.totalPnL)}
+                color={plColor(summary.totalPnL)}
             />
-            <SummaryBox 
-                label="Overall Return" 
-                value={`${(summary.pnlPercentage || 0).toFixed(2)}%`} 
-                color={plColor(summary.pnlPercentage)} 
+            <SummaryBox
+                label="Overall Return"
+                value={formatPercent(summary.pnlPercentage)}
+                color={plColor(summary.pnlPercentage)}
             />
         </div>
     );
 }
 
 /**
- * Renders detailed line-item holdings for the portfolio 
+ * Renders detailed line-item holdings for the portfolio
  */
 export function HoldingsTable({ holdings }) {
     if (!holdings?.length) return null;
@@ -66,13 +64,13 @@ export function HoldingsTable({ holdings }) {
                     {holdings.map(h => (
                         <tr key={h.symbol} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                             <td style={{ padding: '0.5rem', fontWeight: 600 }}>{h.symbol}</td>
-                            <td style={{ padding: '0.5rem' }}>{Math.round(h.sharesHeld).toLocaleString()}</td>
-                            <td style={{ padding: '0.5rem' }}>{h.averageBuyPrice.toFixed(2)}</td>
-                            <td style={{ padding: '0.5rem' }}>{h.currentPrice.toFixed(2)}</td>
-                            <td style={{ padding: '0.5rem' }}>{Math.round(h.currentValue).toLocaleString()}</td>
+                            <td style={{ padding: '0.5rem' }}>{formatNumber(h.sharesHeld)}</td>
+                            <td style={{ padding: '0.5rem' }}>{formatPrice(h.averageBuyPrice)}</td>
+                            <td style={{ padding: '0.5rem' }}>{formatPrice(h.currentPrice)}</td>
+                            <td style={{ padding: '0.5rem' }}>{formatPrice(h.currentValue)}</td>
                             <td style={{ padding: '0.5rem', color: plColor(h.unrealizedPnL), fontWeight: 600 }}>
-                                {h.unrealizedPnL > 0 ? '+' : ''}{Math.round(h.unrealizedPnL).toLocaleString()} 
-                                {` (${h.pnlPercentage.toFixed(2)}%)`}
+                                {h.unrealizedPnL > 0 ? '+' : ''}{formatPrice(h.unrealizedPnL)}
+                                {` (${formatPercent(h.pnlPercentage)})`}
                             </td>
                         </tr>
                     ))}

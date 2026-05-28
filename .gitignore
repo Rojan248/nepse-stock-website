@@ -32,6 +32,7 @@ backend/logs/
 # Debug/diagnostic output
 backend/*.txt
 backend/db_dump.json
+artifacts/
 
 # Credentials
 credentials/
@@ -44,9 +45,16 @@ backend/data/*.json
 backend/data/*.tmp
 !backend/data/nepseStocks.js
 backend/prisma/prisma/
+backend/prisma/*.db-shm
+backend/prisma/*.db-wal
+backend/prisma/*.db-journal
 
 # Temporary UI components
 useable/
+
+# Local scratch/workspace folders
+backend/scratch/
+obsidian-mcp/
 
 # Claude temp files
 tmpclaude-*

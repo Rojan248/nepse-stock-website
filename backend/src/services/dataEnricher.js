@@ -6,15 +6,41 @@
 
 const logger = require('./utils/logger');
 const NEPSE_STOCKS = require('../data/nepseStocks');
+const ORDINARY_SHARE_INSTRUMENT_TYPE = 'equity';
+const ACTIVE_STATUS = 'A';
+
+const normalizeSymbol = (symbol) => (symbol || '').toString().trim().toUpperCase();
 
 // Create a lookup map for quick symbol -> stock info lookup
 const stockInfoMap = new Map();
 NEPSE_STOCKS.forEach(stock => {
-    stockInfoMap.set(stock.symbol.toUpperCase(), {
+    stockInfoMap.set(normalizeSymbol(stock.symbol), {
         name: stock.name,
         sector: stock.sector
     });
 });
+
+const isOrdinaryShareCompany = (company, { activeOnly = true } = {}) => {
+    if (!company || !company.symbol) return false;
+
+    const instrumentType = (company.instrumentType || '').toString().trim().toLowerCase();
+    const status = (company.status || '').toString().trim().toUpperCase();
+    const isEquity = instrumentType === ORDINARY_SHARE_INSTRUMENT_TYPE;
+    const isActive = !activeOnly || status === ACTIVE_STATUS;
+
+    return isEquity && isActive;
+};
+
+const getOrdinaryShareSymbols = (companyList, options = {}) => {
+    if (!Array.isArray(companyList)) return new Set();
+
+    return new Set(
+        companyList
+            .filter(company => isOrdinaryShareCompany(company, options))
+            .map(company => normalizeSymbol(company.symbol))
+            .filter(Boolean)
+    );
+};
 
 const { isMarketActive } = require('./utils/marketTime');
 
@@ -232,7 +258,7 @@ const enrichAndFinalize = async (data, fetchLiveMarketMeta) => {
  * @returns {Object|null} Stock info { name, sector } or null
  */
 const getStockInfo = (symbol) => {
-    return stockInfoMap.get((symbol || '').toUpperCase()) || null;
+    return stockInfoMap.get(normalizeSymbol(symbol)) || null;
 };
 
 /**
@@ -241,7 +267,7 @@ const getStockInfo = (symbol) => {
  * @returns {boolean} True if known
  */
 const isKnownSymbol = (symbol) => {
-    return stockInfoMap.has((symbol || '').toUpperCase());
+    return stockInfoMap.has(normalizeSymbol(symbol));
 };
 
 /**
@@ -294,6 +320,9 @@ module.exports = {
     enrichAndFinalize,
     getStockInfo,
     isKnownSymbol,
+    isOrdinaryShareCompany,
+    getOrdinaryShareSymbols,
+    normalizeSymbol,
     stockInfoMap,
     computeBreadthFromDb
 };

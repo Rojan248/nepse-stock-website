@@ -17,6 +17,7 @@
 const axios = require('axios');
 const https = require('https');
 const { PrismaClient } = require('@prisma/client');
+const { sleep, log, warn } = require('./scriptUtils');
 
 const prisma = new PrismaClient();
 
@@ -26,9 +27,6 @@ const SINGLE_SYMBOL = ARGS.includes('--symbol') ? ARGS[ARGS.indexOf('--symbol') 
 const DELAY = 400; // ms between /security/{id} calls
 
 const agent = new https.Agent();
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
-const warn = (msg) => console.warn(`[${new Date().toISOString()}] WARN: ${msg}`);
 
 // Auth state — refreshed on 401
 let _nepseClient = null;

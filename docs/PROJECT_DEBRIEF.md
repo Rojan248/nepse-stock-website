@@ -84,17 +84,14 @@ nepse-stock-website/
 │   │   │   ├── fetchers/            # Specialized data fetchers
 │   │   │   ├── database/            # DB operations layer
 │   │   │   └── utils/               # Logger, error utils
-│   │   ├── scripts/
-│   │   │   ├── seedData.js          # Initial data seeding
-│   │   │   └── seedIPOs.js          # IPO data seeding
 │   │   └── data/
 │   │       └── nepseStocks.js       # Static stock reference data
 │   ├── scripts/
 │   │   ├── migrate-json-to-sqlite.js # JSON → SQLite migration
-│   │   ├── auditData.js             # Data quality auditing
-│   │   ├── runEOD.js                # End-of-day processing
-│   │   ├── run-watchdog.js          # Manual watchdog trigger
-│   │   └── report-breadth.js        # Market breadth reporting
+│   │   ├── ops.js                   # Unified verify/diagnostic operations
+│   │   ├── seed-ipos.js             # IPO sample data seeding
+│   │   ├── backfill-history.js      # Market history backfill
+│   │   └── populate-52w.js          # 52-week range enrichment
 │   ├── prisma/
 │   │   ├── schema.prisma            # ← DATABASE SCHEMA (critical)
 │   │   └── migrations/              # Migration history
@@ -317,22 +314,17 @@ None — all changes were committed and pushed. Clean working tree as of last pu
 
 ### Answered Questions
 
-#### alertService.js — NOT wired up (dead code)
+#### alertService.js — wired into sync status
 
-Two copies exist:
-- `backend/src/services/alertService.js` — simpler 55-line version (basic Discord embed)
-- `backend/src/services/utils/alertService.js` — complete 197-line version (Discord/Slack/generic, rate limiting, daily digest, sync stats)
+Only the evolved `backend/src/services/utils/alertService.js` remains. `dataFetcher.js` records sync success/failure through it, while webhook delivery is controlled by `ALERT_ENABLED` and `WEBHOOK_URL`.
 
-**Neither is imported anywhere.** Zero consumers. The `utils/` version is the evolved one with `sendDailyDigest`, `recordSyncSuccess`/`recordSyncFailure`, and `getAlertStatus` — but nothing in the scheduler, dataFetcher, or watchdog calls it. Controlled by `ALERT_ENABLED` and `WEBHOOK_URL` env vars, which are also unused.
+**Next hardening step:** Route scheduler/watchdog critical failures through `sendAlert` so operational alerts cover both scrape failures and integrity failures.
 
-**To activate:** Wire `sendAlert` into the scheduler's error paths and `recordSyncSuccess`/`recordSyncFailure` into the data fetch cycle. Delete the older copy at `services/alertService.js`.
+#### Watchlists / Portfolio — API-backed user features
 
-#### Watchlists / Portfolio — Client-only favorites, no backend support
-
-- **Frontend:** Working favorites system via `useLocalStorage('nepse-favorites', [])` in `HomePage.jsx`. Users can toggle favorites and filter the stock table. CSS watchlist button styles exist.
-- **Backend:** No `User`, `Watchlist`, or `Portfolio` model in `schema.prisma`. No API endpoints for persisting favorites server-side. No user auth system.
-- **Implication:** Favorites are browser-local only — clear localStorage and they're gone, no cross-device sync.
-- **If planned as a feature:** Would require a User model + auth, a Watchlist join table in Prisma, new API routes, and frontend migration from localStorage to API-backed state. Significant feature arc.
+- **Backend:** `User`, `Watchlist`, `WatchlistItem`, `Portfolio`, and trade models exist in Prisma, with Express routes mounted at `/api/watchlists` and `/api/portfolios`.
+- **Frontend:** Favorites can migrate from local browser storage into the server watchlist flow, and portfolio pages consume the API-backed summary data.
+- **Remaining risk:** Keep auth/session behavior covered by integration tests because these routes are user-scoped and stateful.
 
 ---
 

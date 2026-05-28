@@ -1,26 +1,17 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMarketSummary, getStocks, getSectors } from '../services/api';
 import StockTable from '../components/StockTable';
-import SummaryCard from '../components/SummaryCard';
 import SectorChart from '../components/SectorChart';
-import MarketBreadthCard from '../components/MarketBreadthCard';
-import LoadingSpinner from '../components/LoadingSpinner';
 import TrendingBar from '../components/TrendingBar';
 import Button from '../components/ui/Button';
-import Select from '../components/ui/Select';
-import SearchBar from '../components/SearchBar';
 import MarketSummarySection from '../components/MarketSummarySection';
 import StocksToolbar from '../components/StocksToolbar';
-import MarketNarrativeBanner from '../components/MarketNarrativeBanner';
-import AIPicks from '../components/AIPicks';
 import { useMarketData, useStockData } from '../hooks/useHomePageData';
 import { useMarketBreadth, useFilteredStocks } from '../hooks/useFilters';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useAuth } from '../hooks/useAuth';
 import { getWatchlists, importWatchlistItems, addWatchlistItem, removeWatchlistItem } from '../services/api';
 import { useScrollReveal } from '../hooks/useScrollReveal';
-import { Star, ChevronDown } from 'lucide-react';
 import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 import './HomePage.css';
 
@@ -57,12 +48,13 @@ function syncFavoriteToApi(watchlistId, symbol, isFav) {
 // ==================== Watchlist Hook ====================
 
 function useWatchlistSync() {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, loading: authLoading } = useAuth();
     const [favorites, setFavorites] = useLocalStorage('nepse-favorites', []);
     const [defaultWatchlistId, setDefaultWatchlistId] = useState(null);
     const migrated = useRef(false);
 
     useEffect(() => {
+        if (authLoading) return;
         if (!isAuthenticated) { setDefaultWatchlistId(null); return; }
         getWatchlists().then(wls => {
             const list = Array.isArray(wls) ? wls : [];
@@ -70,7 +62,7 @@ function useWatchlistSync() {
                 processWatchlist({ watchlist: list[0], setDefaultWatchlistId, setFavorites, migrated, favorites });
             }
         }).catch(() => { });
-    }, [isAuthenticated]);
+    }, [authLoading, isAuthenticated]);
 
     const toggleFavorite = useCallback((symbol) => {
         setFavorites(prev => {
@@ -120,15 +112,13 @@ function HomePage({ globalSearch }) {
                 onStatusChange={setStatusFilter}
             />
 
-            <MarketNarrativeBanner />
-
-            <div ref={sectorRef} className={`scroll-fade ${sectorVisible ? 'visible' : ''}`}>
+            <div ref={sectorRef} className={`scroll-fade animate-up delay-1 ${sectorVisible ? 'visible' : ''}`}>
                 <SectorChart stocks={stocks} />
             </div>
 
-            <TrendingBar />
-
-            <AIPicks />
+            <div className="animate-up delay-2">
+                <TrendingBar />
+            </div>
 
             <section ref={stocksRef} className={`stocks-section scroll-fade ${stocksVisible ? 'visible' : ''}`}>
                 <StocksToolbar

@@ -48,18 +48,23 @@ const TrendingBar = () => {
                     <span className="trending-title">Trending:</span>
                 </div>
                 <div className="trending-items">
-                    {trending.map((stock) => (
-                        <Link
-                            key={stock.symbol}
-                            to={`/stock/${stock.symbol}`}
-                            className="trending-chip"
-                        >
-                            <span className="trending-symbol">{stock.symbol}</span>
-                            <span className={`trending-change ${stock.change >= 0 ? 'positive' : 'negative'}`}>
-                                {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)}%
-                            </span>
-                        </Link>
-                    ))}
+                    {trending.map((stock) => {
+                        const change = Number(stock.change);
+                        const safeChange = Number.isFinite(change) ? change : 0;
+
+                        return (
+                            <Link
+                                key={stock.symbol}
+                                to={`/stock/${stock.symbol}`}
+                                className="trending-chip"
+                            >
+                                <span className="trending-symbol">{stock.symbol}</span>
+                                <span className={`trending-change ${safeChange >= 0 ? 'positive' : 'negative'}`}>
+                                    {safeChange >= 0 ? '+' : ''}{safeChange.toFixed(2)}%
+                                </span>
+                            </Link>
+                        );
+                    })}
                 </div>
             </div>
         </div>

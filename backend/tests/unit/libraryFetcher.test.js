@@ -60,4 +60,32 @@ describe('Library Fetcher', () => {
         expect(mockAxiosGet).toHaveBeenCalled();
         expect(result).toEqual([]);
     });
+
+    it('fetchSecuritiesWithPrices trusts official Equity instrument type over static symbols', async () => {
+        const mockAxiosGet = jest.fn().mockResolvedValue({
+            data: [
+                { symbol: 'NABIL' },
+                { symbol: 'C30MF' },
+                { symbol: 'SPDL' }
+            ]
+        });
+        const fetchMissingSecuritiesFn = jest.fn().mockResolvedValue([]);
+
+        const result = await fetchSecuritiesWithPrices('mock-token', [
+            { symbol: 'NABIL', status: 'A', instrumentType: 'Equity' },
+            { symbol: 'C30MF', status: 'A', instrumentType: 'Mutual Funds' },
+            { symbol: 'SPDL', status: 'A', instrumentType: 'Equity' }
+        ], {
+            createHeadersFn: () => mockHeaders,
+            nepseAxiosClient: { get: mockAxiosGet },
+            baseUrl: 'http://mock-base-url',
+            httpsAgent: {},
+            transformSecurityFn: (security) => security,
+            isKnownSymbolFn: () => false,
+            fetchMissingSecuritiesFn
+        });
+
+        expect(result.map(s => s.symbol)).toEqual(['NABIL', 'SPDL']);
+        expect(result.every(s => s.isOrdinaryShare)).toBe(true);
+    });
 });

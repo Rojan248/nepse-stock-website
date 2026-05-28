@@ -1,7 +1,16 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const logger = require('../services/utils/logger');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+const resolveJwtSecret = () => {
+    if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('JWT_SECRET must be configured in production');
+    }
+    return crypto.randomBytes(32).toString('hex');
+};
+
+const JWT_SECRET = resolveJwtSecret();
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
