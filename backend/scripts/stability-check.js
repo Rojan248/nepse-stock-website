@@ -111,7 +111,7 @@ async function checkDatabaseIntegrity() {
     assert(quickValue === 'ok', 'SQLite quick_check', JSON.stringify(quickCheck));
     pass('SQLite quick_check');
 
-    for (const table of ['Stock', 'MarketHistory', 'MarketSummary', 'User', 'Watchlist', 'Portfolio', 'Alert', 'StockMetrics', 'Lock']) {
+    for (const table of ['Stock', 'MarketHistory', 'MarketSummary', 'User', 'Watchlist', 'Portfolio', 'Alert', 'StockMetrics', 'AiRun', 'StockAiSummary', 'MarketAiSummary', 'TradingSession', 'Lock']) {
         await assertSqliteObject(prisma, 'table', table, `live schema table ${table}`);
     }
     for (const index of ['MarketHistory_symbol_date_key', 'StockMetrics_symbol_date_key', 'WatchlistItem_watchlistId_symbol_key']) {
@@ -338,7 +338,7 @@ async function checkTempMigration() {
             }
         }
 
-        for (const table of ['Stock', 'MarketHistory', 'MarketSummary', 'User', 'Watchlist', 'Portfolio', 'Alert', 'StockMetrics', 'Lock']) {
+        for (const table of ['Stock', 'MarketHistory', 'MarketSummary', 'User', 'Watchlist', 'Portfolio', 'Alert', 'StockMetrics', 'AiRun', 'StockAiSummary', 'MarketAiSummary', 'TradingSession', 'Lock']) {
             await assertSqliteObject(migrationClient, 'table', table, `fresh migration table ${table}`);
         }
         for (const index of ['MarketHistory_symbol_date_key', 'StockMetrics_symbol_date_key', 'WatchlistItem_watchlistId_symbol_key']) {

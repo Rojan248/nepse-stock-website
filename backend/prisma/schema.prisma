@@ -10,54 +10,54 @@ datasource db {
 }
 
 model Stock {
-  id             Int      @id @default(autoincrement())
-  symbol         String   @unique
-  companyName    String
-  sector         String?
-  lastTradedPrice Decimal?
-  previousClose   Decimal?
-  openPrice       Decimal?
-  highPrice       Decimal?
-  lowPrice        Decimal?
-  volume          Decimal?
-  totalTrades     Int?
-  turnover        Decimal?
-  change          Decimal?
-  percentageChange Decimal?
+  id                 Int      @id @default(autoincrement())
+  symbol             String   @unique
+  companyName        String
+  sector             String?
+  lastTradedPrice    Decimal?
+  previousClose      Decimal?
+  openPrice          Decimal?
+  highPrice          Decimal?
+  lowPrice           Decimal?
+  volume             Decimal?
+  totalTrades        Int?
+  turnover           Decimal?
+  change             Decimal?
+  percentageChange   Decimal?
   percentageChange1W Decimal?
   percentageChange1M Decimal?
   // 52-week range sourced from NEPSE /security/{id} endpoint
-  high52w         Decimal?
-  low52w          Decimal?
-  nepseSecurityId String?  // NEPSE internal security ID for API lookups
+  high52w            Decimal?
+  low52w             Decimal?
+  nepseSecurityId    String? // NEPSE internal security ID for API lookups
   // Externally-sourced technical indicators (MeroLagani — no auth needed)
-  ma180Ext        Decimal?   // 180-day moving average from MeroLagani
-  ma120Ext        Decimal?   // 120-day moving average from MeroLagani
-  yearlyYield     Decimal?   // 1-year price yield % from MeroLagani
-  avgVol30dExt    Decimal?   // 30-day avg volume from MeroLagani
-  lastSource     String?
-  updatedAt      DateTime @default(now()) @updatedAt
+  ma180Ext           Decimal? // 180-day moving average from MeroLagani
+  ma120Ext           Decimal? // 120-day moving average from MeroLagani
+  yearlyYield        Decimal? // 1-year price yield % from MeroLagani
+  avgVol30dExt       Decimal? // 30-day avg volume from MeroLagani
+  lastSource         String?
+  updatedAt          DateTime @default(now()) @updatedAt
 
-  history        MarketHistory[]
+  history MarketHistory[]
 
   @@index([sector])
   @@index([updatedAt])
 }
 
 model MarketHistory {
-  id          Int      @id @default(autoincrement())
-  symbol      String
-  date        DateTime
-  openPrice   Decimal?
-  closePrice  Decimal?
-  highPrice   Decimal?
-  lowPrice    Decimal?
-  volume      Decimal?
-  turnover    Decimal?
-  change      Decimal?
+  id               Int      @id @default(autoincrement())
+  symbol           String
+  date             DateTime
+  openPrice        Decimal?
+  closePrice       Decimal?
+  highPrice        Decimal?
+  lowPrice         Decimal?
+  volume           Decimal?
+  turnover         Decimal?
+  change           Decimal?
   percentageChange Decimal?
 
-  stock       Stock?   @relation(fields: [symbol], references: [symbol], onDelete: Cascade)
+  stock Stock? @relation(fields: [symbol], references: [symbol], onDelete: Cascade)
 
   @@unique([symbol, date])
   @@index([symbol])
@@ -65,52 +65,52 @@ model MarketHistory {
 }
 
 model MarketSummary {
-  id                Int      @id @default(autoincrement())
-  indexValue        Decimal?
-  indexChange       Decimal?
+  id                 Int      @id @default(autoincrement())
+  indexValue         Decimal?
+  indexChange        Decimal?
   indexChangePercent Decimal?
-  totalTurnover     Decimal?
-  totalVolume       Decimal?
-  totalTransactions Decimal?
-  activeCompanies   Int?
-  advancedCompanies Int?
-  declinedCompanies Int?
+  totalTurnover      Decimal?
+  totalVolume        Decimal?
+  totalTransactions  Decimal?
+  activeCompanies    Int?
+  advancedCompanies  Int?
+  declinedCompanies  Int?
   unchangedCompanies Int?
-  timestamp         DateTime @default(now())
+  timestamp          DateTime @default(now())
 }
 
 model SectorIndex {
-  id              Int      @id @default(autoincrement())
-  topic           String   // e.g., "Banking", "NEPSE Index"
-  indexValue      Decimal
-  change          Decimal
+  id               Int      @id @default(autoincrement())
+  topic            String // e.g., "Banking", "NEPSE Index"
+  indexValue       Decimal
+  change           Decimal
   percentageChange Decimal
-  timestamp       DateTime @default(now())
+  timestamp        DateTime @default(now())
 }
 
 model Ipo {
-  id          Int      @id @default(autoincrement())
-  symbol      String   @unique
-  companyName String
-  sector      String?
-  issueDate   DateTime?
-  closingDate DateTime?
-  price       Decimal?
-  units       Int?
-  status      String?
+  id           Int       @id @default(autoincrement())
+  symbol       String    @unique
+  companyName  String
+  sector       String?
+  issueDate    DateTime?
+  closingDate  DateTime?
+  price        Decimal?
+  units        Int?
+  status       String?
   issueManager String?
 }
 
 // ==================== Auth & User Models ====================
 
 model User {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  passwordHash  String
-  displayName   String?
-  role          String    @default("user") // "user" | "admin"
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  role         String   @default("user") // "user" | "admin"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
 
   refreshTokens RefreshToken[]
   watchlists    Watchlist[]
@@ -125,7 +125,7 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -133,15 +133,15 @@ model RefreshToken {
 // ==================== Watchlist Models ====================
 
 model Watchlist {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   name       String
   userId     Int
-  publicSlug String?   @unique
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now()) @updatedAt
+  publicSlug String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items      WatchlistItem[]
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WatchlistItem[]
 
   @@index([userId])
 }
@@ -152,7 +152,7 @@ model WatchlistItem {
   symbol      String
   addedAt     DateTime @default(now())
 
-  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  watchlist Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
 
   @@unique([watchlistId, symbol])
 }
@@ -166,8 +166,8 @@ model Portfolio {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trades    Trade[]
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades Trade[]
 
   @@index([userId])
 }
@@ -176,14 +176,14 @@ model Trade {
   id          Int      @id @default(autoincrement())
   portfolioId Int
   symbol      String
-  type        String   // "buy" | "sell"
+  type        String // "buy" | "sell"
   quantity    Int
   price       Decimal
   date        DateTime
   note        String?
   createdAt   DateTime @default(now())
 
-  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
   @@index([portfolioId])
   @@index([symbol])
@@ -192,16 +192,16 @@ model Trade {
 // ==================== Alert Models ====================
 
 model Alert {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  symbol     String
-  condition  String    // "above" | "below" | "pct_change"
-  threshold  Decimal
-  enabled    Boolean   @default(true)
-  createdAt  DateTime  @default(now())
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  symbol      String
+  condition   String // "above" | "below" | "pct_change"
+  threshold   Decimal
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
   triggeredAt DateTime?
 
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries AlertDelivery[]
 
   @@index([userId])
@@ -209,13 +209,13 @@ model Alert {
 }
 
 model AlertDelivery {
-  id          Int      @id @default(autoincrement())
-  alertId     Int
-  triggeredAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  alertId        Int
+  triggeredAt    DateTime @default(now())
   priceAtTrigger Decimal
-  channel     String   // "in-app" | "email" | "webhook"
+  channel        String // "in-app" | "email" | "webhook"
 
-  alert       Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
   @@index([alertId])
 }
@@ -226,27 +226,123 @@ model StockMetrics {
   id               Int      @id @default(autoincrement())
   symbol           String
   date             DateTime
-  priceMetrics     String?  // JSON: 52wHigh, 52wLow, atCircuitHigh, atCircuitLow, consecutiveUp, consecutiveDown
-  trendMetrics     String?  // JSON: ma20, ma50, ma180, goldenCross, deathCross
-  momentumMetrics  String?  // JSON: rsi14, rsi7, roc10d, roc30d
-  liquidityMetrics String?  // JSON: avgVolume20d, volumeRatio, turnoverRatio, liquidityScore, isVolumeSpike
-  relativeMetrics  String?  // JSON: vsSectorAvg, sectorRank, marketRank
-  fundamentals     String?  // JSON: basePrice, priceToBase, sector
-  patterns         String?  // JSON: composite flags derived from all metrics
-  signals          String?  // JSON: array of signal objects [{type, label, sentiment}]
+  priceMetrics     String? // JSON: 52wHigh, 52wLow, atCircuitHigh, atCircuitLow, consecutiveUp, consecutiveDown
+  trendMetrics     String? // JSON: ma20, ma50, ma180, goldenCross, deathCross
+  momentumMetrics  String? // JSON: rsi14, rsi7, roc10d, roc30d
+  liquidityMetrics String? // JSON: avgVolume20d, volumeRatio, turnoverRatio, liquidityScore, isVolumeSpike
+  relativeMetrics  String? // JSON: vsSectorAvg, sectorRank, marketRank
+  fundamentals     String? // JSON: basePrice, priceToBase, sector
+  patterns         String? // JSON: composite flags derived from all metrics
+  signals          String? // JSON: array of signal objects [{type, label, sentiment}]
   computedAt       DateTime @default(now())
 
   // Granular metrics for fast server-side filtering
-  ma20        Decimal?
-  ma50        Decimal?
-  ma180       Decimal?
-  rsi14       Decimal?
-  high52w     Decimal?
-  low52w      Decimal?
+  ma20    Decimal?
+  ma50    Decimal?
+  ma180   Decimal?
+  rsi14   Decimal?
+  high52w Decimal?
+  low52w  Decimal?
 
   @@unique([symbol, date])
   @@index([symbol])
   @@index([date])
+}
+
+model AiRun {
+  id                    Int       @id @default(autoincrement())
+  jobType               String
+  periodType            String
+  periodStart           DateTime?
+  periodEnd             DateTime?
+  status                String    @default("PENDING")
+  model                 String?
+  provider              String?
+  requestedStocks       Int       @default(0)
+  generatedStocks       Int       @default(0)
+  reusedStocks          Int       @default(0)
+  promptTokens          Int       @default(0)
+  completionTokens      Int       @default(0)
+  promptCacheHitTokens  Int       @default(0)
+  promptCacheMissTokens Int       @default(0)
+  estimatedCostUsd      Decimal?
+  error                 String?
+  startedAt             DateTime  @default(now())
+  finishedAt            DateTime?
+  createdAt             DateTime  @default(now())
+
+  @@index([jobType, periodType])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model StockAiSummary {
+  id               Int       @id @default(autoincrement())
+  symbol           String
+  periodType       String
+  periodStart      DateTime
+  periodEnd        DateTime?
+  summary          String
+  sentiment        String?
+  confidence       Decimal?
+  driversJson      String?
+  risksJson        String?
+  inputHash        String
+  reusedFromId     Int?
+  runId            Int?
+  model            String?
+  promptTokens     Int       @default(0)
+  completionTokens Int       @default(0)
+  estimatedCostUsd Decimal?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
+
+  @@unique([symbol, periodType, periodStart])
+  @@index([symbol])
+  @@index([periodType, periodStart])
+  @@index([inputHash])
+}
+
+model MarketAiSummary {
+  id               Int      @id @default(autoincrement())
+  periodType       String
+  periodStart      DateTime
+  periodEnd        DateTime
+  summary          String
+  sentiment        String?
+  confidence       Decimal?
+  breadthJson      String?
+  topMoversJson    String?
+  sectorJson       String?
+  inputHash        String
+  runId            Int?
+  model            String?
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  estimatedCostUsd Decimal?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+
+  @@unique([periodType, periodStart])
+  @@index([periodType])
+  @@index([periodStart])
+  @@index([inputHash])
+}
+
+model TradingSession {
+  id              Int       @id @default(autoincrement())
+  tradingDate     DateTime  @unique
+  status          String
+  source          String?
+  stockCount      Int       @default(0)
+  marketSummaryId Int?
+  openedAt        DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  @@index([status])
+  @@index([tradingDate])
 }
 
 model Lock {

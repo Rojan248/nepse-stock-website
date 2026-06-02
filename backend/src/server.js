@@ -11,6 +11,7 @@ const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
+const aiSummaryScheduler = require('./services/scheduler/aiSummaryScheduler');
 
 // Import routes
 const stocksRouter = require('./routes/stocks');
@@ -22,6 +23,7 @@ const watchlistRouter = require('./routes/watchlists');
 const portfolioRouter = require('./routes/portfolios');
 const alertRouter = require('./routes/alerts');
 const streamRouter = require('./routes/stream');
+const aiSummariesRouter = require('./routes/aiSummaries');
 
 /**
  * NEPSE Backend Server
@@ -77,6 +79,7 @@ app.use('/api/ipos', iposRouter);
 app.use('/api', marketRouter);
 app.use('/api/watchdog', watchdogRouter);
 app.use('/api/stream', streamRouter);
+app.use('/api/ai-summaries', aiSummariesRouter);
 
 // Root endpoint (handled by static files in production)
 if (process.env.NODE_ENV !== 'production') {
@@ -142,6 +145,7 @@ const startServer = async () => {
         logger.info('Starting data update scheduler...');
         scheduler.startScheduler();
         logger.info('Scheduler service started');
+        aiSummaryScheduler.startScheduler();
 
         // Graceful shutdown
         const gracefulShutdown = async (signal) => {
@@ -149,6 +153,7 @@ const startServer = async () => {
 
             // Stop scheduler
             scheduler.stopScheduler();
+            aiSummaryScheduler.stopScheduler();
 
             // Shutdown analytics
             const analytics = require('./services/analytics');
