@@ -9,6 +9,10 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/ci.db
+      ADMIN_API_KEY: ci-admin-key
+      JWT_SECRET: ci-jwt-secret
 
     steps:
       - uses: actions/checkout@v4
