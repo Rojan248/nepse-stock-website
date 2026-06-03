@@ -81,6 +81,50 @@ async function fetchAllSecurityIds(authHeaders) {
     return map;
 }
 
+const readMarketValue = (market, ...keys) => {
+    for (const key of keys) {
+        if (market[key]) return market[key];
+    }
+    return null;
+};
+
+function mapSecurityDetails(payload) {
+    const mcs = payload.securityMcsData || {};
+    const sec = payload.securityData || {};
+    return {
+        openPrice: readMarketValue(mcs, 'openPrice'),
+        highPrice: readMarketValue(mcs, 'highPrice'),
+        lowPrice: readMarketValue(mcs, 'lowPrice'),
+        closePrice: readMarketValue(mcs, 'closePrice', 'lastTradedPrice'),
+        volume: readMarketValue(mcs, 'totalTradeQuantity'),
+        totalTrades: readMarketValue(mcs, 'totalTrades'),
+        turnover: readMarketValue(mcs, 'turnover'),
+        previousClose: readMarketValue(mcs, 'previousClose'),
+        businessDate: readMarketValue(mcs, 'businessDate'),
+        fiftyTwoWeekHigh: readMarketValue(mcs, 'fiftyTwoWeekHigh'),
+        fiftyTwoWeekLow: readMarketValue(mcs, 'fiftyTwoWeekLow'),
+        companyName: readMarketValue(sec, 'companyName'),
+        sector: readMarketValue(sec, 'sectorName')
+    };
+}
+
+const isAuthExpired = (error) => error.response?.status === 401;
+
+async function requestSecurityDetails(url) {
+    const res = await axios.get(url, {
+        headers: _authHeaders,
+        timeout: 15000,
+        httpsAgent: agent
+    });
+    return mapSecurityDetails(res.data);
+}
+
+async function refreshExpiredAuth(attempt) {
+    warn(`Token expired, refreshing... (attempt ${attempt + 1})`);
+    await sleep(2000);
+    await refreshToken();
+}
+
 async function fetchSecurityDetails(securityId) {
     const url = `https://www.nepalstock.com.np/api/nots/security/${securityId}`;
     let lastError;
@@ -88,176 +132,207 @@ async function fetchSecurityDetails(securityId) {
     // Try up to 3 times, refreshing token on 401
     for (let attempt = 0; attempt < 3; attempt++) {
         try {
-            const res = await axios.get(url, {
-                headers: _authHeaders, timeout: 15000, httpsAgent: agent
-            });
-            const d = res.data;
-            const mcs = d.securityMcsData || {};
-            const sec = d.securityData || {};
-            return {
-                openPrice: mcs.openPrice || null,
-                highPrice: mcs.highPrice || null,
-                lowPrice: mcs.lowPrice || null,
-                closePrice: mcs.closePrice || mcs.lastTradedPrice || null,
-                volume: mcs.totalTradeQuantity || null,
-                totalTrades: mcs.totalTrades || null,
-                turnover: mcs.turnover || null,
-                previousClose: mcs.previousClose || null,
-                businessDate: mcs.businessDate || null,
-                fiftyTwoWeekHigh: mcs.fiftyTwoWeekHigh || null,
-                fiftyTwoWeekLow: mcs.fiftyTwoWeekLow || null,
-                companyName: sec.companyName || null,
-                sector: sec.sectorName || null
-            };
+            return await requestSecurityDetails(url);
         } catch (e) {
             lastError = e;
-            if (e.response?.status === 401) {
-                warn(`Token expired, refreshing... (attempt ${attempt + 1})`);
-                await sleep(2000);
-                await refreshToken();
-            } else {
+            if (!isAuthExpired(e)) {
                 throw e; // Non-401 error, don't retry
             }
+            await refreshExpiredAuth(attempt);
         }
     }
     throw lastError;
 }
 
-async function main() {
-    log('=== Populate 52-Week High/Low from NEPSE ===');
-    log(`Force: ${FORCE}${SINGLE_SYMBOL ? ` | Symbol: ${SINGLE_SYMBOL}` : ''}`);
+const createStats = () => ({
+    processed: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0,
+    noNepseId: 0
+});
 
-    // Authenticate
-    const authHeaders = await initNepseAuth();
-
-    // Get all stocks from our DB
-    const dbStocks = await prisma.stock.findMany({
+async function loadTargetStocks() {
+    const stocks = await prisma.stock.findMany({
         select: { symbol: true, high52w: true, low52w: true, nepseSecurityId: true },
         ...(SINGLE_SYMBOL ? { where: { symbol: SINGLE_SYMBOL } } : {})
     });
-    log(`Found ${dbStocks.length} stocks in DB`);
+    log(`Found ${stocks.length} stocks in DB`);
+    return stocks;
+}
 
-    // Get NEPSE security ID map (bulk fetch)
-    const securityMap = await fetchAllSecurityIds(authHeaders);
+const shouldSkipStock = (stock) => !FORCE && stock.high52w !== null;
 
-    const stats = { processed: 0, updated: 0, skipped: 0, failed: 0, noNepseId: 0 };
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+const hasFiftyTwoWeekData = (details) => (
+    details.fiftyTwoWeekHigh || details.fiftyTwoWeekLow
+);
 
-    for (let i = 0; i < dbStocks.length; i++) {
-        const { symbol, high52w, nepseSecurityId } = dbStocks[i];
-        stats.processed++;
+function logRunConfiguration() {
+    log('=== Populate 52-Week High/Low from NEPSE ===');
+    log(`Force: ${FORCE}${SINGLE_SYMBOL ? ` | Symbol: ${SINGLE_SYMBOL}` : ''}`);
+}
 
-        // Skip if already has data and not forcing
-        if (!FORCE && high52w !== null) {
-            log(`[${i + 1}/${dbStocks.length}] ${symbol}: already has 52W data, skipping`);
-            stats.skipped++;
-            continue;
-        }
-
-        // Find security ID
-        const nepseEntry = securityMap[symbol];
-        if (!nepseEntry) {
-            warn(`[${i + 1}/${dbStocks.length}] ${symbol}: not found in NEPSE security list`);
-            stats.noNepseId++;
-            continue;
-        }
-
-        const secId = nepseEntry.securityId;
-        log(`[${i + 1}/${dbStocks.length}] ${symbol} (ID: ${secId}): fetching 52W data...`);
-
-        try {
-            const details = await fetchSecurityDetails(secId);
-
-            if (!details.fiftyTwoWeekHigh && !details.fiftyTwoWeekLow) {
-                warn(`  ${symbol}: NEPSE returned no 52W data`);
-                stats.failed++;
-                continue;
-            }
-
-            // Update Stock with 52W data and NEPSE ID
-            await prisma.stock.update({
-                where: { symbol },
-                data: {
-                    high52w: details.fiftyTwoWeekHigh,
-                    low52w: details.fiftyTwoWeekLow,
-                    nepseSecurityId: secId
-                }
-            });
-
-            // Also upsert today's MarketHistory with full OHLCV if available
-            if (details.closePrice && details.businessDate) {
-                const businessDate = new Date(details.businessDate);
-                businessDate.setHours(6, 15, 0, 0); // 06:15 UTC = 12:00 NST to avoid timezone issues
-
-                // Check if we already have a markethistory row for today
-                const existingHistory = await prisma.marketHistory.findFirst({
-                    where: {
-                        symbol,
-                        date: {
-                            gte: new Date(businessDate.getTime() - 12 * 3600000),
-                            lte: new Date(businessDate.getTime() + 12 * 3600000)
-                        }
-                    }
-                });
-
-                const change = details.closePrice && details.previousClose
-                    ? details.closePrice - details.previousClose
-                    : null;
-                const percentageChange = change && details.previousClose
-                    ? (change / details.previousClose) * 100
-                    : null;
-
-                const historyData = {
-                    symbol,
-                    date: businessDate,
-                    openPrice: details.openPrice,
-                    closePrice: details.closePrice,
-                    highPrice: details.highPrice,
-                    lowPrice: details.lowPrice,
-                    volume: details.volume,
-                    turnover: details.turnover,
-                    change,
-                    percentageChange
-                };
-
-                if (existingHistory) {
-                    await prisma.marketHistory.update({
-                        where: { id: existingHistory.id },
-                        data: {
-                            openPrice: details.openPrice || existingHistory.openPrice,
-                            highPrice: details.highPrice || existingHistory.highPrice,
-                            lowPrice: details.lowPrice || existingHistory.lowPrice,
-                            volume: details.volume || existingHistory.volume,
-                            turnover: details.turnover || existingHistory.turnover
-                        }
-                    });
-                } else {
-                    await prisma.marketHistory.create({ data: historyData });
-                }
-            }
-
-            log(`  ${symbol}: 52W H=${details.fiftyTwoWeekHigh} L=${details.fiftyTwoWeekLow} | Today O=${details.openPrice} H=${details.highPrice} L=${details.lowPrice} C=${details.closePrice}`);
-            stats.updated++;
-
-        } catch (e) {
-            warn(`  ${symbol}: Failed - ${e.message.slice(0, 80)}`);
-            stats.failed++;
-        }
-
-        // Rate limit
-        if (i < dbStocks.length - 1) {
-            await sleep(DELAY);
-        }
-    }
-
+function logFinalStats(stats) {
     log('\n=== Complete ===');
     log(`Processed:  ${stats.processed}`);
     log(`Updated:    ${stats.updated}`);
     log(`Skipped:    ${stats.skipped} (already had 52W data)`);
     log(`No NEPSE:   ${stats.noNepseId} (symbol not found in NEPSE list)`);
     log(`Failed:     ${stats.failed}`);
+}
 
+async function updateStockFiftyTwoWeekData(symbol, securityId, details) {
+    await prisma.stock.update({
+        where: { symbol },
+        data: {
+            high52w: details.fiftyTwoWeekHigh,
+            low52w: details.fiftyTwoWeekLow,
+            nepseSecurityId: securityId
+        }
+    });
+}
+
+function toMarketHistoryDate(details) {
+    const businessDate = new Date(details.businessDate);
+    businessDate.setHours(6, 15, 0, 0);
+    return businessDate;
+}
+
+async function findExistingMarketHistory(symbol, businessDate) {
+    return prisma.marketHistory.findFirst({
+        where: {
+            symbol,
+            date: {
+                gte: new Date(businessDate.getTime() - 12 * 3600000),
+                lte: new Date(businessDate.getTime() + 12 * 3600000)
+            }
+        }
+    });
+}
+
+function getHistoryMovement(details) {
+    if (!details.closePrice || !details.previousClose) {
+        return { change: null, percentageChange: null };
+    }
+
+    const change = details.closePrice - details.previousClose;
+    return {
+        change,
+        percentageChange: (change / details.previousClose) * 100
+    };
+}
+
+function buildMarketHistoryData(symbol, businessDate, details) {
+    return {
+        symbol,
+        date: businessDate,
+        openPrice: details.openPrice,
+        closePrice: details.closePrice,
+        highPrice: details.highPrice,
+        lowPrice: details.lowPrice,
+        volume: details.volume,
+        turnover: details.turnover,
+        ...getHistoryMovement(details)
+    };
+}
+
+async function updateExistingMarketHistory(existingHistory, details) {
+    await prisma.marketHistory.update({
+        where: { id: existingHistory.id },
+        data: {
+            openPrice: details.openPrice || existingHistory.openPrice,
+            highPrice: details.highPrice || existingHistory.highPrice,
+            lowPrice: details.lowPrice || existingHistory.lowPrice,
+            volume: details.volume || existingHistory.volume,
+            turnover: details.turnover || existingHistory.turnover
+        }
+    });
+}
+
+async function upsertTodayMarketHistory(symbol, details) {
+    if (!details.closePrice || !details.businessDate) return;
+
+    const businessDate = toMarketHistoryDate(details);
+    const existingHistory = await findExistingMarketHistory(symbol, businessDate);
+
+    if (existingHistory) {
+        await updateExistingMarketHistory(existingHistory, details);
+        return;
+    }
+
+    await prisma.marketHistory.create({
+        data: buildMarketHistoryData(symbol, businessDate, details)
+    });
+}
+
+function logStockUpdated(symbol, details) {
+    log(`  ${symbol}: 52W H=${details.fiftyTwoWeekHigh} L=${details.fiftyTwoWeekLow} | Today O=${details.openPrice} H=${details.highPrice} L=${details.lowPrice} C=${details.closePrice}`);
+}
+
+async function processSecurityDetails(symbol, securityId) {
+    const details = await fetchSecurityDetails(securityId);
+
+    if (!hasFiftyTwoWeekData(details)) {
+        warn(`  ${symbol}: NEPSE returned no 52W data`);
+        return false;
+    }
+
+    await updateStockFiftyTwoWeekData(symbol, securityId, details);
+    await upsertTodayMarketHistory(symbol, details);
+    logStockUpdated(symbol, details);
+    return true;
+}
+
+const createRunContext = (dbStocks, securityMap, stats) => ({
+    securityMap,
+    stats,
+    total: dbStocks.length
+});
+
+async function processStock(stock, index, context) {
+    const { symbol } = stock;
+    const { securityMap, stats, total } = context;
+    stats.processed++;
+
+    if (shouldSkipStock(stock)) {
+        log(`[${index + 1}/${total}] ${symbol}: already has 52W data, skipping`);
+        stats.skipped++;
+        return;
+    }
+
+    const nepseEntry = securityMap[symbol];
+    if (!nepseEntry) {
+        warn(`[${index + 1}/${total}] ${symbol}: not found in NEPSE security list`);
+        stats.noNepseId++;
+        return;
+    }
+
+    log(`[${index + 1}/${total}] ${symbol} (ID: ${nepseEntry.securityId}): fetching 52W data...`);
+    try {
+        const updated = await processSecurityDetails(symbol, nepseEntry.securityId);
+        stats[updated ? 'updated' : 'failed']++;
+    } catch (e) {
+        warn(`  ${symbol}: Failed - ${e.message.slice(0, 80)}`);
+        stats.failed++;
+    }
+}
+
+async function main() {
+    logRunConfiguration();
+    const authHeaders = await initNepseAuth();
+    const dbStocks = await loadTargetStocks();
+    const securityMap = await fetchAllSecurityIds(authHeaders);
+    const stats = createStats();
+    const context = createRunContext(dbStocks, securityMap, stats);
+
+    for (let i = 0; i < dbStocks.length; i++) {
+        await processStock(dbStocks[i], i, context);
+        if (i < dbStocks.length - 1) {
+            await sleep(DELAY);
+        }
+    }
+
+    logFinalStats(stats);
     await prisma.$disconnect();
 }
 

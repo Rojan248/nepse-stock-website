@@ -19,7 +19,7 @@ const { isKnownSymbol } = require('../src/services/dataEnricher');
 const API_BASE = process.env.STABILITY_API_BASE || 'http://localhost:5000/api';
 const FRONTEND_BASE = process.env.STABILITY_FRONTEND_BASE || 'http://localhost:3000';
 const TEST_PREFIX = `codex-stability-${Date.now()}`;
-const PASSWORD = 'CodexStable123!';
+const STABILITY_CREDENTIAL = 'CodexStable123!';
 
 const results = [];
 const cleanupEmails = [];
@@ -43,8 +43,12 @@ function assert(condition, name, detail) {
     if (!condition) fail(name, detail);
 }
 
+function isMissingNumber(value) {
+    return value === null || value === undefined || value === '';
+}
+
 function toNumber(value) {
-    if (value === null || value === undefined || value === '') return null;
+    if (isMissingNumber(value)) return null;
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : null;
 }
@@ -96,7 +100,13 @@ async function expectJson(pathname, options = {}, expectedStatus = 200) {
     return body;
 }
 
-async function apiRequest(pathname, token, method = 'GET', data = undefined, expectedStatus = 200) {
+async function apiRequest({
+    pathname,
+    token = null,
+    method = 'GET',
+    data = undefined,
+    expectedStatus = 200
+}) {
     const options = {
         method,
         headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -105,12 +115,7 @@ async function apiRequest(pathname, token, method = 'GET', data = undefined, exp
     return expectJson(pathname, options, expectedStatus);
 }
 
-async function checkDatabaseIntegrity() {
-    const quickCheck = await prisma.$queryRawUnsafe('PRAGMA quick_check;');
-    const quickValue = quickCheck?.[0]?.quick_check || Object.values(quickCheck?.[0] || {})[0];
-    assert(quickValue === 'ok', 'SQLite quick_check', JSON.stringify(quickCheck));
-    pass('SQLite quick_check');
-
+async function checkLiveSchema() {
     for (const table of ['Stock', 'MarketHistory', 'MarketSummary', 'User', 'Watchlist', 'Portfolio', 'Alert', 'StockMetrics', 'AiRun', 'StockAiSummary', 'MarketAiSummary', 'TradingSession', 'Lock']) {
         await assertSqliteObject(prisma, 'table', table, `live schema table ${table}`);
     }
@@ -119,7 +124,9 @@ async function checkDatabaseIntegrity() {
     }
     await assertColumn(prisma, 'Alert', 'triggeredAt', 'live schema Alert.triggeredAt');
     pass('live schema shape');
+}
 
+async function checkDataCoverage() {
     const [stockCount, historyCount, metricCount, marketSummary] = await Promise.all([
         prisma.stock.count(),
         prisma.marketHistory.count(),
@@ -136,6 +143,10 @@ async function checkDatabaseIntegrity() {
     assert(metricCount >= stockCount * 0.75, 'metrics coverage', `metrics rows ${metricCount}, stock count ${stockCount}`);
     pass('metrics coverage', `${metricCount} rows`);
 
+    return { marketSummary, stockCount };
+}
+
+function checkMarketSummaryFields(marketSummary, stockCount) {
     assert(marketSummary, 'latest market summary', 'missing MarketSummary row');
     const requiredNumeric = ['indexValue', 'indexChangePercent', 'totalTurnover', 'totalVolume', 'totalTransactions'];
     for (const field of requiredNumeric) {
@@ -148,7 +159,9 @@ async function checkDatabaseIntegrity() {
     assert(advanced + declined + unchanged > 0, 'market breadth', 'advanced + declined + unchanged is zero');
     assert(advanced + declined + unchanged <= stockCount + 10, 'market breadth bounds', `breadth sum ${advanced + declined + unchanged}, stock count ${stockCount}`);
     pass('market summary numeric fields', `index ${marketSummary.indexValue}`);
+}
 
+async function checkNoDuplicateRows() {
     const duplicateHistory = await prisma.$queryRawUnsafe(`
         SELECT symbol, date, COUNT(*) AS count
         FROM MarketHistory
@@ -168,7 +181,9 @@ async function checkDatabaseIntegrity() {
     `);
     assert(duplicateMetrics.length === 0, 'duplicate stock metrics', JSON.stringify(duplicateMetrics));
     pass('duplicate stock metrics');
+}
 
+async function checkStockSanity(stockCount) {
     const stocks = await prisma.stock.findMany({
         select: {
             symbol: true,
@@ -195,6 +210,19 @@ async function checkDatabaseIntegrity() {
     });
     assert(impossibleMoves.length === 0, 'impossible daily moves', impossibleMoves.slice(0, 10).map(s => `${s.symbol}:${s.percentageChange}`).join(', '));
     pass('price sanity');
+}
+
+async function checkDatabaseIntegrity() {
+    const quickCheck = await prisma.$queryRawUnsafe('PRAGMA quick_check;');
+    const quickValue = quickCheck?.[0]?.quick_check || Object.values(quickCheck?.[0] || {})[0];
+    assert(quickValue === 'ok', 'SQLite quick_check', JSON.stringify(quickCheck));
+    pass('SQLite quick_check');
+
+    await checkLiveSchema();
+    const { marketSummary, stockCount } = await checkDataCoverage();
+    checkMarketSummaryFields(marketSummary, stockCount);
+    await checkNoDuplicateRows();
+    await checkStockSanity(stockCount);
 }
 
 function sqlitePathFromDatabaseUrl() {
@@ -225,7 +253,7 @@ async function checkBackupRestoreProbe() {
     }
 }
 
-async function checkApiHealth() {
+async function checkHealthEndpoints() {
     const live = await expectJson('/health/live');
     assert(live.status === 'alive', 'health/live', JSON.stringify(live));
     pass('health/live');
@@ -243,11 +271,17 @@ async function checkApiHealth() {
     const scheduler = await expectJson('/scheduler-status');
     assert(scheduler.data?.isRunning === true, 'scheduler running', JSON.stringify(scheduler));
     pass('scheduler running', `next interval ${scheduler.data?.lastScheduledIntervalMs || 'unknown'}ms`);
+}
 
-    const summary = await expectJson('/market-summary');
+function assertMarketSummaryPayload(summary) {
     for (const field of ['indexValue', 'totalTurnover', 'totalVolume', 'totalTransactions']) {
         assert(toNumber(summary.data?.[field]) !== null, `api market-summary ${field}`, JSON.stringify(summary.data));
     }
+}
+
+async function checkMarketDataEndpoints() {
+    const summary = await expectJson('/market-summary');
+    assertMarketSummaryPayload(summary);
     pass('api market summary', `index ${summary.data.indexValue}`);
 
     const stocks = await expectJson('/stocks?limit=10');
@@ -257,22 +291,35 @@ async function checkApiHealth() {
     const stock = await expectJson('/stocks/NABIL');
     assert(stock.data?.symbol === 'NABIL', 'api stock detail', JSON.stringify(stock.data));
     pass('api stock detail');
+}
 
-    for (const route of ['/stocks/top-gainers', '/stocks/top-losers', '/stocks/top-traded', '/ipos']) {
+async function checkSuccessRoutes(routes) {
+    for (const route of routes) {
         const body = await expectJson(route);
         assert(body.success === true, `api ${route}`, JSON.stringify(body).slice(0, 200));
         pass(`api ${route}`);
     }
 }
 
+async function checkApiHealth() {
+    await checkHealthEndpoints();
+    await checkMarketDataEndpoints();
+    await checkSuccessRoutes(['/stocks/top-gainers', '/stocks/top-losers', '/stocks/top-traded', '/ipos']);
+}
+
 async function registerUser(label) {
     const email = `${TEST_PREFIX}-${label}@example.com`;
     cleanupEmails.push(email);
-    const body = await apiRequest('/auth/register', null, 'POST', {
-        email,
-        password: PASSWORD,
-        displayName: `Stability ${label}`
-    }, 201);
+    const body = await apiRequest({
+        pathname: '/auth/register',
+        method: 'POST',
+        data: {
+            email,
+            password: STABILITY_CREDENTIAL,
+            displayName: `Stability ${label}`
+        },
+        expectedStatus: 201
+    });
     assert(body.data?.accessToken, `register ${label}`, JSON.stringify(body));
     return { email, token: body.data.accessToken, user: body.data.user };
 }
@@ -281,40 +328,52 @@ async function checkAuthAndUserIsolation() {
     const userA = await registerUser('a');
     const userB = await registerUser('b');
 
-    const me = await apiRequest('/auth/me', userA.token);
+    const me = await apiRequest({ pathname: '/auth/me', token: userA.token });
     assert(me.data?.email === userA.email, 'auth/me', JSON.stringify(me));
     pass('auth register/me');
 
-    const watchlists = await apiRequest('/watchlists', userA.token);
+    const watchlists = await apiRequest({ pathname: '/watchlists', token: userA.token });
     assert(Array.isArray(watchlists.data) && watchlists.data.length >= 1, 'default watchlist', JSON.stringify(watchlists));
     const watchlistId = watchlists.data[0].id;
-    await apiRequest(`/watchlists/${watchlistId}/items`, userA.token, 'POST', { symbol: 'NABIL' }, 201);
-    await apiRequest(`/watchlists/${watchlistId}/items/NABIL`, userA.token, 'DELETE');
+    await apiRequest({ pathname: `/watchlists/${watchlistId}/items`, token: userA.token, method: 'POST', data: { symbol: 'NABIL' }, expectedStatus: 201 });
+    await apiRequest({ pathname: `/watchlists/${watchlistId}/items/NABIL`, token: userA.token, method: 'DELETE' });
     pass('watchlist add/remove');
 
-    const portfolio = await apiRequest('/portfolios', userA.token, 'POST', { name: 'Stability Portfolio' }, 201);
+    const portfolio = await apiRequest({ pathname: '/portfolios', token: userA.token, method: 'POST', data: { name: 'Stability Portfolio' }, expectedStatus: 201 });
     const portfolioId = portfolio.data.id;
-    const trade = await apiRequest(`/portfolios/${portfolioId}/trades`, userA.token, 'POST', {
-        symbol: 'NABIL',
-        type: 'buy',
-        quantity: 5,
-        price: 537,
-        date: '2026-05-27'
-    }, 201);
-    await apiRequest(`/portfolios/${portfolioId}/summary`, userA.token);
-    await apiRequest(`/portfolios/${portfolioId}/summary`, userB.token, 'GET', undefined, 404);
-    await apiRequest(`/portfolios/${portfolioId}/trades/${trade.data.id}`, userA.token, 'DELETE');
-    await apiRequest(`/portfolios/${portfolioId}`, userA.token, 'DELETE');
+    const trade = await apiRequest({
+        pathname: `/portfolios/${portfolioId}/trades`,
+        token: userA.token,
+        method: 'POST',
+        data: {
+            symbol: 'NABIL',
+            type: 'buy',
+            quantity: 5,
+            price: 537,
+            date: '2026-05-27'
+        },
+        expectedStatus: 201
+    });
+    await apiRequest({ pathname: `/portfolios/${portfolioId}/summary`, token: userA.token });
+    await apiRequest({ pathname: `/portfolios/${portfolioId}/summary`, token: userB.token, expectedStatus: 404 });
+    await apiRequest({ pathname: `/portfolios/${portfolioId}/trades/${trade.data.id}`, token: userA.token, method: 'DELETE' });
+    await apiRequest({ pathname: `/portfolios/${portfolioId}`, token: userA.token, method: 'DELETE' });
     pass('portfolio CRUD and isolation');
 
-    const alert = await apiRequest('/alerts', userA.token, 'POST', {
-        symbol: 'NABIL',
-        condition: 'above',
-        threshold: 600
-    }, 201);
-    await apiRequest(`/alerts/${alert.data.id}`, userA.token, 'PUT', { enabled: false });
-    await apiRequest(`/alerts/${alert.data.id}`, userB.token, 'DELETE', undefined, 404);
-    await apiRequest(`/alerts/${alert.data.id}`, userA.token, 'DELETE');
+    const alert = await apiRequest({
+        pathname: '/alerts',
+        token: userA.token,
+        method: 'POST',
+        data: {
+            symbol: 'NABIL',
+            condition: 'above',
+            threshold: 600
+        },
+        expectedStatus: 201
+    });
+    await apiRequest({ pathname: `/alerts/${alert.data.id}`, token: userA.token, method: 'PUT', data: { enabled: false } });
+    await apiRequest({ pathname: `/alerts/${alert.data.id}`, token: userB.token, method: 'DELETE', expectedStatus: 404 });
+    await apiRequest({ pathname: `/alerts/${alert.data.id}`, token: userA.token, method: 'DELETE' });
     pass('alerts CRUD and isolation');
 }
 

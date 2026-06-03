@@ -27,6 +27,53 @@ const loadJson = (filePath, fallback) => {
 
 const parseDate = (value) => (value ? new Date(value) : null);
 
+const loadArrayCollection = (file, label) => {
+  const items = loadJson(file, []);
+  if (Array.isArray(items)) return items;
+
+  console.warn(`${label} file did not contain an array.`);
+  return [];
+};
+
+const hasItems = (items) => items.length > 0;
+
+const logMigrationFailures = (label, failures) => {
+  if (failures.length === 0) return;
+  console.warn(`${failures.length} ${label} item(s) failed to migrate:`, failures.map(f => f.symbol).join(', '));
+};
+
+async function upsertCollectionItem(model, symbol, data) {
+  await model.upsert({
+    where: { symbol },
+    update: data,
+    create: { symbol, ...data },
+  });
+}
+
+async function migrateCollectionItem({ item, label, model, resolveKey, buildData }) {
+  const symbol = resolveKey(item);
+  if (!symbol) return null;
+
+  try {
+    await upsertCollectionItem(model, symbol, buildData(item, symbol));
+    return null;
+  } catch (err) {
+    console.error(`Failed to migrate ${label} item (symbol=${symbol}): ${err.message}`);
+    return { symbol, error: err.message };
+  }
+}
+
+async function migrateCollectionItems(items, options) {
+  const failures = [];
+
+  for (const item of items) {
+    const failure = await migrateCollectionItem({ item, ...options });
+    if (failure) failures.push(failure);
+  }
+
+  return failures;
+}
+
 /**
  * Generic upsert-based migration for array collections.
  * Eliminates structural duplication between migrateStocks / migrateIpos.
@@ -39,32 +86,15 @@ const parseDate = (value) => (value ? new Date(value) : null);
  * @param {Function} opts.buildData   - (item, symbol) => field object
  */
 const migrateCollection = async ({ file, label, model, resolveKey, buildData }) => {
-  const items = loadJson(file, []);
-  if (!Array.isArray(items) || items.length === 0) {
+  const items = loadArrayCollection(file, label);
+  if (!hasItems(items)) {
     console.log(`No ${label} found to migrate.`);
     return;
   }
 
   console.log(`Migrating ${items.length} ${label}...`);
-  const failures = [];
-  for (const item of items) {
-    const symbol = resolveKey(item);
-    if (!symbol) continue;
-    try {
-      const data = buildData(item, symbol);
-      await model.upsert({
-        where: { symbol },
-        update: data,
-        create: { symbol, ...data },
-      });
-    } catch (err) {
-      console.error(`Failed to migrate ${label} item (symbol=${symbol}): ${err.message}`);
-      failures.push({ symbol, error: err.message });
-    }
-  }
-  if (failures.length > 0) {
-    console.warn(`${failures.length} ${label} item(s) failed to migrate:`, failures.map(f => f.symbol).join(', '));
-  }
+  const failures = await migrateCollectionItems(items, { label, model, resolveKey, buildData });
+  logMigrationFailures(label, failures);
   console.log(`${label} migrated (${items.length - failures.length}/${items.length} succeeded).`);
 };
 
@@ -110,29 +140,36 @@ const migrateIpos = () => migrateCollection({
   buildData: buildIpoData,
 });
 
+const isValidHistoryEntry = (entry) => entry.symbol && entry.date;
+
+const buildMarketHistoryData = (entry) => ({
+  symbol: entry.symbol,
+  date: new Date(entry.date),
+  closePrice: entry.close || entry.closePrice || null,
+  highPrice: entry.highPrice ?? null,
+  lowPrice: entry.lowPrice ?? null,
+  volume: entry.volume ?? null,
+  turnover: entry.turnover ?? null,
+  change: entry.change ?? null,
+  percentageChange: entry.percentageChange ?? null,
+});
+
+async function createMarketHistoryEntry(entry) {
+  await prisma.marketHistory.create({
+    data: buildMarketHistoryData(entry),
+  });
+}
+
 const migrateMarketHistory = async () => {
-  const history = loadJson(FILES.marketHistory, []);
-  if (!Array.isArray(history) || history.length === 0) {
+  const history = loadArrayCollection(FILES.marketHistory, 'market history rows');
+  if (!hasItems(history)) {
     console.log('No market history found to migrate.');
     return;
   }
 
   console.log(`Migrating ${history.length} market history rows...`);
   for (const entry of history) {
-    if (!entry.symbol || !entry.date) continue;
-    await prisma.marketHistory.create({
-      data: {
-        symbol: entry.symbol,
-        date: new Date(entry.date),
-        closePrice: entry.close || entry.closePrice || null,
-        highPrice: entry.highPrice ?? null,
-        lowPrice: entry.lowPrice ?? null,
-        volume: entry.volume ?? null,
-        turnover: entry.turnover ?? null,
-        change: entry.change ?? null,
-        percentageChange: entry.percentageChange ?? null,
-      },
-    });
+    if (isValidHistoryEntry(entry)) await createMarketHistoryEntry(entry);
   }
   console.log('Market history migrated.');
 };

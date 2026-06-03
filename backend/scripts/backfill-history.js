@@ -72,30 +72,99 @@ function dayRange(date) {
 }
 
 function validateOhlcv(row) {
-    const date = parseBusinessDate(row.date);
-    const open = parseNumber(row.open);
-    const high = parseNumber(row.high);
-    const low = parseNumber(row.low);
-    const close = parseNumber(row.close);
-    const volume = parseNumber(row.volume);
-    const turnover = parseNumber(row.turnover);
+    const parsed = parseOhlcvRow(row);
+    const invalidReason = getOhlcvInvalidReason(parsed);
 
-    if (!date) return { ok: false, reason: 'invalid date' };
-    if (!close || close <= 0) return { ok: false, reason: 'invalid close' };
-    if (volume != null && volume < 0) return { ok: false, reason: 'negative volume' };
-    if (turnover != null && turnover < 0) return { ok: false, reason: 'negative turnover' };
+    if (invalidReason) {
+        return { ok: false, reason: invalidReason };
+    }
 
+    return { ok: true, row: parsed };
+}
+
+function parseOhlcvRow(row) {
+    return {
+        date: parseBusinessDate(row.date),
+        open: parseNumber(row.open),
+        high: parseNumber(row.high),
+        low: parseNumber(row.low),
+        close: parseNumber(row.close),
+        volume: parseNumber(row.volume),
+        turnover: parseNumber(row.turnover)
+    };
+}
+
+function getOhlcvInvalidReason(row) {
+    if (!row.date) return 'invalid date';
+    if (!row.close || row.close <= 0) return 'invalid close';
+    if (row.volume != null && row.volume < 0) return 'negative volume';
+    if (row.turnover != null && row.turnover < 0) return 'negative turnover';
+    return getPriceRangeInvalidReason(row);
+}
+
+function getPriceRangeInvalidReason({ open, high, low, close }) {
     const ceiling = Math.max(...[open, close, low].filter(v => v != null));
     const floor = Math.min(...[open, close, high].filter(v => v != null));
-    if (high != null && high < ceiling) return { ok: false, reason: 'high below traded price' };
-    if (low != null && low > floor) return { ok: false, reason: 'low above traded price' };
+    if (high != null && high < ceiling) return 'high below traded price';
+    if (low != null && low > floor) return 'low above traded price';
+    return null;
+}
 
-    return { ok: true, row: { date, open, high, low, close, volume, turnover } };
+const hasMeroLaganiSeriesFormat = (data) => (
+    data?.priceData && Array.isArray(data.priceData)
+);
+
+const hasMeroLaganiFlatFormat = (data) => (
+    Array.isArray(data) && data.length > 0 && Array.isArray(data[0])
+);
+
+function toVolumeMap(volumeData = []) {
+    return Object.fromEntries(volumeData.map(([ts, volume]) => [ts, volume]));
+}
+
+function toMeroLaganiSeriesRow(volumeMap) {
+    return ([ts, open, high, low, close]) => ({
+        date: new Date(ts),
+        open: parseFloat(open) || null,
+        high: parseFloat(high) || null,
+        low: parseFloat(low) || null,
+        close: parseFloat(close) || null,
+        volume: parseFloat(volumeMap[ts]) || null
+    });
+}
+
+const toMeroLaganiFlatRow = (entry) => ({
+    date: new Date(entry[0]),
+    open: parseFloat(entry[1]) || null,
+    high: parseFloat(entry[2]) || null,
+    low: parseFloat(entry[3]) || null,
+    close: parseFloat(entry[4]) || null,
+    volume: entry[5] !== undefined ? parseFloat(entry[5]) : null
+});
+
+const isValidSourceRow = (row) => (
+    row.close && row.close > 0 && row.date instanceof Date && !Number.isNaN(row.date.getTime())
+);
+
+function mapMeroLaganiRows(data, symbol) {
+    if (hasMeroLaganiSeriesFormat(data)) {
+        return data.priceData.map(toMeroLaganiSeriesRow(toVolumeMap(data.volumeData)));
+    }
+
+    if (hasMeroLaganiFlatFormat(data)) {
+        return data.map(toMeroLaganiFlatRow);
+    }
+
+    if (data && typeof data === 'object') {
+        const keys = Object.keys(data);
+        log(`MeroLagani ${symbol}: unknown format, keys: ${keys.slice(0, 5).join(', ')}`);
+    }
+
+    return [];
 }
 
 /**
- * Fetch historical OHLCV data from MeroLagani
- * Returns array of { date, open, high, low, close, volume }
+ * Fetch historical OHLCV data from MeroLagani.
  */
 async function fetchFromMeroLagani(symbol) {
     const url = `https://merolagani.com/handlers/TechnicalChartHandler.ashx?type=stock_history&symbol=${symbol}`;
@@ -109,72 +178,49 @@ async function fetchFromMeroLagani(symbol) {
         timeout: 20000
     });
 
-    const data = res.data;
-
-    // MeroLagani returns HighCharts-compatible format:
-    // { volumeData: [[ts, vol], ...], priceData: [[ts, open, high, low, close], ...] }
-    // OR flat array: [[ts, open, high, low, close, vol], ...]
-
-    let rows = [];
-
-    if (data && data.priceData && Array.isArray(data.priceData)) {
-        // Format: { priceData: [[ts, o, h, l, c], ...], volumeData: [[ts, vol], ...] }
-        const volMap = {};
-        if (data.volumeData) {
-            data.volumeData.forEach(([ts, vol]) => { volMap[ts] = vol; });
-        }
-        rows = data.priceData.map(([ts, open, high, low, close]) => ({
-            date: new Date(ts),
-            open: parseFloat(open) || null,
-            high: parseFloat(high) || null,
-            low: parseFloat(low) || null,
-            close: parseFloat(close) || null,
-            volume: parseFloat(volMap[ts]) || null
-        }));
-    } else if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0])) {
-        // Format: [[ts, open, high, low, close, volume], ...]
-        rows = data.map(entry => ({
-            date: new Date(entry[0]),
-            open: parseFloat(entry[1]) || null,
-            high: parseFloat(entry[2]) || null,
-            low: parseFloat(entry[3]) || null,
-            close: parseFloat(entry[4]) || null,
-            volume: entry[5] !== undefined ? parseFloat(entry[5]) : null
-        }));
-    } else if (data && typeof data === 'object') {
-        // Try to handle other possible formats
-        const keys = Object.keys(data);
-        log(`MeroLagani ${symbol}: unknown format, keys: ${keys.slice(0, 5).join(', ')}`);
-        return null;
-    }
-
-    // Filter out bad rows
-    rows = rows.filter(r => r.close && r.close > 0 && r.date instanceof Date && !isNaN(r.date));
-
+    const rows = mapMeroLaganiRows(res.data, symbol).filter(isValidSourceRow);
     return rows.length > 0 ? rows : null;
 }
 
-function extractShareSansarContext(html, headers, pageUrl, symbol) {
+const getShareSansarCookie = (headers) => (
+    (headers['set-cookie'] || []).map(value => value.split(';')[0]).join('; ')
+);
+
+function getDirectShareSansarContext(html) {
     const token = html.match(/<meta name="_token" content="([^"]+)"/)?.[1];
     const directCompany = html.match(/<div id="companyid"[^>]*>([^<]+)<\/div>/)?.[1]?.trim();
-    const cookie = (headers['set-cookie'] || []).map(value => value.split(';')[0]).join('; ');
 
-    if (token && directCompany) {
-        return { token, company: directCompany, cookie, pageUrl };
-    }
+    return token && directCompany ? { token, company: directCompany } : null;
+}
 
-    let company = null;
+function findShareSansarCompanyId(html, symbol) {
     const companyPattern = /"id":(\d+),"symbol":"([^"]+)","companyname":/g;
     let match;
     while ((match = companyPattern.exec(html)) !== null) {
         if (match[2].replace(/\\\//g, '/') === symbol) {
-            company = match[1];
-            break;
+            return match[1];
         }
     }
+    return null;
+}
+
+function getEmbeddedShareSansarContext(html, symbol) {
+    const token = html.match(/<meta name="_token" content="([^"]+)"/)?.[1];
+    const company = findShareSansarCompanyId(html, symbol);
 
     if (!token || !company) return null;
-    return { token, company, cookie, pageUrl };
+    return { token, company };
+}
+
+function extractShareSansarContext(html, headers, pageUrl, symbol) {
+    const context = getDirectShareSansarContext(html) || getEmbeddedShareSansarContext(html, symbol);
+    if (!context) return null;
+
+    return {
+        ...context,
+        cookie: getShareSansarCookie(headers),
+        pageUrl
+    };
 }
 
 async function fetchShareSansarCompanyContext(symbol) {
@@ -320,6 +366,28 @@ async function fetchFromShareSansarPage(symbol) {
     return rows.length > 0 ? rows : null;
 }
 
+function readFirstDefined(item, keys) {
+    for (const key of keys) {
+        if (item[key] !== undefined && item[key] !== null) return item[key];
+    }
+    return undefined;
+}
+
+const readAlphaNumber = (item, keys) => (
+    parseFloat(readFirstDefined(item, keys)) || null
+);
+
+function toNepseAlphaRow(item) {
+    return {
+        date: new Date(readFirstDefined(item, ['businessDate', 'date', 'd'])),
+        open: readAlphaNumber(item, ['openPrice', 'open', 'o']),
+        high: readAlphaNumber(item, ['highPrice', 'high', 'h']),
+        low: readAlphaNumber(item, ['lowPrice', 'low', 'l']),
+        close: readAlphaNumber(item, ['closePrice', 'close', 'c', 'ltp']),
+        volume: readAlphaNumber(item, ['totalTradeQuantity', 'volume', 'v'])
+    };
+}
+
 /**
  * Fetch from NEPSE Alpha (sometimes public without auth)
  */
@@ -344,14 +412,7 @@ async function fetchFromNepseAlpha(symbol) {
     const data = res.data;
     if (!data || !Array.isArray(data)) return null;
 
-    const rows = data.map(item => ({
-        date: new Date(item.businessDate || item.date || item.d),
-        open: parseFloat(item.openPrice || item.open || item.o) || null,
-        high: parseFloat(item.highPrice || item.high || item.h) || null,
-        low: parseFloat(item.lowPrice || item.low || item.l) || null,
-        close: parseFloat(item.closePrice || item.close || item.c || item.ltp) || null,
-        volume: parseFloat(item.totalTradeQuantity || item.volume || item.v) || null
-    })).filter(r => r.close && r.close > 0);
+    const rows = data.map(toNepseAlphaRow).filter(isValidSourceRow);
 
     return rows.length > 0 ? rows : null;
 }
@@ -369,24 +430,36 @@ async function fetchHistoricalData(symbol) {
 
     for (const src of sources) {
         try {
-            const data = await src.fn();
-            if (data && data.length > 0) {
-                log(`  ${symbol}: Got ${data.length} rows from ${src.name}`);
-                return { data, source: src.name };
-            }
+            const result = await fetchFromHistoricalSource(symbol, src);
+            if (result) return result;
         } catch (e) {
-            if (e.response?.status === 429) {
-                warn(`  ${symbol}: Rate limited on ${src.name}, waiting...`);
-                await sleep(DELAY_ON_ERROR);
-            } else if (e.response?.status === 404 || e.response?.status === 403) {
-                // Symbol not found on this source, try next
-            } else {
-                warn(`  ${symbol}: ${src.name} failed: ${e.message}`);
-            }
+            await handleHistoricalSourceError(symbol, src.name, e);
         }
     }
 
     return null;
+}
+
+async function fetchFromHistoricalSource(symbol, source) {
+    const data = await source.fn();
+    if (!data || data.length === 0) return null;
+
+    log(`  ${symbol}: Got ${data.length} rows from ${source.name}`);
+    return { data, source: source.name };
+}
+
+async function handleHistoricalSourceError(symbol, sourceName, errorValue) {
+    if (errorValue.response?.status === 429) {
+        warn(`  ${symbol}: Rate limited on ${sourceName}, waiting...`);
+        await sleep(DELAY_ON_ERROR);
+        return;
+    }
+
+    if ([404, 403].includes(errorValue.response?.status)) {
+        return;
+    }
+
+    warn(`  ${symbol}: ${sourceName} failed: ${errorValue.message}`);
 }
 
 async function updateStockFromLatestHistory(symbol, enrichedRows) {
@@ -413,7 +486,7 @@ async function updateStockFromLatestHistory(symbol, enrichedRows) {
     return true;
 }
 
-async function storeHistoryBatch(symbol, rows) {
+function normalizeValidRows(rows) {
     const normalizedByDay = new Map();
     let invalid = 0;
 
@@ -427,158 +500,274 @@ async function storeHistoryBatch(symbol, rows) {
         normalizedByDay.set(result.row.date.toISOString().slice(0, 10), result.row);
     }
 
-    const sorted = Array.from(normalizedByDay.values()).sort((a, b) => a.date - b.date);
+    return {
+        invalid,
+        sorted: Array.from(normalizedByDay.values()).sort((a, b) => a.date - b.date)
+    };
+}
 
-    const enriched = sorted.map((row, i) => {
-        let change = null;
-        let percentageChange = null;
-        if (i > 0 && sorted[i - 1].close && row.close) {
-            change = row.close - sorted[i - 1].close;
-            percentageChange = (change / sorted[i - 1].close) * 100;
-        }
-        return {
-            symbol,
-            date: row.date,
-            openPrice: row.open,
-            closePrice: row.close,
-            highPrice: row.high || null,
-            lowPrice: row.low || null,
-            volume: row.volume || null,
-            turnover: row.turnover || null,
-            change,
-            percentageChange
-        };
+function getHistoryChange(row, previous) {
+    if (!previous?.close || !row.close) {
+        return { change: null, percentageChange: null };
+    }
+
+    const change = row.close - previous.close;
+    return {
+        change,
+        percentageChange: (change / previous.close) * 100
+    };
+}
+
+function toMarketHistoryRow(symbol, row, previous) {
+    return {
+        symbol,
+        date: row.date,
+        openPrice: row.open,
+        closePrice: row.close,
+        highPrice: row.high || null,
+        lowPrice: row.low || null,
+        volume: row.volume || null,
+        turnover: row.turnover || null,
+        ...getHistoryChange(row, previous)
+    };
+}
+
+function enrichHistoryRows(symbol, sortedRows) {
+    return sortedRows.map((row, index) => (
+        toMarketHistoryRow(symbol, row, sortedRows[index - 1])
+    ));
+}
+
+async function findExistingHistoryRow(row) {
+    const { start, end } = dayRange(row.date);
+    return prisma.marketHistory.findFirst({
+        where: {
+            symbol: row.symbol,
+            date: { gte: start, lt: end }
+        },
+        select: { id: true }
     });
+}
 
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
+async function upsertHistoryRow(row) {
+    const existing = await findExistingHistoryRow(row);
 
-    for (const row of enriched) {
+    if (!existing) {
+        await prisma.marketHistory.create({ data: row });
+        return 'created';
+    }
+
+    await prisma.marketHistory.update({ where: { id: existing.id }, data: row });
+    return 'updated';
+}
+
+function incrementStoreStats(stats, result) {
+    stats[result]++;
+}
+
+async function storeEnrichedRows(enrichedRows) {
+    const stats = { created: 0, updated: 0, skipped: 0 };
+
+    for (const row of enrichedRows) {
         try {
-            const { start, end } = dayRange(row.date);
-            const existing = await prisma.marketHistory.findFirst({
-                where: {
-                    symbol: row.symbol,
-                    date: { gte: start, lt: end }
-                },
-                select: { id: true }
-            });
-
-            if (!existing) {
-                await prisma.marketHistory.create({ data: row });
-                created++;
-            } else {
-                await prisma.marketHistory.update({ where: { id: existing.id }, data: row });
-                updated++;
-            }
+            incrementStoreStats(stats, await upsertHistoryRow(row));
         } catch (e) {
-            skipped++;
+            stats.skipped++;
         }
     }
 
-    const currentUpdated = await updateStockFromLatestHistory(symbol, enriched);
-
-    return { created, updated, skipped, invalid, currentUpdated };
+    return stats;
 }
 
-async function main() {
+async function storeHistoryBatch(symbol, rows) {
+    const { invalid, sorted } = normalizeValidRows(rows);
+    const enriched = enrichHistoryRows(symbol, sorted);
+    const stats = await storeEnrichedRows(enriched);
+    const currentUpdated = await updateStockFromLatestHistory(symbol, enriched);
+
+    return { ...stats, invalid, currentUpdated };
+}
+
+function logBackfillConfig() {
     log(`=== Historical Data Backfill ===`);
     log(`Target: ${TARGET_DAYS} trading days (approx 1 year = 235)`);
     log(`Force: ${FORCE}`);
     if (SINGLE_SYMBOL) log(`Focusing on: ${SINGLE_SYMBOL}`);
+}
 
+async function loadOrdinaryShareMap() {
     log('Fetching official ordinary-share directory...');
     const ordinaryShareMap = buildOrdinaryShareMap(await fetchOfficialCompanyList());
     if (ordinaryShareMap.size === 0) {
         throw new Error('Could not load ordinary-share list from NEPSE company directory');
     }
+    return ordinaryShareMap;
+}
 
-    const dbStocks = await prisma.stock.findMany({
+async function loadDbStocks() {
+    return prisma.stock.findMany({
         select: { symbol: true },
         ...(SINGLE_SYMBOL ? { where: { symbol: normalizeSymbol(SINGLE_SYMBOL) } } : {})
     });
-    const stocks = dbStocks.filter(stock => ordinaryShareMap.has(normalizeSymbol(stock.symbol)));
+}
 
+function exitBackfill(message) {
+    error(message);
+    process.exit(1);
+}
+
+function validateSelectedStocks(dbStocks, stocks) {
     if (dbStocks.length === 0) {
-        error('No stocks found in database. Run the server first to populate stocks.');
-        process.exit(1);
+        exitBackfill('No stocks found in database. Run the server first to populate stocks.');
     }
     if (stocks.length === 0 && SINGLE_SYMBOL) {
-        error(`${SINGLE_SYMBOL} is not an active ordinary share in NEPSE's company directory.`);
-        process.exit(1);
+        exitBackfill(`${SINGLE_SYMBOL} is not an active ordinary share in NEPSE's company directory.`);
     }
+}
 
+function logExcludedSecurities(dbStocks, stocks) {
     const excluded = dbStocks.length - stocks.length;
     if (excluded > 0) {
         log(`Excluded ${excluded} non-ordinary securities from this backfill.`);
     }
+}
 
+async function loadTargetStocks() {
+    const ordinaryShareMap = await loadOrdinaryShareMap();
+    const dbStocks = await loadDbStocks();
+    const stocks = dbStocks.filter(stock => ordinaryShareMap.has(normalizeSymbol(stock.symbol)));
+
+    validateSelectedStocks(dbStocks, stocks);
+    logExcludedSecurities(dbStocks, stocks);
     log(`Found ${stocks.length} stocks to process`);
+    return stocks;
+}
 
-    const stats = { processed: 0, fetched: 0, skipped: 0, failed: 0, totalStored: 0 };
-    const failed = [];
+const createBackfillStats = () => ({
+    processed: 0,
+    fetched: 0,
+    skipped: 0,
+    failed: 0,
+    totalStored: 0
+});
 
-    for (let i = 0; i < stocks.length; i++) {
-        const { symbol } = stocks[i];
-        stats.processed++;
+async function getHistoryState(symbol) {
+    const [count, latest] = await Promise.all([
+        prisma.marketHistory.count({ where: { symbol } }),
+        prisma.marketHistory.findFirst({
+            where: { symbol },
+            orderBy: { date: 'desc' },
+            select: { date: true }
+        })
+    ]);
+    return { count, latest };
+}
 
-        if (!FORCE) {
-            const [count, latest] = await Promise.all([
-                prisma.marketHistory.count({ where: { symbol } }),
-                prisma.marketHistory.findFirst({
-                    where: { symbol },
-                    orderBy: { date: 'desc' },
-                    select: { date: true }
-                })
-            ]);
-            const staleCutoff = new Date();
-            staleCutoff.setUTCDate(staleCutoff.getUTCDate() - STALE_DAYS);
+function getStaleCutoff() {
+    const staleCutoff = new Date();
+    staleCutoff.setUTCDate(staleCutoff.getUTCDate() - STALE_DAYS);
+    return staleCutoff;
+}
 
-            if (count >= TARGET_DAYS) {
-                if (latest?.date && latest.date >= staleCutoff) {
-                    log(`[${i + 1}/${stocks.length}] ${symbol}: already has ${count} rows through ${latest.date.toISOString().slice(0, 10)}, skipping`);
-                    stats.skipped++;
-                    continue;
-                }
-                log(`[${i + 1}/${stocks.length}] ${symbol}: has ${count} rows but latest is ${latest?.date?.toISOString().slice(0, 10) || 'unknown'}, refreshing...`);
-            }
-            else if (count > 0) {
-                log(`[${i + 1}/${stocks.length}] ${symbol}: has ${count}/${TARGET_DAYS} rows, fetching more...`);
-            } else {
-                log(`[${i + 1}/${stocks.length}] ${symbol}: no history, fetching...`);
-            }
-        } else {
-            log(`[${i + 1}/${stocks.length}] ${symbol}: force mode, fetching...`);
-        }
+const hasTargetHistoryDepth = (count) => count >= TARGET_DAYS;
 
-        let result = null;
-        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-            if (attempt > 0) {
-                warn(`  ${symbol}: retry ${attempt}/${MAX_RETRIES}`);
-                await sleep(DELAY_ON_ERROR);
-            }
-            result = await fetchHistoricalData(symbol);
-            if (result) break;
-        }
+const hasFreshLatestHistory = (latest) => Boolean(
+    latest?.date && latest.date >= getStaleCutoff()
+);
 
-        if (!result) {
-            error(`  ${symbol}: all sources failed`);
-            stats.failed++;
-            failed.push(symbol);
-        } else {
-            const { created, updated, skipped, invalid, currentUpdated } = await storeHistoryBatch(symbol, result.data);
-            stats.fetched++;
-            stats.totalStored += created;
-            log(`  ${symbol}: created ${created}, updated ${updated}, skipped ${skipped}, invalid ${invalid}, current=${currentUpdated ? 'updated' : 'unchanged'}`);
-        }
+const getLatestHistoryDay = (latest) => (
+    latest?.date?.toISOString().slice(0, 10) || 'unknown'
+);
 
-        // Rate limit between stocks
-        if (i < stocks.length - 1) {
-            await sleep(DELAY_BETWEEN_STOCKS);
-        }
+const createHistoryPlan = (skip, message) => ({ skip, message });
+
+function getHistoryPlan({ count, latest }) {
+    const latestDay = getLatestHistoryDay(latest);
+
+    if (hasTargetHistoryDepth(count) && hasFreshLatestHistory(latest)) {
+        return createHistoryPlan(true, `already has ${count} rows through ${latestDay}, skipping`);
     }
 
+    if (hasTargetHistoryDepth(count)) {
+        return createHistoryPlan(false, `has ${count} rows but latest is ${latestDay}, refreshing...`);
+    }
+
+    if (count > 0) {
+        return createHistoryPlan(false, `has ${count}/${TARGET_DAYS} rows, fetching more...`);
+    }
+
+    return createHistoryPlan(false, 'no history, fetching...');
+}
+
+function logStockPlan(index, total, symbol, message) {
+    log(`[${index + 1}/${total}] ${symbol}: ${message}`);
+}
+
+async function shouldSkipHistoryFetch(symbol, index, context) {
+    if (FORCE) {
+        logStockPlan(index, context.total, symbol, 'force mode, fetching...');
+        return false;
+    }
+
+    const plan = getHistoryPlan(await getHistoryState(symbol));
+    logStockPlan(index, context.total, symbol, plan.message);
+    return plan.skip;
+}
+
+async function fetchWithRetries(symbol) {
+    let result = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+            warn(`  ${symbol}: retry ${attempt}/${MAX_RETRIES}`);
+            await sleep(DELAY_ON_ERROR);
+        }
+
+        result = await fetchHistoricalData(symbol);
+        if (result) return result;
+    }
+
+    return result;
+}
+
+async function recordFetchedHistory(symbol, result, stats) {
+    const stored = await storeHistoryBatch(symbol, result.data);
+    stats.fetched++;
+    stats.totalStored += stored.created;
+    log(`  ${symbol}: created ${stored.created}, updated ${stored.updated}, skipped ${stored.skipped}, invalid ${stored.invalid}, current=${stored.currentUpdated ? 'updated' : 'unchanged'}`);
+}
+
+function recordFailedHistory(symbol, stats, failed) {
+    error(`  ${symbol}: all sources failed`);
+    stats.failed++;
+    failed.push(symbol);
+}
+
+async function processBackfillStock(stock, index, context) {
+    const { symbol } = stock;
+    context.stats.processed++;
+
+    if (await shouldSkipHistoryFetch(symbol, index, context)) {
+        context.stats.skipped++;
+        return;
+    }
+
+    const result = await fetchWithRetries(symbol);
+    if (result) {
+        await recordFetchedHistory(symbol, result, context.stats);
+        return;
+    }
+
+    recordFailedHistory(symbol, context.stats, context.failed);
+}
+
+async function waitBetweenStocks(index, total) {
+    if (index < total - 1) {
+        await sleep(DELAY_BETWEEN_STOCKS);
+    }
+}
+
+function logBackfillSummary(stats, failed) {
     log('\n=== Backfill Complete ===');
     log(`Processed: ${stats.processed}`);
     log(`Fetched:   ${stats.fetched}`);
@@ -588,6 +777,23 @@ async function main() {
     if (failed.length > 0) {
         log(`\nFailed symbols: ${failed.join(', ')}`);
     }
+}
+
+async function main() {
+    logBackfillConfig();
+    const stocks = await loadTargetStocks();
+    const context = {
+        stats: createBackfillStats(),
+        failed: [],
+        total: stocks.length
+    };
+
+    for (let i = 0; i < stocks.length; i++) {
+        await processBackfillStock(stocks[i], i, context);
+        await waitBetweenStocks(i, stocks.length);
+    }
+
+    logBackfillSummary(context.stats, context.failed);
 
     await prisma.$disconnect();
 }

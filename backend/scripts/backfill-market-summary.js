@@ -51,31 +51,71 @@ function isWithinRequestedRange(date) {
     return true;
 }
 
+function parseMarketSummaryCandidate(row) {
+    return {
+        date: parseBusinessDate(row.time || row.ad_short),
+        indexValue: parseNumber(row.val_index),
+        totalTurnover: parseNumber(row.turnover)
+    };
+}
+
+function isValidMarketSummaryCandidate(row) {
+    return row.date && row.indexValue && row.indexValue > 0;
+}
+
+function getIndexMovement(row, previous) {
+    if (!previous?.indexValue) {
+        return { indexChange: null, indexChangePercent: null };
+    }
+
+    const indexChange = row.indexValue - previous.indexValue;
+    return {
+        indexChange: Number(indexChange.toFixed(2)),
+        indexChangePercent: Number(((indexChange / previous.indexValue) * 100).toFixed(2))
+    };
+}
+
+function toStoredMarketSummaryRow(row, previous) {
+    return {
+        indexValue: row.indexValue,
+        ...getIndexMovement(row, previous),
+        totalTurnover: row.totalTurnover,
+        timestamp: row.date
+    };
+}
+
 function toMarketSummaryRows(rawRows) {
     const sorted = rawRows
-        .map((row) => ({
-            date: parseBusinessDate(row.time || row.ad_short),
-            indexValue: parseNumber(row.val_index),
-            totalTurnover: parseNumber(row.turnover)
-        }))
-        .filter(row => row.date && row.indexValue && row.indexValue > 0)
+        .map(parseMarketSummaryCandidate)
+        .filter(isValidMarketSummaryCandidate)
         .filter(row => isWithinRequestedRange(row.date))
         .sort((a, b) => a.date - b.date);
 
-    return sorted.map((row, idx) => {
-        const previous = idx > 0 ? sorted[idx - 1] : null;
-        const indexChange = previous ? row.indexValue - previous.indexValue : null;
-        const indexChangePercent = previous && previous.indexValue
-            ? (indexChange / previous.indexValue) * 100
-            : null;
+    return sorted.map((row, idx) => toStoredMarketSummaryRow(row, sorted[idx - 1]));
+}
 
-        return {
-            indexValue: row.indexValue,
-            indexChange: indexChange == null ? null : Number(indexChange.toFixed(2)),
-            indexChangePercent: indexChangePercent == null ? null : Number(indexChangePercent.toFixed(2)),
-            totalTurnover: row.totalTurnover,
-            timestamp: row.date
-        };
+async function createDailySummary(row) {
+    if (!DRY_RUN) await prisma.marketSummary.create({ data: row });
+    return { created: 1, updated: 0, deduped: 0 };
+}
+
+async function updateDailySummary(row, existingRows) {
+    if (!DRY_RUN) {
+        await prisma.marketSummary.update({
+            where: { id: existingRows[0].id },
+            data: row
+        });
+        await deleteDuplicateDailySummaries(existingRows.slice(1));
+    }
+
+    return { created: 0, updated: 1, deduped: Math.max(0, existingRows.length - 1) };
+}
+
+async function deleteDuplicateDailySummaries(duplicates) {
+    if (duplicates.length === 0) return;
+
+    await prisma.marketSummary.deleteMany({
+        where: { id: { in: duplicates.map(r => r.id) } }
     });
 }
 
@@ -88,24 +128,10 @@ async function upsertDailySummary(row) {
     });
 
     if (existingRows.length === 0) {
-        if (!DRY_RUN) await prisma.marketSummary.create({ data: row });
-        return { created: 1, updated: 0, deduped: 0 };
+        return createDailySummary(row);
     }
 
-    if (!DRY_RUN) {
-        await prisma.marketSummary.update({
-            where: { id: existingRows[0].id },
-            data: row
-        });
-
-        if (existingRows.length > 1) {
-            await prisma.marketSummary.deleteMany({
-                where: { id: { in: existingRows.slice(1).map(r => r.id) } }
-            });
-        }
-    }
-
-    return { created: 0, updated: 1, deduped: Math.max(0, existingRows.length - 1) };
+    return updateDailySummary(row, existingRows);
 }
 
 async function main() {

@@ -36,20 +36,37 @@ const KEY_MAPPERS = {
     '30-Day Avg Volume': 'avgVol30dExt'
 };
 
+const stripHtml = (value) => value.replace(/<[^>]*>/g, '').trim();
+
+const normalizeIndicatorValue = (value) => stripHtml(value).replace(/,/g, '');
+
+const findMappedIndicatorKey = (key) => (
+    Object.keys(KEY_MAPPERS).find(mapperKey => key.includes(mapperKey))
+);
+
+function parseIndicatorPair(match) {
+    const key = stripHtml(match[1]);
+    const value = normalizeIndicatorValue(match[2]);
+    return { key, value };
+}
+
+function applyIndicatorPair(data, pair) {
+    const mapperKey = findMappedIndicatorKey(pair.key);
+    if (!mapperKey) return;
+
+    const numericValue = parseFloat(pair.value);
+    if (!Number.isNaN(numericValue)) {
+        data[KEY_MAPPERS[mapperKey]] = numericValue;
+    }
+}
+
 function extractIndicators(html, data) {
     const pairRegex = /<th[^>]*>([\s\S]*?)<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi;
     let match;
 
     while ((match = pairRegex.exec(html)) !== null) {
-        const key = match[1].replace(/<[^>]*>/g, '').trim();
-        const val = match[2].replace(/<[^>]*>/g, '').trim().replace(/,/g, '');
-        if (!key || !val) continue;
-
-        const mapperKey = Object.keys(KEY_MAPPERS).find(k => key.includes(k));
-        if (mapperKey) {
-            const n = parseFloat(val);
-            if (!isNaN(n)) data[KEY_MAPPERS[mapperKey]] = n;
-        }
+        const pair = parseIndicatorPair(match);
+        if (pair.key && pair.value) applyIndicatorPair(data, pair);
     }
 }
 
