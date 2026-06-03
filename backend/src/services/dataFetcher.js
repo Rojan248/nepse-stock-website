@@ -82,12 +82,9 @@ const ensureSourceStats = (source) => {
     return sourceStats[source];
 };
 
-const recordSourceAttempt = (source, status, durationMs, error = null) => {
-    const stats = ensureSourceStats(source);
-    stats.attempts++;
-    stats.lastAttemptAt = new Date().toISOString();
-    stats.lastDurationMs = durationMs;
+const RATE_LIMIT_ERROR_PATTERN = /429|rate/i;
 
+const applySourceAttemptStatus = (stats, status) => {
     if (status === 'success') {
         stats.successes++;
         stats.lastSuccessAt = stats.lastAttemptAt;
@@ -97,12 +94,33 @@ const recordSourceAttempt = (source, status, durationMs, error = null) => {
 
     if (status === 'invalid') {
         stats.invalid++;
-    } else {
-        stats.failures++;
+        return;
     }
 
-    stats.lastError = error?.message || status;
-    if (error?.response?.status === 429 || /429|rate/i.test(error?.message || '')) {
+    stats.failures++;
+};
+
+const getAttemptErrorMessage = (status, error) => error?.message || status;
+
+const isRateLimitError = (error) => {
+    const responseStatus = error?.response?.status;
+    return responseStatus === 429 || RATE_LIMIT_ERROR_PATTERN.test(error?.message || '');
+};
+
+const recordSourceAttempt = (source, status, durationMs, error = null) => {
+    const stats = ensureSourceStats(source);
+    stats.attempts++;
+    stats.lastAttemptAt = new Date().toISOString();
+    stats.lastDurationMs = durationMs;
+
+    applySourceAttemptStatus(stats, status);
+
+    if (status === 'success') {
+        return;
+    }
+
+    stats.lastError = getAttemptErrorMessage(status, error);
+    if (isRateLimitError(error)) {
         rateLimitEvents++;
     }
 };
@@ -476,33 +494,49 @@ const hasPriceAnomalies = async (incomingStocks) => {
 
     try {
         const symbols = incomingStocks.map(s => s.symbol);
-        const existingStocks = await prisma.stock.findMany({
-            where: { symbol: { in: symbols } },
-            select: { symbol: true, lastTradedPrice: true }
-        });
-
-        const existingMap = new Map(existingStocks.map(s => [s.symbol, s.lastTradedPrice]));
+        const existingMap = await loadExistingPriceMap(symbols);
 
         for (const stock of incomingStocks) {
-            const oldPrice = existingMap.get(stock.symbol);
-            if (!oldPrice || oldPrice === 0) continue;
-
-            const newPrice = stock.lastTradedPrice;
-            if (!newPrice || newPrice === 0) continue;
-
-            const delta = Math.abs(newPrice - oldPrice) / oldPrice;
-            
-            // NEPSE circuit breaker is usually 10%, but 15% is a safe "data glitch" threshold
-            if (delta > 0.15) {
-                logger.error(`[Anomaly] Rejecting data: ${stock.symbol} moved ${ (delta * 100).toFixed(1) }% (${oldPrice} -> ${newPrice})`);
-                return true; 
-            }
+            const anomaly = getPriceAnomaly(stock, existingMap);
+            if (!anomaly) continue;
+            logPriceAnomaly(stock.symbol, anomaly);
+            return true;
         }
     } catch (error) {
         logger.error(`Anomaly detection failed: ${error.message}`);
         return false; // Fail safe
     }
     return false;
+};
+
+const loadExistingPriceMap = async (symbols) => {
+    const existingStocks = await prisma.stock.findMany({
+        where: { symbol: { in: symbols } },
+        select: { symbol: true, lastTradedPrice: true }
+    });
+
+    return new Map(existingStocks.map(s => [s.symbol, s.lastTradedPrice]));
+};
+
+const hasUsablePrice = (price) => Number(price) > 0;
+
+const calculatePriceDelta = (oldPrice, newPrice) => Math.abs(newPrice - oldPrice) / oldPrice;
+
+const getPriceAnomaly = (stock, existingMap) => {
+    const oldPrice = existingMap.get(stock.symbol);
+    const newPrice = stock.lastTradedPrice;
+
+    if (!hasUsablePrice(oldPrice) || !hasUsablePrice(newPrice)) {
+        return null;
+    }
+
+    const delta = calculatePriceDelta(oldPrice, newPrice);
+    return delta > 0.15 ? { oldPrice, newPrice, delta } : null;
+};
+
+const logPriceAnomaly = (symbol, { oldPrice, newPrice, delta }) => {
+    const percent = (delta * 100).toFixed(1);
+    logger.error(`[Anomaly] Rejecting data: ${symbol} moved ${percent}% (${oldPrice} -> ${newPrice})`);
 };
 
 /**

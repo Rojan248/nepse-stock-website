@@ -66,6 +66,58 @@ function compareExternalToLocal(report, local, ext) {
     }
 }
 
+const isValidProviderResult = (result) =>
+    result.status === 'fulfilled' && result.value && !result.value.error;
+
+const extractProviderValues = (settledResults) => settledResults
+    .filter(isValidProviderResult)
+    .map(result => result.value);
+
+const fetchProviderSummaries = async (providers) => {
+    const settled = await Promise.allSettled(providers.map(p => p.fetchMarketSummary()));
+    return extractProviderValues(settled);
+};
+
+const fetchProviderStockResults = async (providers, symbol) => {
+    const settled = await Promise.allSettled(providers.map(p => p.fetchStockData(symbol)));
+    return extractProviderValues(settled);
+};
+
+const selectCorrectStockData = (validData) => validData.find(d => d.lastTradedPrice > 0) || validData[0];
+
+const normalizeWatchdogStock = (stockData) => {
+    const { normalizeStockData } = require('../utils/dataNormalizer');
+    return normalizeStockData(stockData, `watchdog_fix_${stockData.source || 'unknown'}`);
+};
+
+const saveNormalizedStock = async (normalized) => {
+    const stockOperations = require('../database/stockOperations');
+    await stockOperations.saveStocks([normalized]);
+};
+
+const findZeroVolumeAnomalies = () => prisma.stock.findMany({
+    where: {
+        volume: 0,
+        OR: [
+            { change: { not: 0 } },
+            { percentageChange: { not: 0 } }
+        ]
+    },
+    select: { symbol: true, change: true }
+});
+
+const readReportLogs = async () => {
+    try {
+        const content = await fs.promises.readFile(LOG_FILE, 'utf8');
+        const logs = JSON.parse(content);
+        return Array.isArray(logs) ? logs : [];
+    } catch (e) {
+        return [];
+    }
+};
+
+const trimReportLogs = (logs) => logs.length > 50 ? logs.slice(0, 50) : logs;
+
 class WatchdogService {
     constructor() {
         this.providers = [merolagani, nepseAlpha, shareSansar];
@@ -86,12 +138,7 @@ class WatchdogService {
 
         try {
             const localData = await this.getLocalData();
-        const externalDataSettled = await Promise.allSettled(
-            this.providers.map(p => p.fetchMarketSummary())
-        );
-        const externalData = externalDataSettled
-            .filter(r => r.status === 'fulfilled' && r.value && !r.value.error)
-            .map(r => r.value);
+        const externalData = await fetchProviderSummaries(this.providers);
 
         const report = this.generateReport(localData, externalData);
 
@@ -157,13 +204,7 @@ class WatchdogService {
         
         try {
             // Fetch from external providers specifically for this stock
-            const results = await Promise.allSettled(
-                this.providers.map(p => p.fetchStockData(symbol))
-            );
-
-            const validData = results
-                .filter(r => r.status === 'fulfilled' && r.value && !r.value.error)
-                .map(r => r.value);
+            const validData = await fetchProviderStockResults(this.providers, symbol);
 
             if (validData.length === 0) {
                 logger.warn(`[Watchdog] No external data found for ${symbol}`);
@@ -172,14 +213,11 @@ class WatchdogService {
 
             // Simple majority consensus or first valid for now
             // In a production system, we'd compare prices, but here we'll take the first non-zero LTP
-            const correctData = validData.find(d => d.lastTradedPrice > 0) || validData[0];
+            const correctData = selectCorrectStockData(validData);
             
             // Standardize and save
-            const { normalizeStockData } = require('../utils/dataNormalizer');
-            const normalized = normalizeStockData(correctData, `watchdog_fix_${correctData.source || 'unknown'}`);
-            
-            const stockOperations = require('../database/stockOperations');
-            await stockOperations.saveStocks([normalized]);
+            const normalized = normalizeWatchdogStock(correctData);
+            await saveNormalizedStock(normalized);
             
             logger.info(`[Watchdog] Fixed ${symbol} using data from ${correctData.source}`);
             return { success: true, source: correctData.source, data: normalized };
@@ -197,16 +235,7 @@ class WatchdogService {
         logger.info('[Watchdog] Starting zero-volume anomaly audit...');
         
         try {
-            const anomalies = await prisma.stock.findMany({
-                where: {
-                    volume: 0,
-                    OR: [
-                        { change: { not: 0 } },
-                        { percentageChange: { not: 0 } }
-                    ]
-                },
-                select: { symbol: true, change: true }
-            });
+            const anomalies = await findZeroVolumeAnomalies();
 
             if (anomalies.length === 0) {
                 logger.info('[Watchdog] No zero-volume anomalies detected.');
@@ -282,19 +311,9 @@ class WatchdogService {
 
     async saveReport(report) {
         try {
-            let logs = [];
-            try {
-                const content = await fs.promises.readFile(LOG_FILE, 'utf8');
-                logs = JSON.parse(content);
-                if (!Array.isArray(logs)) logs = [];
-            } catch (e) {
-                // ignore missing or corrupt file
-            }
-
+            const logs = await readReportLogs();
             logs.unshift(report);
-            if (logs.length > 50) logs = logs.slice(0, 50);
-
-            await fs.promises.writeFile(LOG_FILE, JSON.stringify(logs, null, 2));
+            await fs.promises.writeFile(LOG_FILE, JSON.stringify(trimReportLogs(logs), null, 2));
         } catch (error) {
             logger.error(`[Watchdog] Failed to save report: ${error.message}`);
         }

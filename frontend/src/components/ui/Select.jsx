@@ -2,6 +2,45 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import './Select.css';
 
+const normalizeOption = (option) =>
+  typeof option === 'object' ? option : { value: option, label: option };
+
+const resolveOptionValue = (option) => option.value || option;
+
+const resolveCurrentLabel = (options, value, placeholder) => {
+  const selected = options.find(opt => resolveOptionValue(opt) === value);
+  return selected?.label || selected?.value || value || placeholder;
+};
+
+const useOutsideClick = (wrapperRef, onOutsideClick) => {
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        onOutsideClick();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef, onOutsideClick]);
+};
+
+function SelectDropdown({ placeholder, options, value, onSelect }) {
+  return (
+    <div className="ui-select-dropdown">
+      {placeholder && <div className="ui-select-option disabled" style={{ opacity: 0.5 }}>{placeholder}</div>}
+      {options.map((option) => (
+        <div
+          key={option.value}
+          className={`ui-select-option ${value === option.value ? 'is-selected' : ''}`}
+          onClick={() => onSelect(option.value)}
+        >
+          {option.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const Select = ({
   value,
   onChange,
@@ -12,32 +51,15 @@ const Select = ({
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
 
-  // Close on click outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [wrapperRef]);
+  useOutsideClick(wrapperRef, () => setIsOpen(false));
 
   const handleSelect = (optionValue) => {
     onChange({ target: { value: optionValue } }); // Mock event to maintain compatibility
     setIsOpen(false);
   };
 
-  // Find label for current value
-  const currentLabel = options.find(opt => (opt.value || opt) === value)?.label ||
-    options.find(opt => (opt.value || opt) === value)?.value ||
-    value ||
-    placeholder;
-
-  // Normalize options to objects
-  const normalizedOptions = options.map(opt =>
-    typeof opt === 'object' ? opt : { value: opt, label: opt }
-  );
+  const currentLabel = resolveCurrentLabel(options, value, placeholder);
+  const normalizedOptions = options.map(normalizeOption);
 
   return (
     <div className={`ui-select-wrapper ${className}`} ref={wrapperRef}>
@@ -51,20 +73,7 @@ const Select = ({
         </div>
       </div>
 
-      {isOpen && (
-        <div className="ui-select-dropdown">
-          {placeholder && <div className="ui-select-option disabled" style={{ opacity: 0.5 }}>{placeholder}</div>}
-          {normalizedOptions.map((option) => (
-            <div
-              key={option.value}
-              className={`ui-select-option ${value === option.value ? 'is-selected' : ''}`}
-              onClick={() => handleSelect(option.value)}
-            >
-              {option.label}
-            </div>
-          ))}
-        </div>
-      )}
+      {isOpen && <SelectDropdown placeholder={placeholder} options={normalizedOptions} value={value} onSelect={handleSelect} />}
     </div>
   );
 };

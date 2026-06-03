@@ -32,42 +32,90 @@ function computeLocalMAs(prices, result, price) {
     result.ma120 = calcSMA(prices, 120);
     result.ma180 = calcSMA(prices, 180);
 
-    if (result.ma20)  result.priceVsMa20  = ((price - result.ma20)  / result.ma20)  * 100;
-    if (result.ma50)  result.priceVsMa50  = ((price - result.ma50)  / result.ma50)  * 100;
-    if (result.ma120) result.priceVsMa120 = ((price - result.ma120) / result.ma120) * 100;
-    if (result.ma180) result.priceVsMa180 = ((price - result.ma180) / result.ma180) * 100;
+    applyPriceComparisons(result, price);
 }
 
-function detectCrosses(prices, result) {
-    if (prices.length >= 181) {
-        const prevPrices = prices.slice(1);
-        const prevMa50  = calcSMA(prevPrices, 50);
-        const prevMa180 = calcSMA(prevPrices, 180);
+const MA_COMPARISON_FIELDS = [
+    ['ma20', 'priceVsMa20'],
+    ['ma50', 'priceVsMa50'],
+    ['ma120', 'priceVsMa120'],
+    ['ma180', 'priceVsMa180'],
+];
 
-        if (result.ma50 && result.ma180 && prevMa50 && prevMa180) {
-            if (prevMa50 < prevMa180 && result.ma50 > result.ma180) result.goldenCross = true;
-            if (prevMa50 > prevMa180 && result.ma50 < result.ma180) result.deathCross  = true;
-        }
+const hasAverage = (value) => Boolean(value);
+
+const priceVsAverage = (price, average) => ((price - average) / average) * 100;
+
+function applyPriceComparisons(result, price) {
+    for (const [averageField, comparisonField] of MA_COMPARISON_FIELDS) {
+        const average = result[averageField];
+        if (hasAverage(average)) result[comparisonField] = priceVsAverage(price, average);
     }
 }
 
+const hasCrossHistory = (prices) => prices.length >= 181;
+
+const buildPreviousCrossAverages = (prices) => {
+    const prevPrices = prices.slice(1);
+    return {
+        ma50: calcSMA(prevPrices, 50),
+        ma180: calcSMA(prevPrices, 180)
+    };
+};
+
+const hasCrossInputs = (current, previous) =>
+    hasAverage(current.ma50) && hasAverage(current.ma180) && hasAverage(previous.ma50) && hasAverage(previous.ma180);
+
+const crossedAbove = (previousShort, previousLong, currentShort, currentLong) =>
+    previousShort < previousLong && currentShort > currentLong;
+
+const crossedBelow = (previousShort, previousLong, currentShort, currentLong) =>
+    previousShort > previousLong && currentShort < currentLong;
+
+function detectCrosses(prices, result) {
+    if (!hasCrossHistory(prices)) return;
+
+    const previous = buildPreviousCrossAverages(prices);
+    if (!hasCrossInputs(result, previous)) return;
+
+    result.goldenCross = crossedAbove(previous.ma50, previous.ma180, result.ma50, result.ma180);
+    result.deathCross = crossedBelow(previous.ma50, previous.ma180, result.ma50, result.ma180);
+}
+
+const TREND_RULES = [
+    {
+        trend: 'bullish',
+        matches: (result, price) => hasAverage(result.ma20) && hasAverage(result.ma50)
+            && price > result.ma20 && result.ma20 > result.ma50
+    },
+    {
+        trend: 'bearish',
+        matches: (result, price) => hasAverage(result.ma20) && hasAverage(result.ma50)
+            && price < result.ma20 && result.ma20 < result.ma50
+    },
+    {
+        trend: 'bullish',
+        matches: (result, price) => hasAverage(result.ma120) && hasAverage(result.ma180)
+            && result.ma120 > result.ma180 && price > result.ma180
+    },
+    {
+        trend: 'bearish',
+        matches: (result, price) => hasAverage(result.ma120) && hasAverage(result.ma180)
+            && result.ma120 < result.ma180 && price < result.ma180
+    },
+    {
+        trend: 'bullish',
+        matches: (result, price) => hasAverage(result.ma180) && price > result.ma180 * 1.03
+    },
+    {
+        trend: 'bearish',
+        matches: (result, price) => hasAverage(result.ma180) && price < result.ma180 * 0.97
+    },
+];
+
 function determineTrend(result, price) {
-    const isBullShort = result.ma20 && result.ma50 && price > result.ma20 && result.ma20 > result.ma50;
-    const isBearShort = result.ma20 && result.ma50 && price < result.ma20 && result.ma20 < result.ma50;
-    if (isBullShort) return 'bullish';
-    if (isBearShort) return 'bearish';
-
-    const isBullMid = result.ma120 && result.ma180 && result.ma120 > result.ma180 && price > result.ma180;
-    const isBearMid = result.ma120 && result.ma180 && result.ma120 < result.ma180 && price < result.ma180;
-    if (isBullMid) return 'bullish';
-    if (isBearMid) return 'bearish';
-
-    const isBullLong = result.ma180 && price > result.ma180 * 1.03;
-    const isBearLong = result.ma180 && price < result.ma180 * 0.97;
-    if (isBullLong) return 'bullish';
-    if (isBearLong) return 'bearish';
-
-    return 'neutral';
+    const rule = TREND_RULES.find(({ matches }) => matches(result, price));
+    return rule?.trend || 'neutral';
 }
 
 /**
@@ -129,19 +177,25 @@ function compute(history, currentStock) {
  * Apply MeroLagani-sourced external fallbacks for any MA fields still null.
  * Marks applied fields with a `source_*` sibling for debugging.
  */
-function _applyExtFallbacks(result, currentStock, currentPrice, localDays) {
-    const ext180 = currentStock?.ma180Ext;
-    const ext120 = currentStock?.ma120Ext;
+const EXT_FALLBACK_FIELDS = [
+    { resultField: 'ma180', sourceField: 'ma180Ext', sourceMarker: 'source_ma180', comparisonField: 'priceVsMa180' },
+    { resultField: 'ma120', sourceField: 'ma120Ext', sourceMarker: 'source_ma120', comparisonField: 'priceVsMa120' },
+];
 
-    if (!result.ma180 && ext180 != null && ext180 !== 0) {
-        result.ma180 = ext180;
-        result.source_ma180 = 'merolagani';
-        if (currentPrice && ext180 !== 0) result.priceVsMa180 = ((currentPrice - ext180) / ext180) * 100;
-    }
-    if (!result.ma120 && ext120 != null && ext120 !== 0) {
-        result.ma120 = ext120;
-        result.source_ma120 = 'merolagani';
-        if (currentPrice && ext120 !== 0) result.priceVsMa120 = ((currentPrice - ext120) / ext120) * 100;
+const isUsableExternalAverage = (value) => value != null && value !== 0;
+
+function applyExternalAverage(result, currentStock, currentPrice, config) {
+    const extValue = currentStock?.[config.sourceField];
+    if (result[config.resultField] || !isUsableExternalAverage(extValue)) return;
+
+    result[config.resultField] = extValue;
+    result[config.sourceMarker] = 'merolagani';
+    if (currentPrice) result[config.comparisonField] = priceVsAverage(currentPrice, extValue);
+}
+
+function _applyExtFallbacks(result, currentStock, currentPrice, localDays) {
+    for (const config of EXT_FALLBACK_FIELDS) {
+        applyExternalAverage(result, currentStock, currentPrice, config);
     }
 }
 

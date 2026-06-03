@@ -34,8 +34,10 @@ const OHLC_FIELDS = [
 /** Resolve a value with a chain of fallbacks */
 const fallback = (...values) => values.find(v => v != null) ?? 0;
 
+const isBlankValue = (value) => value == null || value === '';
+
 const toNumber = (value, fallbackValue = 0) => {
-    if (value === null || value === undefined || value === '') return fallbackValue;
+    if (isBlankValue(value)) return fallbackValue;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallbackValue;
 };

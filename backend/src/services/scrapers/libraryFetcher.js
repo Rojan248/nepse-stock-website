@@ -1,8 +1,8 @@
 const https = require('https');
 const logger = require('../utils/logger');
 const { stockInfoMap: staticStockMap } = require('../../data/nepseStocks');
-const { SECTOR_IDS, ALL_SECTORS, MAX_RETRIES, RETRY_DELAY, CONCURRENCY_LIMIT, TIMEOUT, OHLC_ENRICH_INTERVAL } = require('./libraryConfig');
-const { transformSecurity: transformSecurityLib, sanitizeSymbol } = require('./libraryTransformers');
+const { ALL_SECTORS, TIMEOUT, OHLC_ENRICH_INTERVAL } = require('./libraryConfig');
+const { transformSecurity: transformSecurityLib } = require('./libraryTransformers');
 const { fetchMissingSecurities, enrichWithOHLC } = require('./missingSecuritiesFetcher');
 const { fetchMarketSummary } = require('./marketSummaryFetcher');
 
@@ -270,6 +270,61 @@ const buildOrdinarySymbolFilter = (companyList, fallbackFn) => {
     return (symbol) => ordinarySymbols.has(normalizeSymbol(symbol));
 };
 
+const fetchSectorTradeStats = async (sectorId, token, deps, headers) => {
+    try {
+        return await deps.nepseAxiosClient.get(`${deps.baseUrl}/api/nots/securityDailyTradeStat/${sectorId}`, {
+            headers,
+            httpsAgent: deps.httpsAgent,
+            timeout: 10000
+        });
+    } catch (error) {
+        if (isAuthError(error)) throw error;
+        logger.error(`Error fetching Sector ${sectorId}: ${error.message}`);
+        return { data: [] };
+    }
+};
+
+const fetchPrimarySecurityResponses = (token, deps, headers) => {
+    return Promise.all(
+        ALL_SECTORS.map(sectorId => fetchSectorTradeStats(sectorId, token, deps, headers))
+    );
+};
+
+const buildOhlcDeps = (deps) => ({
+    nepseAxios: deps.nepseAxiosClient,
+    BASE_URL: deps.baseUrl,
+    nepseHttpsAgent: deps.httpsAgent,
+    createHeaders: deps.createHeadersFn
+});
+
+const getNextOhlcRefreshDelaySeconds = () => {
+    const remainingMs = OHLC_ENRICH_INTERVAL - (Date.now() - lastOhlcEnrichmentAt);
+    return Math.max(0, Math.ceil(remainingMs / 1000));
+};
+
+const maybeEnrichWithOHLC = async (securities, token, deps, forceOhlcEnrichment) => {
+    if (shouldEnrichOHLC(forceOhlcEnrichment)) {
+        return enrichWithOHLC(securities, token, buildOhlcDeps(deps));
+    }
+
+    logger.info(`OHLC Enrichment: skipped; next detail refresh after ${getNextOhlcRefreshDelaySeconds()}s`);
+    return securities;
+};
+
+const findMissingOrdinaryCompanies = (companyList, securities, isOrdinaryShareSymbol) => {
+    const tradedSymbols = new Set(securities.map(s => normalizeSymbol(s.symbol)));
+    return companyList
+        .filter(c => c.status === 'A' && !tradedSymbols.has(normalizeSymbol(c.symbol)))
+        .filter(c => isOrdinaryShareSymbol(c.symbol));
+};
+
+const mergeAndFilterOrdinarySecurities = (primarySecurities, missingSecurities, deps, isOrdinaryShareSymbol) => {
+    const allSecurities = [...primarySecurities, ...missingSecurities];
+    logger.info(`Total securities after merging: ${allSecurities.length}`);
+
+    return filterEquitySecurities(allSecurities, deps.transformSecurityFn, isOrdinaryShareSymbol);
+};
+
 /**
  * Fetch all securities with price data from NEPSE
  */
@@ -279,54 +334,31 @@ const fetchSecuritiesWithPrices = async (token, companyList, runtimeDeps = {}) =
         const headers = deps.createHeadersFn(token);
         const isOrdinaryShareSymbol = buildOrdinarySymbolFilter(companyList, deps.isKnownSymbolFn);
 
-        const fetchPromises = ALL_SECTORS.map(sectorId =>
-            deps.nepseAxiosClient.get(`${deps.baseUrl}/api/nots/securityDailyTradeStat/${sectorId}`, {
-                headers,
-                httpsAgent: deps.httpsAgent,
-                timeout: 10000
-            }).catch(err => {
-                if (isAuthError(err)) throw err;
-                logger.error(`Error fetching Sector ${sectorId}: ${err.message}`);
-                return { data: [] };
-            })
-        );
-
-        const responses = await Promise.all(fetchPromises);
+        const responses = await fetchPrimarySecurityResponses(token, deps, headers);
         const mergedSecurities = mergeSecurityResponses(responses);
-        logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${fetchPromises.length} primary source(s)`);
+        logger.debug(`Fetched and merged ${mergedSecurities.length} unique securities from ${ALL_SECTORS.length} primary source(s)`);
 
         // ── OHLC Enrichment ─────────────────────────────────────────────
         // The securityDailyTradeStat bulk endpoint does NOT return
         // openPrice, highPrice, or lowPrice. We must fetch them from
         // the per-security detail endpoint for every traded stock.
-        const ohlcDeps = {
-            nepseAxios: deps.nepseAxiosClient,
-            BASE_URL: deps.baseUrl,
-            nepseHttpsAgent: deps.httpsAgent,
-            createHeaders: deps.createHeadersFn
-        };
-        const shouldFetchDetails = shouldEnrichOHLC(runtimeDeps.forceOhlcEnrichment);
-        const enrichedSecurities = shouldFetchDetails
-            ? await enrichWithOHLC(mergedSecurities, token, ohlcDeps)
-            : mergedSecurities;
-
-        if (!shouldFetchDetails) {
-            logger.info(`OHLC Enrichment: skipped; next detail refresh after ${Math.ceil((OHLC_ENRICH_INTERVAL - (Date.now() - lastOhlcEnrichmentAt)) / 1000)}s`);
-        }
-
-        const tradedSymbols = new Set(enrichedSecurities.map(s => normalizeSymbol(s.symbol)));
-        const missingCompanies = companyList
-            .filter(c => c.status === 'A' && !tradedSymbols.has(normalizeSymbol(c.symbol)))
-            .filter(c => isOrdinaryShareSymbol(c.symbol));
+        const enrichedSecurities = await maybeEnrichWithOHLC(
+            mergedSecurities,
+            token,
+            deps,
+            runtimeDeps.forceOhlcEnrichment
+        );
+        const missingCompanies = findMissingOrdinaryCompanies(companyList, enrichedSecurities, isOrdinaryShareSymbol);
 
         logger.info(`Found ${missingCompanies.length} active EQUITY stocks missing from trade report. Fetching details...`);
 
         const missingSecurities = await deps.fetchMissingSecuritiesFn(missingCompanies, token);
-        const allSecurities = [...enrichedSecurities, ...missingSecurities];
-
-        logger.info(`Total securities after merging: ${allSecurities.length}`);
-
-        const transformed = filterEquitySecurities(allSecurities, deps.transformSecurityFn, isOrdinaryShareSymbol);
+        const transformed = mergeAndFilterOrdinarySecurities(
+            enrichedSecurities,
+            missingSecurities,
+            deps,
+            isOrdinaryShareSymbol
+        );
         logger.info(`Filtered to ${transformed.length} ordinary share securities (excluded mutual funds, bonds, debentures, preferred/promoter instruments)`);
 
         return transformed;

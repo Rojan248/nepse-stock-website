@@ -2,6 +2,30 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { getPortfolios, createPortfolio, deletePortfolio, addTrade, deleteTrade, getPortfolioSummary } from '../services/api';
 
+const emptyPortfolioState = {
+    portfolios: [],
+    selectedId: null,
+    holdings: null
+};
+
+const resolvePortfolioList = (data) => Array.isArray(data) ? data : [];
+
+const resolveSelectedPortfolioId = (list, preferredId) =>
+    list.some(p => p.id === preferredId) ? preferredId : (list[0]?.id ?? null);
+
+const parseTradeForm = (tradeForm) => ({
+    symbol: tradeForm.symbol.trim().toUpperCase(),
+    type: tradeForm.type,
+    quantity: parseInt(tradeForm.quantity, 10),
+    price: parseFloat(tradeForm.price),
+    date: tradeForm.date
+});
+
+const isPositiveNumber = (value) => Number.isFinite(value) && value > 0;
+
+const isValidTrade = ({ symbol, quantity, price }) =>
+    Boolean(symbol) && isPositiveNumber(quantity) && isPositiveNumber(price);
+
 export function usePortfolioData() {
     const { user } = useAuth();
     const [portfolios, setPortfolios] = useState([]);
@@ -18,10 +42,8 @@ export function usePortfolioData() {
     const loadPortfolios = useCallback(async (preferredId = selectedIdRef.current) => {
         try {
             const data = await getPortfolios();
-            const list = Array.isArray(data) ? data : [];
-            const nextSelected = list.some(p => p.id === preferredId)
-                ? preferredId
-                : (list[0]?.id ?? null);
+            const list = resolvePortfolioList(data);
+            const nextSelected = resolveSelectedPortfolioId(list, preferredId);
 
             setPortfolios(list);
             setSelectedId(nextSelected);
@@ -38,9 +60,9 @@ export function usePortfolioData() {
 
     useEffect(() => {
         if (!user) {
-            setPortfolios([]);
-            setSelectedId(null);
-            setHoldings(null);
+            setPortfolios(emptyPortfolioState.portfolios);
+            setSelectedId(emptyPortfolioState.selectedId);
+            setHoldings(emptyPortfolioState.holdings);
             setLoading(false);
             return;
         }
@@ -78,23 +100,15 @@ export function usePortfolioData() {
     const handleAddTrade = async (tradeForm) => {
         setError('');
         if (!selectedId) return;
-        const quantity = parseInt(tradeForm.quantity, 10);
-        const price = parseFloat(tradeForm.price);
-        const symbol = tradeForm.symbol.trim().toUpperCase();
+        const trade = parseTradeForm(tradeForm);
 
-        if (!symbol || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(price) || price <= 0) {
+        if (!isValidTrade(trade)) {
             setError('Enter a valid symbol, quantity, and price');
             return false;
         }
 
         try {
-            await addTrade(selectedId, {
-                symbol,
-                type: tradeForm.type,
-                quantity,
-                price,
-                date: tradeForm.date
-            });
+            await addTrade(selectedId, trade);
             await loadPortfolios(selectedId);
             return true;
         } catch (err) {

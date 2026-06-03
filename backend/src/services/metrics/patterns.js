@@ -19,6 +19,17 @@ function isPostBonusAdjustment(priceMetrics, fundamentals, liquidityMetrics) {
     return fundamentals.priceToBase < 0.6 && (liquidityMetrics?.liquidityScore || 0) > 20;
 }
 
+const emptyExtremes = () => ({ nearHigh52w: false, nearLow52w: false });
+
+const hasComplete52wRange = (priceM) =>
+    priceM?.high52w != null && priceM?.low52w != null && priceM.high52w !== priceM.low52w;
+
+const distanceFromHigh = (priceM) => priceM.distFromHigh52w != null
+    ? Math.abs(priceM.distFromHigh52w)
+    : 100;
+
+const distanceFromLow = (priceM) => priceM.distFromLow52w != null ? priceM.distFromLow52w : 100;
+
 /**
  * Compute pattern flags from all metrics
  * @param {Object} priceM - priceMetrics
@@ -30,40 +41,29 @@ function isPostBonusAdjustment(priceMetrics, fundamentals, liquidityMetrics) {
  * @returns {Object} patterns
  */
 function computeExtremesPatterns(priceM) {
-    if (!priceM) return { nearHigh52w: false, nearLow52w: false };
-
-    const hasHigh = priceM.high52w != null;
-    const hasLow = priceM.low52w != null;
-    const hasRange = hasHigh && hasLow && priceM.high52w !== priceM.low52w;
-
-    if (!hasRange) return { nearHigh52w: false, nearLow52w: false };
-
-    const distHigh = priceM.distFromHigh52w != null ? Math.abs(priceM.distFromHigh52w) : 100;
-    const distLow = priceM.distFromLow52w != null ? priceM.distFromLow52w : 100;
+    if (!hasComplete52wRange(priceM)) return emptyExtremes();
 
     return {
-        nearHigh52w: distHigh <= 5,
-        nearLow52w: distLow <= 5
+        nearHigh52w: distanceFromHigh(priceM) <= 5,
+        nearLow52w: distanceFromLow(priceM) <= 5
     };
 }
 
+const isRsiBetween = (rsi, min, max) => rsi != null && rsi > min && rsi < max;
+
 function computeBullishMomentum(trendM, momentumM) {
     if (trendM?.trend !== 'bullish') return false;
-    if (momentumM?.rsi14 == null) return false;
-    return momentumM.rsi14 > 50 && momentumM.rsi14 < 70;
+    return isRsiBetween(momentumM?.rsi14, 50, 70);
 }
 
 function computeBearishMomentum(trendM, momentumM) {
     if (trendM?.trend !== 'bearish') return false;
-    if (momentumM?.rsi14 == null) return false;
-    return momentumM.rsi14 < 50 && momentumM.rsi14 > 30;
+    return isRsiBetween(momentumM?.rsi14, 30, 50);
 }
 
 function computeMomentumPatterns(trendM, momentumM, postBonusAdjustment) {
     if (postBonusAdjustment) {
-        const rocGood = momentumM?.roc10d > 5;
-        const rsiGood = momentumM?.rsi14 > 55;
-        return { bullishMomentum: rocGood && rsiGood, bearishMomentum: false };
+        return { bullishMomentum: hasPostBonusMomentum(momentumM), bearishMomentum: false };
     }
 
     return {
@@ -71,6 +71,8 @@ function computeMomentumPatterns(trendM, momentumM, postBonusAdjustment) {
         bearishMomentum: computeBearishMomentum(trendM, momentumM)
     };
 }
+
+const hasPostBonusMomentum = (momentumM) => momentumM?.roc10d > 5 && momentumM?.rsi14 > 55;
 
 function computeLiquidityPatterns(liquidityM) {
     const score = liquidityM?.liquidityScore || 0;

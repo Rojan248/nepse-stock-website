@@ -6,6 +6,14 @@
 
 const VOLUME_SPIKE_THRESHOLD = 2.5; // 2.5x average = spike
 
+const hasHistory = (history) => Array.isArray(history) && history.length > 0;
+
+const getTradingDays = (history) => history.filter(h => h.volume != null && Number(h.volume) > 0);
+
+const hasPositiveAverage = (value) => value > 0;
+
+const hasCurrentValue = (value) => Boolean(value);
+
 function calculateAverages(tradingDays, currentStock) {
     const averages = { avgVolume20d: null, avgVolume50d: null, avgTurnover20d: null, sourceVolume: null };
 
@@ -47,6 +55,30 @@ function calculateLiquidityScore(tradingDaysCount, maxDays, averages) {
     return Math.round(Math.min(score, 100));
 }
 
+function applyVolumeMetrics(result, currentStock) {
+    if (!hasCurrentValue(currentStock?.volume) || !hasPositiveAverage(result.avgVolume20d)) return;
+
+    result.volumeRatio = currentStock.volume / result.avgVolume20d;
+    result.isVolumeSpike = result.volumeRatio >= VOLUME_SPIKE_THRESHOLD;
+}
+
+function applyTurnoverMetrics(result, currentStock) {
+    if (!hasCurrentValue(currentStock?.turnover) || !hasPositiveAverage(result.avgTurnover20d)) return;
+
+    result.turnoverRatio = currentStock.turnover / result.avgTurnover20d;
+}
+
+const createResult = () => ({
+    tradingDays: 0,
+    avgVolume20d: null,
+    avgVolume50d: null,
+    volumeRatio: null,      // today's volume / avgVolume20d
+    turnoverRatio: null,    // today's turnover / avg turnover 20d
+    liquidityScore: 0,      // 0-100 composite score
+    isVolumeSpike: false,   // volume > 2.5x average
+    avgTurnover20d: null
+});
+
 /**
  * Compute liquidity metrics
  * @param {Array} history - MarketHistory records sorted by date DESC
@@ -54,21 +86,12 @@ function calculateLiquidityScore(tradingDaysCount, maxDays, averages) {
  * @returns {Object} liquidityMetrics
  */
 function compute(history, currentStock) {
-    const result = {
-        tradingDays: 0,
-        avgVolume20d: null,
-        avgVolume50d: null,
-        volumeRatio: null,      // today's volume / avgVolume20d
-        turnoverRatio: null,    // today's turnover / avg turnover 20d
-        liquidityScore: 0,      // 0-100 composite score
-        isVolumeSpike: false,   // volume > 2.5x average
-        avgTurnover20d: null
-    };
+    const result = createResult();
 
-    if (!history || history.length === 0) return result;
+    if (!hasHistory(history)) return result;
 
     // Count actual trading days (volume > 0)
-    const tradingDays = history.filter(h => h.volume != null && Number(h.volume) > 0);
+    const tradingDays = getTradingDays(history);
     result.tradingDays = tradingDays.length;
 
     if (tradingDays.length === 0) return result;
@@ -77,18 +100,8 @@ function compute(history, currentStock) {
     const averages = calculateAverages(tradingDays, currentStock);
     Object.assign(result, averages);
 
-    // Volume ratio (today vs 20d average)
-    const validVolume = currentStock?.volume && result.avgVolume20d > 0;
-    if (validVolume) {
-        result.volumeRatio = currentStock.volume / result.avgVolume20d;
-        result.isVolumeSpike = result.volumeRatio >= VOLUME_SPIKE_THRESHOLD;
-    }
-
-    // Turnover ratio
-    const validTurnover = currentStock?.turnover && result.avgTurnover20d > 0;
-    if (validTurnover) {
-        result.turnoverRatio = currentStock.turnover / result.avgTurnover20d;
-    }
+    applyVolumeMetrics(result, currentStock);
+    applyTurnoverMetrics(result, currentStock);
 
     // Liquidity score (0-100)
     const maxDays = Math.min(history.length, 235);

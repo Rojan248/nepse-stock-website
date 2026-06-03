@@ -50,47 +50,65 @@ async function processStockAlerts(stock, symbolAlerts, now) {
     return triggeredCount;
 }
 
+const hasStocks = (stocks) => Array.isArray(stocks) && stocks.length > 0;
+
+const emptyCheckResult = () => ({ checked: 0, triggered: 0 });
+
+const groupAlertsBySymbol = (alerts) => {
+    const grouped = {};
+    for (const alert of alerts) {
+        if (!grouped[alert.symbol]) grouped[alert.symbol] = [];
+        grouped[alert.symbol].push(alert);
+    }
+    return grouped;
+};
+
+const loadActiveAlerts = () => prisma.alert.findMany({
+    where: {
+        triggeredAt: null,
+        enabled: true
+    }
+});
+
+async function processCurrentStockAlerts(currentStockPrices, groupedAlerts, now) {
+    let triggeredCount = 0;
+
+    for (const stock of currentStockPrices) {
+        const symbolAlerts = groupedAlerts[stock.symbol];
+        if (!symbolAlerts || symbolAlerts.length === 0) continue;
+
+        triggeredCount += await processStockAlerts(stock, symbolAlerts, now);
+    }
+
+    return triggeredCount;
+}
+
+const logTriggeredSummary = (activeCount, triggeredCount) => {
+    if (triggeredCount > 0) {
+        logger.info(`Alert Engine verification completed. Active: ${activeCount}, Triggered: ${triggeredCount}`);
+    }
+};
+
 /**
  * Checks pending active alerts against the most recent stock tick frame.
  * @param {Array} currentStockPrices - Raw stock objects directly from fetcher containing symbol, lastTradedPrice, etc.
  */
 const checkAlerts = async (currentStockPrices) => {
-    if (!currentStockPrices || currentStockPrices.length === 0) return { checked: 0, triggered: 0 };
+    if (!hasStocks(currentStockPrices)) return emptyCheckResult();
 
     try {
         // Fetch strictly pending alerts
-        const activeAlerts = await prisma.alert.findMany({
-            where: {
-                triggeredAt: null,
-                enabled: true
-            }
-        });
+        const activeAlerts = await loadActiveAlerts();
 
-        if (activeAlerts.length === 0) return { checked: 0, triggered: 0 };
+        if (activeAlerts.length === 0) return emptyCheckResult();
 
         // Group active alerts safely into a symbol-mapped array for efficient iterations
-        const groupedAlerts = {};
-        for (const alert of activeAlerts) {
-            if (!groupedAlerts[alert.symbol]) {
-                groupedAlerts[alert.symbol] = [];
-            }
-            groupedAlerts[alert.symbol].push(alert);
-        }
-
-        let triggeredCount = 0;
+        const groupedAlerts = groupAlertsBySymbol(activeAlerts);
         const now = new Date();
 
         // Process sequentially to enforce database constraints appropriately without racing
-        for (const stock of currentStockPrices) {
-            const symbolAlerts = groupedAlerts[stock.symbol];
-            if (!symbolAlerts || symbolAlerts.length === 0) continue;
-
-            triggeredCount += await processStockAlerts(stock, symbolAlerts, now);
-        }
-
-        if (triggeredCount > 0) {
-            logger.info(`Alert Engine verification completed. Active: ${activeAlerts.length}, Triggered: ${triggeredCount}`);
-        }
+        const triggeredCount = await processCurrentStockAlerts(currentStockPrices, groupedAlerts, now);
+        logTriggeredSummary(activeAlerts.length, triggeredCount);
 
         return { checked: activeAlerts.length, triggered: triggeredCount };
     } catch (error) {

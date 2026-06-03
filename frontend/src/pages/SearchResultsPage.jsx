@@ -6,6 +6,43 @@ import StockTable from '../components/StockTable';
 import LoadingSpinner from '../components/LoadingSpinner';
 import './SearchResultsPage.css';
 
+const getSearchResults = async (query) => {
+    if (!query) return [];
+
+    const data = await searchStocks(query);
+    return data.stocks || [];
+};
+
+function useSearchResults(query) {
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let isActive = true;
+
+        const search = async () => {
+            setLoading(true);
+            try {
+                const nextResults = await getSearchResults(query);
+                if (isActive) setResults(nextResults);
+            } catch (error) {
+                logger.error('Search failed:', error);
+                if (isActive) setResults([]);
+            } finally {
+                if (isActive) setLoading(false);
+            }
+        };
+
+        search();
+
+        return () => {
+            isActive = false;
+        };
+    }, [query]);
+
+    return { loading, results };
+}
+
 const SearchEmptyState = () => (
     <div className="search-empty-card animate-up">
         <div className="search-illustration search-illustration--empty">
@@ -42,35 +79,33 @@ const SearchResultsList = ({ results, onRowClick }) => (
     </section>
 );
 
+const SearchHeader = ({ query, onBack }) => (
+    <header className="search-header">
+        <button className="btn btn-ghost back-button-elevated" onClick={onBack}>
+            Back
+        </button>
+        <h1>Search Results</h1>
+        <p className="search-query">
+            Showing results for: <strong>"{query}"</strong>
+        </p>
+    </header>
+);
+
+const SearchResultsContent = ({ query, results, onBrowse, onRowClick }) => {
+    if (!query) return <SearchEmptyState />;
+
+    if (results.length === 0) {
+        return <SearchNoResults query={query} onBrowse={onBrowse} />;
+    }
+
+    return <SearchResultsList results={results} onRowClick={onRowClick} />;
+};
+
 function SearchResultsPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const query = searchParams.get('q') || '';
-    const [results, setResults] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const search = async () => {
-            if (!query) {
-                setResults([]);
-                setLoading(false);
-                return;
-            }
-
-            setLoading(true);
-            try {
-                const data = await searchStocks(query);
-                setResults(data.stocks || []);
-            } catch (error) {
-                logger.error('Search failed:', error);
-                setResults([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        search();
-    }, [query]);
+    const { loading, results } = useSearchResults(query);
 
     const handleStockClick = (stock) => {
         navigate(`/stock/${stock.symbol}`);
@@ -82,19 +117,13 @@ function SearchResultsPage() {
 
     return (
         <div className="search-results-page container">
-            <header className="search-header">
-                <button className="btn btn-ghost back-button-elevated" onClick={() => navigate(-1)}>
-                    ← Back
-                </button>
-                <h1>Search Results</h1>
-                <p className="search-query">
-                    Showing results for: <strong>"{query}"</strong>
-                </p>
-            </header>
-
-            {!query && <SearchEmptyState />}
-            {query && results.length === 0 && <SearchNoResults query={query} onBrowse={() => navigate('/')} />}
-            {results.length > 0 && <SearchResultsList results={results} onRowClick={handleStockClick} />}
+            <SearchHeader query={query} onBack={() => navigate(-1)} />
+            <SearchResultsContent
+                query={query}
+                results={results}
+                onBrowse={() => navigate('/')}
+                onRowClick={handleStockClick}
+            />
         </div>
     );
 }

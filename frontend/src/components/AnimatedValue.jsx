@@ -15,6 +15,22 @@ import './AnimatedValue.css';
  * @param {boolean} showDirection - Whether to show up/down colors
  * @param {Function} formatter - Optional function to format the value
  */
+const buildAnimatedClasses = ({ className, isLoading, isChanged, showDirection, direction }) => [
+    'animated-value',
+    className,
+    isLoading && 'value-loading',
+    isChanged && 'value-updated',
+    isChanged && showDirection && direction === 'up' && 'value-up',
+    isChanged && showDirection && direction === 'down' && 'value-down'
+].filter(Boolean).join(' ');
+
+const formatDisplayValue = (displayValue, formatter) =>
+    formatter ? formatter(displayValue) : displayValue;
+
+function Affix({ value, className }) {
+    return value ? <span className={className}>{value}</span> : null;
+}
+
 function AnimatedValue({
     value,
     valueKey,
@@ -31,24 +47,14 @@ function AnimatedValue({
         isPolling
     );
 
-    // Format the display value if formatter provided
-    const formattedValue = formatter ? formatter(displayValue) : displayValue;
-
-    // Build CSS classes
-    const classes = [
-        'animated-value',
-        className,
-        isLoading && 'value-loading',
-        isChanged && 'value-updated',
-        isChanged && showDirection && direction === 'up' && 'value-up',
-        isChanged && showDirection && direction === 'down' && 'value-down'
-    ].filter(Boolean).join(' ');
+    const formattedValue = formatDisplayValue(displayValue, formatter);
+    const classes = buildAnimatedClasses({ className, isLoading, isChanged, showDirection, direction });
 
     return (
         <span className={classes} data-key={valueKey}>
-            {prefix && <span className="value-prefix">{prefix}</span>}
+            <Affix value={prefix} className="value-prefix" />
             <span className="value-content">{formattedValue ?? '--'}</span>
-            {suffix && <span className="value-suffix">{suffix}</span>}
+            <Affix value={suffix} className="value-suffix" />
         </span>
     );
 }

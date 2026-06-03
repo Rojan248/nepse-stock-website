@@ -28,92 +28,162 @@ describe('dataFetcher Unit Tests', () => {
         jest.useRealTimers();
     });
 
+    const getPrivate = (name) => dataFetcher.__get__(name);
+
+    const delayedSource = (name, delayMs, parseResult) => ({
+        name,
+        fetch: jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), delayMs))),
+        parse: jest.fn().mockReturnValue(parseResult)
+    });
+
+    const failingSource = (name, message) => ({
+        name,
+        fetch: jest.fn().mockRejectedValue(new Error(message)),
+        parse: jest.fn()
+    });
+
+    const timeoutSource = (name) => ({
+        name,
+        fetch: jest.fn().mockImplementation(() => new Promise(() => {})),
+        parse: jest.fn()
+    });
+
+    const runMarketMetaSources = (sources, advanceMs = 200) => {
+        dataFetcher.__set__('MARKET_META_SOURCES', sources);
+        const promise = getPrivate('fetchLiveMarketMeta')();
+        if (advanceMs != null) jest.advanceTimersByTime(advanceMs);
+        return promise;
+    };
+
+    const recordAttempt = (...args) => getPrivate('recordSourceAttempt')(...args);
+
+    const getSourceStats = (source) => getPrivate('sourceStats')[source];
+
+    const expectSourceStats = (source, expected) => {
+        expect(getSourceStats(source)).toMatchObject(expected);
+    };
+
+    const setExistingPrices = (pricesBySymbol) => {
+        dataFetcher.__set__('prisma', {
+            stock: {
+                findMany: jest.fn().mockResolvedValue(
+                    Object.entries(pricesBySymbol).map(([symbol, lastTradedPrice]) => ({ symbol, lastTradedPrice }))
+                )
+            }
+        });
+    };
+
     describe('fetchLiveMarketMeta', () => {
         it('should return the fastest valid result', async () => {
-             const fetchLiveMarketMeta = dataFetcher.__get__('fetchLiveMarketMeta');
-             const mockSources = [
-                {
-                    name: 'Slow Valid',
-                    fetch: jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 100))),
-                    parse: jest.fn().mockReturnValue({ data: 'slow' })
-                },
-                {
-                    name: 'Fast Valid',
-                    fetch: jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 10))),
-                    parse: jest.fn().mockReturnValue({ data: 'fast' })
-                }
-            ];
-            dataFetcher.__set__('MARKET_META_SOURCES', mockSources);
+            const result = await runMarketMetaSources([
+                delayedSource('Slow Valid', 100, { data: 'slow' }),
+                delayedSource('Fast Valid', 10, { data: 'fast' })
+            ]);
 
-            const promise = fetchLiveMarketMeta();
-            jest.advanceTimersByTime(200);
-            const result = await promise;
             expect(result).toEqual({ data: 'fast' });
         });
 
         it('should ignore invalid parse results even if faster', async () => {
-            const fetchLiveMarketMeta = dataFetcher.__get__('fetchLiveMarketMeta');
-            const mockSources = [
-                {
-                    name: 'Fast Invalid',
-                    fetch: jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 10))),
-                    parse: jest.fn().mockReturnValue(null) // Invalid
-                },
-                {
-                    name: 'Slow Valid',
-                    fetch: jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 50))),
-                    parse: jest.fn().mockReturnValue({ data: 'valid' })
-                }
-            ];
-            dataFetcher.__set__('MARKET_META_SOURCES', mockSources);
+            const result = await runMarketMetaSources([
+                delayedSource('Fast Invalid', 10, null),
+                delayedSource('Slow Valid', 50, { data: 'valid' })
+            ]);
 
-            const promise = fetchLiveMarketMeta();
-            jest.advanceTimersByTime(200);
-            const result = await promise;
             expect(result).toEqual({ data: 'valid' });
             expect(mockLogger.debug).toHaveBeenCalledWith('Fast Invalid returned invalid data');
         });
 
         it('should return null when all sources fail', async () => {
-            const fetchLiveMarketMeta = dataFetcher.__get__('fetchLiveMarketMeta');
-            const mockSources = [
-                {
-                    name: 'Source 1',
-                    fetch: jest.fn().mockRejectedValue(new Error('Fail 1')),
-                    parse: jest.fn()
-                },
-                {
-                    name: 'Source 2',
-                    fetch: jest.fn().mockRejectedValue(new Error('Fail 2')),
-                    parse: jest.fn()
-                }
-            ];
-            dataFetcher.__set__('MARKET_META_SOURCES', mockSources);
+            const result = await runMarketMetaSources([
+                failingSource('Source 1', 'Fail 1'),
+                failingSource('Source 2', 'Fail 2')
+            ]);
 
-            const result = await fetchLiveMarketMeta();
             expect(result).toBeNull();
             expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('All 2 market meta sources failed'));
         });
 
         it('should handle timeout correctly', async () => {
-            const fetchLiveMarketMeta = dataFetcher.__get__('fetchLiveMarketMeta');
-            const mockSources = [
-                {
-                    name: 'Timeout Source',
-                    fetch: jest.fn().mockImplementation(() => new Promise(() => {})), // Never resolves
-                    parse: jest.fn()
-                }
-            ];
-            dataFetcher.__set__('MARKET_META_SOURCES', mockSources);
+            const result = await runMarketMetaSources([timeoutSource('Timeout Source')], 7000);
 
-            const promise = fetchLiveMarketMeta();
-
-            // Advance time to trigger timeout
-            jest.advanceTimersByTime(7000);
-
-            const result = await promise;
-            expect(result).toBeNull(); // Should fail due to timeout and return null
+            expect(result).toBeNull();
             expect(mockLogger.debug).toHaveBeenCalledWith('Timeout waiting for Timeout Source');
+        });
+    });
+
+    describe('recordSourceAttempt', () => {
+        it('should record a successful source attempt', () => {
+            recordAttempt('library', 'success', 42);
+
+            expectSourceStats('library', {
+                attempts: 1,
+                successes: 1,
+                failures: 0,
+                invalid: 0,
+                lastDurationMs: 42,
+                lastError: null
+            });
+            expect(getSourceStats('library').lastSuccessAt).toBe(getSourceStats('library').lastAttemptAt);
+        });
+
+        it('should record invalid data without counting it as a source failure', () => {
+            recordAttempt('proxy', 'invalid', 11, new Error('invalid data'));
+
+            expectSourceStats('proxy', {
+                attempts: 1,
+                successes: 0,
+                failures: 0,
+                invalid: 1,
+                lastDurationMs: 11,
+                lastError: 'invalid data'
+            });
+        });
+
+        it('should count rate limit failures separately', () => {
+            recordAttempt('custom', 'failure', 100, new Error('HTTP 429 Too Many Requests'));
+
+            expectSourceStats('custom', {
+                attempts: 1,
+                successes: 0,
+                failures: 1,
+                invalid: 0,
+                lastDurationMs: 100,
+                lastError: 'HTTP 429 Too Many Requests'
+            });
+            expect(dataFetcher.__get__('rateLimitEvents')).toBe(1);
+        });
+    });
+
+    describe('hasPriceAnomalies', () => {
+        it('should return false when incoming prices are within the anomaly threshold', async () => {
+            setExistingPrices({ NABIL: 100 });
+
+            const result = await getPrivate('hasPriceAnomalies')([{ symbol: 'NABIL', lastTradedPrice: 110 }]);
+
+            expect(result).toBe(false);
+            expect(mockLogger.error).not.toHaveBeenCalled();
+        });
+
+        it('should return true when one stock moves beyond the anomaly threshold', async () => {
+            setExistingPrices({ NABIL: 100 });
+
+            const result = await getPrivate('hasPriceAnomalies')([{ symbol: 'NABIL', lastTradedPrice: 120 }]);
+
+            expect(result).toBe(true);
+            expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('NABIL moved 20.0%'));
+        });
+
+        it('should fail safe when database lookup fails', async () => {
+            dataFetcher.__set__('prisma', {
+                stock: {
+                    findMany: jest.fn().mockRejectedValue(new Error('DB down'))
+                }
+            });
+
+            const result = await getPrivate('hasPriceAnomalies')([{ symbol: 'NABIL', lastTradedPrice: 120 }]);
+
+            expect(result).toBe(false);
+            expect(mockLogger.error).toHaveBeenCalledWith('Anomaly detection failed: DB down');
         });
     });
 });

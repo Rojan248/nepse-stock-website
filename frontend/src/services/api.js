@@ -81,13 +81,21 @@ const safeApiCall = async (apiCall, defaultValue, errorMsg, options = {}) => {
  * @param {string} errorMsg - Error message
  * @returns {Promise<any>}
  */
-const fetchSimple = async (endpoint, params = {}, defaultValue = [], errorMsg = 'API error', options = {}) => {
+const buildRequestOptions = (params, options) => ({
+    params,
+    silentStatuses: options.silentStatuses,
+    skipAuthRefresh: options.skipAuthRefresh
+});
+
+const fetchSimple = async ({
+    endpoint,
+    params = {},
+    defaultValue = [],
+    errorMsg = 'API error',
+    options = {}
+}) => {
     return safeApiCall(async () => {
-        const response = await api.get(endpoint, {
-            params,
-            silentStatuses: options.silentStatuses,
-            skipAuthRefresh: options.skipAuthRefresh
-        });
+        const response = await api.get(endpoint, buildRequestOptions(params, options));
         if (!response) return defaultValue;
         const payload = unwrapPayload(response);
         return payload.data || payload || defaultValue;
@@ -114,13 +122,15 @@ const resolveListPayload = (payload, listKey) => {
  * @param {string} listKey - specific key to look for in payload (optional)
  * @returns {Promise<Object>} { data: [], total: 0, ...otherProps }
  */
-const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey = null, options = {}) => {
+const fetchList = async ({
+    endpoint,
+    params = {},
+    errorMsg = 'API error',
+    listKey = null,
+    options = {}
+}) => {
     return safeApiCall(async () => {
-        const payload = await api.get(endpoint, {
-            params,
-            silentStatuses: options.silentStatuses,
-            skipAuthRefresh: options.skipAuthRefresh
-        });
+        const payload = await api.get(endpoint, buildRequestOptions(params, options));
         if (!payload) return { data: [], total: 0 };
 
         // Auto-detect list array if not specified
@@ -140,7 +150,11 @@ const fetchList = async (endpoint, params = {}, errorMsg = 'API error', listKey 
 export const getStocks = async (page = 1, limit = 50, sortBy = 'symbol', sortOrder = 'asc') => {
     try {
         const skip = (page - 1) * limit;
-        const result = await fetchList('/stocks', { skip, limit, sortBy, sortOrder }, 'Failed to fetch stocks');
+        const result = await fetchList({
+            endpoint: '/stocks',
+            params: { skip, limit, sortBy, sortOrder },
+            errorMsg: 'Failed to fetch stocks'
+        });
         // Map standardized 'data' back to 'stocks' for component compatibility
         return { stocks: result.data, total: result.total, pagination: result.pagination };
     } catch (error) {
@@ -152,14 +166,23 @@ export const getStocks = async (page = 1, limit = 50, sortBy = 'symbol', sortOrd
  * Get stock by symbol
  */
 export const getStockBySymbol = async (symbol) => {
-    return fetchSimple(`/stocks/${symbol}`, {}, null, `Failed to fetch stock ${symbol}`);
+    return fetchSimple({
+        endpoint: `/stocks/${symbol}`,
+        defaultValue: null,
+        errorMsg: `Failed to fetch stock ${symbol}`
+    });
 };
 
 /**
  * Get stock price history with technical indicators
  */
 export const getStockHistory = async (symbol, days = 180) => {
-    return fetchSimple(`/stocks/${symbol}/history`, { days }, [], `Failed to fetch history for ${symbol}`);
+    return fetchSimple({
+        endpoint: `/stocks/${symbol}/history`,
+        params: { days },
+        defaultValue: [],
+        errorMsg: `Failed to fetch history for ${symbol}`
+    });
 };
 
 /**
@@ -167,7 +190,11 @@ export const getStockHistory = async (symbol, days = 180) => {
  */
 export const searchStocks = async (query) => {
     if (!query || query.length < 1) return { stocks: [] };
-    const result = await fetchList('/stocks/search', { q: query }, 'Failed to search stocks');
+    const result = await fetchList({
+        endpoint: '/stocks/search',
+        params: { q: query },
+        errorMsg: 'Failed to search stocks'
+    });
     return { stocks: result.data, count: result.total };
 };
 
@@ -175,7 +202,10 @@ export const searchStocks = async (query) => {
  * Get stocks by sector
  */
 export const getStocksBySector = async (sector) => {
-    const result = await fetchList(`/stocks/sector/${encodeURIComponent(sector)}`, {}, `Failed to fetch stocks for sector ${sector}`);
+    const result = await fetchList({
+        endpoint: `/stocks/sector/${encodeURIComponent(sector)}`,
+        errorMsg: `Failed to fetch stocks for sector ${sector}`
+    });
     return { stocks: result.data, count: result.total };
 };
 
@@ -183,56 +213,92 @@ export const getStocksBySector = async (sector) => {
  * Get top gainers
  */
 export const getTopGainers = async (limit = 10) => {
-    return fetchSimple('/stocks/top-gainers', { limit }, [], 'Failed to fetch top gainers');
+    return fetchSimple({
+        endpoint: '/stocks/top-gainers',
+        params: { limit },
+        defaultValue: [],
+        errorMsg: 'Failed to fetch top gainers'
+    });
 };
 
 /**
  * Get top losers
  */
 export const getTopLosers = async (limit = 10) => {
-    return fetchSimple('/stocks/top-losers', { limit }, [], 'Failed to fetch top losers');
+    return fetchSimple({
+        endpoint: '/stocks/top-losers',
+        params: { limit },
+        defaultValue: [],
+        errorMsg: 'Failed to fetch top losers'
+    });
 };
 
 /**
  * Get top traded stocks
  */
 export const getTopTraded = async (limit = 10) => {
-    return fetchSimple('/stocks/top-traded', { limit }, [], 'Failed to fetch top traded stocks');
+    return fetchSimple({
+        endpoint: '/stocks/top-traded',
+        params: { limit },
+        defaultValue: [],
+        errorMsg: 'Failed to fetch top traded stocks'
+    });
 };
 
 /**
  * Get stocks with no change
  */
 export const getUnchangedStocks = async (limit = 10) => {
-    return fetchSimple('/stocks/unchanged', { limit }, [], 'Failed to fetch unchanged stocks');
+    return fetchSimple({
+        endpoint: '/stocks/unchanged',
+        params: { limit },
+        defaultValue: [],
+        errorMsg: 'Failed to fetch unchanged stocks'
+    });
 };
 
 /**
  * Get all sectors
  */
 export const getSectors = async () => {
-    return fetchSimple('/stocks/sectors', {}, [], 'Failed to fetch sectors');
+    return fetchSimple({
+        endpoint: '/stocks/sectors',
+        defaultValue: [],
+        errorMsg: 'Failed to fetch sectors'
+    });
 };
 
 /**
  * Get market depth (Level 2 data) for a stock
  */
 export const getStockDepth = async (symbol) => {
-    return fetchSimple(`/stocks/${symbol}/depth`, {}, null, `Failed to fetch depth for ${symbol}`);
+    return fetchSimple({
+        endpoint: `/stocks/${symbol}/depth`,
+        defaultValue: null,
+        errorMsg: `Failed to fetch depth for ${symbol}`
+    });
 };
 
 /**
  * Get computed metrics for a stock
  */
 export const getStockMetrics = async (symbol) => {
-    return fetchSimple(`/stocks/${symbol}/metrics`, {}, null, `Failed to fetch metrics for ${symbol}`);
+    return fetchSimple({
+        endpoint: `/stocks/${symbol}/metrics`,
+        defaultValue: null,
+        errorMsg: `Failed to fetch metrics for ${symbol}`
+    });
 };
 
 /**
  * Get aggregate market metrics
  */
 export const getMarketMetrics = async () => {
-    return fetchSimple('/market-metrics', {}, null, 'Failed to fetch market metrics');
+    return fetchSimple({
+        endpoint: '/market-metrics',
+        defaultValue: null,
+        errorMsg: 'Failed to fetch market metrics'
+    });
 };
 
 // ==================== IPO APIs ====================
@@ -242,7 +308,11 @@ export const getMarketMetrics = async () => {
  */
 export const getIPOs = async (status = null) => {
     const params = status ? { status } : {};
-    const result = await fetchList('/ipos', params, 'Failed to fetch IPOs');
+    const result = await fetchList({
+        endpoint: '/ipos',
+        params,
+        errorMsg: 'Failed to fetch IPOs'
+    });
     return { ipos: result.data, total: result.total, statistics: result.statistics };
 };
 
@@ -250,21 +320,32 @@ export const getIPOs = async (status = null) => {
  * Get active/open IPOs
  */
 export const getActiveIPOs = async () => {
-    return fetchSimple('/ipos/active', {}, [], 'Failed to fetch active IPOs');
+    return fetchSimple({
+        endpoint: '/ipos/active',
+        defaultValue: [],
+        errorMsg: 'Failed to fetch active IPOs'
+    });
 };
 
 /**
  * Get IPO by company name
  */
 export const getIPOByCompanyName = async (companyName) => {
-    return fetchSimple(`/ipos/${encodeURIComponent(companyName)}`, {}, null, `Failed to fetch IPO ${companyName}`);
+    return fetchSimple({
+        endpoint: `/ipos/${encodeURIComponent(companyName)}`,
+        defaultValue: null,
+        errorMsg: `Failed to fetch IPO ${companyName}`
+    });
 };
 
 /**
  * Get IPOs by status
  */
 export const getIPOsByStatus = async (status) => {
-    const result = await fetchList(`/ipos/status/${status}`, {}, `Failed to fetch IPOs with status ${status}`);
+    const result = await fetchList({
+        endpoint: `/ipos/status/${status}`,
+        errorMsg: `Failed to fetch IPOs with status ${status}`
+    });
     return { ipos: result.data, count: result.total };
 };
 
@@ -274,14 +355,23 @@ export const getIPOsByStatus = async (status) => {
  * Get market summary
  */
 export const getMarketSummary = async () => {
-    return fetchSimple('/market-summary', {}, null, 'Failed to fetch market summary');
+    return fetchSimple({
+        endpoint: '/market-summary',
+        defaultValue: null,
+        errorMsg: 'Failed to fetch market summary'
+    });
 };
 
 /**
  * Get market history
  */
 export const getMarketHistory = async (hours = 24) => {
-    return fetchSimple('/market-history', { hours }, [], 'Failed to fetch market history');
+    return fetchSimple({
+        endpoint: '/market-history',
+        params: { hours },
+        defaultValue: [],
+        errorMsg: 'Failed to fetch market history'
+    });
 };
 
 // ==================== Utility Functions ====================

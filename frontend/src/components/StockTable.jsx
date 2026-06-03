@@ -40,8 +40,10 @@ const FIELD_MAP = [
 
 const NUMERIC_FIELDS = new Set(['ltp', 'change', 'changePercent', 'volume']);
 
+const isBlankValue = (value) => value == null || value === '';
+
 const toNumberOrNull = (value) => {
-    if (value === null || value === undefined || value === '') return null;
+    if (isBlankValue(value)) return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
 };

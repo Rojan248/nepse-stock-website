@@ -7,6 +7,20 @@
 const logger = require('../utils/logger');
 const { CONCURRENCY_LIMIT } = require('./libraryConfig');
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const hasMoreBatches = (nextIndex, items) => nextIndex < items.length;
+
+const maybeDelayNextBatch = async (nextIndex, items, delayMs) => {
+    if (hasMoreBatches(nextIndex, items)) await sleep(delayMs);
+};
+
+const fetchSecurityById = (deps, id, headers, timeout) => {
+    const requestOptions = { headers, httpsAgent: deps.nepseHttpsAgent };
+    if (timeout) requestOptions.timeout = timeout;
+    return deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/security/${id}`, requestOptions);
+};
+
 /** Resolve first truthy numeric field from an object, defaulting to fallback */
 const mcsField = (mcs, fields, fallback = 0) => {
     for (const f of fields) { if (mcs[f]) return mcs[f]; }
@@ -47,33 +61,25 @@ const fetchSecurityDetails = async (items, deps, headers) => {
 
     for (let i = 0; i < items.length; i += CONCURRENCY_LIMIT) {
         const chunk = items.slice(i, i + CONCURRENCY_LIMIT);
-        const chunkPromises = chunk.map(async (item) => {
-            const id = item.securityId || item.id;
-            const symbol = item.symbol;
-            try {
-                const res = await deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/security/${id}`, {
-                    headers,
-                    httpsAgent: deps.nepseHttpsAgent,
-                    timeout: 8000
-                });
-                const data = res.data;
-                if (data && data.securityMcsData) {
-                    resultMap.set(symbol, data.securityMcsData);
-                }
-            } catch (error) {
-                logger.debug(`Failed to fetch detail for ${symbol} (${id}): ${error.message}`);
-            }
-        });
-
-        await Promise.all(chunkPromises);
-
-        // delay between chunks to avoid NEPSE rate-limiting
-        if (i + CONCURRENCY_LIMIT < items.length) {
-            await new Promise(r => setTimeout(r, 300));
-        }
+        const details = await Promise.all(chunk.map(item => fetchSecurityMcs(item, deps, headers)));
+        for (const detail of details.filter(Boolean)) resultMap.set(detail.symbol, detail.mcs);
+        await maybeDelayNextBatch(i + CONCURRENCY_LIMIT, items, 300);
     }
 
     return resultMap;
+};
+
+const fetchSecurityMcs = async (item, deps, headers) => {
+    const id = item.securityId || item.id;
+    const symbol = item.symbol;
+    try {
+        const res = await fetchSecurityById(deps, id, headers, 8000);
+        const mcs = res.data?.securityMcsData;
+        return mcs ? { symbol, mcs } : null;
+    } catch (error) {
+        logger.debug(`Failed to fetch detail for ${symbol} (${id}): ${error.message}`);
+        return null;
+    }
 };
 
 /**
@@ -87,47 +93,48 @@ const fetchMissingSecurities = async (companies, token, deps) => {
     // Process in chunks
     for (let i = 0; i < companies.length; i += CONCURRENCY_LIMIT) {
         const chunk = companies.slice(i, i + CONCURRENCY_LIMIT);
-        const chunkPromises = chunk.map(async (company) => {
-            try {
-                const res = await deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/security/${company.id}`, {
-                    headers,
-                    httpsAgent: deps.nepseHttpsAgent
-                });
-
-                const data = res.data;
-                if (!data || !data.securityMcsData) return null;
-                return mapSecurityDetail(data);
-            } catch (error) {
-                logger.warn(`Failed to fetch details for ${company.symbol} (${company.id}): ${error.message}`);
-                return null;
-            }
-        });
-
-        const chunkResults = await Promise.all(chunkPromises);
-        results.push(...chunkResults.filter(r => r !== null));
-
-        // delay between chunks to avoid NEPSE rate-limiting
-        if (i + CONCURRENCY_LIMIT < companies.length) {
-            await new Promise(r => setTimeout(r, 500));
-        }
+        const chunkResults = await Promise.all(chunk.map(company => fetchMissingSecurity(company, deps, headers)));
+        results.push(...chunkResults.filter(Boolean));
+        await maybeDelayNextBatch(i + CONCURRENCY_LIMIT, companies, 500);
     }
 
     return results;
 };
 
+const fetchMissingSecurity = async (company, deps, headers) => {
+    try {
+        const res = await fetchSecurityById(deps, company.id, headers);
+        const data = res.data;
+        return data?.securityMcsData ? mapSecurityDetail(data) : null;
+    } catch (error) {
+        logger.warn(`Failed to fetch details for ${company.symbol} (${company.id}): ${error.message}`);
+        return null;
+    }
+};
+
+const OHLC_MERGE_FIELDS = [
+    ['openPrice', 'openPrice', 'openPrice'],
+    ['highPrice', 'highPrice', 'highPrice'],
+    ['lowPrice', 'lowPrice', 'lowPrice'],
+    ['totalTradeQuantity', 'totalTradeQuantity', 'totalTradeQuantity'],
+    ['totalTradedQuantity', 'totalTradeQuantity', 'totalTradedQuantity'],
+    ['totalTrades', 'totalTrades', 'totalTrades'],
+    ['totalTradedValue', 'totalTradedValue', 'totalTradedValue'],
+    ['fiftyTwoWeekHigh', 'fiftyTwoWeekHigh', null],
+    ['fiftyTwoWeekLow', 'fiftyTwoWeekLow', null],
+];
+
+const resolveMergedValue = (sec, mcs, mcsField, secField) => {
+    const secValue = secField ? sec[secField] : null;
+    return mcs[mcsField] || secValue || 0;
+};
+
 function mergeOHLCData(sec, mcs) {
-    return {
-        ...sec,
-        openPrice: mcs.openPrice || sec.openPrice || 0,
-        highPrice: mcs.highPrice || sec.highPrice || 0,
-        lowPrice: mcs.lowPrice || sec.lowPrice || 0,
-        totalTradeQuantity: mcs.totalTradeQuantity || sec.totalTradeQuantity || 0,
-        totalTradedQuantity: mcs.totalTradeQuantity || sec.totalTradedQuantity || 0,
-        totalTrades: mcs.totalTrades || sec.totalTrades || 0,
-        totalTradedValue: mcs.totalTradedValue || sec.totalTradedValue || 0,
-        fiftyTwoWeekHigh: mcs.fiftyTwoWeekHigh || 0,
-        fiftyTwoWeekLow: mcs.fiftyTwoWeekLow || 0
-    };
+    const merged = { ...sec };
+    for (const [targetField, mcsField, secField] of OHLC_MERGE_FIELDS) {
+        merged[targetField] = resolveMergedValue(sec, mcs, mcsField, secField);
+    }
+    return merged;
 }
 
 /**

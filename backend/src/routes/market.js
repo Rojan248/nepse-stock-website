@@ -46,7 +46,7 @@ const getLatestStockSync = async () => {
     return latestStock?.updatedAt || null;
 };
 
-const evaluateHealth = async () => {
+const collectHealthContext = async () => {
     const updateStatus = scheduler.getUpdateStatus();
     const fetchStatus = dataFetcher.getFetchStatus();
     const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
@@ -62,19 +62,50 @@ const evaluateHealth = async () => {
     const freshnessLimitSeconds = FRESHNESS_LIMITS_SECONDS[marketState] || FRESHNESS_LIMITS_SECONDS.CLOSED;
     const isFresh = lastSyncSecondsAgo !== null && lastSyncSecondsAgo <= freshnessLimitSeconds;
 
-    const problems = [];
+    return {
+        updateStatus,
+        fetchStatus,
+        uptimeSeconds,
+        marketState,
+        marketStats,
+        stockCount,
+        latestStockSync,
+        lastSyncSecondsAgo,
+        freshnessLimitSeconds,
+        isFresh
+    };
+};
+
+const hasFetchFailureProblem = (fetchStatus, isFresh) =>
+    fetchStatus.consecutiveFailures >= FETCH_FAILURE_PROBLEM_THRESHOLD && !isFresh;
+
+const hasRecentFetchWarning = (fetchStatus, isFresh) =>
+    fetchStatus.consecutiveFailures > 0
+    && (fetchStatus.consecutiveFailures < FETCH_FAILURE_PROBLEM_THRESHOLD || isFresh);
+
+const HEALTH_PROBLEM_RULES = [
+    { applies: ({ updateStatus }) => !updateStatus.isRunning, message: () => 'scheduler is not running' },
+    { applies: ({ stockCount }) => stockCount <= 100, message: ({ stockCount }) => `stock count too low (${stockCount})` },
+    { applies: ({ marketStats }) => !marketStats.hasData, message: () => 'market summary data is missing' },
+    { applies: ({ updateStatus }) => updateStatus.circuitBreaker?.isOpen, message: () => 'circuit breaker is open' },
+    {
+        applies: ({ fetchStatus, isFresh }) => hasFetchFailureProblem(fetchStatus, isFresh),
+        message: ({ fetchStatus }) => `${fetchStatus.consecutiveFailures} consecutive fetch failures`
+    },
+    {
+        applies: ({ updateStatus, isFresh }) => updateStatus.isMarketOpen && !isFresh,
+        message: ({ lastSyncSecondsAgo }) => `market data stale during open market (${lastSyncSecondsAgo ?? 'unknown'}s old)`
+    },
+];
+
+const buildHealthProblems = (context) => HEALTH_PROBLEM_RULES
+    .filter(rule => rule.applies(context))
+    .map(rule => rule.message(context));
+
+const buildHealthWarnings = ({ updateStatus, fetchStatus, marketState, isFresh, lastSyncSecondsAgo }) => {
     const warnings = [];
 
-    if (!updateStatus.isRunning) problems.push('scheduler is not running');
-    if (stockCount <= 100) problems.push(`stock count too low (${stockCount})`);
-    if (!marketStats.hasData) problems.push('market summary data is missing');
-    if (updateStatus.circuitBreaker?.isOpen) problems.push('circuit breaker is open');
-    if (fetchStatus.consecutiveFailures >= FETCH_FAILURE_PROBLEM_THRESHOLD && !isFresh) {
-        problems.push(`${fetchStatus.consecutiveFailures} consecutive fetch failures`);
-    }
-    if (updateStatus.isMarketOpen && !isFresh) problems.push(`market data stale during open market (${lastSyncSecondsAgo ?? 'unknown'}s old)`);
-
-    if (fetchStatus.consecutiveFailures > 0 && (fetchStatus.consecutiveFailures < FETCH_FAILURE_PROBLEM_THRESHOLD || isFresh)) {
+    if (hasRecentFetchWarning(fetchStatus, isFresh)) {
         const errorDetail = updateStatus.lastError || fetchStatus.lastError;
         warnings.push(`${fetchStatus.consecutiveFailures} recent fetch failure${errorDetail ? `: ${errorDetail}` : ''}`);
     }
@@ -85,24 +116,33 @@ const evaluateHealth = async () => {
         warnings.push(`${fetchStatus.rateLimitEvents} rate-limit-like event(s) observed`);
     }
 
+    return warnings;
+};
+
+const buildFreshnessStatus = ({ latestStockSync, lastSyncSecondsAgo, freshnessLimitSeconds, isFresh }) => ({
+    lastStockSync: latestStockSync ? latestStockSync.toISOString() : null,
+    lastSyncSecondsAgo,
+    freshnessLimitSeconds,
+    isFresh
+});
+
+const evaluateHealth = async () => {
+    const context = await collectHealthContext();
+    const problems = buildHealthProblems(context);
+    const warnings = buildHealthWarnings(context);
     const status = problems.length > 0 ? 'degraded' : 'healthy';
 
     return {
         status,
         problems,
         warnings,
-        updateStatus,
-        fetchStatus,
-        uptimeSeconds,
-        marketState,
-        marketStats,
-        stockCount,
-        freshness: {
-            lastStockSync: latestStockSync ? latestStockSync.toISOString() : null,
-            lastSyncSecondsAgo,
-            freshnessLimitSeconds,
-            isFresh
-        }
+        updateStatus: context.updateStatus,
+        fetchStatus: context.fetchStatus,
+        uptimeSeconds: context.uptimeSeconds,
+        marketState: context.marketState,
+        marketStats: context.marketStats,
+        stockCount: context.stockCount,
+        freshness: buildFreshnessStatus(context)
     };
 };
 

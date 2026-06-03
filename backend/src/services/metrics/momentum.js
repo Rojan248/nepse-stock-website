@@ -61,6 +61,22 @@ function calcROC(prices, period) {
     return ((current - past) / past) * 100;
 }
 
+const hasHistory = (history) => Array.isArray(history) && history.length > 0;
+
+const getTradingPrices = (history) => {
+    const tradingDays = history.filter(h => h.volume != null && h.volume > 0);
+    return tradingDays.map(h => h.closePrice).filter(p => p != null && p > 0);
+};
+
+const getAllValidPrices = (history) => history.map(h => h.closePrice).filter(p => p != null && p > 0);
+
+const resolveRsiZone = (rsi14) => {
+    if (rsi14 == null) return 'neutral';
+    if (rsi14 > 70) return 'overbought';
+    if (rsi14 < 30) return 'oversold';
+    return 'neutral';
+};
+
 /**
  * Compute momentum metrics
  * @param {Array} history - MarketHistory records sorted by date DESC
@@ -75,11 +91,10 @@ function compute(history) {
         rsiZone: 'neutral' // 'overbought' (>70) | 'oversold' (<30) | 'neutral'
     };
 
-    if (!history || history.length === 0) return result;
+    if (!hasHistory(history)) return result;
 
     // Filter zero-volume days for RSI
-    const tradingDays = history.filter(h => h.volume != null && h.volume > 0);
-    const prices = tradingDays.map(h => h.closePrice).filter(p => p != null && p > 0);
+    const prices = getTradingPrices(history);
 
     if (prices.length === 0) return result;
 
@@ -87,15 +102,12 @@ function compute(history) {
     result.rsi7 = calcRSI(prices, 7);
 
     // ROC uses all history (including zero-volume days with valid prices)
-    const allPrices = history.map(h => h.closePrice).filter(p => p != null && p > 0);
+    const allPrices = getAllValidPrices(history);
     result.roc10d = calcROC(allPrices, 10);
     result.roc30d = calcROC(allPrices, 30);
 
     // RSI zone determination
-    if (result.rsi14 !== null) {
-        if (result.rsi14 > 70) result.rsiZone = 'overbought';
-        else if (result.rsi14 < 30) result.rsiZone = 'oversold';
-    }
+    result.rsiZone = resolveRsiZone(result.rsi14);
 
     return result;
 }

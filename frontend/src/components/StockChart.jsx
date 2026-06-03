@@ -14,6 +14,24 @@ const normalizeChartData = (data) => {
         .map(([date, item]) => ({ date, item }));
 };
 
+const hasChartRows = (data) => Array.isArray(data) && data.length > 0;
+
+const canRenderSeries = (data, candlestickSeries) => (
+    hasChartRows(data) && Boolean(candlestickSeries)
+);
+
+const toCandlestickData = (chartData) => chartData.map(({ date, item }) => ({
+    time: date,
+    open: item.open,
+    high: item.high,
+    low: item.low,
+    close: item.close,
+}));
+
+const toMovingAverageData = (chartData, key) => chartData
+    .filter(({ item }) => item[key])
+    .map(({ date, item }) => ({ time: date, value: item[key] }));
+
 function useStockChart(chartContainerRef, data, showMA20, showMA50) {
     const chartRef = useRef();
     const candlestickSeriesRef = useRef();
@@ -57,16 +75,14 @@ function useStockChart(chartContainerRef, data, showMA20, showMA50) {
     }, []);
 
     useEffect(() => {
-        if (!data || data.length === 0 || !candlestickSeriesRef.current) return;
+        if (!canRenderSeries(data, candlestickSeriesRef.current)) return;
 
         const chartData = normalizeChartData(data);
 
-        candlestickSeriesRef.current.setData(chartData.map(({ date, item }) => ({
-            time: date, open: item.open, high: item.high, low: item.low, close: item.close,
-        })));
+        candlestickSeriesRef.current.setData(toCandlestickData(chartData));
 
-        ma20SeriesRef.current.setData(chartData.filter(({ item }) => item.ma20).map(({ date, item }) => ({ time: date, value: item.ma20 })));
-        ma50SeriesRef.current.setData(chartData.filter(({ item }) => item.ma50).map(({ date, item }) => ({ time: date, value: item.ma50 })));
+        ma20SeriesRef.current.setData(toMovingAverageData(chartData, 'ma20'));
+        ma50SeriesRef.current.setData(toMovingAverageData(chartData, 'ma50'));
         chartRef.current.timeScale().fitContent();
     }, [data]);
 
@@ -119,7 +135,7 @@ const StockChart = ({ symbol, data, isLoading }) => {
                 </div>
             )}
 
-            {!isLoading && data.length === 0 && (
+            {!isLoading && !hasChartRows(data) && (
                 <div style={{ position: 'absolute', inset: '52px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', background: '#111' }}>
                     No historical data available for this symbol.
                 </div>

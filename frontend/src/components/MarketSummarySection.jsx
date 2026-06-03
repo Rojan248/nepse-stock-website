@@ -12,8 +12,10 @@ function formatTurnoverDisplay(raw) {
     return { value: (value / 100000).toFixed(2), unit: 'L' };
 }
 
+const isBlankValue = (value) => value == null || value === '';
+
 function toFiniteNumber(value) {
-    if (value === null || value === undefined || value === '') return undefined;
+    if (isBlankValue(value)) return undefined;
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : undefined;
 }

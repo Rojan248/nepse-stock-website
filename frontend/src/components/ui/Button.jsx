@@ -1,9 +1,48 @@
 import React from 'react';
 import './Button.css';
 
+const buttonStateFlag = (isActive) => (isActive ? 'true' : undefined);
+
+const isButtonDisabled = (disabled, loading) => disabled || loading;
+
+const getButtonClassName = ({
+  buttonClass,
+  className,
+  icon,
+  loading,
+  size,
+  variant,
+}) => [
+  'ui-btn',
+  `btn-${variant}`,
+  `btn-${size}`,
+  `btn-${buttonClass}`,
+  icon ? 'btn-has-icon' : '',
+  loading ? 'btn-loading' : '',
+  className,
+].filter(Boolean).join(' ');
+
+const LoadingIndicator = ({ loading }) => {
+  if (!loading) return null;
+
+  return (
+    <span className="btn-spinner" role="status" aria-hidden="false">
+      <span className="sr-only">Loading...</span>
+    </span>
+  );
+};
+
+const ButtonIcon = ({ icon }) => (
+  icon ? <span className="btn-icon">{icon}</span> : null
+);
+
+const ButtonContent = ({ children }) => (
+  children ? <span className="btn-content">{children}</span> : null
+);
+
 /**
  * Unified Button Component
- * 
+ *
  * @param {Object} props
  * @param {string} props.variant - "primary", "secondary", "outline", "ghost", "danger", "link"
  * @param {string} props.size - "sm", "md", "lg", "icon"
@@ -23,32 +62,32 @@ const Button = React.forwardRef(({
   disabled = false,
   className = '',
   children,
-  type, // allow overriding type via props
+  type,
   ...props
 }, ref) => {
-  const variantClass = `btn-${variant}`;
-  const sizeClass = `btn-${size}`;
-  const shapeClass = `btn-${buttonClass}`;
-  const hasIconClass = icon ? 'btn-has-icon' : '';
-  const loadingClass = loading ? 'btn-loading' : '';
+  const buttonDisabled = isButtonDisabled(disabled, loading);
+  const buttonClassName = getButtonClassName({
+    buttonClass,
+    className,
+    icon,
+    loading,
+    size,
+    variant,
+  });
 
   return (
     <button
       ref={ref}
       type={type || 'button'}
-      className={`ui-btn ${variantClass} ${sizeClass} ${shapeClass} ${hasIconClass} ${loadingClass} ${className}`}
-      disabled={disabled || loading}
-      aria-busy={loading ? 'true' : undefined}
-      aria-disabled={disabled || loading ? 'true' : undefined}
+      className={buttonClassName}
+      disabled={buttonDisabled}
+      aria-busy={buttonStateFlag(loading)}
+      aria-disabled={buttonStateFlag(buttonDisabled)}
       {...props}
     >
-      {loading && (
-        <span className="btn-spinner" role="status" aria-hidden="false">
-          <span className="sr-only">Loading…</span>
-        </span>
-      )}
-      {icon && <span className="btn-icon">{icon}</span>}
-      {children && <span className="btn-content">{children}</span>}
+      <LoadingIndicator loading={loading} />
+      <ButtonIcon icon={icon} />
+      <ButtonContent>{children}</ButtonContent>
     </button>
   );
 });

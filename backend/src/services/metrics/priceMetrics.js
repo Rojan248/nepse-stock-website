@@ -24,6 +24,21 @@ function computeDistances(result, currentPrice) {
     }
 }
 
+const validPositivePrices = (records) => records
+    .map(h => h.closePrice)
+    .filter(p => p != null && p > 0);
+
+const hasNepseRange = (currentStock) => Boolean(currentStock?.high52w && currentStock?.low52w);
+
+function applyComputed52wRange(result, prices, currentPrice) {
+    if (prices.length === 0) return;
+
+    result.high52w = Math.max(...prices);
+    result.low52w = Math.min(...prices);
+    result.source52w = 'computed';
+    computeDistances(result, currentPrice);
+}
+
 /**
  * Set 52w high/low from NEPSE-provided values (fallback source)
  */
@@ -39,17 +54,10 @@ function apply52wFromNepse(result, currentStock, currentPrice) {
  * Compute 52w high/low from local history, with NEPSE override when history is short
  */
 function compute52wRange(result, yearData, currentPrice, currentStock) {
-    const prices = yearData.map(h => h.closePrice).filter(p => p != null && p > 0);
-
-    if (prices.length > 0) {
-        result.high52w = Math.max(...prices);
-        result.low52w = Math.min(...prices);
-        result.source52w = 'computed';
-        computeDistances(result, currentPrice);
-    }
+    applyComputed52wRange(result, validPositivePrices(yearData), currentPrice);
 
     // Override with NEPSE values when local history is insufficient
-    const shouldOverride = currentStock?.high52w && currentStock?.low52w && yearData.length < TRADING_DAYS_IN_YEAR;
+    const shouldOverride = hasNepseRange(currentStock) && yearData.length < TRADING_DAYS_IN_YEAR;
     if (shouldOverride) apply52wFromNepse(result, currentStock, currentPrice);
 }
 
@@ -74,13 +82,22 @@ function detectCircuit(result, currentStock) {
  * Count consecutive up or down trading days from most recent history
  */
 function countStreaks(result, history) {
+    const streak = resolveLeadingStreak(history);
+    result.consecutiveUp = streak.direction === 'up' ? streak.count : 0;
+    result.consecutiveDown = streak.direction === 'down' ? streak.count : 0;
+}
+
+const getChangeDirection = (change) => {
+    if (change == null || change === 0) return null;
+    return change > 0 ? 'up' : 'down';
+};
+
+function resolveLeadingStreak(history) {
     let activeDirection = null;
-
+    let count = 0;
     for (let i = 0; i < history.length - 1; i++) {
-        const change = history[i].change;
-        if (change == null || change === 0) break;
-
-        const currentDirection = change > 0 ? 'up' : 'down';
+        const currentDirection = getChangeDirection(history[i].change);
+        if (!currentDirection) break;
         
         if (activeDirection === null) {
             activeDirection = currentDirection;
@@ -88,9 +105,9 @@ function countStreaks(result, history) {
             break;
         }
 
-        if (activeDirection === 'up') result.consecutiveUp++;
-        else result.consecutiveDown++;
+        count++;
     }
+    return { direction: activeDirection, count };
 }
 
 function hasValidHistoryForPeriod(history, days) {
