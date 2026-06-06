@@ -8,8 +8,7 @@ router.get('/', (req, res) => {
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*' // If proxy is used, not strictly necessary, but helpful
+        'Connection': 'keep-alive'
     });
 
     const clientId = Date.now();

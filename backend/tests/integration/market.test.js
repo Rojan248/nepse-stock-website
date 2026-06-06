@@ -51,6 +51,10 @@ jest.mock('../../src/services/dataFetcher', () => ({
     }))
 }));
 
+jest.mock('../../src/middleware/rateLimiter', () => ({
+    adminLimiter: (req, res, next) => next()
+}));
+
 jest.mock('../../src/services/database/connection', () => ({
     prisma: {
         stock: {
@@ -125,19 +129,19 @@ describe('Market API Endpoints', () => {
             expect(['healthy', 'degraded']).toContain(res.body.status);
         });
 
-        it('should show data source', async () => {
+        it('should show market state', async () => {
             const res = await request(app).get('/api/health');
-            expect(res.body.data).toHaveProperty('source');
+            expect(res.body.market).toHaveProperty('state');
         });
+    });
 
-        it('should show market status', async () => {
-            const res = await request(app).get('/api/health');
-            expect(res.body.market).toHaveProperty('isOpen');
-        });
+    describe('GET /api/health/ready', () => {
+        it('should avoid exposing raw fetch errors', async () => {
+            const res = await request(app).get('/api/health/ready');
 
-        it('should show uptime', async () => {
-            const res = await request(app).get('/api/health');
-            expect(res.body.server).toHaveProperty('uptime');
+            expect(res.status).toBe(200);
+            expect(res.body.fetcher).not.toHaveProperty('lastError');
+            expect(res.body.fetcher).toHaveProperty('hasError', false);
         });
     });
 
@@ -164,10 +168,32 @@ describe('Market API Endpoints', () => {
     });
 
     describe('GET /api/scheduler-status', () => {
-        it('should return scheduler status', async () => {
+        it('should reject requests without admin key', async () => {
             const res = await request(app).get('/api/scheduler-status');
+            expect(res.status).toBe(401);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('should return scheduler status with valid admin key', async () => {
+            const res = await request(app).get('/api/scheduler-status')
+                .set('x-admin-key', ADMIN_KEY);
             expect(res.status).toBe(200);
             expect(res.body.data).toHaveProperty('isRunning');
+        });
+    });
+
+    describe('GET /api/time-sync-status', () => {
+        it('should reject requests without admin key', async () => {
+            const res = await request(app).get('/api/time-sync-status');
+            expect(res.status).toBe(401);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('should return time sync status with valid admin key', async () => {
+            const res = await request(app).get('/api/time-sync-status')
+                .set('x-admin-key', ADMIN_KEY);
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
         });
     });
 });

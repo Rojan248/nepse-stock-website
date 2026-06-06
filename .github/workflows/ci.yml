@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: file:./prisma/ci.db
-      ADMIN_API_KEY: ci-admin-key
-      JWT_SECRET: ci-jwt-secret
+      ADMIN_API_KEY: ci-admin-key-0123456789abcdef012345
+      JWT_SECRET: ci-jwt-secret-0123456789abcdef012345
 
     steps:
       - uses: actions/checkout@v5

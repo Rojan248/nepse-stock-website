@@ -1,322 +1,84 @@
-# Security Analysis
+# Security Architecture & Analysis
 
-> Security posture, vulnerabilities, and hardening recommendations.
-> Based on: Comprehensive code review of `backend/src/routes/*.js`, `server.js`, and middleware.
+> Current security posture, active mitigations, and hardening implementation details.
+> Based on: Full-stack security audit and hardening completed on June 6, 2026.
 
 ---
 
-## 1. Current Security Status
+## 1. Security Overview
 
-| Area | Status | Details |
+The NEPSE Stock Website is designed with a defense-in-depth security model to protect the backend Express API and the React frontend.
+
+| Security Area | Status | Details |
 |------|--------|---------|
-| **Data Exposure** | ✅ Safe | All displayed data is public NEPSE information |
-| **XSS Protection** | ✅ Protected | React escapes by default |
-| **SQL Injection** | ✅ Protected | Prisma uses parameterized queries |
-| **Path Traversal** | ✅ Protected | No user-controlled file paths |
-| **CORS** | ⚠️ Permissive | `corsMiddleware` may need tightening |
-| **Rate Limiting** | ✅ Implemented | Global `apiLimiter` + Strict `adminLimiter` |
-| **Authentication** | ✅ Implemented | Admin endpoints protected by API Key |
-| **HTTPS** | ❌ External | Must configure nginx/reverse proxy |
+| **Data Exposure** | ✅ Safe | All displayed market data is public NEPSE information. |
+| **XSS Protection** | ✅ Secure | React escapes rendered content by default. Input sanitization applied to `displayName` (HTML tag stripping). |
+| **SQL Injection** | ✅ Secure | Prisma ORM parameterizes all database queries. No raw SQL concatenation. |
+| **Path Traversal** | ✅ Secure | Filesystem access is strictly controlled with no user-input interpolation. |
+| **CORS** | ✅ Hardened | Whitelist-based CORS configuration. Permissive wildcard origins are banned. |
+| **Rate Limiting** | ✅ Tiered | Global limiters, specific login limits, registration limits, and token refresh limits are in place. |
+| **Authentication** | ✅ Secure | Short-lived access tokens (15m) + secure rotating httpOnly Refresh Cookies. |
+| **Data Protection** | ✅ Encrypted | Passwords hashed with bcrypt (12 rounds). Refresh tokens stored as SHA-256 hashes in SQLite. |
+| **Account Protection** | ✅ Lockout | Brute-force lockout blocks accounts after 10 failed login attempts for 30 minutes. |
+| **DoS Mitigation** | ✅ Clamped | Query parameters (`skip`, `limit`, `days`, `hours`) clamped to reasonable maximums. Max JSON body size is capped at 1MB. |
 
 ---
 
-## 2. Vulnerability Assessment
+## 2. Hardening Configurations
 
-### 2.1 Admin Endpoints (Resolved)
+### 2.1 Password and Input Policies (V9, V12)
+- **Password Complexity**: Enforces at least 12 characters, requiring at least 1 uppercase letter, 1 lowercase letter, and 1 digit to prevent simple dictionary passwords.
+- **Display Name Sanitization**: Rejects/strips HTML tags and restricts the length of the `displayName` field to 80 characters to prevent database bloating or stored XSS.
 
-**Location**: `routes/stocks.js`
+### 2.2 Token Protection (V2, V3, V8, V13)
+- **Token Storage**: Access tokens are kept in-memory (React refs) and never saved to persistent storage. Refresh tokens are kept in secure, httpOnly cookies.
+- **No LocalStorage PII**: LocalStorage only stores minimal user data (`id` and `displayName`). Privileges (`role`) and PII (`email`) are retrieved in-memory via `/api/auth/me`.
+- **Database Refresh Hashing**: SQLite database stores a SHA-256 hash of the refresh token. If the SQLite database file is stolen, the attacker cannot regenerate sessions.
+- **Token Flooding Cap**: Active sessions are capped at 5 per user. Any login beyond 5 deletes the oldest active session.
 
-**Status**: ✅ Protected
+### 2.3 Rate Limiting & DoS Clamps (V4, V5, V10, V11)
+- **Global Limiter**: 100 requests/minute/IP.
+- **Login Limiter**: 5 attempts per 15 minutes/IP.
+- **Registration Limiter**: 3 accounts per hour/IP.
+- **Refresh Limiter**: 10 refreshes per 15 minutes/IP.
+- **Payload Clamping**: `express.json()` request body sizes are capped at 1MB (reduced from 10MB) to mitigate memory exhaustion.
+- **Query Parameter Clamping**: `clampInt` utility sanitizes and bounds query parameters:
+  - `limit` → clamped between 1 and 500
+  - `skip` → clamped between 0 and 10,000
+  - `days` → clamped between 1 and 365
+  - `hours` → clamped between 1 and 720
 
-**Implementation**:
-Endpoints (`/admin/cleanup`, `/admin/validate`, `/force-update`, `/watchdog/verify`) are protected by the `requireAdminKey` middleware which validates the `x-api-key` header against the `ADMIN_API_KEY` environment variable.
-
-**Middleware**:
-```javascript
-// backend/src/middleware/auth.js
-const requireAdminKey = (req, res, next) => {
-    const apiKey = req.headers['x-api-key'];
-    if (apiKey && apiKey === process.env.ADMIN_API_KEY) {
-        return next();
-    }
-    return res.status(401).json({ error: 'Unauthorized' });
-};
-```
-
----
-
-### 2.2 Rate Limiting (Resolved)
-
-**Status**: ✅ Implemented
-
-**Implementation**:
-Server uses `express-rate-limit` with two tiers:
-1. `globalLimiter`: 100 requests per 15 minutes per IP (applied globally).
-2. `adminLimiter` / `strictLimiter`: 5 requests per minute (applied to sensitive endpoints).
-
-**Configuration**:
-```javascript
-// backend/src/middleware/rateLimiter.js
-const rateLimit = require('express-rate-limit');
-
-const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100
-});
-
-const adminLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 5
-});
-```
+### 2.4 Account Lockout Mechanism (V17)
+To prevent distributed credential-stuffing attacks:
+- The user schema maintains `failedLoginAttempts` (Int) and `lockedUntil` (DateTime).
+- 10 consecutive password failures will lock the account for 30 minutes.
+- The lockout countdown resets completely upon successful login.
 
 ---
 
-### 2.3 CORS Configuration (LOW)
+## 3. Environment Variable Security
 
-**Current** (`middleware/cors.js`):
-Most likely using:
-```javascript
-const cors = require('cors');
-module.exports = { corsMiddleware: cors() }; // Allows all origins
-```
-
-**Hardened Configuration**:
-```javascript
-const corsOptions = {
-    origin: process.env.NODE_ENV === 'production' 
-        ? ['https://nepse.me', 'https://www.nepse.me']
-        : true, // Allow all in development
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'X-API-Key'],
-    credentials: false
-};
-
-module.exports = { corsMiddleware: cors(corsOptions) };
-```
-
----
-
-### 2.4 Watchdog Data Manipulation (LOW)
-
-**Location**: `services/watchdog/WatchdogService.js`
-
-**Concern**: Watchdog auto-corrects data based on external sources. If those sources are compromised or return bad data, it could overwrite valid local data.
-
-**Current Mitigations**:
-- Uses 1% tolerance threshold for discrepancy detection
-- Only corrects when breadth is zero (clear anomaly)
-- Logs all corrections
-
-**Recommendations**:
-1. Add alerting for large corrections
-2. Store correction audit trail in database (not just JSON log)
-3. Consider a "dry run" mode for verification
-
----
-
-### 2.5 External Time Dependency (LOW)
-
-**Location**: `services/utils/marketTime.js`
-
-**Concern**: System relies on external time APIs (WorldTimeAPI, TimeAPI.io). If these return incorrect time, market state detection fails.
-
-**Current Mitigations**:
-- Multiple fallback sources
-- 24-hour max offset sanity check
-- Falls back to system time
-
-**Recommendation**: Log time sync failures and alert if multiple consecutive failures occur.
-
----
-
-## 3. Dependency Security
-
-### Check Vulnerabilities
-
-```bash
-cd backend && npm audit
-cd frontend && npm audit
-```
-
-### Known Issues
-
-**Frontend** (as of last check):
-- 7 vulnerabilities in dev dependencies
-- Most are in test/build tools, not production code
-
-**Remediation**:
-```bash
-npm audit fix          # Safe fixes only
-npm audit fix --force  # All fixes (may break things)
-```
-
----
-
-## 4. Environment Variable Security
-
-### Required for Production
-
+### Required in Backend `.env`
+Ensure all production environments contain secure, cryptographically random keys:
 ```env
-# backend/.env (NEVER commit this file)
 PORT=5000
 NODE_ENV=production
 DATABASE_URL="file:./prisma/dev.db"
-ADMIN_API_KEY=<random-32-character-string>
+
+# Minimum 32-character secure strings
+ADMIN_API_KEY=your-random-api-key-here
+JWT_SECRET=your-jwt-signing-secret-here
 ```
 
-### Generate Secure API Key
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-### Ensure .gitignore Contains
-
-```
-.env
-.env.*
-!.env.example
-prisma/dev.db
-logs/
-```
+### Validate at Startup
+The application automatically halts in production if `ADMIN_API_KEY` or `JWT_SECRET` is missing, matches known defaults, or falls below the minimum length of 32 characters. In development, provided weak values are still rejected so accidental insecure local deployments fail fast.
 
 ---
 
-## 5. Security Headers
+## 4. HTTPS & Production Deployments
 
-**Recommended**: Add Helmet.js for security headers.
-
-```bash
-npm install helmet
-```
-
-```javascript
-// backend/src/server.js
-const helmet = require('helmet');
-
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:"]
-        }
-    },
-    hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true
-    }
-}));
-```
+Always run the node server behind a secure reverse proxy (e.g., Nginx, Cloudflare) that enforces TLS 1.3, HSTS headers, and drops overly large HTTP payloads.
 
 ---
 
-## 6. HTTPS Configuration
-
-The Express server does not handle HTTPS directly. Use a reverse proxy.
-
-### Nginx Example
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name nepse.me;
-    
-    ssl_certificate /etc/letsencrypt/live/nepse.me/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/nepse.me/privkey.pem;
-    
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-
-server {
-    listen 80;
-    server_name nepse.me;
-    return 301 https://$server_name$request_uri;
-}
-```
-
----
-
-## 7. Security Checklist
-
-### Immediate Actions
-| Task | Status | Priority |
-|------|--------|----------|
-| Add API key to admin endpoints | ✅ | HIGH |
-| Implement rate limiting | ✅ | HIGH |
-| Restrict CORS in production | ⬜ | MEDIUM |
-
-### Short-term Actions
-| Task | Status | Priority |
-|------|--------|----------|
-| Add Helmet.js security headers | ✅ | MEDIUM |
-| Run `npm audit fix` | ⬜ | MEDIUM |
-| Configure HTTPS via nginx | ⬜ | MEDIUM |
-
-### Ongoing Actions
-| Task | Frequency |
-|------|-----------|
-| Run `npm audit` | Weekly |
-| Review Watchdog logs | Daily |
-| Check rate limit metrics | Weekly |
-| Update dependencies | Monthly |
-
----
-
-## 8. Logging for Security
-
-### Current Logging (`services/utils/logger.js`)
-
-Uses Winston with:
-- Console transport
-- File transport (if configured)
-
-### Recommended Additions
-
-1. **Log admin actions**:
-```javascript
-logger.info(`[ADMIN] ${req.ip} called ${req.path}`);
-```
-
-2. **Log failed API key attempts**:
-```javascript
-logger.warn(`[AUTH] Invalid API key from ${req.ip}`);
-```
-
-3. **Log rate limit hits**:
-```javascript
-logger.warn(`[RATE] ${req.ip} hit rate limit on ${req.path}`);
-```
-
----
-
-## 9. Security Incident Response
-
-### If Suspicious Activity Detected
-
-1. Check logs: `backend/logs/` or `pm2 logs nepse-backend`
-2. Look for patterns:
-   - Many requests from single IP
-   - Repeated admin endpoint calls
-   - Unusual data changes
-
-### If Data Integrity Compromised
-
-1. Stop the server: `npm run pm2:stop`
-2. Backup current database: `cp prisma/dev.db prisma/dev.db.backup`
-3. Check Watchdog logs: `backend/logs/watchdog_verification.json`
-4. Restore from known good backup if available
-
----
-
-*Security analysis generated on 2026-01-09 from comprehensive code review*
+*Security documentation updated: June 6, 2026*

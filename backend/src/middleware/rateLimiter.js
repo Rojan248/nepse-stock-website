@@ -92,9 +92,49 @@ const loginLimiter = rateLimit({
     }
 });
 
+// Registration rate limiter: 3 requests per hour per IP
+const registrationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        error: {
+            message: 'Too many registration attempts from this IP. Please try again in an hour.',
+            retryAfter: 3600
+        }
+    },
+    handler: (req, res, next, options) => {
+        logger.warn(`[RateLimit] Registration limit exceeded: ${req.ip}`);
+        res.status(429).json(options.message);
+    }
+});
+
+// Refresh token rate limiter: 10 requests per 15 minutes per IP
+const refreshLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        error: {
+            message: 'Too many token refresh requests. Please slow down.',
+            retryAfter: 900
+        }
+    },
+    handler: (req, res, next, options) => {
+        logger.warn(`[RateLimit] Refresh token limit exceeded: ${req.ip}`);
+        res.status(429).json(options.message);
+    }
+});
+
 module.exports = {
     globalLimiter,
     adminLimiter,
     searchLimiter,
-    loginLimiter
+    loginLimiter,
+    registrationLimiter,
+    refreshLimiter
 };

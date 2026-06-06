@@ -18,7 +18,11 @@ const readStoredUser = () => {
 const clearStoredUser = () => localStorage.removeItem(USER_KEY);
 
 const persistStoredUser = (user) => {
-    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    if (user) {
+        // Minimize data stored in localStorage (prevent PII / privilege leakage)
+        const minimalUser = { id: user.id, displayName: user.displayName };
+        localStorage.setItem(USER_KEY, JSON.stringify(minimalUser));
+    }
     else clearStoredUser();
 };
 

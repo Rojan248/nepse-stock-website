@@ -61,8 +61,8 @@ Mounted through `backend/src/routes/market.js` at `/api`.
 | GET | `/api/health/live` | Liveness probe | Global limiter |
 | GET | `/api/health/ready` | Readiness probe, returns `503` when degraded | Global limiter |
 | GET | `/api/health/extended` | Extended admin health details | Admin limiter + admin key |
-| GET | `/api/scheduler-status` | Scheduler status | Global limiter |
-| GET | `/api/time-sync-status` | Nepal time sync status | Global limiter |
+| GET | `/api/scheduler-status` | Scheduler status | Admin limiter + admin key |
+| GET | `/api/time-sync-status` | Nepal time sync status | Admin limiter + admin key |
 | GET | `/api/trending` | Analytics-based trending symbols | Global limiter |
 | POST | `/api/force-update` | Force immediate scheduler update | Admin limiter + admin key |
 | POST | `/api/sync-from-web` | Run direct web sync | Admin limiter + admin key |

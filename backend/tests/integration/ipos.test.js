@@ -36,7 +36,13 @@ jest.mock('../../src/services/database/ipoOperations', () => ({
     })
 }));
 
+const ipoOperations = require('../../src/services/database/ipoOperations');
+
 describe('IPO API Endpoints', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
     describe('GET /api/ipos', () => {
         it('should return array of IPOs', async () => {
             const res = await request(app).get('/api/ipos');
@@ -56,6 +62,20 @@ describe('IPO API Endpoints', () => {
             const res = await request(app).get('/api/ipos/active');
             expect(res.status).toBe(200);
             expect(Array.isArray(res.body.data)).toBe(true);
+        });
+    });
+
+    describe('GET /api/ipos/search', () => {
+        it('should return matching IPOs for a valid query', async () => {
+            const res = await request(app).get('/api/ipos/search?q=test');
+            expect(res.status).toBe(200);
+            expect(res.body.query).toBe('test');
+        });
+
+        it('should reject repeated query parameters as malformed input', async () => {
+            const res = await request(app).get('/api/ipos/search?q=test&q=second');
+            expect(res.status).toBe(400);
+            expect(ipoOperations.searchIPOs).not.toHaveBeenCalled();
         });
     });
 

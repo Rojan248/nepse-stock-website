@@ -111,10 +111,13 @@ const errorHandler = (err, req, res, next) => {
 
     const statusCode = resolveStatusCode(err);
     const isDevelopment = process.env.NODE_ENV === 'development';
+    const publicMessage = !isDevelopment && statusCode >= 500
+        ? 'Internal Server Error'
+        : (err.message || 'Internal Server Error');
 
     const response = createErrorResponse(
         statusCode,
-        err.message || 'Internal Server Error',
+        publicMessage,
         isDevelopment ? { stack: err.stack } : null
     );
 

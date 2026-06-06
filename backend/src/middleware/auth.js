@@ -16,7 +16,7 @@ const requireAdminKey = (req, res, next) => {
         logger.error('Access denied: ADMIN_API_KEY is not configured on server');
         return res.status(500).json({
             success: false,
-            error: { message: 'Server configuration error: Admin key not set' }
+            error: { message: 'Internal Server Error' }
         });
     }
 

@@ -4,6 +4,9 @@ const {
     createErrorResponse,
     logAndRecover
 } = require('../../src/services/utils/errorHandler');
+const express = require('express');
+const request = require('supertest');
+const { errorHandler } = require('../../src/middleware/errorHandler');
 
 // Mock logger
 jest.mock('../../src/services/utils/logger', () => ({
@@ -14,6 +17,12 @@ jest.mock('../../src/services/utils/logger', () => ({
 }));
 
 describe('Error Handler Utilities', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    afterEach(() => {
+        process.env.NODE_ENV = originalNodeEnv;
+    });
+
     describe('handleFetchError', () => {
         it('should handle network errors', () => {
             const error = new Error('Network Error');
@@ -81,6 +90,37 @@ describe('Error Handler Utilities', () => {
             const response = createErrorResponse(400, 'Bad Request', { field: 'test' });
 
             expect(response.error.details).toEqual({ field: 'test' });
+        });
+    });
+
+    describe('errorHandler middleware', () => {
+        it('masks unexpected 500 messages outside development', async () => {
+            process.env.NODE_ENV = 'production';
+            const app = express();
+
+            app.get('/boom', (req, res, next) => next(new Error('database path C:\\secret.db failed')));
+            app.use(errorHandler);
+
+            const res = await request(app).get('/boom').expect(500);
+
+            expect(res.body.error.message).toBe('Internal Server Error');
+            expect(res.body.error.message).not.toContain('secret.db');
+        });
+
+        it('keeps 4xx messages available to clients', async () => {
+            process.env.NODE_ENV = 'production';
+            const app = express();
+
+            app.get('/bad', (req, res, next) => {
+                const err = new Error('Invalid symbol');
+                err.status = 400;
+                next(err);
+            });
+            app.use(errorHandler);
+
+            const res = await request(app).get('/bad').expect(400);
+
+            expect(res.body.error.message).toBe('Invalid symbol');
         });
     });
 

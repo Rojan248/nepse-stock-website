@@ -79,13 +79,13 @@ describe('Auth Middleware - requireAdminKey', () => {
         expect(logger.warn).toHaveBeenCalled();
     });
 
-    it('should return 500 when server has no API key configured', () => {
+    it('should return a generic 500 when server has no API key configured', () => {
         delete process.env.ADMIN_API_KEY;
         req.headers['x-admin-key'] = 'some-key';
 
         requireAdminKey(req, res, next);
 
-        expectAuthFailure(500, 'Server configuration error: Admin key not set');
+        expectAuthFailure(500, 'Internal Server Error');
         expect(logger.error).toHaveBeenCalledWith(
             expect.stringContaining('ADMIN_API_KEY is not configured')
         );

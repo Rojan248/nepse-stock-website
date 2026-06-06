@@ -3,6 +3,7 @@ const router = express.Router();
 const ipoOperations = require('../services/database/ipoOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../services/utils/logger');
+const { clampInt, normalizeTextQuery } = require('../services/utils/queryValidation');
 
 /**
  * IPO API Routes
@@ -14,11 +15,13 @@ const logger = require('../services/utils/logger');
  * Get all IPOs with optional filters
  */
 router.get('/', asyncHandler(async (req, res) => {
-    const { skip = 0, limit = 100, status } = req.query;
+    const skipVal = clampInt(req.query.skip, 0, 10000, 0);
+    const limitVal = clampInt(req.query.limit, 1, 500, 100);
+    const { status } = req.query;
 
     const ipos = await ipoOperations.getAllIPOs({
-        skip: parseInt(skip),
-        limit: parseInt(limit),
+        skip: skipVal,
+        limit: limitVal,
         status: status || null
     });
 
@@ -51,22 +54,21 @@ router.get('/active', asyncHandler(async (req, res) => {
  * Search IPOs by name
  */
 router.get('/search', asyncHandler(async (req, res) => {
-    const { q } = req.query;
-
-    if (!q || q.length < 1) {
+    const queryResult = normalizeTextQuery(req.query.q, { maxLength: 80 });
+    if (queryResult.error) {
         return res.status(400).json({
             success: false,
-            error: { message: 'Search query is required' }
+            error: { message: queryResult.error }
         });
     }
 
-    const ipos = await ipoOperations.searchIPOs(q);
+    const ipos = await ipoOperations.searchIPOs(queryResult.value);
 
     res.json({
         success: true,
         data: ipos,
         count: ipos.length,
-        query: q
+        query: queryResult.value
     });
 }));
 
@@ -117,13 +119,20 @@ router.get('/status/:status', asyncHandler(async (req, res) => {
  */
 router.get('/:companyName', asyncHandler(async (req, res) => {
     const { companyName } = req.params;
+    // Validate companyName format: alphanumeric, spaces, dots, dashes, parentheses only, max 100 chars
+    if (!/^[a-zA-Z0-9\s.\-()]+$/.test(companyName) || companyName.length > 100) {
+        return res.status(400).json({
+            success: false,
+            error: { message: 'Invalid company name format' }
+        });
+    }
 
     const ipo = await ipoOperations.getIPOByCompanyName(companyName);
 
     if (!ipo) {
         return res.status(404).json({
             success: false,
-            error: { message: `IPO for '${companyName}' not found` }
+            error: { message: 'IPO not found' }
         });
     }
 

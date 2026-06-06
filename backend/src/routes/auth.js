@@ -4,8 +4,8 @@ const crypto = require('crypto');
 const router = express.Router();
 const { prisma } = require('../services/database/connection');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { generateAccessToken, JWT_SECRET, REFRESH_TOKEN_EXPIRY_DAYS, requireAuth, setRefreshCookie, clearRefreshCookie } = require('../middleware/authMiddleware');
-const { loginLimiter } = require('../middleware/rateLimiter');
+const { generateAccessToken, REFRESH_TOKEN_EXPIRY_DAYS, requireAuth, setRefreshCookie, clearRefreshCookie } = require('../middleware/authMiddleware');
+const { loginLimiter, registrationLimiter, refreshLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 
 const SALT_ROUNDS = 12;
@@ -13,23 +13,83 @@ const SALT_ROUNDS = 12;
 // ==================== Validation Helpers ====================
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 12;
+const MAX_DISPLAY_NAME_LENGTH = 80;
+
+const normalizeEmail = (email) => {
+    if (typeof email !== 'string') return null;
+    const normalized = email.trim().toLowerCase();
+    return EMAIL_RE.test(normalized) ? normalized : null;
+};
+
+const sanitizeDisplayName = (displayName) => {
+    if (displayName === undefined || displayName === null || displayName === '') {
+        return { value: null };
+    }
+    if (typeof displayName !== 'string') {
+        return { error: 'Display name must be text' };
+    }
+
+    const sanitized = displayName
+        .replace(/<[^>]*>/g, '')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .trim()
+        .substring(0, MAX_DISPLAY_NAME_LENGTH);
+
+    return { value: sanitized || null };
+};
 
 const validateRegistration = (email, password) => {
     const errors = [];
-    if (!email || !EMAIL_RE.test(email)) errors.push('Valid email is required');
-    if (!password || password.length < MIN_PASSWORD_LENGTH) {
-        errors.push(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) errors.push('Valid email is required');
+    if (typeof password !== 'string' || password.length === 0) {
+        errors.push('Password is required');
+    } else {
+        if (password.length < MIN_PASSWORD_LENGTH) {
+            errors.push(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+        }
+        if (!/[A-Z]/.test(password)) {
+            errors.push('Password must contain at least one uppercase letter');
+        }
+        if (!/[a-z]/.test(password)) {
+            errors.push('Password must contain at least one lowercase letter');
+        }
+        if (!/[0-9]/.test(password)) {
+            errors.push('Password must contain at least one number');
+        }
     }
-    return errors;
+    return { errors, email: normalizedEmail };
 };
 
 // ==================== Token Helpers ====================
 
+const hashToken = (token) => {
+    return crypto.createHash('sha256').update(token).digest('hex');
+};
+
 const createRefreshToken = async (userId) => {
+    // Clean expired ones first
+    await cleanExpiredTokens(userId);
+
+    // Enforce limit of 5 refresh tokens per user
+    const tokens = await prisma.refreshToken.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' }
+    });
+
+    if (tokens.length >= 5) {
+        const deleteCount = tokens.length - 4; // leave room for the new one (total 5)
+        const deleteIds = tokens.slice(0, deleteCount).map(t => t.id);
+        await prisma.refreshToken.deleteMany({
+            where: { id: { in: deleteIds } }
+        });
+    }
+
     const token = crypto.randomBytes(40).toString('hex');
+    const hashedToken = hashToken(token);
     const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-    await prisma.refreshToken.create({ data: { token, userId, expiresAt } });
+    await prisma.refreshToken.create({ data: { token: hashedToken, userId, expiresAt } });
     return token;
 };
 
@@ -41,16 +101,20 @@ const cleanExpiredTokens = async (userId) => {
 
 // ==================== Routes ====================
 
-// POST /api/auth/register
-router.post('/register', asyncHandler(async (req, res) => {
+// POST /api/auth/register (rate limited)
+router.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
     const { email, password, displayName } = req.body;
 
-    const errors = validateRegistration(email, password);
+    const { errors, email: normalizedEmail } = validateRegistration(email, password);
+    const displayNameResult = sanitizeDisplayName(displayName);
+    if (displayNameResult.error) {
+        errors.push(displayNameResult.error);
+    }
     if (errors.length > 0) {
         return res.status(400).json({ success: false, error: { message: errors.join('; ') } });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
         return res.status(409).json({ success: false, error: { message: 'Email already registered' } });
     }
@@ -58,9 +122,9 @@ router.post('/register', asyncHandler(async (req, res) => {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const user = await prisma.user.create({
         data: {
-            email: email.toLowerCase(),
+            email: normalizedEmail,
             passwordHash,
-            displayName: displayName || null
+            displayName: displayNameResult.value
         }
     });
 
@@ -86,19 +150,63 @@ router.post('/register', asyncHandler(async (req, res) => {
 // POST /api/auth/login (rate limited: 5 attempts per 15 min per IP)
 router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     const { email, password } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email || !password) {
+    if (!normalizedEmail || typeof password !== 'string' || password.length === 0) {
         return res.status(400).json({ success: false, error: { message: 'Email and password required' } });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
         return res.status(401).json({ success: false, error: { message: 'Invalid credentials' } });
     }
 
+    // Check if account is temporarily locked
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+        const timeRemaining = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+        return res.status(403).json({
+            success: false,
+            error: { message: `Account is temporarily locked. Try again in ${timeRemaining} minutes.` }
+        });
+    }
+
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+        const newFailedAttempts = (user.failedLoginAttempts || 0) + 1;
+        let lockedUntil = null;
+
+        if (newFailedAttempts >= 10) {
+            lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes lockout
+            logger.warn(`Account locked due to 10+ failed attempts: ${user.email}`);
+        }
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                failedLoginAttempts: newFailedAttempts,
+                lockedUntil
+            }
+        });
+
+        if (newFailedAttempts >= 10) {
+            return res.status(403).json({
+                success: false,
+                error: { message: 'Account is temporarily locked. Try again in 30 minutes.' }
+            });
+        }
+
         return res.status(401).json({ success: false, error: { message: 'Invalid credentials' } });
+    }
+
+    // Reset failed login attempts on success
+    if ((user.failedLoginAttempts || 0) > 0 || user.lockedUntil) {
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                failedLoginAttempts: 0,
+                lockedUntil: null
+            }
+        });
     }
 
     await cleanExpiredTokens(user.id);
@@ -116,14 +224,15 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     });
 }));
 
-// POST /api/auth/refresh — silent refresh via httpOnly cookie
-router.post('/refresh', asyncHandler(async (req, res) => {
+// POST /api/auth/refresh — silent refresh via httpOnly cookie (rate limited)
+router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
         return res.status(401).json({ success: false, error: { message: 'No refresh token' } });
     }
 
-    const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
+    const hashedToken = hashToken(refreshToken);
+    const stored = await prisma.refreshToken.findUnique({ where: { token: hashedToken } });
     if (!stored || stored.expiresAt < new Date()) {
         if (stored) await prisma.refreshToken.delete({ where: { id: stored.id } });
         clearRefreshCookie(res);
@@ -155,7 +264,8 @@ router.post('/refresh', asyncHandler(async (req, res) => {
 router.post('/logout', asyncHandler(async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
     if (refreshToken) {
-        await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+        const hashedToken = hashToken(refreshToken);
+        await prisma.refreshToken.deleteMany({ where: { token: hashedToken } });
     }
     clearRefreshCookie(res);
     res.json({ success: true, data: { message: 'Logged out' } });

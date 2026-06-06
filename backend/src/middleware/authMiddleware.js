@@ -1,9 +1,16 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const logger = require('../services/utils/logger');
+const { getSecretIssue } = require('../services/utils/securityConfig');
 
 const resolveJwtSecret = () => {
-    if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+    if (process.env.JWT_SECRET) {
+        const issue = getSecretIssue('JWT_SECRET', process.env.JWT_SECRET);
+        if (issue && process.env.NODE_ENV !== 'test') {
+            throw new Error(issue);
+        }
+        return process.env.JWT_SECRET;
+    }
     if (process.env.NODE_ENV === 'production') {
         throw new Error('JWT_SECRET must be configured in production');
     }
@@ -97,7 +104,6 @@ const clearRefreshCookie = (res) => {
 };
 
 module.exports = {
-    JWT_SECRET,
     ACCESS_TOKEN_EXPIRY,
     REFRESH_TOKEN_EXPIRY_DAYS,
     generateAccessToken,

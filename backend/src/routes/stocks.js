@@ -9,6 +9,7 @@ const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
 const { prisma } = require('../services/database/connection');
+const { clampInt, normalizeSymbolParam, normalizeTextQuery } = require('../services/utils/queryValidation');
 
 /**
  * Stock API Routes
@@ -20,11 +21,13 @@ const { prisma } = require('../services/database/connection');
  * Get all stocks with optional pagination
  */
 router.get('/', asyncHandler(async (req, res) => {
-    const { skip = 0, limit = 500, sortBy = 'symbol', sortOrder = 'asc', compact, activeOnly = 'true' } = req.query;
+    const skipVal = clampInt(req.query.skip, 0, 10000, 0);
+    const limitVal = clampInt(req.query.limit, 1, 500, 500);
+    const { sortBy = 'symbol', sortOrder = 'asc', compact, activeOnly = 'true' } = req.query;
 
     const stocks = await stockOperations.getAllStocks({
-        skip: parseInt(skip),
-        limit: parseInt(limit),
+        skip: skipVal,
+        limit: limitVal,
         sortBy,
         sortOrder: sortOrder === 'desc' ? -1 : 1,
         compact: compact === 'true',
@@ -38,8 +41,8 @@ router.get('/', asyncHandler(async (req, res) => {
         data: stocks,
         count,
         pagination: {
-            skip: parseInt(skip),
-            limit: parseInt(limit),
+            skip: skipVal,
+            limit: limitVal,
             total: count
         }
     });
@@ -51,32 +54,24 @@ router.get('/', asyncHandler(async (req, res) => {
  * Search stocks by symbol or company name
  */
 router.get('/search', searchLimiter, asyncHandler(async (req, res) => {
-    const { q } = req.query;
-
-    if (!q || q.length < 1) {
+    const queryResult = normalizeTextQuery(req.query.q, { maxLength: 50 });
+    if (queryResult.error) {
         return res.status(400).json({
             success: false,
-            error: { message: 'Search query is required' }
+            error: { message: queryResult.error }
         });
     }
 
-    if (q.length > 50) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'Search query too long' }
-        });
-    }
-
-    const stocks = await stockOperations.searchStocks(q);
+    const stocks = await stockOperations.searchStocks(queryResult.value);
 
     // Record search for analytics
-    analytics.recordSearch(q);
+    analytics.recordSearch(queryResult.value);
 
     res.json({
         success: true,
         data: stocks,
         count: stocks.length,
-        query: q
+        query: queryResult.value
     });
 }));
 
@@ -99,9 +94,8 @@ router.get('/sectors', asyncHandler(async (req, res) => {
  * Get top gaining stocks
  */
 router.get('/top-gainers', asyncHandler(async (req, res) => {
-    const { limit = 10 } = req.query;
-
-    const stocks = await stockOperations.getTopGainers(parseInt(limit));
+    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const stocks = await stockOperations.getTopGainers(limit);
 
     res.json({
         success: true,
@@ -115,9 +109,8 @@ router.get('/top-gainers', asyncHandler(async (req, res) => {
  * Get top losing stocks
  */
 router.get('/top-losers', asyncHandler(async (req, res) => {
-    const { limit = 10 } = req.query;
-
-    const stocks = await stockOperations.getTopLosers(parseInt(limit));
+    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const stocks = await stockOperations.getTopLosers(limit);
 
     res.json({
         success: true,
@@ -131,9 +124,8 @@ router.get('/top-losers', asyncHandler(async (req, res) => {
  * Get top traded stocks
  */
 router.get('/top-traded', asyncHandler(async (req, res) => {
-    const { limit = 10 } = req.query;
-
-    const stocks = await stockOperations.getTopTraded(parseInt(limit));
+    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const stocks = await stockOperations.getTopTraded(limit);
 
     res.json({
         success: true,
@@ -147,9 +139,8 @@ router.get('/top-traded', asyncHandler(async (req, res) => {
  * Get stocks with no change
  */
 router.get('/unchanged', asyncHandler(async (req, res) => {
-    const { limit = 10 } = req.query;
-
-    const stocks = await stockOperations.getUnchangedStocks(parseInt(limit));
+    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const stocks = await stockOperations.getUnchangedStocks(limit);
 
     res.json({
         success: true,
@@ -188,9 +179,9 @@ router.get('/sector/:sector', asyncHandler(async (req, res) => {
  * Get recently updated stocks
  */
 router.get('/recent', asyncHandler(async (req, res) => {
-    const { seconds = 30 } = req.query;
+    const seconds = clampInt(req.query.seconds, 1, 24 * 60 * 60, 30);
 
-    const stocks = await stockOperations.getRecentlyUpdated(parseInt(seconds));
+    const stocks = await stockOperations.getRecentlyUpdated(seconds);
 
     res.json({
         success: true,
@@ -205,21 +196,20 @@ router.get('/recent', asyncHandler(async (req, res) => {
  * Get computed metrics for a stock
  */
 router.get('/:symbol/metrics', asyncHandler(async (req, res) => {
-    const { symbol } = req.params;
-
-    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
+    const symbolResult = normalizeSymbolParam(req.params.symbol);
+    if (symbolResult.error) {
         return res.status(400).json({
             success: false,
-            error: { message: 'Invalid symbol format' }
+            error: { message: symbolResult.error }
         });
     }
 
-    const metrics = await metricsOrchestrator.getMetrics(symbol);
+    const metrics = await metricsOrchestrator.getMetrics(symbolResult.value);
 
     if (!metrics) {
         return res.status(404).json({
             success: false,
-            error: { message: `No metrics available for '${symbol}'` }
+            error: { message: `No metrics available for '${symbolResult.value}'` }
         });
     }
 
@@ -231,27 +221,25 @@ router.get('/:symbol/metrics', asyncHandler(async (req, res) => {
  * Get specific stock by symbol
  */
 router.get('/:symbol', asyncHandler(async (req, res) => {
-    const { symbol } = req.params;
-
-    // Validate symbol format (alphanumeric only, max 20 chars)
-    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
+    const symbolResult = normalizeSymbolParam(req.params.symbol);
+    if (symbolResult.error) {
         return res.status(400).json({
             success: false,
-            error: { message: 'Invalid symbol format' }
+            error: { message: symbolResult.error }
         });
     }
 
-    const stock = await stockOperations.getStockBySymbol(symbol);
+    const stock = await stockOperations.getStockBySymbol(symbolResult.value);
 
     if (!stock) {
         return res.status(404).json({
             success: false,
-            error: { message: `Stock with symbol '${symbol}' not found` }
+            error: { message: 'Stock not found' }
         });
     }
 
     // Record view for analytics
-    analytics.recordView(symbol);
+    analytics.recordView(symbolResult.value);
 
     res.json({
         success: true,
@@ -264,31 +252,32 @@ router.get('/:symbol', asyncHandler(async (req, res) => {
  * Get historical price data with technical indicators
  */
 router.get('/:symbol/history', asyncHandler(async (req, res) => {
-    const { symbol } = req.params;
     const { days = 180 } = req.query;
 
-    if (!/^[a-zA-Z0-9]+$/.test(symbol) || symbol.length > 20) {
+    const symbolResult = normalizeSymbolParam(req.params.symbol);
+    if (symbolResult.error) {
         return res.status(400).json({
             success: false,
-            error: { message: 'Invalid symbol format' }
+            error: { message: symbolResult.error }
         });
     }
 
     const startTime = performance.now();
 
+    const daysVal = clampInt(days, 1, 365, 180);
     const historyDesc = await prisma.marketHistory.findMany({
-        where: { symbol: symbol.toUpperCase() },
+        where: { symbol: symbolResult.value },
         orderBy: { date: 'desc' },
-        take: parseInt(days)
+        take: daysVal
     });
     const history = historyDesc.reverse();
 
     if (history.length === 0) {
-        return res.json({ success: true, symbol, data: [] });
+        return res.json({ success: true, symbol: symbolResult.value, data: [] });
     }
 
     const metrics = await prisma.stockMetrics.findMany({
-        where: { symbol: symbol.toUpperCase() },
+        where: { symbol: symbolResult.value },
         orderBy: { date: 'asc' }
     });
 
@@ -313,11 +302,11 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
     });
 
     const endTime = performance.now();
-    logger.info(`GET /api/stocks/${symbol}/history execution time: ${(endTime - startTime).toFixed(2)}ms`);
+    logger.info(`GET /api/stocks/${symbolResult.value}/history execution time: ${(endTime - startTime).toFixed(2)}ms`);
 
     res.json({
         success: true,
-        symbol: symbol.toUpperCase(),
+        symbol: symbolResult.value,
         count: combinedData.length,
         data: combinedData
     });
@@ -328,19 +317,26 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
  * Get market depth (Level 2 data) and floorsheet for a stock
  */
 router.get('/:symbol/depth', asyncHandler(async (req, res) => {
-    const { symbol } = req.params;
+    const symbolResult = normalizeSymbolParam(req.params.symbol);
+    if (symbolResult.error) {
+        return res.status(400).json({
+            success: false,
+            error: { message: symbolResult.error }
+        });
+    }
+
     const depthFetcher = require('../services/depthFetcher');
 
     try {
-        const depthData = await depthFetcher.getDepth(symbol);
+        const depthData = await depthFetcher.getDepth(symbolResult.value);
 
         res.json({
             success: true,
-            symbol: symbol.toUpperCase(),
+            symbol: symbolResult.value,
             data: depthData
         });
     } catch (error) {
-        logger.error(`Failed to fetch depth for ${symbol}: ${error.message}`);
+        logger.error(`Failed to fetch depth for ${symbolResult.value}: ${error.message}`);
         res.status(500).json({
             success: false,
             error: { message: 'Failed to fetch market depth' }
@@ -370,7 +366,7 @@ router.post('/admin/cleanup', adminLimiter, requireAdminKey, async (req, res) =>
         return res.status(500).json({
             success: false,
             message: 'Cleanup failed',
-            error: err.message
+            error: 'Operation failed'
         });
     }
 });
@@ -398,7 +394,7 @@ router.post('/admin/cleanup-bonds', adminLimiter, requireAdminKey, async (req, r
         return res.status(500).json({
             success: false,
             message: 'Cleanup failed',
-            error: err.message
+            error: 'Operation failed'
         });
     }
 });
@@ -438,10 +434,9 @@ router.post('/admin/validate', adminLimiter, requireAdminKey, async (req, res) =
         });
     } catch (err) {
         logger.error(`Validation failed: ${err.message}`);
-        return res.status(500).json({
+        res.status(500).json({
             success: false,
-            message: 'Validation failed',
-            error: err.message
+            error: 'Operation failed'
         });
     }
 });

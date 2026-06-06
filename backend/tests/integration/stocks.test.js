@@ -41,10 +41,19 @@ jest.mock('../../src/services/database/stockOperations', () => ({
     getStockCount: jest.fn().mockResolvedValue(2),
     getAllSectors: jest.fn().mockResolvedValue(['Banking', 'Insurance', 'Hydropower']),
     getTopGainers: jest.fn().mockResolvedValue([global.testUtils.mockStock]),
-    getTopLosers: jest.fn().mockResolvedValue([{ ...global.testUtils.mockStock, change: -5, changePercent: -5 }])
+    getTopLosers: jest.fn().mockResolvedValue([{ ...global.testUtils.mockStock, change: -5, changePercent: -5 }]),
+    getTopTraded: jest.fn().mockResolvedValue([global.testUtils.mockStock]),
+    getUnchangedStocks: jest.fn().mockResolvedValue([global.testUtils.mockStock]),
+    getRecentlyUpdated: jest.fn().mockResolvedValue([global.testUtils.mockStock])
 }));
 
+const stockOperations = require('../../src/services/database/stockOperations');
+
 describe('Stock API Endpoints', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
     describe('GET /api/stocks', () => {
         it('should return array of stocks', async () => {
             const res = await request(app).get('/api/stocks');
@@ -127,6 +136,12 @@ describe('Stock API Endpoints', () => {
             const res = await request(app).get('/api/stocks/search');
             expect(res.status).toBe(400);
         });
+
+        it('should reject repeated query parameters as malformed input', async () => {
+            const res = await request(app).get('/api/stocks/search?q=test&q=second');
+            expect(res.status).toBe(400);
+            expect(stockOperations.searchStocks).not.toHaveBeenCalled();
+        });
     });
 
     describe('GET /api/stocks/sector/:sector', () => {
@@ -164,6 +179,11 @@ describe('Stock API Endpoints', () => {
             expect(res.status).toBe(200);
             expect(Array.isArray(res.body.data)).toBe(true);
         });
+
+        it('should clamp oversized limits', async () => {
+            await request(app).get('/api/stocks/top-gainers?limit=999999').expect(200);
+            expect(stockOperations.getTopGainers).toHaveBeenCalledWith(100);
+        });
     });
 
     describe('GET /api/stocks/top-losers', () => {
@@ -171,6 +191,14 @@ describe('Stock API Endpoints', () => {
             const res = await request(app).get('/api/stocks/top-losers');
             expect(res.status).toBe(200);
             expect(Array.isArray(res.body.data)).toBe(true);
+        });
+    });
+
+    describe('GET /api/stocks/:symbol/depth', () => {
+        it('should reject invalid depth symbols before fetching depth', async () => {
+            const res = await request(app).get('/api/stocks/BAD%40/depth');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('Invalid symbol format');
         });
     });
 });

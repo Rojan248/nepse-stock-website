@@ -11,6 +11,7 @@ const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString, getMarketState } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
+const { clampInt } = require('../services/utils/queryValidation');
 
 /**
  * Market API Routes
@@ -106,8 +107,7 @@ const buildHealthWarnings = ({ updateStatus, fetchStatus, marketState, isFresh, 
     const warnings = [];
 
     if (hasRecentFetchWarning(fetchStatus, isFresh)) {
-        const errorDetail = updateStatus.lastError || fetchStatus.lastError;
-        warnings.push(`${fetchStatus.consecutiveFailures} recent fetch failure${errorDetail ? `: ${errorDetail}` : ''}`);
+        warnings.push(`${fetchStatus.consecutiveFailures} recent fetch failure`);
     }
     if (!updateStatus.isMarketOpen && !isFresh) {
         warnings.push(`stored market data is older than preferred for ${marketState} (${lastSyncSecondsAgo ?? 'unknown'}s)`);
@@ -176,15 +176,15 @@ router.get('/market-summary', asyncHandler(async (req, res) => {
  * Get market summary history
  */
 router.get('/market-history', asyncHandler(async (req, res) => {
-    const { hours = 24 } = req.query;
+    const hoursVal = clampInt(req.query.hours, 1, 720, 24);
 
-    const history = await marketOperations.getMarketSummaryHistory(parseInt(hours));
+    const history = await marketOperations.getMarketSummaryHistory(hoursVal);
 
     res.json({
         success: true,
         data: history,
         count: history.length,
-        hours: parseInt(hours)
+        hours: hoursVal
     });
 }));
 
@@ -231,19 +231,83 @@ router.get('/market-metrics', asyncHandler(async (req, res) => {
  */
 router.get('/health', asyncHandler(async (req, res) => {
     const health = await evaluateHealth();
-    const { updateStatus, fetchStatus, uptimeSeconds, marketStats, stockCount } = health;
+    res.json({
+        success: true,
+        status: health.status,
+        market: {
+            state: health.marketState
+        }
+    });
+}));
+
+router.get('/health/live', asyncHandler(async (req, res) => {
+    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
+    res.json({
+        success: true,
+        status: 'alive',
+        uptime: uptimeSeconds,
+        timestamp: new Date().toISOString()
+    });
+}));
+
+router.get('/health/ready', asyncHandler(async (req, res) => {
+    const health = await evaluateHealth();
+    const ready = health.status === 'healthy';
+    res.status(ready ? 200 : 503).json({
+        success: ready,
+        status: ready ? 'ready' : 'not_ready',
+        problems: health.problems,
+        warnings: health.warnings,
+        data: {
+            stockCount: health.stockCount,
+            hasMarketData: health.marketStats.hasData,
+            freshness: health.freshness
+        },
+        fetcher: {
+            consecutiveFailures: health.fetchStatus.consecutiveFailures,
+            hasError: Boolean(health.fetchStatus.lastError),
+            lastFetchDurationMs: health.fetchStatus.lastFetchDurationMs,
+            rateLimitEvents: health.fetchStatus.rateLimitEvents
+        }
+    });
+}));
+
+/**
+ * GET /api/health/extended
+ * Extended health metrics for monitoring system resilience
+ */
+router.get('/health/extended', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
+    let lastSyncSecondsAgo = -1;
+    try {
+        const latestStock = await prisma.stock.findFirst({ orderBy: { updatedAt: 'desc' } });
+        if (latestStock?.updatedAt) {
+            lastSyncSecondsAgo = Math.floor((Date.now() - latestStock.updatedAt.getTime()) / 1000);
+        }
+    } catch (e) {
+        logger.error(`Failed to get latest stock timestamp: ${e.message}`);
+    }
+
+    const memoryUsage = process.memoryUsage();
+    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
+    const health = await evaluateHealth();
+    const { updateStatus, fetchStatus, stockCount, marketStats } = health;
 
     res.json({
         success: true,
         status: health.status,
+        lastSyncSecondsAgo,
+        memoryUsage: {
+            rss: `${Math.round(memoryUsage.rss / 1024 / 1024 * 100) / 100} MB`,
+            heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024 * 100) / 100} MB`,
+            heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024 * 100) / 100} MB`,
+            external: `${Math.round(memoryUsage.external / 1024 / 1024 * 100) / 100} MB`
+        },
+        uptime: uptimeSeconds,
+        uptimeFormatted: formatUptime(uptimeSeconds),
+        environment: process.env.NODE_ENV || 'development',
+        port: process.env.PORT || 5000,
         problems: health.problems,
         warnings: health.warnings,
-        server: {
-            uptime: uptimeSeconds,
-            uptimeFormatted: formatUptime(uptimeSeconds),
-            environment: process.env.NODE_ENV || 'development',
-            port: process.env.PORT || 5000
-        },
         scheduler: {
             isRunning: updateStatus.isRunning,
             lastUpdate: updateStatus.lastUpdateTime,
@@ -278,73 +342,7 @@ router.get('/health', asyncHandler(async (req, res) => {
         resilience: {
             circuitBreaker: updateStatus.circuitBreaker,
             alerting: updateStatus.alerting
-        }
-    });
-}));
-
-router.get('/health/live', asyncHandler(async (req, res) => {
-    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
-    res.json({
-        success: true,
-        status: 'alive',
-        uptime: uptimeSeconds,
-        timestamp: new Date().toISOString()
-    });
-}));
-
-router.get('/health/ready', asyncHandler(async (req, res) => {
-    const health = await evaluateHealth();
-    const ready = health.status === 'healthy';
-    res.status(ready ? 200 : 503).json({
-        success: ready,
-        status: ready ? 'ready' : 'not_ready',
-        problems: health.problems,
-        warnings: health.warnings,
-        data: {
-            stockCount: health.stockCount,
-            hasMarketData: health.marketStats.hasData,
-            freshness: health.freshness
         },
-        fetcher: {
-            consecutiveFailures: health.fetchStatus.consecutiveFailures,
-            lastError: health.fetchStatus.lastError,
-            lastFetchDurationMs: health.fetchStatus.lastFetchDurationMs,
-            rateLimitEvents: health.fetchStatus.rateLimitEvents
-        }
-    });
-}));
-
-/**
- * GET /api/health/extended
- * Extended health metrics for monitoring system resilience
- */
-router.get('/health/extended', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
-    let lastSyncSecondsAgo = -1;
-    try {
-        const latestStock = await prisma.stock.findFirst({ orderBy: { updatedAt: 'desc' } });
-        if (latestStock?.updatedAt) {
-            lastSyncSecondsAgo = Math.floor((Date.now() - latestStock.updatedAt.getTime()) / 1000);
-        }
-    } catch (e) {
-        logger.error(`Failed to get latest stock timestamp: ${e.message}`);
-    }
-
-    const memoryUsage = process.memoryUsage();
-    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
-
-    const status = (lastSyncSecondsAgo > 120 || lastSyncSecondsAgo === -1) ? 'warning' : 'ok';
-
-    res.json({
-        success: true,
-        status,
-        lastSyncSecondsAgo,
-        memoryUsage: {
-            rss: `${Math.round(memoryUsage.rss / 1024 / 1024 * 100) / 100} MB`,
-            heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024 * 100) / 100} MB`,
-            heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024 * 100) / 100} MB`,
-            external: `${Math.round(memoryUsage.external / 1024 / 1024 * 100) / 100} MB`
-        },
-        uptime: uptimeSeconds,
         timestamp: new Date().toISOString()
     });
 }));
@@ -353,7 +351,7 @@ router.get('/health/extended', adminLimiter, requireAdminKey, asyncHandler(async
  * GET /api/scheduler-status
  * Get detailed scheduler status
  */
-router.get('/scheduler-status', asyncHandler(async (req, res) => {
+router.get('/scheduler-status', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     const status = scheduler.getUpdateStatus();
 
     res.json({
@@ -366,7 +364,7 @@ router.get('/scheduler-status', asyncHandler(async (req, res) => {
  * GET /api/time-sync-status
  * Get time synchronization status for monitoring
  */
-router.get('/time-sync-status', asyncHandler(async (req, res) => {
+router.get('/time-sync-status', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     const syncStatus = getTimeSyncStatus();
     const systemTime = new Date();
 
@@ -403,10 +401,10 @@ function enrichTrendingItem(item, stock) {
  */
 router.get('/trending', asyncHandler(async (req, res) => {
     const analytics = require('../services/analytics');
-    const { limit = 6 } = req.query;
+    const limitVal = clampInt(req.query.limit, 1, 500, 6);
 
     // Get trending stocks from analytics
-    const trending = analytics.getTrending(parseInt(limit));
+    const trending = analytics.getTrending(limitVal);
 
     // Extract symbols
     const symbols = trending.map(t => t.symbol);

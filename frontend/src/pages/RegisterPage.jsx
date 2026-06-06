@@ -19,10 +19,10 @@ const REGISTER_FIELDS = [
     {
         id: 'password',
         label: 'Password',
-        placeholder: 'At least 8 characters',
+        placeholder: 'At least 12 characters',
         type: 'password',
         required: true,
-        minLength: 8,
+        minLength: 12,
     },
 ];
 

@@ -12,6 +12,7 @@ const { notFoundHandler, errorHandler, validationErrorHandler } = require('./mid
 const logger = require('./services/utils/logger');
 const scheduler = require('./services/scheduler/updateScheduler');
 const aiSummaryScheduler = require('./services/scheduler/aiSummaryScheduler');
+const { validateRuntimeSecrets } = require('./services/utils/securityConfig');
 
 // Import routes
 const stocksRouter = require('./routes/stocks');
@@ -52,7 +53,7 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 app.use(corsMiddleware);
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(globalLimiter);
@@ -121,6 +122,8 @@ app.use(errorHandler);
  */
 const startServer = async () => {
     try {
+        validateRuntimeSecrets();
+
         // Ensure logs directory exists
         const logsDir = path.join(__dirname, '../logs');
         if (!fs.existsSync(logsDir)) {

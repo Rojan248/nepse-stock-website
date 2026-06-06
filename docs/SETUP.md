@@ -49,8 +49,11 @@ MARKET_OPEN_HOUR=10
 MARKET_CLOSE_HOUR=15
 
 # Security
+# Generate secrets with:
+# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 # Key for protected Admin endpoints (/force-update, /admin/cleanup)
-ADMIN_API_KEY=change-this-to-a-secure-random-string
+ADMIN_API_KEY=
+JWT_SECRET=
 
 # CORS (comma-separated origins)
 CORS_ORIGIN=http://localhost:3000
@@ -276,7 +279,7 @@ npm run pm2:stop  # If using PM2
 ### "NEPSE data not updating"
 
 1. Check health: `curl http://localhost:5000/api/health`
-2. Check scheduler: `curl http://localhost:5000/api/scheduler-status`
+2. Check scheduler: `curl -H "x-admin-key: <your-admin-key>" http://localhost:5000/api/scheduler-status`
 3. Verify market hours (10:00-15:00 NST, Sun-Thu)
 4. Check logs: `backend/logs/` or `npm run pm2:logs`
 
@@ -290,7 +293,7 @@ npm run pm2:stop  # If using PM2
 
 Check time status:
 ```bash
-curl http://localhost:5000/api/time-sync-status
+curl -H "x-admin-key: <your-admin-key>" http://localhost:5000/api/time-sync-status
 ```
 
 If offset is extreme, verify system clock or check external time API availability.
