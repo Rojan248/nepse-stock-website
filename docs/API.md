@@ -1,495 +1,217 @@
 # API Reference
 
-> Complete REST API documentation based on actual route implementations.
-> Generated from: `backend/src/routes/*.js`
-
-**Base URL**: `http://localhost:5000/api`
-
----
-
-## Stocks (`/api/stocks`)
-
-**Source**: `routes/stocks.js` (301 lines)
-
-### GET /api/stocks
-Get all stocks with pagination.
-
-**Query Parameters**:
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `skip` | number | 0 | Records to skip |
-| `limit` | number | 500 | Max records to return |
-| `sortBy` | string | `symbol` | Field to sort by |
-| `sortOrder` | string | `asc` | `asc` or `desc` |
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "symbol": "NABIL",
-      "companyName": "Nabil Bank Limited",
-      "sector": "Commercial Banks",
-      "ltp": 1250.00,
-      "lastTradedPrice": 1250.00,
-      "previousClose": 1245.00,
-      "openPrice": 1248.00,
-      "highPrice": 1255.00,
-      "lowPrice": 1240.00,
-      "volume": 15000,
-      "totalTrades": 250,
-      "turnover": 18750000,
-      "change": 5.00,
-      "changePercent": 0.40,
-      "percentageChange": 0.40,
-      "prices": { "ltp": 1250.00, "change": 5.00, "changePercent": 0.40 },
-      "trading": { "volume": 15000, "turnover": 18750000, "totalTrades": 250 },
-      "updatedAt": "2026-01-09T08:30:00.000Z"
-    }
-  ],
-  "count": 270,
-  "pagination": { "skip": 0, "limit": 500, "total": 270 }
-}
-```
-
----
-
-### GET /api/stocks/search
-Search stocks by symbol or company name.
-
-**Query Parameters**:
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `q` | string | Yes | Search query (min 1 char) |
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": [...],
-  "count": 5,
-  "query": "bank"
-}
-```
-
----
-
-### GET /api/stocks/sectors
-Get all available sectors.
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": ["Commercial Banks", "Development Banks", "Finance", "Hydropower", ...],
-  "count": 13
-}
-```
-
----
-
-### GET /api/stocks/top-gainers
-Get stocks with highest positive change.
-
-**Query Parameters**:
-| Parameter | Type | Default |
-|-----------|------|---------|
-| `limit` | number | 10 |
-
----
-
-### GET /api/stocks/top-losers
-Get stocks with highest negative change.
+Current REST API reference for the Express backend.
+
+| Item | Value |
+| --- | --- |
+| Direct backend base URL | `http://localhost:5000/api` |
+| Frontend development base URL | `/api` through Vite proxy |
+| Response shape | `{ "success": true, "data": ... }` on success |
+| Error shape | `{ "success": false, "error": { "message": "..." } }` |
+| Admin auth | `x-admin-key` header checked by `requireAdminKey` |
+| User auth | Bearer access token plus httpOnly refresh cookie |
+
+## Stocks
+
+Base path: `/api/stocks`
+
+| Method | Path | Purpose | Protection |
+| --- | --- | --- | --- |
+| GET | `/api/stocks` | Paginated stock list | Global limiter |
+| GET | `/api/stocks/search?q=` | Search by symbol/company | Search limiter |
+| GET | `/api/stocks/sectors` | List sectors | Global limiter |
+| GET | `/api/stocks/top-gainers` | Top positive movers | Global limiter |
+| GET | `/api/stocks/top-losers` | Top negative movers | Global limiter |
+| GET | `/api/stocks/top-traded` | Top volume/turnover stocks | Global limiter |
+| GET | `/api/stocks/unchanged` | Unchanged stocks | Global limiter |
+| GET | `/api/stocks/sector/:sector` | Stocks by sector | Global limiter |
+| GET | `/api/stocks/recent` | Recently updated stocks | Global limiter |
+| GET | `/api/stocks/:symbol` | Single stock detail | Global limiter |
+| GET | `/api/stocks/:symbol/history` | Historical OHLC + selected metrics | Global limiter |
+| GET | `/api/stocks/:symbol/metrics` | Computed metrics for a stock | Global limiter |
+| GET | `/api/stocks/:symbol/depth` | Market depth and floorsheet | Global limiter |
+| POST | `/api/stocks/admin/cleanup` | Delete inactive stocks | Admin limiter + admin key |
+| POST | `/api/stocks/admin/cleanup-bonds` | Remove non-equity securities | Admin limiter + admin key |
+| POST | `/api/stocks/admin/validate` | Remove symbols not present in official NEPSE list | Admin limiter + admin key |
+
+### `GET /api/stocks`
+
+Query parameters:
+
+| Parameter | Default | Notes |
+| --- | --- | --- |
+| `skip` | `0` | Offset |
+| `limit` | `500` | Max rows |
+| `sortBy` | `symbol` | Sort field |
+| `sortOrder` | `asc` | `asc` or `desc` |
+| `compact` | `false` | Compact payload when supported |
+| `activeOnly` | `true` | Excludes zero-LTP records by default |
+
+## Market
+
+Mounted through `backend/src/routes/market.js` at `/api`.
+
+| Method | Path | Purpose | Protection |
+| --- | --- | --- | --- |
+| GET | `/api/market-summary` | Latest market summary plus cumulative changes | Global limiter |
+| GET | `/api/market-history` | Market summary history | Global limiter |
+| GET | `/api/market-stats` | Aggregate market stats and sector list | Global limiter |
+| GET | `/api/market-metrics` | Aggregate computed market metrics | Global limiter |
+| GET | `/api/health` | Main health endpoint | No rate limit |
+| GET | `/api/health/live` | Liveness probe | Global limiter |
+| GET | `/api/health/ready` | Readiness probe, returns `503` when degraded | Global limiter |
+| GET | `/api/health/extended` | Extended admin health details | Admin limiter + admin key |
+| GET | `/api/scheduler-status` | Scheduler status | Global limiter |
+| GET | `/api/time-sync-status` | Nepal time sync status | Global limiter |
+| GET | `/api/trending` | Analytics-based trending symbols | Global limiter |
+| POST | `/api/force-update` | Force immediate scheduler update | Admin limiter + admin key |
+| POST | `/api/sync-from-web` | Run direct web sync | Admin limiter + admin key |
+| GET | `/api/scrape-live` | Debug live scrape without saving | Admin limiter + admin key |
+
+## IPOs
+
+Base path: `/api/ipos`
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/ipos` | List IPOs with pagination and optional status |
+| GET | `/api/ipos/active` | Currently active/open IPOs |
+| GET | `/api/ipos/search` | Search IPOs by company |
+| GET | `/api/ipos/counts` | Counts by status |
+| GET | `/api/ipos/status/:status` | IPOs by status |
+| GET | `/api/ipos/:companyName` | Single IPO by company name |
+
+## Auth
+
+Base path: `/api/auth`
+
+| Method | Path | Purpose | Protection |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | Create user, default watchlist, refresh cookie, access token | Global limiter |
+| POST | `/api/auth/login` | Authenticate user and issue tokens | Login limiter |
+| POST | `/api/auth/refresh` | Rotate refresh cookie and return new access token | Refresh cookie |
+| POST | `/api/auth/logout` | Delete refresh token and clear cookie | Refresh cookie |
+| GET | `/api/auth/me` | Current user profile | Bearer token |
+
+## Watchlists
+
+Base path: `/api/watchlists`
+
+| Method | Path | Purpose | Protection |
+| --- | --- | --- | --- |
+| GET | `/api/watchlists` | List current user's watchlists | Bearer token |
+| POST | `/api/watchlists` | Create watchlist | Bearer token |
+| PUT | `/api/watchlists/:id` | Rename watchlist | Bearer token |
+| DELETE | `/api/watchlists/:id` | Delete watchlist | Bearer token |
+| POST | `/api/watchlists/:id/items` | Add symbol | Bearer token |
+| DELETE | `/api/watchlists/:id/items/:symbol` | Remove symbol | Bearer token |
+| POST | `/api/watchlists/:id/import` | Bulk import symbols | Bearer token |
+| POST | `/api/watchlists/:id/share` | Create public share slug | Bearer token |
+| POST | `/api/watchlists/:id/unshare` | Remove public sharing | Bearer token |
+| GET | `/api/watchlists/shared/:slug` | Read public shared watchlist | Public |
 
----
+## Portfolios
 
-### GET /api/stocks/top-traded
-Get stocks with highest volume/turnover.
+Base path: `/api/portfolios`
 
----
+All portfolio endpoints require a Bearer token and are scoped to the current user.
 
-### GET /api/stocks/unchanged
-Get stocks with zero change.
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/portfolios` | List portfolios |
+| POST | `/api/portfolios` | Create portfolio |
+| DELETE | `/api/portfolios/:id` | Delete portfolio |
+| POST | `/api/portfolios/:id/trades` | Add trade |
+| DELETE | `/api/portfolios/:id/trades/:tradeId` | Delete trade |
+| GET | `/api/portfolios/:id/summary` | Portfolio P/L summary |
+| GET | `/api/portfolios/summary` | Aggregate P/L summary |
+| GET | `/api/portfolios/:id/holdings` | Computed holdings |
 
----
+## Alerts
 
-### GET /api/stocks/sector/:sector
-Get stocks by sector name.
+Base path: `/api/alerts`
 
----
+All alert endpoints require a Bearer token and are scoped to the current user.
 
-### GET /api/stocks/recent
-Get recently updated stocks.
-
-**Query Parameters**:
-| Parameter | Type | Default |
-|-----------|------|---------|
-| `seconds` | number | 30 |
-
----
-
-### GET /api/stocks/:symbol
-Get specific stock by symbol.
-
-**Example**: `GET /api/stocks/NABIL`
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": { "symbol": "NABIL", "companyName": "...", ... }
-}
-```
-
-**Note**: Records a view for analytics/trending calculation.
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/alerts` | List alerts |
+| POST | `/api/alerts` | Create alert |
+| PUT | `/api/alerts/:id` | Update alert |
+| DELETE | `/api/alerts/:id` | Delete alert |
 
----
+## Watchdog
 
-### GET /api/stocks/:symbol/depth
-Get market depth (Level 2) data for a stock.
+Base path: `/api/watchdog`
 
-**Response Example**:
-```json
-{
-  "success": true,
-  "symbol": "NABIL",
-  "data": {
-    "bids": [...],
-    "asks": [...],
-    "floorsheet": [...]
-  }
-}
-```
-
----
-
-### POST /api/stocks/admin/cleanup
-Delete inactive stocks (LTP = 0 or null).
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Inactive stocks cleanup completed",
-  "removed": 15,
-  "remaining": 255
-}
-```
-
-**⚠️ Not Protected**: Requires authentication implementation.
-
----
-
-### POST /api/stocks/admin/validate
-Remove stocks not in official NEPSE list.
-
-Fetches valid symbols from NEPSE API and removes any that don't match.
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Stock validation completed",
-  "validNepseStocks": 270,
-  "removed": 5,
-  "remaining": 265,
-  "removedSymbols": []
-}
-```
-
----
-
-## Market (`/api`)
-
-**Source**: `routes/market.js` (379 lines)
-
-### GET /api/market-summary
-Get current market summary.
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "indexValue": 2450.75,
-    "indexChange": 12.50,
-    "indexChangePercent": 0.51,
-    "totalTurnover": 2500000000,
-    "totalVolume": 5000000,
-    "totalTransactions": 25000,
-    "activeCompanies": 270,
-    "advancedCompanies": 120,
-    "declinedCompanies": 100,
-    "unchangedCompanies": 50,
-    "timestamp": "2026-01-09T08:30:00.000Z"
-  }
-}
-```
-
----
-
-### GET /api/market-history
-Get market summary history.
-
-**Query Parameters**:
-| Parameter | Type | Default |
-|-----------|------|---------|
-| `hours` | number | 24 |
-
----
-
-### GET /api/market-stats
-Get aggregated market statistics.
-
----
-
-### GET /api/health
-Server health check with comprehensive status.
-
-**Response**:
-```json
-{
-  "success": true,
-  "status": "healthy",
-  "data": {
-    "uptime": "2d 5h 30m",
-    "uptimeSeconds": 192600,
-    "marketState": "CLOSED",
-    "lastUpdate": "2026-01-09T08:25:00.000Z",
-    "schedulerRunning": true,
-    "dataSource": "nepse-api-helper",
-    "stockCount": 270,
-    "hasMarketData": true,
-    "isHealthy": true
-  }
-}
-```
-
----
-
-### GET /api/health/extended
-Extended health metrics for monitoring.
-
----
-
-### GET /api/scheduler-status
-Get detailed scheduler status.
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "isRunning": true,
-    "isMarketOpen": false,
-    "lastUpdateTime": "2026-01-09T08:25:00.000Z",
-    "updateCount": 150,
-    "lastError": null,
-    "currentNST": "2026-01-09T08:30:00.000Z",
-    "marketHours": { "open": "10:00", "close": "15:00" },
-    "dataSource": "nepse-api-helper"
-  }
-}
-```
-
----
-
-### GET /api/time-sync-status
-Get time synchronization status.
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "synced": true,
-    "lastSyncAge": "45s ago",
-    "offsetMs": -2500,
-    "offsetSeconds": -3,
-    "nepseTime": "08:30:15",
-    "nepseDay": "Thursday",
-    "marketState": "CLOSED",
-    "comparison": {
-      "systemTime": "08:30:12",
-      "offsetApplied": "-3s"
-    }
-  }
-}
-```
-
----
-
-### GET /api/trending
-Get trending stocks based on user activity.
-
-**Query Parameters**:
-| Parameter | Type | Default |
-|-----------|------|---------|
-| `limit` | number | 6 |
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": [
-    { "symbol": "NABIL", "views": 50, "searches": 25, "score": 100, "stock": {...} }
-  ],
-  "count": 6
-}
-```
-
----
-
-### POST /api/force-update
-Force an immediate data refresh.
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Update triggered successfully",
-  "timestamp": "2026-01-09T08:30:00.000Z"
-}
-```
-
----
-
-### POST /api/sync-market-data
-Sync market data from web scraping.
-
----
-
-### GET /api/scrape-live
-Scrape live market data without saving.
-
-Returns raw scraped data from Merolagani for debugging.
-
----
-
-## IPOs (`/api/ipos`)
-
-**Source**: `routes/ipos.js` (137 lines)
-
-### GET /api/ipos
-Get all IPOs with optional filters.
-
-**Query Parameters**:
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `skip` | number | 0 | Pagination offset |
-| `limit` | number | 100 | Max records |
-| `status` | string | null | Filter by status |
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": [...],
-  "count": 10,
-  "statistics": { "upcoming": 2, "open": 1, "closed": 5, "completed": 2 }
-}
-```
-
----
-
-### GET /api/ipos/active
-Get currently active/open IPOs.
-
----
-
-### GET /api/ipos/search
-Search IPOs by company name.
-
----
-
-### GET /api/ipos/counts
-Get IPO counts by status.
-
----
-
-### GET /api/ipos/status/:status
-Get IPOs by status.
-
-**Valid Statuses**: `upcoming`, `open`, `closed`, `completed`
-
----
-
-### GET /api/ipos/:companyName
-Get specific IPO by company name.
-
----
-
-## Watchdog (`/api/watchdog`)
-
-**Source**: `routes/watchdog.js` (40 lines)
-
-### POST /api/watchdog/verify
-Trigger a manual data verification.
-
-Compares local database with external sources (Merolagani, NepseAlpha) and auto-corrects discrepancies.
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "timestamp": "2026-01-09T08:30:00.000Z",
-    "status": "OK",
-    "discrepancies": [],
-    "correctionApplied": false,
-    "local": {...},
-    "external": [...]
-  }
-}
-```
-
----
-
-### GET /api/watchdog/reports
-Get historical verification reports.
-
-Returns last 50 verification reports from `logs/watchdog_verification.json`.
-
----
-
-## Error Responses
-
-All endpoints return errors in this format:
-
-```json
-{
-  "success": false,
-  "error": {
-    "message": "Stock with symbol 'XYZ' not found"
-  }
-}
-```
-
-**HTTP Status Codes**:
-| Code | Meaning |
-|------|---------|
-| 200 | Success |
-| 400 | Bad Request (invalid parameters) |
-| 404 | Not Found |
-| 500 | Internal Server Error |
-
----
+All watchdog endpoints use `adminLimiter` and `requireAdminKey`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/api/watchdog/verify` | Manual data verification |
+| POST | `/api/watchdog/fix/:symbol` | Targeted re-fetch and correction |
+| POST | `/api/watchdog/audit-zero-volume` | Audit zero-volume price anomalies |
+| GET | `/api/watchdog/reports` | Verification report history |
+
+## Streams
+
+Base path: `/api/stream`
+
+The stream route is mounted from `backend/src/routes/stream.js` and is used for live frontend updates.
+
+## AI Summaries
+
+Base path: `/api/ai-summaries`
+
+The AI summary subsystem is an optional scaffold and is disabled unless `AI_SUMMARIES_ENABLED=true`.
+
+| Method | Path | Purpose | Protection |
+| --- | --- | --- | --- |
+| GET | `/api/ai-summaries/status` | Scheduler and repository status | Global limiter |
+| GET | `/api/ai-summaries/stocks/:symbol/latest` | Latest stock summary for period | Global limiter |
+| GET | `/api/ai-summaries/stocks/:symbol` | Stock summary history | Global limiter |
+| GET | `/api/ai-summaries/market` | Market summaries | Global limiter |
+| POST | `/api/ai-summaries/admin/run` | Trigger stock or market summary job | Admin limiter + admin key |
+
+`POST /api/ai-summaries/admin/run` returns `409` while AI summaries are disabled.
 
 ## Rate Limiting
 
-**Current Status**: ⚠️ NOT IMPLEMENTED
+Implemented in `backend/src/middleware/rateLimiter.js`.
 
-Recommendation: Add `express-rate-limit` middleware:
-```javascript
-const rateLimit = require('express-rate-limit');
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per window
-});
-app.use('/api/', limiter);
-```
+| Limiter | Scope | Default |
+| --- | --- | --- |
+| `globalLimiter` | All API routes except `/api/health` | 100 requests/minute/IP |
+| `adminLimiter` | Admin endpoints and watchdog endpoints | 5 requests/minute/IP |
+| `searchLimiter` | `/api/stocks/search` | 30 requests/minute/IP |
+| `loginLimiter` | `/api/auth/login` | 5 attempts/15 minutes/IP |
 
----
+The current store is in-memory and appropriate for a single backend process. Use a shared store such as Redis before running multiple backend processes.
 
-*Generated from actual route implementations on 2026-01-09*
+## Status Codes
+
+| Code | Meaning |
+| --- | --- |
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad request |
+| 401 | Unauthorized |
+| 404 | Not found |
+| 409 | Conflict |
+| 429 | Rate limited |
+| 500 | Server error |
+| 503 | Readiness failure |
+
+## Source Links
+
+| Area | Source |
+| --- | --- |
+| Route mounting | [../backend/src/server.js](../backend/src/server.js) |
+| Stock routes | [../backend/src/routes/stocks.js](../backend/src/routes/stocks.js) |
+| Market routes | [../backend/src/routes/market.js](../backend/src/routes/market.js) |
+| Auth routes | [../backend/src/routes/auth.js](../backend/src/routes/auth.js) |
+| Watchlist routes | [../backend/src/routes/watchlists.js](../backend/src/routes/watchlists.js) |
+| Portfolio routes | [../backend/src/routes/portfolios.js](../backend/src/routes/portfolios.js) |
+| Alert routes | [../backend/src/routes/alerts.js](../backend/src/routes/alerts.js) |
+| Watchdog routes | [../backend/src/routes/watchdog.js](../backend/src/routes/watchdog.js) |
+| AI summary routes | [../backend/src/routes/aiSummaries.js](../backend/src/routes/aiSummaries.js) |

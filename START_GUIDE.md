@@ -1,42 +1,51 @@
-# nepse.me — Start Guide
+# nepse.me Start Guide
 
-Quick reference to get **nepse.me** back online from scratch.
+Quick reference for running the NEPSE stock platform locally and in production.
 
----
+## Local Development
 
-## Quick Start (Development Mode)
-
-For local development with hot-reload:
+Start the backend:
 
 ```powershell
 cd D:\nepse-stock-website\backend
-node src/server.js
+npm run dev
 ```
 
-In a second terminal:
+Start the frontend in a second terminal:
 
 ```powershell
 cd D:\nepse-stock-website\frontend
 npm run dev
 ```
 
-- Backend: `http://localhost:3000`
-- Frontend: `http://localhost:3001` (or 3002+ if ports in use)
+Open `http://localhost:3000`.
 
----
+| Service | Default URL | Notes |
+| --- | --- | --- |
+| Frontend | `http://localhost:3000` | Vite dev server |
+| Backend API | `http://localhost:5000/api` | Express server |
+| API health | `http://localhost:5000/api/health` | Direct backend health endpoint |
+
+The frontend proxies `/api` to `http://localhost:5000`, so browser calls can stay relative.
 
 ## Prerequisites
 
-- Node.js 18+ installed
-- `cloudflared.exe` present at `nepse-stock-website\cloudflared.exe`
-- Backend dependencies installed (`nepse-stock-website\backend\node_modules`)
-- Frontend already built (`nepse-stock-website\frontend\dist`)
+1. Node.js 18 or newer.
+2. Backend dependencies installed in `backend/node_modules`.
+3. Frontend dependencies installed in `frontend/node_modules`.
+4. `backend/.env` created from [backend/.env.example](backend/.env.example).
+5. Prisma client generated with `cd backend && npx prisma generate`.
 
----
+## Production Single-Process Mode
 
-## Step 1 — Start the Backend Server
+Build the frontend:
 
-Open a terminal in the backend directory:
+```powershell
+cd D:\nepse-stock-website\frontend
+npm run build
+```
+
+Start the backend so it serves both `frontend/dist` and the API:
 
 ```powershell
 cd D:\nepse-stock-website\backend
@@ -45,108 +54,88 @@ $env:NODE_ENV='production'
 node src/server.js
 ```
 
-Wait until you see `Server running on http://0.0.0.0:3000`.
-
-> **Verify:** `http://localhost:3000` should show the website.  
-> **Health check:** `http://localhost:3000/api/health` should return `{"success":true, ...}`.
-
----
-
-## Step 2 — Start the Cloudflare Tunnel
-
-Open a **second** terminal in the workspace root:
+Verify:
 
 ```powershell
-cd C:\Users\Rojan\Desktop\nepse-stock-website
-.\nepse-stock-website\cloudflared.exe tunnel run --token eyJhIjoiYjI3M2E4YzM3NjUxZDk4YWNhMjY1YWZlOWIyM2RjYTkiLCJ0IjoiYjA5NmFlMzQtNTEyYi00MTlmLThhOWQtMzUyZGExOWU2YTA0IiwicyI6Ik1EY3haamRpTXpJdE5EQmtNQzAwTm1VM0xUbG1OekV0TWpWa09EVTRZekV3WW1RMiJ9
+(Invoke-WebRequest -Uri "http://localhost:3000/api/health" -UseBasicParsing -TimeoutSec 20).StatusCode
 ```
 
-Wait for `Registered tunnel connection` messages (4 connections = fully online).
+Expected status: `200`.
 
-> The `cert.pem` warning is **normal** in token-based mode — ignore it.
+## Cloudflare Tunnel
 
----
-
-## Step 3 — Verify nepse.me
-
-Open a browser or run:
+Do not put tunnel tokens in tracked files. Store them in an environment variable or ignored local config.
 
 ```powershell
-(Invoke-WebRequest -Uri "https://nepse.me" -UseBasicParsing -TimeoutSec 20).StatusCode
-# Expected: 200
+cd D:\nepse-stock-website
+$env:CLOUDFLARED_TOKEN='paste-token-from-local-secret-store'
+.\cloudflared.exe tunnel run --token $env:CLOUDFLARED_TOKEN
 ```
 
----
+If you prefer a config file, keep it under an ignored path such as `cloudflared/config.yml`.
 
-## One-Liner (Quick Start)
+## One-Terminal Production Helper
 
-Run both in the same PowerShell (server backgrounds, tunnel foreground):
+This starts the backend in a background PowerShell window and keeps the tunnel in the foreground:
 
 ```powershell
-cd C:\Users\Rojan\Desktop\nepse-stock-website
-Start-Process -NoNewWindow powershell -ArgumentList "-Command", "cd nepse-stock-website\backend; `$env:PORT='3000'; `$env:NODE_ENV='production'; node src/server.js"
-.\nepse-stock-website\cloudflared.exe tunnel run --token eyJhIjoiYjI3M2E4YzM3NjUxZDk4YWNhMjY1YWZlOWIyM2RjYTkiLCJ0IjoiYjA5NmFlMzQtNTEyYi00MTlmLThhOWQtMzUyZGExOWU2YTA0IiwicyI6Ik1EY3haamRpTXpJdE5EQmtNQzAwTm1VM0xUbG1OekV0TWpWa09EVTRZekV3WW1RMiJ9
+cd D:\nepse-stock-website
+Start-Process -WindowStyle Hidden powershell -ArgumentList "-Command", "cd D:\nepse-stock-website\backend; `$env:PORT='3000'; `$env:NODE_ENV='production'; node src/server.js"
+.\cloudflared.exe tunnel run --token $env:CLOUDFLARED_TOKEN
 ```
-
----
 
 ## Shutdown
 
 ```powershell
-Get-Process -Name node -EA SilentlyContinue | Stop-Process -Force
-Get-Process -Name cloudflared -EA SilentlyContinue | Stop-Process -Force
+Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process -Name cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
----
-
-## Rebuild Frontend (if source changes)
+## Verification
 
 ```powershell
-cd nepse-stock-website\frontend
-npm run build
+cd D:\nepse-stock-website
+npm run verify
 ```
 
-Then restart the backend (Step 1).
-
----
-
-## AI Overview Generator (Optional)
-
-To regenerate AI overviews for stocks and market overview:
+For broader running-server checks:
 
 ```powershell
 cd D:\nepse-stock-website\backend
-$env:GEMINI_API_KEY='your-key-here'
-$env:GITHUB_TOKEN='your-token-here'
-node scripts/batch-ai-autonomous.js
+npm run stable
 ```
 
-The generator:
-- Automatically rotates through Gemini models and GitHub Models API
-- Detects quota limits and sleeps until quotas reset
-- Sanitizes output to strip jargon and format numbers as NPR lakh/crore
-- Resumes automatically when quotas become available
+## Optional AI Summary Scaffold
 
----
+AI summaries are disabled by default. The backend exposes scaffold endpoints under `/api/ai-summaries`, but no frontend summary UI is active.
 
-## Architecture
+To enable later, configure the backend intentionally:
 
-```
-Browser → nepse.me → Cloudflare Tunnel → localhost:3000 → Express (serves frontend + API)
+```powershell
+$env:AI_SUMMARIES_ENABLED='true'
+$env:AI_SUMMARIES_PROVIDER='deepseek'
+$env:DEEPSEEK_API_KEY='read-from-local-secret-store'
 ```
 
-| Component       | Port | Notes                              |
-|-----------------|------|------------------------------------|
-| Backend/Express | 3000 | Serves static frontend + REST API  |
-| Cloudflare      | —    | Token-based tunnel to nepse.me     |
-
----
+Review cost limits, compliance, and output quality before exposing any AI-generated market text to users.
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| Blank white page | Rebuild frontend: `cd frontend && npm run build`, restart backend |
-| 502 Bad Gateway | Backend not running — start Step 1 first |
-| CORS errors in console | Backend `.env` should have `CORS_ORIGIN=*` |
-| `cert.pem` warning | Normal for token auth — safe to ignore |
+| Symptom | Check |
+| --- | --- |
+| Frontend shows API errors | Backend is running on `5000`; Vite proxy is active |
+| `502 Bad Gateway` from `nepse.me` | Production backend is not running on the tunnel target port |
+| Blank page in production | Rebuild `frontend/dist`, restart backend |
+| Admin endpoint returns `500` | `ADMIN_API_KEY` is missing in backend environment |
+| Admin endpoint returns `401` | Send the configured key in `x-admin-key` |
+| Database/client error | Run `cd backend && npx prisma generate` |
+| Cloudflare token exposed | Rotate the token immediately, remove it from Git, then purge old refs if it was pushed |
+
+## Architecture Shortcut
+
+```text
+Browser -> Vite dev server -> /api proxy -> Express -> Prisma -> SQLite
+Browser -> nepse.me -> Cloudflare Tunnel -> Express production process -> frontend/dist + API
+```
+
+Read [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/CODEBASE_MAP.md](docs/CODEBASE_MAP.md) for the full linked map.

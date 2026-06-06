@@ -4,6 +4,13 @@ const { prisma } = require('../services/database/connection');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAuth } = require('../middleware/authMiddleware');
 const logger = require('../services/utils/logger');
+const {
+    normalizeSymbol,
+    parseBoolean,
+    parsePositiveInteger,
+    parsePositiveNumber,
+    sendValidationError
+} = require('../services/utils/requestValidation');
 
 const VALID_CONDITIONS = ['above', 'below', 'pct_change'];
 
@@ -21,19 +28,27 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 router.post('/', requireAuth, asyncHandler(async (req, res) => {
     const { symbol, condition, threshold } = req.body;
 
-    if (!symbol || !condition || threshold == null) {
+    if (!condition || threshold == null) {
         return res.status(400).json({ success: false, error: { message: 'symbol, condition, and threshold are required' } });
+    }
+    const symbolResult = normalizeSymbol(symbol);
+    if (symbolResult.error) {
+        return sendValidationError(res, symbolResult.error);
     }
     if (!VALID_CONDITIONS.includes(condition)) {
         return res.status(400).json({ success: false, error: { message: `condition must be one of: ${VALID_CONDITIONS.join(', ')}` } });
+    }
+    const thresholdResult = parsePositiveNumber(threshold, 'Threshold');
+    if (thresholdResult.error) {
+        return sendValidationError(res, thresholdResult.error);
     }
 
     const alert = await prisma.alert.create({
         data: {
             userId: req.user.userId,
-            symbol: symbol.toUpperCase(),
+            symbol: symbolResult.value,
             condition,
-            threshold: parseFloat(threshold)
+            threshold: thresholdResult.value
         }
     });
     logger.info(`Alert created: ${alert.symbol} ${alert.condition} ${alert.threshold} for user ${req.user.userId}`);
@@ -42,16 +57,38 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
 
 // PUT /api/alerts/:id — update (toggle enabled, change threshold)
 router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const idResult = parsePositiveInteger(req.params.id, 'Alert ID');
+    if (idResult.error) {
+        return sendValidationError(res, idResult.error);
+    }
+
+    const updateData = {};
+    if (req.body.enabled !== undefined) {
+        const enabledResult = parseBoolean(req.body.enabled, 'enabled');
+        if (enabledResult.error) {
+            return sendValidationError(res, enabledResult.error);
+        }
+        updateData.enabled = enabledResult.value;
+    }
+    if (req.body.threshold !== undefined) {
+        const thresholdResult = parsePositiveNumber(req.body.threshold, 'Threshold');
+        if (thresholdResult.error) {
+            return sendValidationError(res, thresholdResult.error);
+        }
+        updateData.threshold = thresholdResult.value;
+    }
+    if (req.body.condition !== undefined) {
+        if (!VALID_CONDITIONS.includes(req.body.condition)) {
+            return res.status(400).json({ success: false, error: { message: `condition must be one of: ${VALID_CONDITIONS.join(', ')}` } });
+        }
+        updateData.condition = req.body.condition;
+    }
+
+    const id = idResult.value;
     const alert = await prisma.alert.findFirst({ where: { id, userId: req.user.userId } });
     if (!alert) {
         return res.status(404).json({ success: false, error: { message: 'Alert not found' } });
     }
-
-    const updateData = {};
-    if (req.body.enabled !== undefined) updateData.enabled = Boolean(req.body.enabled);
-    if (req.body.threshold !== undefined) updateData.threshold = parseFloat(req.body.threshold);
-    if (req.body.condition && VALID_CONDITIONS.includes(req.body.condition)) updateData.condition = req.body.condition;
 
     const updated = await prisma.alert.update({ where: { id }, data: updateData });
     res.json({ success: true, data: updated });
@@ -59,7 +96,12 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
 
 // DELETE /api/alerts/:id
 router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const idResult = parsePositiveInteger(req.params.id, 'Alert ID');
+    if (idResult.error) {
+        return sendValidationError(res, idResult.error);
+    }
+
+    const id = idResult.value;
     const alert = await prisma.alert.findFirst({ where: { id, userId: req.user.userId } });
     if (!alert) {
         return res.status(404).json({ success: false, error: { message: 'Alert not found' } });

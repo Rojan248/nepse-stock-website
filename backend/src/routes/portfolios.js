@@ -4,7 +4,15 @@ const { prisma } = require('../services/database/connection');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAuth } = require('../middleware/authMiddleware');
 const portfolioCalculator = require('../services/portfolioCalculator');
-const logger = require('../services/utils/logger');
+const {
+    normalizeSymbol,
+    parsePositiveInteger,
+    parsePositiveNumber,
+    parseRequiredDate,
+    sendValidationError,
+    validateName,
+    validateOptionalNote
+} = require('../services/utils/requestValidation');
 
 // ==================== Portfolio CRUD ====================
 
@@ -20,12 +28,13 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 
 // POST /api/portfolios — create a portfolio
 router.post('/', requireAuth, asyncHandler(async (req, res) => {
-    const { name } = req.body;
-    if (!name || !name.trim()) {
-        return res.status(400).json({ success: false, error: { message: 'Portfolio name is required' } });
+    const nameResult = validateName(req.body.name, 'Portfolio name');
+    if (nameResult.error) {
+        return sendValidationError(res, nameResult.error);
     }
+
     const portfolio = await prisma.portfolio.create({
-        data: { name: name.trim(), userId: req.user.userId },
+        data: { name: nameResult.value, userId: req.user.userId },
         include: { trades: true }
     });
     res.status(201).json({ success: true, data: portfolio });
@@ -33,7 +42,12 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
 
 // DELETE /api/portfolios/:id
 router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const idResult = parsePositiveInteger(req.params.id, 'Portfolio ID');
+    if (idResult.error) {
+        return sendValidationError(res, idResult.error);
+    }
+
+    const id = idResult.value;
     const portfolio = await prisma.portfolio.findFirst({ where: { id, userId: req.user.userId } });
     if (!portfolio) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
@@ -46,17 +60,41 @@ router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
 
 // POST /api/portfolios/:id/trades — add a trade
 router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
-    const portfolioId = parseInt(req.params.id);
+    const idResult = parsePositiveInteger(req.params.id, 'Portfolio ID');
+    if (idResult.error) {
+        return sendValidationError(res, idResult.error);
+    }
+
     const { symbol, type, quantity, price, date, note } = req.body;
 
-    // Validate
-    if (!symbol || !type || !quantity || !price || !date) {
+    if (!type || quantity === undefined || price === undefined || date === undefined) {
         return res.status(400).json({ success: false, error: { message: 'symbol, type, quantity, price, and date are required' } });
+    }
+    const symbolResult = normalizeSymbol(symbol);
+    if (symbolResult.error) {
+        return sendValidationError(res, symbolResult.error);
     }
     if (!['buy', 'sell'].includes(type)) {
         return res.status(400).json({ success: false, error: { message: 'type must be "buy" or "sell"' } });
     }
+    const quantityResult = parsePositiveInteger(quantity, 'Quantity');
+    if (quantityResult.error) {
+        return sendValidationError(res, quantityResult.error);
+    }
+    const priceResult = parsePositiveNumber(price, 'Price');
+    if (priceResult.error) {
+        return sendValidationError(res, priceResult.error);
+    }
+    const dateResult = parseRequiredDate(date, 'Date');
+    if (dateResult.error) {
+        return sendValidationError(res, dateResult.error);
+    }
+    const noteResult = validateOptionalNote(note);
+    if (noteResult.error) {
+        return sendValidationError(res, noteResult.error);
+    }
 
+    const portfolioId = idResult.value;
     const portfolio = await prisma.portfolio.findFirst({ where: { id: portfolioId, userId: req.user.userId } });
     if (!portfolio) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
@@ -65,12 +103,12 @@ router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
     const trade = await prisma.trade.create({
         data: {
             portfolioId,
-            symbol: symbol.toUpperCase(),
+            symbol: symbolResult.value,
             type,
-            quantity: parseInt(quantity),
-            price: parseFloat(price),
-            date: new Date(date),
-            note: note || null
+            quantity: quantityResult.value,
+            price: priceResult.value,
+            date: dateResult.value,
+            note: noteResult.value
         }
     });
     res.status(201).json({ success: true, data: trade });
@@ -78,9 +116,17 @@ router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
 
 // DELETE /api/portfolios/:id/trades/:tradeId — delete a trade
 router.delete('/:id/trades/:tradeId', requireAuth, asyncHandler(async (req, res) => {
-    const portfolioId = parseInt(req.params.id);
-    const tradeId = parseInt(req.params.tradeId);
+    const portfolioIdResult = parsePositiveInteger(req.params.id, 'Portfolio ID');
+    if (portfolioIdResult.error) {
+        return sendValidationError(res, portfolioIdResult.error);
+    }
+    const tradeIdResult = parsePositiveInteger(req.params.tradeId, 'Trade ID');
+    if (tradeIdResult.error) {
+        return sendValidationError(res, tradeIdResult.error);
+    }
 
+    const portfolioId = portfolioIdResult.value;
+    const tradeId = tradeIdResult.value;
     const portfolio = await prisma.portfolio.findFirst({ where: { id: portfolioId, userId: req.user.userId } });
     if (!portfolio) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
@@ -99,7 +145,12 @@ router.delete('/:id/trades/:tradeId', requireAuth, asyncHandler(async (req, res)
 
 // GET /api/portfolios/:id/summary — computed holdings with detailed P&L
 router.get('/:id/summary', requireAuth, asyncHandler(async (req, res) => {
-    const portfolioId = parseInt(req.params.id);
+    const portfolioIdResult = parsePositiveInteger(req.params.id, 'Portfolio ID');
+    if (portfolioIdResult.error) {
+        return sendValidationError(res, portfolioIdResult.error);
+    }
+
+    const portfolioId = portfolioIdResult.value;
     const pnlData = await portfolioCalculator.calculatePortfolioPnL(req.user.userId, portfolioId);
     
     // Verify portfolio exists and belongs to user
@@ -132,7 +183,12 @@ router.get('/summary', requireAuth, asyncHandler(async (req, res) => {
 
 // GET /api/portfolios/:id/holdings — computed holdings with P&L
 router.get('/:id/holdings', requireAuth, asyncHandler(async (req, res) => {
-    const portfolioId = parseInt(req.params.id);
+    const portfolioIdResult = parsePositiveInteger(req.params.id, 'Portfolio ID');
+    if (portfolioIdResult.error) {
+        return sendValidationError(res, portfolioIdResult.error);
+    }
+
+    const portfolioId = portfolioIdResult.value;
     const portfolio = await prisma.portfolio.findFirst({
         where: { id: portfolioId, userId: req.user.userId },
         include: { trades: { orderBy: { date: 'asc' } } }

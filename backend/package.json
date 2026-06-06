@@ -52,9 +52,14 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
-    "pm2": "^6.0.14",
+    "pm2": "^7.0.1",
     "prisma": "^5.14.0",
     "rewire": "^9.0.1",
     "supertest": "^6.3.4"
+  },
+  "overrides": {
+    "pm2": {
+      "ws": "^8.21.0"
+    }
   }
 }

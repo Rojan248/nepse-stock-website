@@ -9,12 +9,12 @@ npm install
 npm run dev
 ```
 
-App runs on http://localhost:3001 (requires backend on port 3000)
+App runs on `http://localhost:3000` and proxies `/api` to the backend on `http://localhost:5000`.
 
 ## Key Features
 
 - Real-time stock dashboard with live price updates
-- AI-powered stock and market analysis
+- Optional AI summary infrastructure is present on the backend, but no AI summary UI is active by default
 - User authentication with portfolio tracking
 - IPO tracking and filtering
 - Global search by symbol or company name
@@ -29,4 +29,4 @@ npm run preview  # Preview production build
 npm test         # Run tests with Vitest
 ```
 
-See [docs/](../docs/) for comprehensive documentation.
+See [docs/](../docs/) and [ARCHITECTURE.md](../ARCHITECTURE.md) for comprehensive documentation.
