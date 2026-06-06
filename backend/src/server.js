@@ -25,6 +25,7 @@ const portfolioRouter = require('./routes/portfolios');
 const alertRouter = require('./routes/alerts');
 const streamRouter = require('./routes/stream');
 const aiSummariesRouter = require('./routes/aiSummaries');
+const { parseTrustProxy } = require('./services/utils/proxyConfig');
 
 /**
  * NEPSE Backend Server
@@ -34,8 +35,9 @@ const aiSummariesRouter = require('./routes/aiSummaries');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Trust proxy (for accurate IP logging behind reverse proxy)
-app.set('trust proxy', 1);
+// Trust proxy only when explicitly configured. Enabling this on a directly
+// exposed server lets clients spoof X-Forwarded-For and weaken IP limiters.
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
 // Middleware
 app.use(helmet({

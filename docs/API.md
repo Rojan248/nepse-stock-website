@@ -167,7 +167,7 @@ The AI summary subsystem is an optional scaffold and is disabled unless `AI_SUMM
 
 | Method | Path | Purpose | Protection |
 | --- | --- | --- | --- |
-| GET | `/api/ai-summaries/status` | Scheduler and repository status | Global limiter |
+| GET | `/api/ai-summaries/status` | Redacted scheduler and summary counts | Global limiter |
 | GET | `/api/ai-summaries/stocks/:symbol/latest` | Latest stock summary for period | Global limiter |
 | GET | `/api/ai-summaries/stocks/:symbol` | Stock summary history | Global limiter |
 | GET | `/api/ai-summaries/market` | Market summaries | Global limiter |

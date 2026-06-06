@@ -58,6 +58,9 @@ JWT_SECRET=
 # CORS (comma-separated origins)
 CORS_ORIGIN=http://localhost:3000
 
+# Reverse proxy trust. Keep false unless the API is behind a trusted proxy.
+TRUST_PROXY=false
+
 # Logging
 LOG_LEVEL=info
 ```

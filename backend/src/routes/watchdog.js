@@ -4,6 +4,7 @@ const watchdogService = require('../services/watchdog/WatchdogService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
 const { adminLimiter } = require('../middleware/rateLimiter');
+const { normalizeSymbolParam } = require('../services/utils/queryValidation');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -26,8 +27,12 @@ router.post('/verify', adminLimiter, requireAdminKey, asyncHandler(async (req, r
  * Protected by Admin Key
  */
 router.post('/fix/:symbol', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
-    const { symbol } = req.params;
-    const result = await watchdogService.fixSpecificStock(symbol.toUpperCase());
+    const symbolResult = normalizeSymbolParam(req.params.symbol);
+    if (symbolResult.error) {
+        return res.status(400).json({ success: false, error: { message: symbolResult.error } });
+    }
+
+    const result = await watchdogService.fixSpecificStock(symbolResult.value);
     res.json({
         success: result.success,
         data: result

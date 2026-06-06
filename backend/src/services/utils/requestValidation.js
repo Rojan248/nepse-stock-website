@@ -1,7 +1,10 @@
 const MAX_NAME_LENGTH = 80;
 const MAX_NOTE_LENGTH = 500;
 const MAX_IMPORT_SYMBOLS = 200;
+const MAX_SQLITE_INT = 2147483647;
+const MAX_MONEY_VALUE = 1000000000000;
 const SYMBOL_PATTERN = /^[A-Z0-9]{1,20}$/;
+const NUMERIC_STRING_PATTERN = /^(?:\d+|\d*\.\d+)$/;
 
 const sendValidationError = (res, message) => {
     return res.status(400).json({
@@ -60,18 +63,39 @@ const normalizeSymbolList = (symbols) => {
     return { value: normalized };
 };
 
-const parsePositiveInteger = (value, label) => {
-    const number = Number(value);
-    if (!Number.isInteger(number) || number <= 0) {
-        return { error: `${label} must be a positive integer` };
+const parseNumericInput = (value, label) => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? { value } : { error: `${label} must be a finite number` };
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (NUMERIC_STRING_PATTERN.test(trimmed)) {
+            return { value: Number(trimmed) };
+        }
+    }
+    return { error: `${label} must be a positive number` };
+};
+
+const parsePositiveInteger = (value, label, { max = MAX_SQLITE_INT } = {}) => {
+    const parsed = parseNumericInput(value, label);
+    if (parsed.error) {
+        return parsed;
+    }
+    const number = parsed.value;
+    if (!Number.isInteger(number) || number <= 0 || number > max) {
+        return { error: `${label} must be a positive integer up to ${max}` };
     }
     return { value: number };
 };
 
-const parsePositiveNumber = (value, label) => {
-    const number = Number(value);
-    if (!Number.isFinite(number) || number <= 0) {
-        return { error: `${label} must be a positive number` };
+const parsePositiveNumber = (value, label, { max = MAX_MONEY_VALUE } = {}) => {
+    const parsed = parseNumericInput(value, label);
+    if (parsed.error) {
+        return parsed;
+    }
+    const number = parsed.value;
+    if (number <= 0 || number > max) {
+        return { error: `${label} must be a positive number up to ${max}` };
     }
     return { value: number };
 };
@@ -111,6 +135,7 @@ const validateOptionalNote = (value) => {
 };
 
 module.exports = {
+    MAX_SQLITE_INT,
     MAX_IMPORT_SYMBOLS,
     normalizeSymbol,
     normalizeSymbolList,

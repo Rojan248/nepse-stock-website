@@ -8,7 +8,8 @@ jest.mock('../../src/services/watchdog/WatchdogService', () => ({
         discrepancies: [],
         local: { source: 'Local', data: {} },
         external: []
-    })
+    }),
+    fixSpecificStock: jest.fn().mockResolvedValue({ success: true, symbol: 'NABIL' })
 }));
 
 jest.mock('fs', () => ({
@@ -40,6 +41,7 @@ jest.mock('../../src/middleware/rateLimiter', () => ({
 
 // Now require the router
 const watchdogRouter = require('../../src/routes/watchdog');
+const watchdogService = require('../../src/services/watchdog/WatchdogService');
 
 // Create test app
 const app = express();
@@ -114,6 +116,18 @@ describe('Watchdog API Security', () => {
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
             expect(Array.isArray(res.body.data)).toBe(true);
+        });
+    });
+
+    describe('POST /api/watchdog/fix/:symbol', () => {
+        it('should reject malformed symbols before repair logic', async () => {
+            const res = await request(app)
+                .post('/api/watchdog/fix/..%2Fsecret')
+                .set('x-admin-key', ADMIN_KEY);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toContain('Invalid symbol');
+            expect(watchdogService.fixSpecificStock).not.toHaveBeenCalled();
         });
     });
 });

@@ -117,6 +117,36 @@ describe('authenticated user route validation', () => {
         });
     });
 
+    it('rejects malformed public share slugs before database lookup', async () => {
+        const res = await request(app)
+            .get('/api/watchlists/shared/..%2Fsecret')
+            .expect(400);
+
+        expect(res.body.error.message).toContain('Invalid share slug');
+        expect(mockPrisma.watchlist.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('redacts internal IDs from public shared watchlists', async () => {
+        mockPrisma.watchlist.findUnique.mockResolvedValue({
+            id: 9,
+            name: 'Public list',
+            createdAt: new Date('2026-06-06T00:00:00Z'),
+            user: { displayName: 'Owner' },
+            items: [
+                { id: 100, watchlistId: 9, symbol: 'NABIL', addedAt: new Date('2026-06-06T00:00:00Z') }
+            ]
+        });
+
+        const res = await request(app)
+            .get('/api/watchlists/shared/abcDEF12')
+            .expect(200);
+
+        expect(res.body.data.items).toEqual([
+            { symbol: 'NABIL', addedAt: '2026-06-06T00:00:00.000Z' }
+        ]);
+        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+    });
+
     it('rejects invalid portfolio trade numbers before database lookup', async () => {
         const res = await request(app)
             .post('/api/portfolios/1/trades')
@@ -132,6 +162,33 @@ describe('authenticated user route validation', () => {
         expect(res.body.error.message).toContain('Quantity');
         expect(mockPrisma.portfolio.findFirst).not.toHaveBeenCalled();
         expect(mockPrisma.trade.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects numeric type confusion before portfolio trade lookup', async () => {
+        const res = await request(app)
+            .post('/api/portfolios/1/trades')
+            .send({
+                symbol: 'NABIL',
+                type: 'buy',
+                quantity: true,
+                price: [100],
+                date: '2026-06-06'
+            })
+            .expect(400);
+
+        expect(res.body.error.message).toContain('Quantity');
+        expect(mockPrisma.portfolio.findFirst).not.toHaveBeenCalled();
+        expect(mockPrisma.trade.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects overlarge integer IDs before database lookup', async () => {
+        const res = await request(app)
+            .post('/api/watchlists/999999999999999999/items')
+            .send({ symbol: 'NABIL' })
+            .expect(400);
+
+        expect(res.body.error.message).toContain('Watchlist ID');
+        expect(mockPrisma.watchlist.findFirst).not.toHaveBeenCalled();
     });
 
     it('normalizes valid portfolio trade writes', async () => {
@@ -173,5 +230,15 @@ describe('authenticated user route validation', () => {
         expect(res.body.error.message).toContain('boolean');
         expect(mockPrisma.alert.findFirst).not.toHaveBeenCalled();
         expect(mockPrisma.alert.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects array thresholds before alert lookup', async () => {
+        const res = await request(app)
+            .post('/api/alerts')
+            .send({ symbol: 'NABIL', condition: 'above', threshold: [100] })
+            .expect(400);
+
+        expect(res.body.error.message).toContain('Threshold');
+        expect(mockPrisma.alert.create).not.toHaveBeenCalled();
     });
 });

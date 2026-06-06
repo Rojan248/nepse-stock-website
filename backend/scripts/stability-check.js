@@ -100,6 +100,11 @@ async function expectJson(pathname, options = {}, expectedStatus = 200) {
     return body;
 }
 
+function adminHeaders() {
+    assert(process.env.ADMIN_API_KEY, 'admin key configured', 'ADMIN_API_KEY is required for protected stability checks');
+    return { 'x-admin-key': process.env.ADMIN_API_KEY };
+}
+
 async function apiRequest({
     pathname,
     token = null,
@@ -260,15 +265,16 @@ async function checkHealthEndpoints() {
 
     const health = await expectJson('/health');
     assert(health.status === 'healthy', 'health', JSON.stringify({ status: health.status, problems: health.problems, warnings: health.warnings }));
-    assert(health.data?.freshness?.isFresh === true, 'health freshness', JSON.stringify(health.data?.freshness));
-    assert((health.fetcher?.rateLimitEvents || 0) === 0, 'rate-limit telemetry', `${health.fetcher?.rateLimitEvents || 0} events`);
-    pass('health', `source ${health.data?.source}, ${health.data?.stockCount} stocks`);
+    assert(health.market?.state, 'health market state', JSON.stringify(health.market));
+    pass('health', `market ${health.market.state}`);
 
     const ready = await expectJson('/health/ready');
     assert(ready.status === 'ready', 'health/ready', JSON.stringify(ready));
+    assert(ready.data?.freshness?.isFresh === true, 'health freshness', JSON.stringify(ready.data?.freshness));
+    assert((ready.fetcher?.rateLimitEvents || 0) === 0, 'rate-limit telemetry', `${ready.fetcher?.rateLimitEvents || 0} events`);
     pass('health/ready');
 
-    const scheduler = await expectJson('/scheduler-status');
+    const scheduler = await expectJson('/scheduler-status', { headers: adminHeaders() });
     assert(scheduler.data?.isRunning === true, 'scheduler running', JSON.stringify(scheduler));
     pass('scheduler running', `next interval ${scheduler.data?.lastScheduledIntervalMs || 'unknown'}ms`);
 }

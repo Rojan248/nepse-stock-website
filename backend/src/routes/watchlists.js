@@ -13,6 +13,13 @@ const {
 
 // ==================== Authenticated Watchlist CRUD ====================
 
+const SHARE_SLUG_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
+const mapPublicWatchlistItem = (item) => ({
+    symbol: item.symbol,
+    addedAt: item.addedAt
+});
+
 // GET /api/watchlists — list user's watchlists
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
     const watchlists = await prisma.watchlist.findMany({
@@ -183,6 +190,10 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
 // GET /api/watchlists/shared/:slug — view a public watchlist (no auth required)
 router.get('/shared/:slug', asyncHandler(async (req, res) => {
     const { slug } = req.params;
+    if (!SHARE_SLUG_PATTERN.test(slug)) {
+        return res.status(400).json({ success: false, error: { message: 'Invalid share slug' } });
+    }
+
     const watchlist = await prisma.watchlist.findUnique({
         where: { publicSlug: slug },
         include: {
@@ -198,7 +209,7 @@ router.get('/shared/:slug', asyncHandler(async (req, res) => {
         data: {
             name: watchlist.name,
             owner: watchlist.user?.displayName || 'Anonymous',
-            items: watchlist.items,
+            items: watchlist.items.map(mapPublicWatchlistItem),
             createdAt: watchlist.createdAt
         }
     });

@@ -72,8 +72,9 @@ const corsMiddleware = cors(corsOptions);
 const simpleCorsMiddleware = (req, res, next) => {
     // Only use if standard CORS middleware is bypassed
     const origin = req.headers.origin;
+    const allowed = isOriginAllowed(origin);
 
-    if (origin && isOriginAllowed(origin)) {
+    if (origin && allowed) {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Admin-Key');
@@ -82,6 +83,9 @@ const simpleCorsMiddleware = (req, res, next) => {
 
     // Handle preflight
     if (req.method === 'OPTIONS') {
+        if (origin && !allowed) {
+            return res.sendStatus(403);
+        }
         return res.sendStatus(200);
     }
 

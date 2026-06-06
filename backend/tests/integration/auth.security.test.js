@@ -124,6 +124,38 @@ describe('auth route security hardening', () => {
         });
     });
 
+    it('rejects overlong bcrypt passwords before hashing', async () => {
+        const longPassword = `StrongPass123${'x'.repeat(80)}`;
+
+        const res = await request(app)
+            .post('/api/auth/register')
+            .send({
+                email: 'person@example.com',
+                password: longPassword,
+                displayName: 'Person'
+            })
+            .expect(400);
+
+        expect(res.body.error.message).toContain('72 bytes');
+        expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(bcrypt.hash).not.toHaveBeenCalled();
+    });
+
+    it('rejects overlong emails before database lookup', async () => {
+        const longEmail = `${'a'.repeat(250)}@example.com`;
+
+        await request(app)
+            .post('/api/auth/register')
+            .send({
+                email: longEmail,
+                password: 'StrongPass123',
+                displayName: 'Person'
+            })
+            .expect(400);
+
+        expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
     it('rejects non-string login input before database lookup', async () => {
         await request(app)
             .post('/api/auth/login')
@@ -131,6 +163,19 @@ describe('auth route security hardening', () => {
             .expect(400);
 
         expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('rejects overlong login passwords before bcrypt comparison', async () => {
+        await request(app)
+            .post('/api/auth/login')
+            .send({
+                email: 'person@example.com',
+                password: `StrongPass123${'x'.repeat(80)}`
+            })
+            .expect(400);
+
+        expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(bcrypt.compare).not.toHaveBeenCalled();
     });
 
     it('locks an account after ten failed password attempts', async () => {

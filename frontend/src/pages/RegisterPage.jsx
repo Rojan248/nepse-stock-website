@@ -23,6 +23,7 @@ const REGISTER_FIELDS = [
         type: 'password',
         required: true,
         minLength: 12,
+        maxLength: 72,
     },
 ];
 
@@ -88,6 +89,7 @@ const RegisterField = ({ field, value, onChange }) => (
             placeholder={field.placeholder}
             required={field.required}
             minLength={field.minLength}
+            maxLength={field.maxLength}
         />
     </div>
 );

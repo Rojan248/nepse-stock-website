@@ -8,19 +8,54 @@ const aiSummaryScheduler = require('../services/scheduler/aiSummaryScheduler');
 const { runStockSummaries } = require('../services/ai/stockSummaryWorker');
 const { runMarketSummary } = require('../services/ai/marketSummaryWorker');
 const { getAiSummaryConfig } = require('../services/ai/aiSummaryConfig');
+const { clampInt, normalizeSymbolParam } = require('../services/utils/queryValidation');
 
 const VALID_PERIODS = new Set(['HOURLY', 'EOD', 'DAILY', 'WEEKLY', 'MONTHLY']);
 
-const parseLimit = (value, fallback, max) => {
-    const parsed = parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-    return Math.min(parsed, max);
-};
-
 const normalizePeriod = (value, fallback) => {
+    if (typeof value !== 'string' && value !== undefined) return fallback;
     const period = (value || fallback).toString().toUpperCase();
     return VALID_PERIODS.has(period) ? period : fallback;
 };
+
+const sanitizeSchedulerStatus = (status) => ({
+    enabled: status.enabled,
+    running: status.running,
+    scheduledJobs: status.scheduledJobs
+});
+
+const sanitizeSummaryStatus = (status) => ({
+    stockSummaryCount: status.stockSummaryCount,
+    marketSummaryCount: status.marketSummaryCount
+});
+
+const sanitizeStockSummary = (summary) => summary && ({
+    symbol: summary.symbol,
+    periodType: summary.periodType,
+    periodStart: summary.periodStart,
+    periodEnd: summary.periodEnd,
+    summary: summary.summary,
+    sentiment: summary.sentiment,
+    confidence: summary.confidence,
+    drivers: summary.drivers,
+    risks: summary.risks,
+    createdAt: summary.createdAt,
+    updatedAt: summary.updatedAt
+});
+
+const sanitizeMarketSummary = (summary) => summary && ({
+    periodType: summary.periodType,
+    periodStart: summary.periodStart,
+    periodEnd: summary.periodEnd,
+    summary: summary.summary,
+    sentiment: summary.sentiment,
+    confidence: summary.confidence,
+    breadth: summary.breadth,
+    topMovers: summary.topMovers,
+    sectors: summary.sectors,
+    createdAt: summary.createdAt,
+    updatedAt: summary.updatedAt
+});
 
 router.get('/status', asyncHandler(async (req, res) => {
     const [schedulerStatus, summaryStatus] = await Promise.all([
@@ -31,15 +66,19 @@ router.get('/status', asyncHandler(async (req, res) => {
     res.json({
         success: true,
         data: {
-            scheduler: schedulerStatus,
-            summaries: summaryStatus
+            scheduler: sanitizeSchedulerStatus(schedulerStatus),
+            summaries: sanitizeSummaryStatus(summaryStatus)
         }
     });
 }));
 
 router.get('/stocks/:symbol/latest', asyncHandler(async (req, res) => {
+    const symbolResult = normalizeSymbolParam(req.params.symbol);
+    if (symbolResult.error) {
+        return res.status(400).json({ success: false, error: { message: symbolResult.error } });
+    }
     const periodType = normalizePeriod(req.query.periodType, 'HOURLY');
-    const summary = await repository.getLatestStockSummary(req.params.symbol, periodType);
+    const summary = await repository.getLatestStockSummary(symbolResult.value, periodType);
 
     if (!summary) {
         return res.status(404).json({
@@ -48,29 +87,33 @@ router.get('/stocks/:symbol/latest', asyncHandler(async (req, res) => {
         });
     }
 
-    res.json({ success: true, data: summary });
+    res.json({ success: true, data: sanitizeStockSummary(summary) });
 }));
 
 router.get('/stocks/:symbol', asyncHandler(async (req, res) => {
+    const symbolResult = normalizeSymbolParam(req.params.symbol);
+    if (symbolResult.error) {
+        return res.status(400).json({ success: false, error: { message: symbolResult.error } });
+    }
     const periodType = normalizePeriod(req.query.periodType, 'HOURLY');
-    const limit = parseLimit(req.query.limit, 24, 168);
-    const summaries = await repository.getStockSummaries(req.params.symbol, { periodType, limit });
+    const limit = clampInt(req.query.limit, 1, 168, 24);
+    const summaries = await repository.getStockSummaries(symbolResult.value, { periodType, limit });
 
     res.json({
         success: true,
-        data: summaries,
+        data: summaries.map(sanitizeStockSummary),
         count: summaries.length
     });
 }));
 
 router.get('/market', asyncHandler(async (req, res) => {
     const periodType = normalizePeriod(req.query.periodType, 'DAILY');
-    const limit = parseLimit(req.query.limit, 20, 100);
+    const limit = clampInt(req.query.limit, 1, 100, 20);
     const summaries = await repository.getMarketSummaries({ periodType, limit });
 
     res.json({
         success: true,
-        data: summaries,
+        data: summaries.map(sanitizeMarketSummary),
         count: summaries.length
     });
 }));

@@ -49,4 +49,26 @@ describe('CORS origin policy', () => {
 
         expect(isOriginAllowed('https://temporary-dev.example')).toBe(true);
     });
+
+    it('rejects disallowed fallback preflight requests', () => {
+        const { simpleCorsMiddleware } = loadCorsWithEnv({
+            NODE_ENV: 'production',
+            CORS_ORIGIN: 'https://app.example.com'
+        });
+        const req = {
+            method: 'OPTIONS',
+            headers: { origin: 'https://attacker.example' }
+        };
+        const res = {
+            header: jest.fn(),
+            sendStatus: jest.fn()
+        };
+        const next = jest.fn();
+
+        simpleCorsMiddleware(req, res, next);
+
+        expect(res.header).not.toHaveBeenCalled();
+        expect(res.sendStatus).toHaveBeenCalledWith(403);
+        expect(next).not.toHaveBeenCalled();
+    });
 });

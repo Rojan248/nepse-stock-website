@@ -27,7 +27,7 @@ The NEPSE Stock Website is designed with a defense-in-depth security model to pr
 ## 2. Hardening Configurations
 
 ### 2.1 Password and Input Policies (V9, V12)
-- **Password Complexity**: Enforces at least 12 characters, requiring at least 1 uppercase letter, 1 lowercase letter, and 1 digit to prevent simple dictionary passwords.
+- **Password Complexity**: Enforces 12-72 bytes, requiring at least 1 uppercase letter, 1 lowercase letter, and 1 digit. The 72-byte ceiling avoids bcrypt's input truncation edge case.
 - **Display Name Sanitization**: Rejects/strips HTML tags and restricts the length of the `displayName` field to 80 characters to prevent database bloating or stored XSS.
 
 ### 2.2 Token Protection (V2, V3, V8, V13)
@@ -41,6 +41,7 @@ The NEPSE Stock Website is designed with a defense-in-depth security model to pr
 - **Login Limiter**: 5 attempts per 15 minutes/IP.
 - **Registration Limiter**: 3 accounts per hour/IP.
 - **Refresh Limiter**: 10 refreshes per 15 minutes/IP.
+- **Proxy Trust**: `TRUST_PROXY` defaults to `false`. Enable it only behind a trusted reverse proxy so clients cannot spoof `X-Forwarded-For` and bypass IP limiters.
 - **Payload Clamping**: `express.json()` request body sizes are capped at 1MB (reduced from 10MB) to mitigate memory exhaustion.
 - **Query Parameter Clamping**: `clampInt` utility sanitizes and bounds query parameters:
   - `limit` → clamped between 1 and 500

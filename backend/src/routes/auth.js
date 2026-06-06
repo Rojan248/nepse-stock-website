@@ -13,12 +13,15 @@ const SALT_ROUNDS = 12;
 // ==================== Validation Helpers ====================
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 254;
 const MIN_PASSWORD_LENGTH = 12;
+const MAX_PASSWORD_BYTES = 72;
 const MAX_DISPLAY_NAME_LENGTH = 80;
 
 const normalizeEmail = (email) => {
     if (typeof email !== 'string') return null;
     const normalized = email.trim().toLowerCase();
+    if (normalized.length > MAX_EMAIL_LENGTH) return null;
     return EMAIL_RE.test(normalized) ? normalized : null;
 };
 
@@ -48,6 +51,9 @@ const validateRegistration = (email, password) => {
     } else {
         if (password.length < MIN_PASSWORD_LENGTH) {
             errors.push(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+        }
+        if (Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES) {
+            errors.push(`Password must be ${MAX_PASSWORD_BYTES} bytes or less`);
         }
         if (!/[A-Z]/.test(password)) {
             errors.push('Password must contain at least one uppercase letter');
@@ -152,7 +158,12 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     const normalizedEmail = normalizeEmail(email);
 
-    if (!normalizedEmail || typeof password !== 'string' || password.length === 0) {
+    if (
+        !normalizedEmail
+        || typeof password !== 'string'
+        || password.length === 0
+        || Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES
+    ) {
         return res.status(400).json({ success: false, error: { message: 'Email and password required' } });
     }
 
