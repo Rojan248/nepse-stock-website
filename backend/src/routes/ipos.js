@@ -3,26 +3,52 @@ const router = express.Router();
 const ipoOperations = require('../services/database/ipoOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../services/utils/logger');
-const { clampInt, normalizeTextQuery } = require('../services/utils/queryValidation');
+const {
+    getBoundedIntQuery,
+    normalizeTextQuery,
+    sendQueryValidationError
+} = require('../services/utils/queryValidation');
 
 /**
  * IPO API Routes
  * Endpoints for accessing IPO data
  */
 
+const VALID_STATUSES = ['upcoming', 'open', 'closed', 'completed'];
+
+const normalizeStatusQuery = (value) => {
+    if (value === undefined || value === null || value === '') {
+        return { value: null };
+    }
+    if (typeof value !== 'string') {
+        return { error: 'status must be a single value' };
+    }
+
+    const status = value.trim().toLowerCase();
+    if (!VALID_STATUSES.includes(status)) {
+        return { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` };
+    }
+    return { value: status };
+};
+
 /**
  * GET /api/ipos
  * Get all IPOs with optional filters
  */
 router.get('/', asyncHandler(async (req, res) => {
-    const skipVal = clampInt(req.query.skip, 0, 10000, 0);
-    const limitVal = clampInt(req.query.limit, 1, 500, 100);
-    const { status } = req.query;
+    const skipVal = getBoundedIntQuery(res, req.query.skip, { min: 0, max: 10000, defaultValue: 0, label: 'skip' });
+    if (skipVal === null) return;
+    const limitVal = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 500, defaultValue: 100, label: 'limit' });
+    if (limitVal === null) return;
+    const statusResult = normalizeStatusQuery(req.query.status);
+    if (statusResult.error) {
+        return sendQueryValidationError(res, statusResult.error);
+    }
 
     const ipos = await ipoOperations.getAllIPOs({
         skip: skipVal,
         limit: limitVal,
-        status: status || null
+        status: statusResult.value
     });
 
     const counts = await ipoOperations.getIPOCounts();
@@ -90,26 +116,18 @@ router.get('/counts', asyncHandler(async (req, res) => {
  * Get IPOs by status
  */
 router.get('/status/:status', asyncHandler(async (req, res) => {
-    const { status } = req.params;
-
-    // Validate status
-    const validStatuses = ['upcoming', 'open', 'closed', 'completed'];
-    if (!validStatuses.includes(status.toLowerCase())) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-            }
-        });
+    const statusResult = normalizeStatusQuery(req.params.status);
+    if (statusResult.error) {
+        return sendQueryValidationError(res, statusResult.error);
     }
 
-    const ipos = await ipoOperations.getIPOsByStatus(status);
+    const result = await ipoOperations.getIPOsByStatus(statusResult.value);
 
     res.json({
         success: true,
-        data: ipos,
-        count: ipos.length,
-        status
+        data: result.ipos,
+        count: result.count,
+        status: statusResult.value
     });
 }));
 

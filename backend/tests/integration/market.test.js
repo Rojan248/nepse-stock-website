@@ -1,6 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const marketRouter = require('../../src/routes/market');
+const marketOperations = require('../../src/services/database/marketOperations');
 
 // Create test app
 const app = express();
@@ -83,6 +84,10 @@ describe('Market API Endpoints', () => {
     const ADMIN_KEY = 'test-admin-key';
     const originalAdminKey = process.env.ADMIN_API_KEY;
 
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
     beforeAll(() => {
         process.env.ADMIN_API_KEY = ADMIN_KEY;
     });
@@ -118,6 +123,13 @@ describe('Market API Endpoints', () => {
             const res = await request(app).get('/api/market-history?hours=24');
             expect(res.status).toBe(200);
             expect(Array.isArray(res.body.data)).toBe(true);
+        });
+
+        it('should reject repeated hours parameters before database lookup', async () => {
+            const res = await request(app).get('/api/market-history?hours=24&hours=48');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('hours must be a single integer');
+            expect(marketOperations.getMarketSummaryHistory).not.toHaveBeenCalled();
         });
     });
 

@@ -8,9 +8,14 @@ const aiSummaryScheduler = require('../services/scheduler/aiSummaryScheduler');
 const { runStockSummaries } = require('../services/ai/stockSummaryWorker');
 const { runMarketSummary } = require('../services/ai/marketSummaryWorker');
 const { getAiSummaryConfig } = require('../services/ai/aiSummaryConfig');
-const { clampInt, normalizeSymbolParam } = require('../services/utils/queryValidation');
+const {
+    getBoundedIntQuery,
+    normalizeSymbolParam,
+    sendQueryValidationError
+} = require('../services/utils/queryValidation');
 
 const VALID_PERIODS = new Set(['HOURLY', 'EOD', 'DAILY', 'WEEKLY', 'MONTHLY']);
+const VALID_ADMIN_JOBS = new Set(['stock', 'market']);
 
 const normalizePeriod = (value, fallback) => {
     if (typeof value !== 'string' && value !== undefined) return fallback;
@@ -96,7 +101,8 @@ router.get('/stocks/:symbol', asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, error: { message: symbolResult.error } });
     }
     const periodType = normalizePeriod(req.query.periodType, 'HOURLY');
-    const limit = clampInt(req.query.limit, 1, 168, 24);
+    const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 168, defaultValue: 24, label: 'limit' });
+    if (limit === null) return;
     const summaries = await repository.getStockSummaries(symbolResult.value, { periodType, limit });
 
     res.json({
@@ -108,7 +114,8 @@ router.get('/stocks/:symbol', asyncHandler(async (req, res) => {
 
 router.get('/market', asyncHandler(async (req, res) => {
     const periodType = normalizePeriod(req.query.periodType, 'DAILY');
-    const limit = clampInt(req.query.limit, 1, 100, 20);
+    const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 100, defaultValue: 20, label: 'limit' });
+    if (limit === null) return;
     const summaries = await repository.getMarketSummaries({ periodType, limit });
 
     res.json({
@@ -120,8 +127,12 @@ router.get('/market', asyncHandler(async (req, res) => {
 
 router.post('/admin/run', adminLimiter, requireAdminKey, asyncHandler(async (req, res) => {
     const config = getAiSummaryConfig();
-    const job = (req.body.job || 'stock').toString().toLowerCase();
-    const periodType = normalizePeriod(req.body.periodType, job === 'market' ? 'DAILY' : 'HOURLY');
+    const job = req.body.job === undefined ? 'stock' : req.body.job;
+    if (typeof job !== 'string' || !VALID_ADMIN_JOBS.has(job.toLowerCase())) {
+        return sendQueryValidationError(res, 'job must be stock or market');
+    }
+    const normalizedJob = job.toLowerCase();
+    const periodType = normalizePeriod(req.body.periodType, normalizedJob === 'market' ? 'DAILY' : 'HOURLY');
 
     if (!config.enabled) {
         return res.status(409).json({
@@ -130,7 +141,7 @@ router.post('/admin/run', adminLimiter, requireAdminKey, asyncHandler(async (req
         });
     }
 
-    const result = job === 'market'
+    const result = normalizedJob === 'market'
         ? await runMarketSummary({ periodType })
         : await runStockSummaries({ periodType });
 

@@ -9,20 +9,41 @@ const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
 const { prisma } = require('../services/database/connection');
-const { clampInt, normalizeSymbolParam, normalizeTextQuery } = require('../services/utils/queryValidation');
+const {
+    getBoundedIntQuery,
+    normalizeSymbolParam,
+    normalizeTextQuery,
+    sendQueryValidationError
+} = require('../services/utils/queryValidation');
 
 /**
  * Stock API Routes
  * Endpoints for accessing stock data
  */
 
+const normalizeSectorParam = (value) => {
+    if (typeof value !== 'string') {
+        return { error: 'Invalid sector format' };
+    }
+    const sector = value.trim();
+    if (sector.length > 80) {
+        return { error: 'Sector must be 80 characters or less' };
+    }
+    if (!/^[a-zA-Z0-9\s-]+$/.test(sector)) {
+        return { error: 'Invalid sector format' };
+    }
+    return { value: sector };
+};
+
 /**
  * GET /api/stocks
  * Get all stocks with optional pagination
  */
 router.get('/', asyncHandler(async (req, res) => {
-    const skipVal = clampInt(req.query.skip, 0, 10000, 0);
-    const limitVal = clampInt(req.query.limit, 1, 500, 500);
+    const skipVal = getBoundedIntQuery(res, req.query.skip, { min: 0, max: 10000, defaultValue: 0, label: 'skip' });
+    if (skipVal === null) return;
+    const limitVal = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 500, defaultValue: 500, label: 'limit' });
+    if (limitVal === null) return;
     const { sortBy = 'symbol', sortOrder = 'asc', compact, activeOnly = 'true' } = req.query;
 
     const stocks = await stockOperations.getAllStocks({
@@ -94,7 +115,8 @@ router.get('/sectors', asyncHandler(async (req, res) => {
  * Get top gaining stocks
  */
 router.get('/top-gainers', asyncHandler(async (req, res) => {
-    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 100, defaultValue: 10, label: 'limit' });
+    if (limit === null) return;
     const stocks = await stockOperations.getTopGainers(limit);
 
     res.json({
@@ -109,7 +131,8 @@ router.get('/top-gainers', asyncHandler(async (req, res) => {
  * Get top losing stocks
  */
 router.get('/top-losers', asyncHandler(async (req, res) => {
-    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 100, defaultValue: 10, label: 'limit' });
+    if (limit === null) return;
     const stocks = await stockOperations.getTopLosers(limit);
 
     res.json({
@@ -124,7 +147,8 @@ router.get('/top-losers', asyncHandler(async (req, res) => {
  * Get top traded stocks
  */
 router.get('/top-traded', asyncHandler(async (req, res) => {
-    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 100, defaultValue: 10, label: 'limit' });
+    if (limit === null) return;
     const stocks = await stockOperations.getTopTraded(limit);
 
     res.json({
@@ -139,7 +163,8 @@ router.get('/top-traded', asyncHandler(async (req, res) => {
  * Get stocks with no change
  */
 router.get('/unchanged', asyncHandler(async (req, res) => {
-    const limit = clampInt(req.query.limit, 1, 100, 10);
+    const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 100, defaultValue: 10, label: 'limit' });
+    if (limit === null) return;
     const stocks = await stockOperations.getUnchangedStocks(limit);
 
     res.json({
@@ -154,23 +179,18 @@ router.get('/unchanged', asyncHandler(async (req, res) => {
  * Get stocks by sector
  */
 router.get('/sector/:sector', asyncHandler(async (req, res) => {
-    const { sector } = req.params;
-
-    // Validate sector format
-    if (!/^[a-zA-Z0-9\s-]+$/.test(sector)) {
-        return res.status(400).json({
-            success: false,
-            error: { message: 'Invalid sector format' }
-        });
+    const sectorResult = normalizeSectorParam(req.params.sector);
+    if (sectorResult.error) {
+        return sendQueryValidationError(res, sectorResult.error);
     }
 
-    const stocks = await stockOperations.getStocksBySector(sector);
+    const stocks = await stockOperations.getStocksBySector(sectorResult.value);
 
     res.json({
         success: true,
         data: stocks,
         count: stocks.length,
-        sector
+        sector: sectorResult.value
     });
 }));
 
@@ -179,7 +199,8 @@ router.get('/sector/:sector', asyncHandler(async (req, res) => {
  * Get recently updated stocks
  */
 router.get('/recent', asyncHandler(async (req, res) => {
-    const seconds = clampInt(req.query.seconds, 1, 24 * 60 * 60, 30);
+    const seconds = getBoundedIntQuery(res, req.query.seconds, { min: 1, max: 24 * 60 * 60, defaultValue: 30, label: 'seconds' });
+    if (seconds === null) return;
 
     const stocks = await stockOperations.getRecentlyUpdated(seconds);
 
@@ -252,8 +273,6 @@ router.get('/:symbol', asyncHandler(async (req, res) => {
  * Get historical price data with technical indicators
  */
 router.get('/:symbol/history', asyncHandler(async (req, res) => {
-    const { days = 180 } = req.query;
-
     const symbolResult = normalizeSymbolParam(req.params.symbol);
     if (symbolResult.error) {
         return res.status(400).json({
@@ -264,7 +283,8 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
 
     const startTime = performance.now();
 
-    const daysVal = clampInt(days, 1, 365, 180);
+    const daysVal = getBoundedIntQuery(res, req.query.days, { min: 1, max: 365, defaultValue: 180, label: 'days' });
+    if (daysVal === null) return;
     const historyDesc = await prisma.marketHistory.findMany({
         where: { symbol: symbolResult.value },
         orderBy: { date: 'desc' },

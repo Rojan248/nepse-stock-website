@@ -68,6 +68,13 @@ describe('Stock API Endpoints', () => {
             expect(res.body.pagination).toBeDefined();
         });
 
+        it('should reject repeated pagination parameters before fetching stocks', async () => {
+            const res = await request(app).get('/api/stocks?limit=10&limit=20');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('limit must be a single integer');
+            expect(stockOperations.getAllStocks).not.toHaveBeenCalled();
+        });
+
         it('should return correct response schema', async () => {
             const res = await request(app).get('/api/stocks');
             expect(res.body).toHaveProperty('success');
@@ -163,6 +170,14 @@ describe('Stock API Endpoints', () => {
             expect(res.body.success).toBe(false);
             expect(res.body.error.message).toBe('Invalid sector format');
         });
+
+        it('should reject overlong sector path values', async () => {
+            const longSector = 'A'.repeat(81);
+            const res = await request(app).get(`/api/stocks/sector/${longSector}`);
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('Sector must be 80 characters or less');
+            expect(stockOperations.getStocksBySector).not.toHaveBeenCalled();
+        });
     });
 
     describe('GET /api/stocks/sectors', () => {
@@ -184,6 +199,13 @@ describe('Stock API Endpoints', () => {
             await request(app).get('/api/stocks/top-gainers?limit=999999').expect(200);
             expect(stockOperations.getTopGainers).toHaveBeenCalledWith(100);
         });
+
+        it('should reject numeric-prefix limits', async () => {
+            const res = await request(app).get('/api/stocks/top-gainers?limit=10abc');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('limit must be an integer');
+            expect(stockOperations.getTopGainers).not.toHaveBeenCalled();
+        });
     });
 
     describe('GET /api/stocks/top-losers', () => {
@@ -199,6 +221,14 @@ describe('Stock API Endpoints', () => {
             const res = await request(app).get('/api/stocks/BAD%40/depth');
             expect(res.status).toBe(400);
             expect(res.body.error.message).toBe('Invalid symbol format');
+        });
+    });
+
+    describe('GET /api/stocks/:symbol/history', () => {
+        it('should reject repeated days parameters before database lookup', async () => {
+            const res = await request(app).get('/api/stocks/TEST/history?days=10&days=20');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('days must be a single integer');
         });
     });
 });

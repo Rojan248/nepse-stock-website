@@ -124,6 +124,24 @@ describe('AI summary route hardening', () => {
         });
     });
 
+    it('rejects repeated stock summary limits before repository lookup', async () => {
+        const res = await request(app)
+            .get('/api/ai-summaries/stocks/NABIL?limit=10&limit=20')
+            .expect(400);
+
+        expect(res.body.error.message).toBe('limit must be a single integer');
+        expect(mockRepository.getStockSummaries).not.toHaveBeenCalled();
+    });
+
+    it('rejects malformed admin job values before dispatching workers', async () => {
+        const res = await request(app)
+            .post('/api/ai-summaries/admin/run')
+            .send({ job: ['market'] })
+            .expect(400);
+
+        expect(res.body.error.message).toBe('job must be stock or market');
+    });
+
     it('redacts internal stock summary generation metadata', async () => {
         const res = await request(app)
             .get('/api/ai-summaries/stocks/NABIL/latest')

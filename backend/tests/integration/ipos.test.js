@@ -55,6 +55,22 @@ describe('IPO API Endpoints', () => {
             const res = await request(app).get('/api/ipos');
             expect(res.body).toHaveProperty('statistics');
         });
+
+        it('should reject repeated status filters before database lookup', async () => {
+            const res = await request(app).get('/api/ipos?status=open&status=closed');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('status must be a single value');
+            expect(ipoOperations.getAllIPOs).not.toHaveBeenCalled();
+        });
+
+        it('should normalize valid status filters', async () => {
+            await request(app).get('/api/ipos?status=OPEN').expect(200);
+            expect(ipoOperations.getAllIPOs).toHaveBeenCalledWith({
+                skip: 0,
+                limit: 100,
+                status: 'open'
+            });
+        });
     });
 
     describe('GET /api/ipos/active', () => {
@@ -83,6 +99,14 @@ describe('IPO API Endpoints', () => {
         it('should return IPOs with valid status', async () => {
             const res = await request(app).get('/api/ipos/status/upcoming');
             expect(res.status).toBe(200);
+            expect(res.body.data).toHaveLength(1);
+            expect(res.body.data[0]).toHaveProperty('companyName', 'Test IPO Company');
+            expect(res.body.count).toBe(1);
+        });
+
+        it('should normalize status path casing', async () => {
+            await request(app).get('/api/ipos/status/UPCOMING').expect(200);
+            expect(ipoOperations.getIPOsByStatus).toHaveBeenCalledWith('upcoming');
         });
 
         it('should reject invalid status', async () => {

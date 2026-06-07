@@ -11,7 +11,7 @@ const logger = require('../services/utils/logger');
 const { getTimeSyncStatus, getNepseTimeString, getMarketState } = require('../services/utils/marketTime');
 const { prisma } = require('../services/database/connection');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
-const { clampInt } = require('../services/utils/queryValidation');
+const { getBoundedIntQuery } = require('../services/utils/queryValidation');
 
 /**
  * Market API Routes
@@ -176,7 +176,8 @@ router.get('/market-summary', asyncHandler(async (req, res) => {
  * Get market summary history
  */
 router.get('/market-history', asyncHandler(async (req, res) => {
-    const hoursVal = clampInt(req.query.hours, 1, 720, 24);
+    const hoursVal = getBoundedIntQuery(res, req.query.hours, { min: 1, max: 720, defaultValue: 24, label: 'hours' });
+    if (hoursVal === null) return;
 
     const history = await marketOperations.getMarketSummaryHistory(hoursVal);
 
@@ -401,7 +402,8 @@ function enrichTrendingItem(item, stock) {
  */
 router.get('/trending', asyncHandler(async (req, res) => {
     const analytics = require('../services/analytics');
-    const limitVal = clampInt(req.query.limit, 1, 500, 6);
+    const limitVal = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 500, defaultValue: 6, label: 'limit' });
+    if (limitVal === null) return;
 
     // Get trending stocks from analytics
     const trending = analytics.getTrending(limitVal);

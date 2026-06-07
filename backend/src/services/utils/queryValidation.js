@@ -8,15 +8,59 @@
  * @param {number} defaultVal - The fallback value if parsing fails.
  * @returns {number} The clamped integer.
  */
-const clampInt = (value, min, max, defaultVal) => {
+const INTEGER_QUERY_PATTERN = /^\d+$/;
+
+const parseBoundedIntQuery = (value, {
+    min,
+    max,
+    defaultValue,
+    label = 'value'
+}) => {
     if (value === undefined || value === null || value === '') {
-        return defaultVal;
+        return { value: defaultValue };
     }
-    const parsed = parseInt(value, 10);
-    if (isNaN(parsed)) {
-        return defaultVal;
+
+    if (Array.isArray(value)) {
+        return { error: `${label} must be a single integer` };
     }
-    return Math.max(min, Math.min(max, parsed));
+
+    let parsed;
+    if (typeof value === 'number') {
+        parsed = value;
+    } else if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!INTEGER_QUERY_PATTERN.test(trimmed)) {
+            return { error: `${label} must be an integer` };
+        }
+        parsed = Number(trimmed);
+    } else {
+        return { error: `${label} must be an integer` };
+    }
+
+    if (!Number.isSafeInteger(parsed)) {
+        return { error: `${label} must be a safe integer` };
+    }
+
+    return { value: Math.max(min, Math.min(max, parsed)) };
+};
+
+const clampInt = (value, min, max, defaultVal) => {
+    const result = parseBoundedIntQuery(value, { min, max, defaultValue: defaultVal });
+    return result.error ? defaultVal : result.value;
+};
+
+const sendQueryValidationError = (res, message) => res.status(400).json({
+    success: false,
+    error: { message }
+});
+
+const getBoundedIntQuery = (res, value, options) => {
+    const result = parseBoundedIntQuery(value, options);
+    if (result.error) {
+        sendQueryValidationError(res, result.error);
+        return null;
+    }
+    return result.value;
 };
 
 const normalizeTextQuery = (value, { maxLength = 50 } = {}) => {
@@ -50,6 +94,9 @@ const normalizeSymbolParam = (value) => {
 
 module.exports = {
     clampInt,
+    getBoundedIntQuery,
+    parseBoundedIntQuery,
     normalizeSymbolParam,
-    normalizeTextQuery
+    normalizeTextQuery,
+    sendQueryValidationError
 };
