@@ -25,6 +25,7 @@ describe('Production routing hardening', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     const originalJwtSecret = process.env.JWT_SECRET;
     const originalAdminApiKey = process.env.ADMIN_API_KEY;
+    const originalCorsOrigin = process.env.CORS_ORIGIN;
 
     beforeEach(() => {
         jest.resetModules();
@@ -32,6 +33,7 @@ describe('Production routing hardening', () => {
         process.env.PORT = 0;
         process.env.JWT_SECRET = 'test-production-jwt-secret-32-characters';
         process.env.ADMIN_API_KEY = 'test-production-admin-key-32-characters';
+        process.env.CORS_ORIGIN = 'https://app.example.com';
 
         jest.doMock('../../src/services/utils/logger', mockLogger);
         jest.doMock('../../src/services/database/connection', () => ({
@@ -59,6 +61,8 @@ describe('Production routing hardening', () => {
         else process.env.JWT_SECRET = originalJwtSecret;
         if (originalAdminApiKey === undefined) delete process.env.ADMIN_API_KEY;
         else process.env.ADMIN_API_KEY = originalAdminApiKey;
+        if (originalCorsOrigin === undefined) delete process.env.CORS_ORIGIN;
+        else process.env.CORS_ORIGIN = originalCorsOrigin;
         jest.resetModules();
         jest.clearAllMocks();
     });
@@ -72,5 +76,30 @@ describe('Production routing hardening', () => {
 
         expect(res.body.success).toBe(false);
         expect(res.body.error.message).toContain('Not Found');
+    });
+
+    it('rejects cross-site browser state-changing requests before auth routes run', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/auth/logout')
+            .set('Sec-Fetch-Site', 'cross-site')
+            .expect(403);
+
+        expect(res.body.success).toBe(false);
+        expect(res.body.error.message).toContain('Cross-site');
+    });
+
+    it('rejects form-encoded API bodies before they reach JSON routes', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .type('form')
+            .send({ email: 'person@example.com', password: 'StrongPass123' })
+            .expect(415);
+
+        expect(res.body.success).toBe(false);
+        expect(res.body.error.message).toContain('application/json');
     });
 });
