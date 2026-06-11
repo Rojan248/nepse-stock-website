@@ -8,6 +8,7 @@ const fs = require('fs');
 const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
 const { browserStateChangeGuard, jsonApiBodyGuard } = require('./middleware/browserRequestGuards');
+const { frontendStaticSafetyGuard } = require('./middleware/staticAssetGuards');
 const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
 const logger = require('./services/utils/logger');
@@ -107,7 +108,11 @@ if (process.env.NODE_ENV !== 'production') {
 } else {
     // Production: Serve frontend static files
     const frontendPath = path.join(__dirname, '../../frontend/dist');
-    app.use(express.static(frontendPath));
+    app.use(frontendStaticSafetyGuard);
+    app.use(express.static(frontendPath, {
+        dotfiles: 'deny',
+        index: false
+    }));
 
     // Catch-all: serve index.html for client-side routing
     app.get('*', (req, res, next) => {

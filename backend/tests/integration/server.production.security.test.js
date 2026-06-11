@@ -63,6 +63,7 @@ describe('Production routing hardening', () => {
         else process.env.ADMIN_API_KEY = originalAdminApiKey;
         if (originalCorsOrigin === undefined) delete process.env.CORS_ORIGIN;
         else process.env.CORS_ORIGIN = originalCorsOrigin;
+        jest.restoreAllMocks();
         jest.resetModules();
         jest.clearAllMocks();
     });
@@ -101,5 +102,37 @@ describe('Production routing hardening', () => {
 
         expect(res.body.success).toBe(false);
         expect(res.body.error.message).toContain('application/json');
+    });
+
+    it.each([
+        '/.env',
+        '/package.json',
+        '/assets/app.js.map',
+        '/..%2fbackend/.env'
+    ])('returns 404 for sensitive frontend static probe %s', async (probePath) => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get(probePath)
+            .expect(404);
+
+        expect(res.text).toBe('Not Found');
+    });
+
+    it('still serves the SPA shell for normal production frontend routes', async () => {
+        const expressForSpy = require('express');
+        const sendFileSpy = jest.spyOn(expressForSpy.response, 'sendFile')
+            .mockImplementation(function sendMock(filePath) {
+                return this.status(200).type('html').send(`<html>${filePath}</html>`);
+            });
+
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get('/stock/NABIL')
+            .expect(200);
+
+        expect(sendFileSpy).toHaveBeenCalledWith(expect.stringContaining('index.html'));
+        expect(res.text).toContain('index.html');
     });
 });
