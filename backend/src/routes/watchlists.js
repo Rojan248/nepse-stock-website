@@ -10,6 +10,7 @@ const {
     sendValidationError,
     validateName
 } = require('../services/utils/requestValidation');
+const { USER_RESOURCE_LIMITS, ensureResourceLimit, quotaExceeded } = require('../services/utils/resourceQuotas');
 
 // ==================== Authenticated Watchlist CRUD ====================
 
@@ -36,6 +37,15 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
     if (nameResult.error) {
         return sendValidationError(res, nameResult.error);
     }
+
+    const watchlistCount = await prisma.watchlist.count({ where: { userId: req.user.userId } });
+    const withinLimit = await ensureResourceLimit({
+        count: watchlistCount,
+        limit: USER_RESOURCE_LIMITS.watchlists,
+        label: 'Watchlist',
+        res
+    });
+    if (!withinLimit) return;
 
     const watchlist = await prisma.watchlist.create({
         data: { name: nameResult.value, userId: req.user.userId },
@@ -113,6 +123,15 @@ router.post('/:id/items', requireAuth, asyncHandler(async (req, res) => {
         return res.status(409).json({ success: false, error: { message: 'Symbol already in watchlist' } });
     }
 
+    const itemCount = await prisma.watchlistItem.count({ where: { watchlistId } });
+    const withinLimit = await ensureResourceLimit({
+        count: itemCount,
+        limit: USER_RESOURCE_LIMITS.watchlistItems,
+        label: 'Watchlist item',
+        res
+    });
+    if (!withinLimit) return;
+
     const item = await prisma.watchlistItem.create({
         data: { watchlistId, symbol }
     });
@@ -165,6 +184,16 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
     const watchlist = await prisma.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
     if (!watchlist) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
+    }
+
+    const existingItems = await prisma.watchlistItem.findMany({
+        where: { watchlistId },
+        select: { symbol: true }
+    });
+    const existingSymbols = new Set(existingItems.map(item => item.symbol));
+    const newSymbols = symbolsResult.value.filter(symbol => !existingSymbols.has(symbol));
+    if (existingItems.length + newSymbols.length > USER_RESOURCE_LIMITS.watchlistItems) {
+        return quotaExceeded(res, 'Watchlist item', USER_RESOURCE_LIMITS.watchlistItems);
     }
 
     const results = { added: 0, skipped: 0 };

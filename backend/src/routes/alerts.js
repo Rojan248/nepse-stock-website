@@ -11,6 +11,7 @@ const {
     parsePositiveNumber,
     sendValidationError
 } = require('../services/utils/requestValidation');
+const { USER_RESOURCE_LIMITS, ensureResourceLimit } = require('../services/utils/resourceQuotas');
 
 const VALID_CONDITIONS = ['above', 'below', 'pct_change'];
 
@@ -42,6 +43,15 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
     if (thresholdResult.error) {
         return sendValidationError(res, thresholdResult.error);
     }
+
+    const alertCount = await prisma.alert.count({ where: { userId: req.user.userId } });
+    const withinLimit = await ensureResourceLimit({
+        count: alertCount,
+        limit: USER_RESOURCE_LIMITS.alerts,
+        label: 'Alert',
+        res
+    });
+    if (!withinLimit) return;
 
     const alert = await prisma.alert.create({
         data: {

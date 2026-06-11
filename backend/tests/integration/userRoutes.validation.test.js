@@ -4,6 +4,7 @@ const { errorHandler } = require('../../src/middleware/errorHandler');
 
 const mockPrisma = {
     alert: {
+        count: jest.fn(),
         create: jest.fn(),
         findFirst: jest.fn(),
         findMany: jest.fn(),
@@ -11,6 +12,7 @@ const mockPrisma = {
         delete: jest.fn()
     },
     portfolio: {
+        count: jest.fn(),
         create: jest.fn(),
         delete: jest.fn(),
         findFirst: jest.fn(),
@@ -20,11 +22,13 @@ const mockPrisma = {
         findMany: jest.fn()
     },
     trade: {
+        count: jest.fn(),
         create: jest.fn(),
         delete: jest.fn(),
         findFirst: jest.fn()
     },
     watchlist: {
+        count: jest.fn(),
         create: jest.fn(),
         delete: jest.fn(),
         findFirst: jest.fn(),
@@ -33,8 +37,10 @@ const mockPrisma = {
         update: jest.fn()
     },
     watchlistItem: {
+        count: jest.fn(),
         create: jest.fn(),
         delete: jest.fn(),
+        findMany: jest.fn(),
         findUnique: jest.fn()
     }
 };
@@ -73,6 +79,12 @@ const portfolioCalculator = require('../../src/services/portfolioCalculator');
 describe('authenticated user route validation', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockPrisma.alert.count.mockResolvedValue(0);
+        mockPrisma.portfolio.count.mockResolvedValue(0);
+        mockPrisma.trade.count.mockResolvedValue(0);
+        mockPrisma.watchlist.count.mockResolvedValue(0);
+        mockPrisma.watchlistItem.count.mockResolvedValue(0);
+        mockPrisma.watchlistItem.findMany.mockResolvedValue([]);
     });
 
     it('rejects malformed watchlist symbols before database lookup', async () => {
@@ -102,6 +114,7 @@ describe('authenticated user route validation', () => {
     it('deduplicates normalized watchlist imports', async () => {
         mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
         mockPrisma.watchlist.findUnique.mockResolvedValue({ id: 1, items: [] });
+        mockPrisma.watchlistItem.findMany.mockResolvedValue([]);
         mockPrisma.watchlistItem.create.mockResolvedValue({});
 
         const res = await request(app)
@@ -117,6 +130,47 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
             data: { watchlistId: 1, symbol: 'EBL' }
         });
+    });
+
+    it('rejects watchlist creation after the per-user quota is reached', async () => {
+        mockPrisma.watchlist.count.mockResolvedValue(25);
+
+        const res = await request(app)
+            .post('/api/watchlists')
+            .send({ name: 'Overflow' })
+            .expect(409);
+
+        expect(res.body.error.message).toContain('Watchlist limit');
+        expect(mockPrisma.watchlist.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects watchlist item creation after the per-list quota is reached', async () => {
+        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+        mockPrisma.watchlistItem.findUnique.mockResolvedValue(null);
+        mockPrisma.watchlistItem.count.mockResolvedValue(250);
+
+        const res = await request(app)
+            .post('/api/watchlists/1/items')
+            .send({ symbol: 'NABIL' })
+            .expect(409);
+
+        expect(res.body.error.message).toContain('Watchlist item limit');
+        expect(mockPrisma.watchlistItem.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects watchlist imports that would exceed the per-list quota', async () => {
+        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+        mockPrisma.watchlistItem.findMany.mockResolvedValue(
+            Array.from({ length: 249 }, (_, index) => ({ symbol: `OLD${index}` }))
+        );
+
+        const res = await request(app)
+            .post('/api/watchlists/1/import')
+            .send({ symbols: ['NABIL', 'EBL'] })
+            .expect(409);
+
+        expect(res.body.error.message).toContain('Watchlist item limit');
+        expect(mockPrisma.watchlistItem.create).not.toHaveBeenCalled();
     });
 
     it('rejects malformed public share slugs before database lookup', async () => {
@@ -223,6 +277,37 @@ describe('authenticated user route validation', () => {
         });
     });
 
+    it('rejects portfolio creation after the per-user quota is reached', async () => {
+        mockPrisma.portfolio.count.mockResolvedValue(25);
+
+        const res = await request(app)
+            .post('/api/portfolios')
+            .send({ name: 'Overflow' })
+            .expect(409);
+
+        expect(res.body.error.message).toContain('Portfolio limit');
+        expect(mockPrisma.portfolio.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects trade creation after the per-portfolio quota is reached', async () => {
+        mockPrisma.portfolio.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+        mockPrisma.trade.count.mockResolvedValue(500);
+
+        const res = await request(app)
+            .post('/api/portfolios/1/trades')
+            .send({
+                symbol: 'NABIL',
+                type: 'buy',
+                quantity: 10,
+                price: 123.45,
+                date: '2026-06-06'
+            })
+            .expect(409);
+
+        expect(res.body.error.message).toContain('Portfolio trade limit');
+        expect(mockPrisma.trade.create).not.toHaveBeenCalled();
+    });
+
     it('checks portfolio ownership before running summary calculations', async () => {
         mockPrisma.portfolio.findFirst.mockResolvedValue(null);
 
@@ -252,6 +337,18 @@ describe('authenticated user route validation', () => {
             .expect(400);
 
         expect(res.body.error.message).toContain('Threshold');
+        expect(mockPrisma.alert.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects alert creation after the per-user quota is reached', async () => {
+        mockPrisma.alert.count.mockResolvedValue(100);
+
+        const res = await request(app)
+            .post('/api/alerts')
+            .send({ symbol: 'NABIL', condition: 'above', threshold: 100 })
+            .expect(409);
+
+        expect(res.body.error.message).toContain('Alert limit');
         expect(mockPrisma.alert.create).not.toHaveBeenCalled();
     });
 });

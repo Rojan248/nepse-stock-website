@@ -13,6 +13,7 @@ const {
     validateName,
     validateOptionalNote
 } = require('../services/utils/requestValidation');
+const { USER_RESOURCE_LIMITS, ensureResourceLimit } = require('../services/utils/resourceQuotas');
 
 // ==================== Portfolio CRUD ====================
 
@@ -32,6 +33,15 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
     if (nameResult.error) {
         return sendValidationError(res, nameResult.error);
     }
+
+    const portfolioCount = await prisma.portfolio.count({ where: { userId: req.user.userId } });
+    const withinLimit = await ensureResourceLimit({
+        count: portfolioCount,
+        limit: USER_RESOURCE_LIMITS.portfolios,
+        label: 'Portfolio',
+        res
+    });
+    if (!withinLimit) return;
 
     const portfolio = await prisma.portfolio.create({
         data: { name: nameResult.value, userId: req.user.userId },
@@ -99,6 +109,15 @@ router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
     if (!portfolio) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
     }
+
+    const tradeCount = await prisma.trade.count({ where: { portfolioId } });
+    const withinLimit = await ensureResourceLimit({
+        count: tradeCount,
+        limit: USER_RESOURCE_LIMITS.tradesPerPortfolio,
+        label: 'Portfolio trade',
+        res
+    });
+    if (!withinLimit) return;
 
     const trade = await prisma.trade.create({
         data: {
