@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { estimateDeepSeekCost, normalizeUsage } = require('./costEstimator');
+const { assertPublicHttpsUrl, createPublicHttpsAgent } = require('../utils/outboundUrlPolicy');
 const {
     STOCK_SUMMARY_SYSTEM_PROMPT,
     MARKET_SUMMARY_SYSTEM_PROMPT,
@@ -18,9 +19,14 @@ function createDeepSeekProvider(config) {
         throw new Error('DEEPSEEK_API_KEY is required when AI_SUMMARIES_PROVIDER=deepseek');
     }
 
+    const safeBaseUrl = assertPublicHttpsUrl(config.baseUrl, { label: 'DEEPSEEK_BASE_URL' });
+    const httpsAgent = createPublicHttpsAgent(safeBaseUrl, { label: 'DEEPSEEK_BASE_URL' });
+
     const client = axios.create({
-        baseURL: config.baseUrl,
+        baseURL: safeBaseUrl,
         timeout: 30000,
+        maxRedirects: 0,
+        httpsAgent,
         headers: {
             Authorization: `Bearer ${config.apiKey}`,
             'Content-Type': 'application/json'

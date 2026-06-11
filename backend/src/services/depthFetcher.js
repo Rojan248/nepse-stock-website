@@ -108,7 +108,11 @@ function transformFloorEntry(t) {
 }
 
 async function lookupCompanyId(ctx, symbol) {
-    const companiesRes = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/company/list`, { headers: ctx.headers, timeout: 5000 });
+    const companiesRes = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/company/list`, {
+        headers: ctx.headers,
+        timeout: 5000,
+        maxRedirects: 0
+    });
     const company = companiesRes?.data?.find(c => c.symbol === symbol.toUpperCase());
     if (!company) throw new Error(`Company ID not found for symbol ${symbol}`);
     return company.id;
@@ -117,7 +121,11 @@ async function lookupCompanyId(ctx, symbol) {
 async function fetchAndTransformDepth(ctx, companyId, symbol) {
     let marketDepth = { buyMarketDepthList: [], sellMarketDepthList: [] };
     try {
-        const res = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/nepse-data/marketdepth/${companyId}`, { headers: ctx.headers, timeout: 5000 });
+        const res = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/nepse-data/marketdepth/${companyId}`, {
+            headers: ctx.headers,
+            timeout: 5000,
+            maxRedirects: 0
+        });
         marketDepth = resolveDepthShape(res.data, symbol);
     } catch (e) {
         logger.warn(`Failed to fetch real depth for ${symbol}: ${e.message}`);
@@ -136,7 +144,11 @@ function resolveFloorContent(rawData) {
 async function fetchAndTransformFloorsheet(ctx, companyId, symbol) {
     let floorData = [];
     try {
-        const res = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/floorsheet?companyId=${companyId}`, { headers: ctx.headers, timeout: 5000 });
+        const res = await ctx.nepseAxios.get(`${ctx.BASE_URL}/api/nots/floorsheet?companyId=${companyId}`, {
+            headers: ctx.headers,
+            timeout: 5000,
+            maxRedirects: 0
+        });
         floorData = res.data || [];
     } catch (e) {
         logger.debug(`Floorsheet endpoint unavailable for ${symbol}`);

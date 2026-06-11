@@ -178,6 +178,18 @@ async function getAiSummaryStatus() {
     };
 }
 
+async function getEstimatedCostSince(startedAt) {
+    const rows = await prisma.aiRun.findMany({
+        where: {
+            startedAt: { gte: startedAt },
+            estimatedCostUsd: { not: null }
+        },
+        select: { estimatedCostUsd: true }
+    });
+
+    return rows.reduce((sum, row) => sum + Number(row.estimatedCostUsd || 0), 0);
+}
+
 module.exports = {
     createRun,
     finishRun,
@@ -188,6 +200,7 @@ module.exports = {
     getLatestStockSummary,
     getMarketSummaries,
     getAiSummaryStatus,
+    getEstimatedCostSince,
     mapStockSummary,
     mapMarketSummary
 };

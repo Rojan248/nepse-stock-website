@@ -8,6 +8,17 @@ const axios = require('axios');
 const https = require('https');
 const logger = require('./utils/logger');
 
+const PREVIOUS_TRADING_DAY_TIMEOUT_MS = 10000;
+
+const createNepseHttpsAgent = () => new https.Agent({ keepAlive: true });
+
+const buildPreviousTradingDayRequestOptions = (headers) => ({
+    headers,
+    httpsAgent: createNepseHttpsAgent(),
+    timeout: PREVIOUS_TRADING_DAY_TIMEOUT_MS,
+    maxRedirects: 0
+});
+
 /**
  * Fetch data from the previous trading day (Security Daily Trade Stat)
  * Useful for correcting zeroed-out data on weekends/holidays
@@ -23,13 +34,12 @@ const fetchPreviousTradingDayData = async () => {
         await nepseClient.initialize({ useWasm: true });
         const token = await nepseClient.getToken();
 
-        const agent = new https.Agent({ rejectUnauthorized: false });
         const headers = { ...createHeaders(token), 'Referer': 'https://www.nepalstock.com.np/' };
 
         // Fetch securityDailyTradeStat (Index 58 is usually "All Scrips" or similar broad index)
         const url = 'https://www.nepalstock.com.np/api/nots/securityDailyTradeStat/58';
         
-        const res = await axios.get(url, { headers, httpsAgent: agent });
+        const res = await axios.get(url, buildPreviousTradingDayRequestOptions(headers));
         const data = res.data;
         
         if (!Array.isArray(data) || data.length === 0) {
@@ -64,5 +74,9 @@ const fetchPreviousTradingDayData = async () => {
 };
 
 module.exports = {
-    fetchPreviousTradingDayData
+    fetchPreviousTradingDayData,
+    __test__: {
+        buildPreviousTradingDayRequestOptions,
+        createNepseHttpsAgent
+    }
 };

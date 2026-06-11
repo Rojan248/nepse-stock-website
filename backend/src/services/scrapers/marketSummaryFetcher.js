@@ -96,6 +96,11 @@ function hasIndexData(res) {
 
 const DEFAULT_BREADTH = { advancedCompanies: null, declinedCompanies: null, unchangedCompanies: null };
 const ALL_INDEX_IDS = [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67];
+const requestOptions = (deps, headers) => ({
+    headers,
+    httpsAgent: deps.nepseHttpsAgent,
+    maxRedirects: deps.maxRedirects ?? 0
+});
 
 /** Process bulk indices response into a map + breadth */
 function processBulkIndices(data) {
@@ -117,7 +122,10 @@ async function fetchMissingIndices(indicesMap, headers, today, deps) {
 
     const responses = await Promise.all(
         missingIds.map(id =>
-            deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/datewise-indices?indexId=${id}&startDate=${today}&endDate=${today}`, { headers, httpsAgent: deps.nepseHttpsAgent })
+            deps.nepseAxios.get(
+                `${deps.BASE_URL}/api/nots/datewise-indices?indexId=${id}&startDate=${today}&endDate=${today}`,
+                requestOptions(deps, headers)
+            )
                 .catch(() => ({ data: [] }))
         )
     );
@@ -136,8 +144,8 @@ const fetchMarketSummary = async (token, deps) => {
         const today = new Date().toISOString().split('T')[0];
 
         const [bulkIndicesRes, summaryResponse] = await Promise.all([
-            deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/nepse-index`, { headers, httpsAgent: deps.nepseHttpsAgent }).catch(() => ({ data: [] })),
-            deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/market-summary`, { headers, httpsAgent: deps.nepseHttpsAgent }).catch(() => null)
+            deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/nepse-index`, requestOptions(deps, headers)).catch(() => ({ data: [] })),
+            deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/market-summary`, requestOptions(deps, headers)).catch(() => null)
         ]);
 
         const { indicesMap, breadth } = processBulkIndices(bulkIndicesRes.data);

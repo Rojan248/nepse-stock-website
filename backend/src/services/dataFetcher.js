@@ -35,6 +35,7 @@ const MARKET_OPEN_URL = 'https://nepalstock.com.np/api/nots/nepse-data/market-op
 const MARKET_OPEN_ALT = 'https://nepalstock.com/api/nots/nepse-data/market-open';
 const marketOpenClient = axios.create({
     timeout: 4000,
+    maxRedirects: 0,
     httpsAgent: new https.Agent({ keepAlive: true }),
     headers: {
         'Accept': 'application/json',
@@ -149,12 +150,12 @@ const MARKET_META_SOURCES = [
     },
     {
         name: 'merolagani',
-        fetch: () => axios.get('https://merolagani.com/MarketSummary.aspx', { timeout: 5000, headers: SCRAPE_HEADERS }),
+        fetch: () => axios.get('https://merolagani.com/MarketSummary.aspx', { timeout: 5000, maxRedirects: 0, headers: SCRAPE_HEADERS }),
         parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`Merolagani: ${msg}`))
     },
     {
         name: 'nepsealpha',
-        fetch: () => axios.get('https://nepsealpha.com/trading-menu', { timeout: 5000, headers: SCRAPE_HEADERS }),
+        fetch: () => axios.get('https://nepsealpha.com/trading-menu', { timeout: 5000, maxRedirects: 0, headers: SCRAPE_HEADERS }),
         parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`NepseAlpha: ${msg}`))
     }
 ];

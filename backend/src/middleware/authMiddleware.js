@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const logger = require('../services/utils/logger');
 const { getSecretIssue } = require('../services/utils/securityConfig');
+const { prisma } = require('../services/database/connection');
 
 const resolveJwtSecret = () => {
     if (process.env.JWT_SECRET) {
@@ -18,8 +19,44 @@ const resolveJwtSecret = () => {
 };
 
 const JWT_SECRET = resolveJwtSecret();
+const JWT_ALGORITHM = 'HS256';
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+
+const sendAuthFailure = (res, message) => res.status(401).json({
+    success: false,
+    error: { message }
+});
+
+const toTokenUser = (user) => ({
+    userId: user.id,
+    email: user.email,
+    role: user.role
+});
+
+const verifyAccessToken = (token) => {
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
+    if (!Number.isSafeInteger(decoded.userId) || decoded.userId <= 0) {
+        throw new Error('Invalid token subject');
+    }
+    return decoded;
+};
+
+const findActiveTokenUser = async (decoded) => {
+    const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: {
+            id: true,
+            email: true,
+            role: true,
+            lockedUntil: true
+        }
+    });
+
+    if (!user) return null;
+    if (user.lockedUntil && user.lockedUntil > new Date()) return null;
+    return user;
+};
 
 /**
  * Generate an access token for a user
@@ -28,7 +65,7 @@ const generateAccessToken = (user) => {
     return jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         JWT_SECRET,
-        { expiresIn: ACCESS_TOKEN_EXPIRY }
+        { algorithm: JWT_ALGORITHM, expiresIn: ACCESS_TOKEN_EXPIRY }
     );
 };
 
@@ -36,42 +73,41 @@ const generateAccessToken = (user) => {
  * Middleware: require a valid JWT Bearer token.
  * Attaches req.user = { userId, email, role }
  */
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({
-            success: false,
-            error: { message: 'Authentication required' }
-        });
+        return sendAuthFailure(res, 'Authentication required');
     }
 
     const token = authHeader.split(' ')[1];
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
+        const decoded = verifyAccessToken(token);
+        const user = await findActiveTokenUser(decoded);
+        if (!user) {
+            return sendAuthFailure(res, 'Invalid token');
+        }
+        req.user = toTokenUser(user);
         next();
     } catch (err) {
         const message = err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token';
         logger.debug(`Auth failed: ${err.message}`);
-        return res.status(401).json({
-            success: false,
-            error: { message }
-        });
+        return sendAuthFailure(res, message);
     }
 };
 
 /**
  * Optional auth: if a valid token is present, attach req.user; otherwise proceed.
  */
-const optionalAuth = (req, res, next) => {
+const optionalAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return next();
     }
     const token = authHeader.split(' ')[1];
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
+        const decoded = verifyAccessToken(token);
+        const user = await findActiveTokenUser(decoded);
+        if (user) req.user = toTokenUser(user);
     } catch {
         // Token invalid — proceed without user
     }
@@ -85,7 +121,7 @@ const setRefreshCookie = (res, token) => {
     res.cookie('refreshToken', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/api/auth',
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     });
@@ -98,7 +134,7 @@ const clearRefreshCookie = (res) => {
     res.clearCookie('refreshToken', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/api/auth'
     });
 };

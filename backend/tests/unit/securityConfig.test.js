@@ -2,7 +2,8 @@ const { getSecretIssue, validateRuntimeSecrets } = require('../../src/services/u
 
 describe('securityConfig', () => {
     it('rejects known weak secrets when provided', () => {
-        expect(getSecretIssue('ADMIN_API_KEY', '13100896wW@')).toContain('at least 32');
+        expect(getSecretIssue('ADMIN_API_KEY', 'short-weak-value')).toContain('at least 32');
+        expect(getSecretIssue('ADMIN_API_KEY', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')).toContain('compromised');
         expect(getSecretIssue('JWT_SECRET', 'change-this-to-a-secure-random-string')).toContain('weak');
     });
 

@@ -1,5 +1,6 @@
 const request = require('supertest');
 const express = require('express');
+const crypto = require('crypto');
 
 // We intentionally do NOT mock the rate limiter here to test its real functionality.
 
@@ -28,7 +29,7 @@ app.use(express.json());
 app.use('/api/watchdog', watchdogRouter);
 
 describe('Watchdog API Rate Limiting', () => {
-    const ADMIN_KEY = 'test-admin-key';
+    const ADMIN_KEY = crypto.randomBytes(32).toString('hex');
     const originalAdminKey = process.env.ADMIN_API_KEY;
 
     beforeAll(() => {

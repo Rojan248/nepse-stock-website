@@ -14,6 +14,7 @@ const fetchFromMerolagani = async () => {
     try {
         const resp = await axios.get('https://merolagani.com/MarketSummary.aspx', {
             timeout: 5000,
+            maxRedirects: 0,
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
         });
         const html = resp.data || '';
@@ -41,6 +42,7 @@ const fetchFromNepseAlpha = async () => {
     try {
         const alpha = await axios.get('https://nepsealpha.com/trading-menu', {
             timeout: 5000,
+            maxRedirects: 0,
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
         });
         const alphaMatch = alpha.data.match(/Transactions["']?\s*[:=]\s*["']?([0-9,]+)/i);
@@ -67,6 +69,7 @@ const fetchFromShareSansar = async () => {
     try {
         const ss = await axios.get('https://www.sharesansar.com/market', {
             timeout: 5000,
+            maxRedirects: 0,
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' }
         });
         const ssMatch = ss.data.match(/Total\s+Transactions(?:[^0-9<]*|[^0-9]*<[^>]+>[^0-9]*)+([0-9,]+)/i);

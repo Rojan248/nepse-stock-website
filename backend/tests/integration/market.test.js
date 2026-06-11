@@ -1,7 +1,9 @@
 const request = require('supertest');
 const express = require('express');
+const crypto = require('crypto');
 const marketRouter = require('../../src/routes/market');
 const marketOperations = require('../../src/services/database/marketOperations');
+const scheduler = require('../../src/services/scheduler/updateScheduler');
 
 // Create test app
 const app = express();
@@ -81,7 +83,7 @@ jest.mock('../../src/services/database/connection', () => ({
 }));
 
 describe('Market API Endpoints', () => {
-    const ADMIN_KEY = 'test-admin-key';
+    const ADMIN_KEY = crypto.randomBytes(32).toString('hex');
     const originalAdminKey = process.env.ADMIN_API_KEY;
 
     beforeEach(() => {
@@ -138,7 +140,8 @@ describe('Market API Endpoints', () => {
             const res = await request(app).get('/api/health');
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
-            expect(['healthy', 'degraded']).toContain(res.body.status);
+            expect(res.body.status).toBe('healthy');
+            expect(marketOperations.getMarketStats).not.toHaveBeenCalled();
         });
 
         it('should show market state', async () => {
@@ -154,6 +157,37 @@ describe('Market API Endpoints', () => {
             expect(res.status).toBe(200);
             expect(res.body.fetcher).not.toHaveProperty('lastError');
             expect(res.body.fetcher).toHaveProperty('hasError', false);
+        });
+
+        it('should allow configured API-only probes when background jobs are disabled', async () => {
+            const originalDisable = process.env.DISABLE_BACKGROUND_JOBS;
+            try {
+                process.env.DISABLE_BACKGROUND_JOBS = 'true';
+                scheduler.getUpdateStatus.mockReturnValueOnce({
+                    isRunning: false,
+                    isMarketOpen: false,
+                    lastUpdateTime: null,
+                    updateCount: 0,
+                    failureCount: 0,
+                    consecutiveFailures: 0,
+                    lastError: null,
+                    currentNST: new Date().toISOString(),
+                    marketHours: { open: '10:00', close: '15:00' },
+                    circuitBreaker: { isOpen: false, consecutiveFailures: 0 },
+                    alerting: { enabled: false }
+                });
+
+                const res = await request(app).get('/api/health/ready');
+
+                expect(res.status).toBe(200);
+                expect(res.body.warnings).toContain('background jobs are disabled by configuration');
+            } finally {
+                if (originalDisable === undefined) {
+                    delete process.env.DISABLE_BACKGROUND_JOBS;
+                } else {
+                    process.env.DISABLE_BACKGROUND_JOBS = originalDisable;
+                }
+            }
         });
     });
 

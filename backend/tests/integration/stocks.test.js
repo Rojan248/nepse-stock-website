@@ -1,5 +1,24 @@
 const request = require('supertest');
 const express = require('express');
+
+const mockNepseAxiosGet = jest.fn();
+
+jest.mock('nepse-api-helper', () => ({
+    nepseClient: {
+        initialize: jest.fn().mockResolvedValue(undefined),
+        getToken: jest.fn().mockResolvedValue('mock-token')
+    },
+    nepseAxios: {
+        get: mockNepseAxiosGet
+    },
+    createHeaders: jest.fn(() => ({ Authorization: 'Bearer mock-token' })),
+    BASE_URL: 'https://nepalstock.com.np'
+}));
+
+jest.mock('../../src/services/depthFetcher', () => ({
+    getDepth: jest.fn().mockResolvedValue({ marketDepth: { buy: [], sell: [] }, floorsheet: [] })
+}));
+
 const stocksRouter = require('../../src/routes/stocks');
 
 // Create test app
@@ -44,14 +63,31 @@ jest.mock('../../src/services/database/stockOperations', () => ({
     getTopLosers: jest.fn().mockResolvedValue([{ ...global.testUtils.mockStock, change: -5, changePercent: -5 }]),
     getTopTraded: jest.fn().mockResolvedValue([global.testUtils.mockStock]),
     getUnchangedStocks: jest.fn().mockResolvedValue([global.testUtils.mockStock]),
-    getRecentlyUpdated: jest.fn().mockResolvedValue([global.testUtils.mockStock])
+    getRecentlyUpdated: jest.fn().mockResolvedValue([global.testUtils.mockStock]),
+    cleanupInvalidStocks: jest.fn().mockResolvedValue({
+        removed: 0,
+        remaining: 1,
+        removedSymbols: []
+    })
+}));
+
+jest.mock('../../src/services/database/connection', () => ({
+    prisma: {
+        marketHistory: { findMany: jest.fn() },
+        stockMetrics: { findMany: jest.fn() }
+    }
 }));
 
 const stockOperations = require('../../src/services/database/stockOperations');
+const depthFetcher = require('../../src/services/depthFetcher');
+const { prisma } = require('../../src/services/database/connection');
 
 describe('Stock API Endpoints', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockNepseAxiosGet.mockResolvedValue({ data: [{ symbol: 'NABIL' }] });
+        prisma.marketHistory.findMany.mockResolvedValue([]);
+        prisma.stockMetrics.findMany.mockResolvedValue([]);
     });
 
     describe('GET /api/stocks', () => {
@@ -91,6 +127,20 @@ describe('Stock API Endpoints', () => {
             expect(stock).not.toHaveProperty('prices');
             expect(stock).not.toHaveProperty('lastTradedPrice');
             expect(stock).not.toHaveProperty('trading');
+        });
+
+        it('should reject repeated activeOnly booleans before fetching stocks', async () => {
+            const res = await request(app).get('/api/stocks?activeOnly=true&activeOnly=true');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('activeOnly must be a single boolean');
+            expect(stockOperations.getAllStocks).not.toHaveBeenCalled();
+        });
+
+        it('should reject invalid compact booleans before fetching stocks', async () => {
+            const res = await request(app).get('/api/stocks?compact=maybe');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('compact must be true or false');
+            expect(stockOperations.getAllStocks).not.toHaveBeenCalled();
         });
     });
 
@@ -221,6 +271,47 @@ describe('Stock API Endpoints', () => {
             const res = await request(app).get('/api/stocks/BAD%40/depth');
             expect(res.status).toBe(400);
             expect(res.body.error.message).toBe('Invalid symbol format');
+            expect(depthFetcher.getDepth).not.toHaveBeenCalled();
+        });
+
+        it('should reject unknown depth symbols before external helper calls', async () => {
+            const res = await request(app).get('/api/stocks/NOTAREAL/depth');
+            expect(res.status).toBe(404);
+            expect(res.body.error.message).toBe('Stock not found');
+            expect(depthFetcher.getDepth).not.toHaveBeenCalled();
+        });
+
+        it('should fetch depth for known ordinary-share symbols', async () => {
+            const res = await request(app).get('/api/stocks/NABIL/depth');
+            expect(res.status).toBe(200);
+            expect(depthFetcher.getDepth).toHaveBeenCalledWith('NABIL');
+        });
+    });
+
+    describe('POST /api/stocks/admin/validate', () => {
+        it('should bound NEPSE validation requests with timeout and no redirects', async () => {
+            const originalAdminApiKey = process.env.ADMIN_API_KEY;
+            process.env.ADMIN_API_KEY = 'admin-key-for-route-tests-32-chars';
+
+            try {
+                await request(app)
+                    .post('/api/stocks/admin/validate')
+                    .set('x-admin-key', 'admin-key-for-route-tests-32-chars')
+                    .expect(200);
+
+                expect(mockNepseAxiosGet).toHaveBeenCalledWith(
+                    'https://nepalstock.com.np/api/nots/securityDailyTradeStat/58',
+                    expect.objectContaining({
+                        headers: { Authorization: 'Bearer mock-token' },
+                        timeout: 10000,
+                        maxRedirects: 0
+                    })
+                );
+                expect(stockOperations.cleanupInvalidStocks).toHaveBeenCalledWith(new Set(['NABIL']));
+            } finally {
+                if (originalAdminApiKey === undefined) delete process.env.ADMIN_API_KEY;
+                else process.env.ADMIN_API_KEY = originalAdminApiKey;
+            }
         });
     });
 
@@ -229,6 +320,52 @@ describe('Stock API Endpoints', () => {
             const res = await request(app).get('/api/stocks/TEST/history?days=10&days=20');
             expect(res.status).toBe(400);
             expect(res.body.error.message).toBe('days must be a single integer');
+        });
+
+        it('should only fetch metrics for returned history dates', async () => {
+            const olderDate = new Date('2026-06-01T00:00:00.000Z');
+            const newerDate = new Date('2026-06-02T00:00:00.000Z');
+            prisma.marketHistory.findMany.mockResolvedValue([
+                {
+                    date: newerDate,
+                    openPrice: 110,
+                    highPrice: 120,
+                    lowPrice: 105,
+                    closePrice: 115,
+                    volume: 1000
+                },
+                {
+                    date: olderDate,
+                    openPrice: 100,
+                    highPrice: 110,
+                    lowPrice: 95,
+                    closePrice: 108,
+                    volume: 900
+                }
+            ]);
+            prisma.stockMetrics.findMany.mockResolvedValue([
+                {
+                    date: olderDate,
+                    trendMetrics: JSON.stringify({ ma20: 101, ma50: 98 })
+                }
+            ]);
+
+            const res = await request(app).get('/api/stocks/NABIL/history?days=2');
+
+            expect(res.status).toBe(200);
+            expect(prisma.marketHistory.findMany).toHaveBeenCalledWith({
+                where: { symbol: 'NABIL' },
+                orderBy: { date: 'desc' },
+                take: 2
+            });
+            expect(prisma.stockMetrics.findMany).toHaveBeenCalledWith({
+                where: {
+                    symbol: 'NABIL',
+                    date: { in: [olderDate, newerDate] }
+                },
+                orderBy: { date: 'asc' }
+            });
+            expect(res.body.count).toBe(2);
         });
     });
 });

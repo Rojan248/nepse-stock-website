@@ -4,6 +4,13 @@ const { createAiProvider } = require('./providerFactory');
 const { buildStockSummaryPayload } = require('./summaryPayloadBuilder');
 const repository = require('./summaryRepository');
 const { acquireAiLock, releaseAiLock } = require('./aiSummaryLock');
+const { enforceDailyBudget, budgetSkippedResult } = require('./aiBudget');
+const {
+    sanitizeGeneratedText,
+    sanitizeGeneratedList,
+    normalizeSentiment,
+    normalizeConfidence
+} = require('./aiTextPolicy');
 const { getHourlyPeriod } = require('./tradingCalendar');
 
 const chunk = (items, size) => {
@@ -32,13 +39,14 @@ const addUsageTotals = (totals, response = {}) => {
 
 function normalizeProviderItem(stock, item = {}) {
     const providerItem = item || {};
+    const fallbackSummary = `${stock.symbol} has no generated summary for this period.`;
     return {
         symbol: stock.symbol,
-        summary: providerItem.summary || `${stock.symbol} has no generated summary for this period.`,
-        sentiment: providerItem.sentiment || 'neutral',
-        confidence: providerItem.confidence ?? null,
-        drivers: Array.isArray(providerItem.drivers) ? providerItem.drivers.slice(0, 5) : [],
-        risks: Array.isArray(providerItem.risks) ? providerItem.risks.slice(0, 5) : []
+        summary: sanitizeGeneratedText(providerItem.summary, fallbackSummary),
+        sentiment: normalizeSentiment(providerItem.sentiment),
+        confidence: normalizeConfidence(providerItem.confidence),
+        drivers: sanitizeGeneratedList(providerItem.drivers),
+        risks: sanitizeGeneratedList(providerItem.risks)
     };
 }
 
@@ -179,6 +187,9 @@ async function runStockSummaries(options = {}) {
 
     let run;
     try {
+        const budgetState = await enforceDailyBudget(context.config);
+        if (!budgetState.allowed) return budgetSkippedResult(budgetState);
+
         const payload = await buildStockSummaryPayload(context);
         run = await createStockRun(payload, context);
         const { stocksToGenerate, reusedStocks } = await splitReusableStocks(payload, context, run);

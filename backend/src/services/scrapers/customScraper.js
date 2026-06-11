@@ -30,6 +30,7 @@ const BROWSER_HEADERS = {
 const nepseClient = axios.create({
     baseURL: NEPSE_BASE_URL,
     timeout: TIMEOUT,
+    maxRedirects: 0,
     httpAgent: new http.Agent({ keepAlive: true }),
     httpsAgent: new https.Agent({ keepAlive: true }),
     headers: BROWSER_HEADERS
@@ -146,7 +147,7 @@ const transformNEPSEStock = (item) => {
  */
 const fetchFromMerolaganiAPI = async () => {
     const url = 'https://merolagani.com/handlers/weaboradataaborahandler.ashx?type=get_live_market';
-    const response = await axios.get(url, { timeout: TIMEOUT });
+    const response = await axios.get(url, { timeout: TIMEOUT, maxRedirects: 0 });
 
     if (Array.isArray(response.data) && response.data.length > 0) {
         logger.info(`✓ Custom scraper: Got ${response.data.length} stocks from Merolagani API`);

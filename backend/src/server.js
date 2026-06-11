@@ -107,10 +107,11 @@ if (process.env.NODE_ENV !== 'production') {
     app.use(express.static(frontendPath));
 
     // Catch-all: serve index.html for client-side routing
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api')) {
-            res.sendFile(path.join(frontendPath, 'index.html'));
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api')) {
+            return next();
         }
+        return res.sendFile(path.join(frontendPath, 'index.html'));
     });
 }
 
@@ -147,10 +148,14 @@ const startServer = async () => {
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
         });
 
-        logger.info('Starting data update scheduler...');
-        scheduler.startScheduler();
-        logger.info('Scheduler service started');
-        aiSummaryScheduler.startScheduler();
+        if (process.env.DISABLE_BACKGROUND_JOBS === 'true') {
+            logger.warn('Background schedulers disabled by DISABLE_BACKGROUND_JOBS=true');
+        } else {
+            logger.info('Starting data update scheduler...');
+            scheduler.startScheduler();
+            logger.info('Scheduler service started');
+            aiSummaryScheduler.startScheduler();
+        }
 
         // Graceful shutdown
         const gracefulShutdown = async (signal) => {

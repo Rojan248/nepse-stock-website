@@ -4,6 +4,12 @@ const { createAiProvider } = require('./providerFactory');
 const { buildMarketSummaryPayload } = require('./summaryPayloadBuilder');
 const repository = require('./summaryRepository');
 const { acquireAiLock, releaseAiLock } = require('./aiSummaryLock');
+const { enforceDailyBudget, budgetSkippedResult } = require('./aiBudget');
+const {
+    sanitizeGeneratedText,
+    normalizeSentiment,
+    normalizeConfidence
+} = require('./aiTextPolicy');
 const { getDayPeriod } = require('./tradingCalendar');
 
 const fallbackArray = (value) => Array.isArray(value) ? value : [];
@@ -23,12 +29,12 @@ const responseUsageValue = (response, field) => response.usage?.[field] || 0;
 
 function normalizeMarketResult(payload, data = {}) {
     return {
-        summary: data.summary || 'No market summary was generated for this period.',
-        sentiment: data.sentiment || 'neutral',
-        confidence: data.confidence ?? null,
-        breadth: data.breadth || defaultBreadth(payload.market),
-        topMovers: data.topMovers || defaultTopMovers(payload),
-        sectors: data.sectors || fallbackArray(payload.sectorBreadth)
+        summary: sanitizeGeneratedText(data.summary, 'No market summary was generated for this period.', 900),
+        sentiment: normalizeSentiment(data.sentiment),
+        confidence: normalizeConfidence(data.confidence),
+        breadth: defaultBreadth(payload.market),
+        topMovers: defaultTopMovers(payload),
+        sectors: fallbackArray(payload.sectorBreadth)
     };
 }
 
@@ -101,6 +107,9 @@ async function runMarketSummary(options = {}) {
 
     let run;
     try {
+        const budgetState = await enforceDailyBudget(context.config);
+        if (!budgetState.allowed) return budgetSkippedResult(budgetState);
+
         const payload = await buildMarketSummaryPayload(context);
         run = await createMarketRun(payload, context);
         const response = await context.provider.generateMarketSummary(payload);

@@ -1,3 +1,5 @@
+const logger = require('../../utils/logger');
+
 class ShareSansarProvider {
     constructor() {
         this.name = 'ShareSansar';

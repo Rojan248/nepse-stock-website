@@ -16,7 +16,11 @@ const maybeDelayNextBatch = async (nextIndex, items, delayMs) => {
 };
 
 const fetchSecurityById = (deps, id, headers, timeout) => {
-    const requestOptions = { headers, httpsAgent: deps.nepseHttpsAgent };
+    const requestOptions = {
+        headers,
+        httpsAgent: deps.nepseHttpsAgent,
+        maxRedirects: deps.maxRedirects ?? 0
+    };
     if (timeout) requestOptions.timeout = timeout;
     return deps.nepseAxios.get(`${deps.BASE_URL}/api/nots/security/${id}`, requestOptions);
 };

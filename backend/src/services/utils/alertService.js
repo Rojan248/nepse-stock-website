@@ -5,6 +5,7 @@
 
 const axios = require('axios');
 const logger = require('./logger');
+const { assertPublicHttpsUrl, createPublicHttpsAgent } = require('./outboundUrlPolicy');
 
 // Configuration
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
@@ -116,8 +117,14 @@ const sendAlert = async (message, level = 'error', errorKey = null) => {
     try {
         const webhookType = detectWebhookType(WEBHOOK_URL);
         const payload = formatPayload(message, level, webhookType);
+        const safeWebhookUrl = assertPublicHttpsUrl(WEBHOOK_URL, { label: 'WEBHOOK_URL' });
+        const httpsAgent = createPublicHttpsAgent(safeWebhookUrl, { label: 'WEBHOOK_URL' });
 
-        await axios.post(WEBHOOK_URL, payload, { timeout: 5000 });
+        await axios.post(safeWebhookUrl, payload, {
+            timeout: 5000,
+            maxRedirects: 0,
+            httpsAgent
+        });
         logger.info(`[Alert] Sent ${level} alert: ${message.substring(0, 50)}...`);
         return true;
     } catch (error) {

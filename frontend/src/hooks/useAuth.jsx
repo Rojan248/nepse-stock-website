@@ -167,12 +167,8 @@ function useAuthActions(accessTokenRef, setUser, scheduleRefresh, clearRefreshTi
     }, [accessTokenRef, scheduleRefresh, setUser]);
 
     const register = useCallback(async (email, password, displayName) => {
-        const data = unwrapApiData(await api.post('/auth/register', { email, password, displayName }));
-        accessTokenRef.current = data.accessToken;
-        setUser(data.user);
-        scheduleRefresh();
-        return data.user;
-    }, [accessTokenRef, scheduleRefresh, setUser]);
+        return unwrapApiData(await api.post('/auth/register', { email, password, displayName }));
+    }, []);
 
     const logout = useCallback(() => {
         api.post('/auth/logout').catch(() => {});

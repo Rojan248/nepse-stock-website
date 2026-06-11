@@ -9,6 +9,17 @@ const { loginLimiter, registrationLimiter, refreshLimiter } = require('../middle
 const logger = require('../services/utils/logger');
 
 const SALT_ROUNDS = 12;
+const DUMMY_PASSWORD_HASH = '$2b$12$FDPRP8HzQmCHfKWx6Wnmxut1rXWyT/l3fjV94ywHHua45jcSOxQDS';
+const INVALID_CREDENTIALS_RESPONSE = {
+    success: false,
+    error: { message: 'Invalid credentials' }
+};
+const REGISTRATION_PROCESSED_RESPONSE = {
+    success: true,
+    data: {
+        message: 'Registration processed. Sign in to continue.'
+    }
+};
 
 // ==================== Validation Helpers ====================
 
@@ -105,6 +116,19 @@ const cleanExpiredTokens = async (userId) => {
     });
 };
 
+const sendInvalidCredentials = (res) => {
+    return res.status(401).json(INVALID_CREDENTIALS_RESPONSE);
+};
+
+const sendRegistrationProcessed = (res) => {
+    return res.status(202).json(REGISTRATION_PROCESSED_RESPONSE);
+};
+
+const isPublicRegistrationEnabled = () => (
+    process.env.NODE_ENV !== 'production'
+    || process.env.PUBLIC_REGISTRATION_ENABLED === 'true'
+);
+
 // ==================== Routes ====================
 
 // POST /api/auth/register (rate limited)
@@ -120,9 +144,17 @@ router.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, error: { message: errors.join('; ') } });
     }
 
+    if (!isPublicRegistrationEnabled()) {
+        await bcrypt.hash(password, SALT_ROUNDS);
+        logger.warn('Public registration request ignored because registration is disabled');
+        return sendRegistrationProcessed(res);
+    }
+
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
-        return res.status(409).json({ success: false, error: { message: 'Email already registered' } });
+        await bcrypt.hash(password, SALT_ROUNDS);
+        logger.info(`Registration request processed for existing account: ${normalizedEmail}`);
+        return sendRegistrationProcessed(res);
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -139,18 +171,8 @@ router.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
         data: { name: 'My Watchlist', userId: user.id }
     });
 
-    const accessToken = generateAccessToken(user);
-    const refreshToken = await createRefreshToken(user.id);
-    setRefreshCookie(res, refreshToken);
-
     logger.info(`New user registered: ${user.email}`);
-    res.status(201).json({
-        success: true,
-        data: {
-            user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role },
-            accessToken
-        }
-    });
+    return sendRegistrationProcessed(res);
 }));
 
 // POST /api/auth/login (rate limited: 5 attempts per 15 min per IP)
@@ -168,20 +190,18 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const valid = await bcrypt.compare(password, user?.passwordHash || DUMMY_PASSWORD_HASH);
+
     if (!user) {
-        return res.status(401).json({ success: false, error: { message: 'Invalid credentials' } });
+        return sendInvalidCredentials(res);
     }
 
     // Check if account is temporarily locked
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-        const timeRemaining = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
-        return res.status(403).json({
-            success: false,
-            error: { message: `Account is temporarily locked. Try again in ${timeRemaining} minutes.` }
-        });
+        logger.warn(`Locked account login attempt: ${user.email}`);
+        return sendInvalidCredentials(res);
     }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
         const newFailedAttempts = (user.failedLoginAttempts || 0) + 1;
         let lockedUntil = null;
@@ -200,13 +220,10 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
         });
 
         if (newFailedAttempts >= 10) {
-            return res.status(403).json({
-                success: false,
-                error: { message: 'Account is temporarily locked. Try again in 30 minutes.' }
-            });
+            return sendInvalidCredentials(res);
         }
 
-        return res.status(401).json({ success: false, error: { message: 'Invalid credentials' } });
+        return sendInvalidCredentials(res);
     }
 
     // Reset failed login attempts on success
@@ -252,8 +269,16 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { id: stored.userId } });
     if (!user) {
+        await prisma.refreshToken.delete({ where: { id: stored.id } });
         clearRefreshCookie(res);
-        return res.status(401).json({ success: false, error: { message: 'User not found' } });
+        return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
+    }
+
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+        await prisma.refreshToken.delete({ where: { id: stored.id } });
+        clearRefreshCookie(res);
+        logger.warn(`Refresh blocked for locked account: ${user.email}`);
+        return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
     }
 
     // Rotate: delete old, create new
@@ -289,7 +314,8 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
         select: { id: true, email: true, displayName: true, role: true, createdAt: true }
     });
     if (!user) {
-        return res.status(404).json({ success: false, error: { message: 'User not found' } });
+        clearRefreshCookie(res);
+        return res.status(401).json({ success: false, error: { message: 'Invalid token' } });
     }
     res.json({ success: true, data: user });
 }));

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import HomePage from './pages/HomePage'
 import StockDetailPage from './pages/StockDetailPage'
@@ -14,6 +14,7 @@ import SharedWatchlistPage from './pages/SharedWatchlistPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import { AuthProvider } from './hooks/useAuth'
+import { PUBLIC_REGISTRATION_ENABLED } from './config/auth'
 
 function App() {
     const [globalSearch, setGlobalSearch] = useState('');
@@ -31,7 +32,10 @@ function App() {
                             <Route path="/top-movers" element={<TopMoversPage />} />
                             <Route path="/search" element={<SearchResultsPage />} />
                             <Route path="/login" element={<LoginPage />} />
-                            <Route path="/register" element={<RegisterPage />} />
+                            <Route
+                                path="/register"
+                                element={PUBLIC_REGISTRATION_ENABLED ? <RegisterPage /> : <Navigate to="/login" replace />}
+                            />
                             <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
                             <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
                             <Route path="/w/:slug" element={<SharedWatchlistPage />} />

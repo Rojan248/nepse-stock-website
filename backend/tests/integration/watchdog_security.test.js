@@ -1,5 +1,6 @@
 const request = require('supertest');
 const express = require('express');
+const crypto = require('crypto');
 
 // Mock dependencies BEFORE requiring the router
 jest.mock('../../src/services/watchdog/WatchdogService', () => ({
@@ -51,7 +52,7 @@ app.use('/api/watchdog', watchdogRouter);
 
 describe('Watchdog API Security', () => {
     // Ensure admin key is set for tests
-    const ADMIN_KEY = 'test-admin-key';
+    const ADMIN_KEY = crypto.randomBytes(32).toString('hex');
     const originalAdminKey = process.env.ADMIN_API_KEY;
 
     beforeAll(() => {

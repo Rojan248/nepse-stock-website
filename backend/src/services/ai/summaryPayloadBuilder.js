@@ -1,5 +1,5 @@
 const { prisma } = require('../database/connection');
-const { isKnownSymbol } = require('../dataEnricher');
+const { getStockInfo, isKnownSymbol } = require('../dataEnricher');
 const { createInputHash } = require('./stableHash');
 
 const numberOrNull = (value) => {
@@ -35,6 +35,38 @@ const compactMarketSummary = (summary) => {
 };
 
 const safeArray = (value) => Array.isArray(value) ? value : [];
+const PROMPT_LABEL_SAFE_CHARS = /[^a-zA-Z0-9 .,&()/%+-]/g;
+const ALLOWED_SIGNAL_TYPES = new Set(['circuit', 'cross', 'rsi', 'volume', 'streak', '52w', 'breakout', 'adjustment', 'sector']);
+const ALLOWED_SIGNAL_SENTIMENTS = new Set(['bullish', 'bearish', 'caution', 'opportunity', 'info', 'neutral']);
+
+function sanitizePromptLabel(value, maxLength = 80) {
+    if (value === null || value === undefined) return null;
+    const label = String(value)
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .replace(PROMPT_LABEL_SAFE_CHARS, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!label) return null;
+    return label.slice(0, maxLength);
+}
+
+const staticSectorForSymbol = (symbol) => sanitizePromptLabel(getStockInfo(symbol)?.sector, 60);
+const normalizeSignalEnum = (value, allowedValues) => {
+    const normalized = sanitizePromptLabel(value, 24)?.toLowerCase();
+    return normalized && allowedValues.has(normalized) ? normalized : null;
+};
+
+function compactSignal(signal) {
+    if (!signal || typeof signal !== 'object') return null;
+    const type = normalizeSignalEnum(signal.type, ALLOWED_SIGNAL_TYPES);
+    const sentiment = normalizeSignalEnum(signal.sentiment, ALLOWED_SIGNAL_SENTIMENTS);
+    if (!type && !sentiment) return null;
+    return {
+        type: type || 'signal',
+        sentiment: sentiment || 'neutral'
+    };
+}
+
 const compactPriceSnapshot = (stock) => ({
     ltp: numberOrNull(stock.lastTradedPrice),
     previousClose: numberOrNull(stock.previousClose),
@@ -69,15 +101,14 @@ const compactMetricSnapshot = (stock, metrics = {}) => {
         volumeRatio: numberOrNull(liquidity.volumeRatio),
         sectorRank: relative.sectorRank ?? null,
         marketRank: relative.marketRank ?? null,
-        signals: safeArray(signals).slice(0, 4)
+        signals: safeArray(signals).map(compactSignal).filter(Boolean).slice(0, 4)
     };
 };
 
 const compactStock = (stock, metrics) => {
     return {
         symbol: stock.symbol,
-        companyName: stock.companyName,
-        sector: stock.sector,
+        sector: staticSectorForSymbol(stock.symbol),
         ...compactPriceSnapshot(stock),
         ...compactTradingSnapshot(stock),
         ...compactMetricSnapshot(stock, metrics),
@@ -134,7 +165,7 @@ async function buildStockSummaryPayload({ periodType, periodStart, periodEnd, li
 
 const compactMarketStock = (stock) => ({
     symbol: stock.symbol,
-    sector: stock.sector,
+    sector: staticSectorForSymbol(stock.symbol),
     ltp: numberOrNull(stock.lastTradedPrice),
     changePercent: numberOrNull(stock.percentageChange),
     volume: numberOrNull(stock.volume),
@@ -207,6 +238,8 @@ module.exports = {
     buildMarketSummaryPayload,
     compactMarketSummary,
     compactStock,
+    sanitizePromptLabel,
+    compactSignal,
     summarizeSectors,
     numberOrNull
 };

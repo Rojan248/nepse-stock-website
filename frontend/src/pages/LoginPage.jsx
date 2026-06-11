@@ -1,18 +1,22 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { PUBLIC_REGISTRATION_ENABLED } from '../config/auth';
 
 function LoginPage() {
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState(location.state?.message || '');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setNotice('');
         setLoading(true);
         try {
             await login(email, password);
@@ -32,6 +36,7 @@ function LoginPage() {
                 <p className="auth-subtitle">Welcome back to NEPSE Market</p>
 
                 {error && <div className="auth-error">{error}</div>}
+                {notice && <div className="auth-success">{notice}</div>}
 
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="form-group">
@@ -63,9 +68,11 @@ function LoginPage() {
                     </button>
                 </form>
 
-                <p className="auth-footer">
-                    Don't have an account? <Link to="/register">Create one</Link>
-                </p>
+                {PUBLIC_REGISTRATION_ENABLED && (
+                    <p className="auth-footer">
+                        Don't have an account? <Link to="/register">Create one</Link>
+                    </p>
+                )}
             </div>
         </div>
     );

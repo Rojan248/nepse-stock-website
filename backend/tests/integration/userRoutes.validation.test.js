@@ -68,6 +68,8 @@ app.use('/api/portfolios', require('../../src/routes/portfolios'));
 app.use('/api/watchlists', require('../../src/routes/watchlists'));
 app.use(errorHandler);
 
+const portfolioCalculator = require('../../src/services/portfolioCalculator');
+
 describe('authenticated user route validation', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -219,6 +221,17 @@ describe('authenticated user route validation', () => {
                 note: 'test note'
             }
         });
+    });
+
+    it('checks portfolio ownership before running summary calculations', async () => {
+        mockPrisma.portfolio.findFirst.mockResolvedValue(null);
+
+        const res = await request(app)
+            .get('/api/portfolios/99/summary')
+            .expect(404);
+
+        expect(res.body.error.message).toBe('Portfolio not found');
+        expect(portfolioCalculator.calculatePortfolioPnL).not.toHaveBeenCalled();
     });
 
     it('rejects string booleans on alert updates instead of coercing them', async () => {

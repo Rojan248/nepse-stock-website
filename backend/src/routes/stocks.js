@@ -8,8 +8,10 @@ const { searchLimiter, adminLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
+const { isKnownSymbol } = require('../services/dataEnricher');
 const { prisma } = require('../services/database/connection');
 const {
+    getBooleanQuery,
     getBoundedIntQuery,
     normalizeSymbolParam,
     normalizeTextQuery,
@@ -44,18 +46,22 @@ router.get('/', asyncHandler(async (req, res) => {
     if (skipVal === null) return;
     const limitVal = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 500, defaultValue: 500, label: 'limit' });
     if (limitVal === null) return;
-    const { sortBy = 'symbol', sortOrder = 'asc', compact, activeOnly = 'true' } = req.query;
+    const { sortBy = 'symbol', sortOrder = 'asc' } = req.query;
+    const compactVal = getBooleanQuery(res, req.query.compact, { defaultValue: false, label: 'compact' });
+    if (compactVal === null) return;
+    const activeOnlyVal = getBooleanQuery(res, req.query.activeOnly, { defaultValue: true, label: 'activeOnly' });
+    if (activeOnlyVal === null) return;
 
     const stocks = await stockOperations.getAllStocks({
         skip: skipVal,
         limit: limitVal,
         sortBy,
         sortOrder: sortOrder === 'desc' ? -1 : 1,
-        compact: compact === 'true',
-        includeZeroLtp: activeOnly !== 'true'
+        compact: compactVal,
+        includeZeroLtp: !activeOnlyVal
     });
 
-    const count = await stockOperations.getStockCount(activeOnly !== 'true');
+    const count = await stockOperations.getStockCount(!activeOnlyVal);
 
     res.json({
         success: true,
@@ -296,8 +302,12 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
         return res.json({ success: true, symbol: symbolResult.value, data: [] });
     }
 
+    const historyDates = history.map((entry) => entry.date);
     const metrics = await prisma.stockMetrics.findMany({
-        where: { symbol: symbolResult.value },
+        where: {
+            symbol: symbolResult.value,
+            date: { in: historyDates }
+        },
         orderBy: { date: 'asc' }
     });
 
@@ -342,6 +352,12 @@ router.get('/:symbol/depth', asyncHandler(async (req, res) => {
         return res.status(400).json({
             success: false,
             error: { message: symbolResult.error }
+        });
+    }
+    if (!isKnownSymbol(symbolResult.value)) {
+        return res.status(404).json({
+            success: false,
+            error: { message: 'Stock not found' }
         });
     }
 
@@ -435,7 +451,9 @@ router.post('/admin/validate', adminLimiter, requireAdminKey, async (req, res) =
         const token = await nepseClient.getToken();
 
         const response = await nepseAxios.get(BASE_URL + '/api/nots/securityDailyTradeStat/58', {
-            headers: createHeaders(token)
+            headers: createHeaders(token),
+            timeout: 10000,
+            maxRedirects: 0
         });
 
         const validSymbols = new Set(response.data.map(s => s.symbol));

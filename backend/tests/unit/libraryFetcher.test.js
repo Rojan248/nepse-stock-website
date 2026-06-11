@@ -38,7 +38,8 @@ describe('Library Fetcher', () => {
             expect.stringContaining('/api/nots/securityDailyTradeStat/58'),
             expect.objectContaining({
                 headers: mockHeaders,
-                timeout: 10000
+                timeout: 10000,
+                maxRedirects: 0
             })
         );
     });
@@ -87,5 +88,10 @@ describe('Library Fetcher', () => {
 
         expect(result.map(s => s.symbol)).toEqual(['NABIL', 'SPDL']);
         expect(result.every(s => s.isOrdinaryShare)).toBe(true);
+    });
+
+    it('keeps TLS verification enabled for NEPSE helper traffic', () => {
+        expect(libraryFetcher.__test__.nepseHttpsAgent.options.rejectUnauthorized).not.toBe(false);
+        expect(libraryFetcher.__test__.NEPSE_MAX_REDIRECTS).toBe(0);
     });
 });

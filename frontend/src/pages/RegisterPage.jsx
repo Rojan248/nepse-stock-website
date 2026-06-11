@@ -57,7 +57,9 @@ function useRegisterForm(register, navigate) {
         setLoading(true);
         try {
             await register(form.email, form.password, getDisplayNamePayload(form.displayName));
-            navigate('/');
+            navigate('/login', {
+                state: { message: 'Registration processed. Sign in to continue.' }
+            });
         } catch (err) {
             setError(getRegistrationError(err));
         } finally {

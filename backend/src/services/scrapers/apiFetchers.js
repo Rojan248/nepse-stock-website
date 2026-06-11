@@ -21,6 +21,7 @@ const httpsAgent = new https.Agent({ keepAlive: true });
 const createClient = (baseURL, customHeaders = {}) => axios.create({
     baseURL,
     timeout: TIMEOUT,
+    maxRedirects: 0,
     httpsAgent,
     headers: { ...HEADERS.default, ...customHeaders }
 });
@@ -48,6 +49,7 @@ const fetchFromNepAlpha = async () => {
     try {
         const client = axios.create({
             timeout: TIMEOUT,
+            maxRedirects: 0,
             headers: HEADERS.nepAlpha
         });
 

@@ -23,10 +23,10 @@ let BASE_URL = null;
 let isInitialized = false;
 let initializationPromise = null;
 let lastOhlcEnrichmentAt = 0;
+const NEPSE_MAX_REDIRECTS = 0;
 
 // Custom HTTPS agent for NEPSE requests only
 const nepseHttpsAgent = new https.Agent({
-    rejectUnauthorized: false,
     keepAlive: true,
     timeout: TIMEOUT
 });
@@ -246,10 +246,11 @@ const resolveDeps = (runtimeDeps) => ({
     nepseAxiosClient: runtimeDeps.nepseAxiosClient || nepseAxios,
     baseUrl: runtimeDeps.baseUrl || BASE_URL,
     httpsAgent: runtimeDeps.httpsAgent || nepseHttpsAgent,
+    maxRedirects: runtimeDeps.maxRedirects ?? NEPSE_MAX_REDIRECTS,
     transformSecurityFn: runtimeDeps.transformSecurityFn || transformSecurity,
     isKnownSymbolFn: runtimeDeps.isKnownSymbolFn || isKnownSymbol,
     fetchMissingSecuritiesFn: runtimeDeps.fetchMissingSecuritiesFn || ((comps, tok) => fetchMissingSecurities(comps, tok, {
-        nepseAxios, BASE_URL, nepseHttpsAgent, createHeaders
+        nepseAxios, BASE_URL, nepseHttpsAgent, createHeaders, maxRedirects: NEPSE_MAX_REDIRECTS
     })),
 });
 
@@ -275,7 +276,8 @@ const fetchSectorTradeStats = async (sectorId, token, deps, headers) => {
         return await deps.nepseAxiosClient.get(`${deps.baseUrl}/api/nots/securityDailyTradeStat/${sectorId}`, {
             headers,
             httpsAgent: deps.httpsAgent,
-            timeout: 10000
+            timeout: 10000,
+            maxRedirects: deps.maxRedirects
         });
     } catch (error) {
         if (isAuthError(error)) throw error;
@@ -294,7 +296,8 @@ const buildOhlcDeps = (deps) => ({
     nepseAxios: deps.nepseAxiosClient,
     BASE_URL: deps.baseUrl,
     nepseHttpsAgent: deps.httpsAgent,
-    createHeaders: deps.createHeadersFn
+    createHeaders: deps.createHeadersFn,
+    maxRedirects: deps.maxRedirects
 });
 
 const getNextOhlcRefreshDelaySeconds = () => {
@@ -409,7 +412,9 @@ const fetchTopMovers = async (token, type) => {
 
         const response = await nepseAxios.get(`${BASE_URL}${endpoint}`, {
             headers,
-            httpsAgent: nepseHttpsAgent
+            httpsAgent: nepseHttpsAgent,
+            timeout: 10000,
+            maxRedirects: NEPSE_MAX_REDIRECTS
         });
 
         if (!response.data || !Array.isArray(response.data)) {
@@ -432,7 +437,9 @@ const fetchCompanyList = async (token) => {
         const headers = createHeaders(token);
         const res = await nepseAxios.get(`${BASE_URL}/api/nots/company/list`, {
             headers,
-            httpsAgent: nepseHttpsAgent
+            httpsAgent: nepseHttpsAgent,
+            timeout: 10000,
+            maxRedirects: NEPSE_MAX_REDIRECTS
         });
         return res.data;
     } catch (error) {
@@ -448,6 +455,8 @@ module.exports = {
     isKnownSymbol,
     __test__: {
         fetchSecuritiesWithPrices,
-        shouldEnrichOHLC
+        shouldEnrichOHLC,
+        nepseHttpsAgent,
+        NEPSE_MAX_REDIRECTS
     }
 };

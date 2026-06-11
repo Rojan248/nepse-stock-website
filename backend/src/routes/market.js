@@ -31,6 +31,7 @@ const FRESHNESS_LIMITS_SECONDS = {
 };
 
 const FETCH_FAILURE_PROBLEM_THRESHOLD = 3;
+const isSchedulerExpected = () => process.env.DISABLE_BACKGROUND_JOBS !== 'true';
 
 const secondsSince = (date) => {
     if (!date) return null;
@@ -68,6 +69,7 @@ const collectHealthContext = async () => {
         fetchStatus,
         uptimeSeconds,
         marketState,
+        isSchedulerExpected: isSchedulerExpected(),
         marketStats,
         stockCount,
         latestStockSync,
@@ -85,7 +87,7 @@ const hasRecentFetchWarning = (fetchStatus, isFresh) =>
     && (fetchStatus.consecutiveFailures < FETCH_FAILURE_PROBLEM_THRESHOLD || isFresh);
 
 const HEALTH_PROBLEM_RULES = [
-    { applies: ({ updateStatus }) => !updateStatus.isRunning, message: () => 'scheduler is not running' },
+    { applies: ({ updateStatus, isSchedulerExpected }) => isSchedulerExpected && !updateStatus.isRunning, message: () => 'scheduler is not running' },
     { applies: ({ stockCount }) => stockCount <= 100, message: ({ stockCount }) => `stock count too low (${stockCount})` },
     { applies: ({ marketStats }) => !marketStats.hasData, message: () => 'market summary data is missing' },
     { applies: ({ updateStatus }) => updateStatus.circuitBreaker?.isOpen, message: () => 'circuit breaker is open' },
@@ -103,9 +105,12 @@ const buildHealthProblems = (context) => HEALTH_PROBLEM_RULES
     .filter(rule => rule.applies(context))
     .map(rule => rule.message(context));
 
-const buildHealthWarnings = ({ updateStatus, fetchStatus, marketState, isFresh, lastSyncSecondsAgo }) => {
+const buildHealthWarnings = ({ updateStatus, fetchStatus, marketState, isFresh, lastSyncSecondsAgo, isSchedulerExpected }) => {
     const warnings = [];
 
+    if (!isSchedulerExpected && !updateStatus.isRunning) {
+        warnings.push('background jobs are disabled by configuration');
+    }
     if (hasRecentFetchWarning(fetchStatus, isFresh)) {
         warnings.push(`${fetchStatus.consecutiveFailures} recent fetch failure`);
     }
@@ -231,13 +236,13 @@ router.get('/market-metrics', asyncHandler(async (req, res) => {
  * Server health check with update status
  */
 router.get('/health', asyncHandler(async (req, res) => {
-    const health = await evaluateHealth();
     res.json({
         success: true,
-        status: health.status,
+        status: 'healthy',
         market: {
-            state: health.marketState
-        }
+            state: getMarketState()
+        },
+        timestamp: new Date().toISOString()
     });
 }));
 
@@ -565,7 +570,11 @@ router.get('/scrape-live', adminLimiter, requireAdminKey, asyncHandler(async (re
     };
 
     try {
-        const resp = await axios.get(MEROLAGANI_URL, { timeout: 15000, headers: MEROLAGANI_HEADERS });
+        const resp = await axios.get(MEROLAGANI_URL, {
+            timeout: 15000,
+            maxRedirects: 0,
+            headers: MEROLAGANI_HEADERS
+        });
         const html = resp.data || '';
         logger.info(`Merolagani HTML fetched: ${html.length} bytes`);
 

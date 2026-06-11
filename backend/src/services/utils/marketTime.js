@@ -54,7 +54,10 @@ const tryFetchTimeSource = async (source, silent) => {
     try {
         if (!silent) logger.info(`[TimeSync] Attempting to fetch from ${source.name}...`);
         const start = Date.now();
-        const response = await axios.get(source.url, { timeout: 5000 });
+        const response = await axios.get(source.url, {
+            timeout: 5000,
+            maxRedirects: 0
+        });
         const networkLatency = (Date.now() - start) / 2;
         return { success: true, serverUtcTime: source.parse(response.data), networkLatency };
     } catch (error) {
@@ -84,7 +87,7 @@ const fetchTimeOffset = async (silent = false) => {
     const sources = [
         {
             name: 'WorldTimeAPI-Kathmandu',
-            url: 'http://worldtimeapi.org/api/timezone/Asia/Kathmandu',
+            url: 'https://worldtimeapi.org/api/timezone/Asia/Kathmandu',
             parse: (data) => new Date(data.utc_datetime).getTime()
         },
         {
@@ -94,7 +97,7 @@ const fetchTimeOffset = async (silent = false) => {
         },
         {
             name: 'WorldTimeAPI-UTC',
-            url: 'http://worldtimeapi.org/api/timezone/Etc/UTC',
+            url: 'https://worldtimeapi.org/api/timezone/Etc/UTC',
             parse: (data) => new Date(data.utc_datetime).getTime()
         }
     ];

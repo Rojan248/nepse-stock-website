@@ -151,8 +151,7 @@ router.get('/:id/summary', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const portfolioId = portfolioIdResult.value;
-    const pnlData = await portfolioCalculator.calculatePortfolioPnL(req.user.userId, portfolioId);
-    
+
     // Verify portfolio exists and belongs to user
     const portfolio = await prisma.portfolio.findFirst({
         where: { id: portfolioId, userId: req.user.userId },
@@ -162,6 +161,8 @@ router.get('/:id/summary', requireAuth, asyncHandler(async (req, res) => {
     if (!portfolio) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
     }
+
+    const pnlData = await portfolioCalculator.calculatePortfolioPnL(req.user.userId, portfolioId);
 
     res.json({
         success: true,

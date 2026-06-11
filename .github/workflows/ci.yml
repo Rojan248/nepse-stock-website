@@ -11,8 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: file:./prisma/ci.db
-      ADMIN_API_KEY: ci-admin-key-0123456789abcdef012345
-      JWT_SECRET: ci-jwt-secret-0123456789abcdef012345
 
     steps:
       - uses: actions/checkout@v5
@@ -25,6 +23,11 @@ jobs:
           cache-dependency-path: |
             backend/package-lock.json
             frontend/package-lock.json
+
+      - name: Generate CI-only secrets
+        run: |
+          echo "ADMIN_API_KEY=$(node -e 'process.stdout.write(require(\"crypto\").randomBytes(32).toString(\"hex\"))')" >> "$GITHUB_ENV"
+          echo "JWT_SECRET=$(node -e 'process.stdout.write(require(\"crypto\").randomBytes(32).toString(\"hex\"))')" >> "$GITHUB_ENV"
 
       - name: Install backend dependencies
         working-directory: backend

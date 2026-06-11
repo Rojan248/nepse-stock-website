@@ -8,6 +8,7 @@
 
 const fs = require('fs/promises');
 const path = require('path');
+const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
 
 const BACKEND_ROOT = path.resolve(__dirname, '..');
@@ -16,8 +17,10 @@ require('dotenv').config({ path: path.join(BACKEND_ROOT, '.env') });
 const { prisma } = require('../src/services/database/connection');
 const { isKnownSymbol } = require('../src/services/dataEnricher');
 
-const API_BASE = process.env.STABILITY_API_BASE || 'http://localhost:5000/api';
-const FRONTEND_BASE = process.env.STABILITY_FRONTEND_BASE || 'http://localhost:3000';
+const API_BASE = process.env.STABILITY_API_BASE || 'http://127.0.0.1:5000/api';
+const FRONTEND_BASE = process.env.STABILITY_FRONTEND_BASE || 'http://127.0.0.1:3000';
+const STABILITY_FETCH_TIMEOUT_MS = Number(process.env.STABILITY_FETCH_TIMEOUT_MS || 8000);
+const STABILITY_EXPECT_SCHEDULER = process.env.STABILITY_EXPECT_SCHEDULER !== 'false';
 const TEST_PREFIX = `codex-stability-${Date.now()}`;
 const STABILITY_CREDENTIAL = 'CodexStable123!';
 
@@ -36,7 +39,7 @@ function fail(name, detail) {
 
 function warn(name, detail) {
     results.push({ status: 'WARN', name, detail });
-    console.warn(`WARN ${name} - ${detail}`);
+    console.log(`WARN ${name} - ${detail}`);
 }
 
 function assert(condition, name, detail) {
@@ -76,13 +79,23 @@ async function assertColumn(client, table, column, checkName) {
 }
 
 async function fetchJson(pathname, options = {}) {
-    const response = await fetch(`${API_BASE}${pathname}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(options.headers || {})
-        }
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), STABILITY_FETCH_TIMEOUT_MS);
+    let response;
+    try {
+        response = await fetch(`${API_BASE}${pathname}`, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(options.headers || {})
+            }
+        });
+    } catch (error) {
+        fail(`${pathname} reachable`, error.name === 'AbortError' ? `timed out after ${STABILITY_FETCH_TIMEOUT_MS}ms` : error.message);
+    } finally {
+        clearTimeout(timeout);
+    }
 
     let body = null;
     try {
@@ -270,13 +283,24 @@ async function checkHealthEndpoints() {
 
     const ready = await expectJson('/health/ready');
     assert(ready.status === 'ready', 'health/ready', JSON.stringify(ready));
-    assert(ready.data?.freshness?.isFresh === true, 'health freshness', JSON.stringify(ready.data?.freshness));
+    if (ready.data?.freshness?.isFresh === true) {
+        pass('health freshness');
+    } else if (health.market.state === 'OPEN') {
+        fail('health freshness', JSON.stringify(ready.data?.freshness));
+    } else {
+        warn('health freshness', JSON.stringify(ready.data?.freshness));
+    }
     assert((ready.fetcher?.rateLimitEvents || 0) === 0, 'rate-limit telemetry', `${ready.fetcher?.rateLimitEvents || 0} events`);
     pass('health/ready');
 
     const scheduler = await expectJson('/scheduler-status', { headers: adminHeaders() });
-    assert(scheduler.data?.isRunning === true, 'scheduler running', JSON.stringify(scheduler));
-    pass('scheduler running', `next interval ${scheduler.data?.lastScheduledIntervalMs || 'unknown'}ms`);
+    if (STABILITY_EXPECT_SCHEDULER) {
+        assert(scheduler.data?.isRunning === true, 'scheduler running', JSON.stringify(scheduler));
+        pass('scheduler running', `next interval ${scheduler.data?.lastScheduledIntervalMs || 'unknown'}ms`);
+    } else {
+        assert(scheduler.data?.isRunning === false, 'scheduler disabled', JSON.stringify(scheduler));
+        pass('scheduler disabled for probe');
+    }
 }
 
 function assertMarketSummaryPayload(summary) {
@@ -313,30 +337,42 @@ async function checkApiHealth() {
     await checkSuccessRoutes(['/stocks/top-gainers', '/stocks/top-losers', '/stocks/top-traded', '/ipos']);
 }
 
-async function registerUser(label) {
+async function seedStabilityUser(label) {
     const email = `${TEST_PREFIX}-${label}@example.com`;
     cleanupEmails.push(email);
+    const passwordHash = await bcrypt.hash(STABILITY_CREDENTIAL, 12);
+    await prisma.user.create({
+        data: {
+            email,
+            passwordHash,
+            displayName: `Stability ${label}`,
+            watchlists: { create: { name: 'My Watchlist' } }
+        }
+    });
+    return { email };
+}
+
+async function loginStabilityUser(label) {
+    const { email } = await seedStabilityUser(label);
     const body = await apiRequest({
-        pathname: '/auth/register',
+        pathname: '/auth/login',
         method: 'POST',
         data: {
             email,
-            password: STABILITY_CREDENTIAL,
-            displayName: `Stability ${label}`
-        },
-        expectedStatus: 201
+            password: STABILITY_CREDENTIAL
+        }
     });
-    assert(body.data?.accessToken, `register ${label}`, JSON.stringify(body));
+    assert(body.data?.accessToken, `login ${label}`, JSON.stringify(body));
     return { email, token: body.data.accessToken, user: body.data.user };
 }
 
 async function checkAuthAndUserIsolation() {
-    const userA = await registerUser('a');
-    const userB = await registerUser('b');
+    const userA = await loginStabilityUser('a');
+    const userB = await loginStabilityUser('b');
 
     const me = await apiRequest({ pathname: '/auth/me', token: userA.token });
     assert(me.data?.email === userA.email, 'auth/me', JSON.stringify(me));
-    pass('auth register/me');
+    pass('auth login/me');
 
     const watchlists = await apiRequest({ pathname: '/watchlists', token: userA.token });
     assert(Array.isArray(watchlists.data) && watchlists.data.length >= 1, 'default watchlist', JSON.stringify(watchlists));
@@ -418,7 +454,16 @@ async function checkTempMigration() {
 }
 
 async function checkFrontendReachable() {
-    const response = await fetch(FRONTEND_BASE);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), STABILITY_FETCH_TIMEOUT_MS);
+    let response;
+    try {
+        response = await fetch(FRONTEND_BASE, { signal: controller.signal });
+    } catch (error) {
+        fail('frontend reachable', error.name === 'AbortError' ? `timed out after ${STABILITY_FETCH_TIMEOUT_MS}ms` : error.message);
+    } finally {
+        clearTimeout(timeout);
+    }
     assert(response.ok, 'frontend reachable', `status ${response.status}`);
     const html = await response.text();
     assert(/NEPSE Stock Market|root/.test(html), 'frontend html', 'missing expected app shell');

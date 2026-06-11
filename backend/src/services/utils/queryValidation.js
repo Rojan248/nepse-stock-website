@@ -9,6 +9,10 @@
  * @returns {number} The clamped integer.
  */
 const INTEGER_QUERY_PATTERN = /^\d+$/;
+const BOOLEAN_QUERY_VALUES = new Map([
+    ['true', true],
+    ['false', false]
+]);
 
 const parseBoundedIntQuery = (value, {
     min,
@@ -63,6 +67,40 @@ const getBoundedIntQuery = (res, value, options) => {
     return result.value;
 };
 
+const parseBooleanQuery = (value, { defaultValue, label = 'value' } = {}) => {
+    if (value === undefined || value === null || value === '') {
+        return { value: defaultValue };
+    }
+
+    if (Array.isArray(value)) {
+        return { error: `${label} must be a single boolean` };
+    }
+
+    if (typeof value === 'boolean') {
+        return { value };
+    }
+
+    if (typeof value !== 'string') {
+        return { error: `${label} must be a boolean` };
+    }
+
+    const normalized = value.trim().toLowerCase();
+    if (!BOOLEAN_QUERY_VALUES.has(normalized)) {
+        return { error: `${label} must be true or false` };
+    }
+
+    return { value: BOOLEAN_QUERY_VALUES.get(normalized) };
+};
+
+const getBooleanQuery = (res, value, options) => {
+    const result = parseBooleanQuery(value, options);
+    if (result.error) {
+        sendQueryValidationError(res, result.error);
+        return null;
+    }
+    return result.value;
+};
+
 const normalizeTextQuery = (value, { maxLength = 50 } = {}) => {
     if (typeof value !== 'string') {
         return { error: 'Query must be text' };
@@ -94,7 +132,9 @@ const normalizeSymbolParam = (value) => {
 
 module.exports = {
     clampInt,
+    getBooleanQuery,
     getBoundedIntQuery,
+    parseBooleanQuery,
     parseBoundedIntQuery,
     normalizeSymbolParam,
     normalizeTextQuery,

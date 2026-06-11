@@ -87,7 +87,7 @@ Base path: `/api/auth`
 
 | Method | Path | Purpose | Protection |
 | --- | --- | --- | --- |
-| POST | `/api/auth/register` | Create user, default watchlist, refresh cookie, access token | Global limiter |
+| POST | `/api/auth/register` | Process registration generically; creates a user only when public registration is enabled and never issues a session token | Registration limiter |
 | POST | `/api/auth/login` | Authenticate user and issue tokens | Login limiter |
 | POST | `/api/auth/refresh` | Rotate refresh cookie and return new access token | Refresh cookie |
 | POST | `/api/auth/logout` | Delete refresh token and clear cookie | Refresh cookie |
