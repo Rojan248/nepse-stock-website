@@ -149,14 +149,37 @@ describe('outbound HTTP security controls', () => {
         expect(() => assertPublicHttpsUrl('http://hooks.slack.com/services/T/B/C')).toThrow('must use https');
         expect(() => assertPublicHttpsUrl('https://user:pass@example.com/hook')).toThrow('must not include credentials');
         expect(() => assertPublicHttpsUrl('https://127.0.0.1/hook')).toThrow('private or reserved IP ranges');
+        expect(() => assertPublicHttpsUrl('https://[::ffff:7f00:1]/hook')).toThrow('private or reserved IP ranges');
         expect(isPrivateIp('10.0.0.5')).toBe(true);
         expect(isPrivateIp('::1')).toBe(true);
+        expect(isPrivateIp('::ffff:7f00:1')).toBe(true);
+        expect(isPrivateIp('::ffff:0a00:1')).toBe(true);
+        expect(isPrivateIp('::ffff:c0a8:1')).toBe(true);
+        expect(isPrivateIp('::7f00:1')).toBe(true);
+        expect(isPrivateIp('2001:4860:4860::8888')).toBe(false);
         expect(isPrivateIp('8.8.8.8')).toBe(false);
     });
 
     it('blocks outbound hostnames that resolve to private IPs', async () => {
         const lookupSpy = jest.spyOn(dns, 'lookup').mockImplementation((hostname, options, callback) => {
             callback(null, [{ address: '10.0.0.10', family: 4 }]);
+        });
+
+        const agent = createPublicHttpsAgent('https://example.test/hook', { label: 'TEST_URL' });
+
+        await expect(new Promise((resolve, reject) => {
+            agent.options.lookup('example.test', {}, (error) => {
+                if (error) reject(error);
+                resolve();
+            });
+        })).rejects.toThrow('resolved to a private or reserved IP range');
+
+        lookupSpy.mockRestore();
+    });
+
+    it('blocks outbound hostnames that resolve to IPv4-mapped private IPv6 forms', async () => {
+        const lookupSpy = jest.spyOn(dns, 'lookup').mockImplementation((hostname, options, callback) => {
+            callback(null, [{ address: '::ffff:7f00:1', family: 6 }]);
         });
 
         const agent = createPublicHttpsAgent('https://example.test/hook', { label: 'TEST_URL' });

@@ -45,18 +45,96 @@ function isPrivateIPv4(address) {
     );
 }
 
+function ipv4PartsToHextets(address) {
+    const parts = address.split('.').map(part => Number(part));
+    if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) {
+        return null;
+    }
+    return [(parts[0] << 8) + parts[1], (parts[2] << 8) + parts[3]];
+}
+
+function parseHextet(value) {
+    if (!/^[0-9a-f]{1,4}$/i.test(value)) return null;
+    return parseInt(value, 16);
+}
+
+function parseIpv6Hextets(address) {
+    const value = normalizeHost(address).split('%')[0];
+    if (!value.includes(':')) return null;
+
+    const doubleColonParts = value.split('::');
+    if (doubleColonParts.length > 2) return null;
+
+    const parseSide = (side) => {
+        if (!side) return [];
+        const rawParts = side.split(':');
+        const parts = [];
+        for (const [index, part] of rawParts.entries()) {
+            if (part.includes('.')) {
+                if (index !== rawParts.length - 1) return null;
+                const ipv4Hextets = ipv4PartsToHextets(part);
+                if (!ipv4Hextets) return null;
+                parts.push(...ipv4Hextets);
+                continue;
+            }
+            const hextet = parseHextet(part);
+            if (hextet === null) return null;
+            parts.push(hextet);
+        }
+        return parts;
+    };
+
+    const left = parseSide(doubleColonParts[0]);
+    const right = parseSide(doubleColonParts[1] || '');
+    if (!left || !right) return null;
+
+    const total = left.length + right.length;
+    if (doubleColonParts.length === 1) {
+        return total === 8 ? left : null;
+    }
+
+    if (total >= 8) return null;
+    return [...left, ...Array(8 - total).fill(0), ...right];
+}
+
+function hextetsToIPv4(high, low) {
+    return [
+        (high >> 8) & 0xff,
+        high & 0xff,
+        (low >> 8) & 0xff,
+        low & 0xff
+    ].join('.');
+}
+
+function hasEmbeddedPrivateIPv4(hextets) {
+    if (!hextets || hextets.length !== 8) return false;
+
+    const firstFiveZero = hextets.slice(0, 5).every(part => part === 0);
+    const firstSixZero = firstFiveZero && hextets[5] === 0;
+    const isIpv4Mapped = firstFiveZero && hextets[5] === 0xffff;
+    const isIpv4Compatible = firstSixZero;
+
+    if (!isIpv4Mapped && !isIpv4Compatible) return false;
+    return isPrivateIPv4(hextetsToIPv4(hextets[6], hextets[7]));
+}
+
 function isPrivateIPv6(address) {
     const value = normalizeHost(address).split('%')[0];
-    if (value === '::' || value === '::1') return true;
+    const hextets = parseIpv6Hextets(value);
+    if (!hextets) return false;
 
-    const firstHextet = parseInt(value.split(':')[0] || '0', 16);
-    if (!Number.isFinite(firstHextet)) return false;
+    const firstHextet = hextets[0];
+    const isUnspecified = hextets.every(part => part === 0);
+    const isLoopback = hextets.slice(0, 7).every(part => part === 0) && hextets[7] === 1;
 
     return (
+        isUnspecified ||
+        isLoopback ||
+        hasEmbeddedPrivateIPv4(hextets) ||
         (firstHextet & 0xfe00) === 0xfc00 ||
         (firstHextet & 0xffc0) === 0xfe80 ||
         (firstHextet & 0xff00) === 0xff00 ||
-        value.startsWith('2001:db8:')
+        (hextets[0] === 0x2001 && hextets[1] === 0x0db8)
     );
 }
 
