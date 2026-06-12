@@ -10,6 +10,7 @@ const { runMarketSummary } = require('../services/ai/marketSummaryWorker');
 const { getAiSummaryConfig } = require('../services/ai/aiSummaryConfig');
 const {
     getBoundedIntQuery,
+    getEnumQuery,
     normalizeSymbolParam,
     sendQueryValidationError
 } = require('../services/utils/queryValidation');
@@ -22,6 +23,13 @@ const normalizePeriod = (value, fallback) => {
     const period = (value || fallback).toString().toUpperCase();
     return VALID_PERIODS.has(period) ? period : fallback;
 };
+
+const getPeriodQuery = (res, value, fallback) => getEnumQuery(res, value, {
+    allowed: Array.from(VALID_PERIODS),
+    defaultValue: fallback,
+    label: 'periodType',
+    normalize: (input) => input.toUpperCase()
+});
 
 const sanitizeSchedulerStatus = (status) => ({
     enabled: status.enabled,
@@ -82,7 +90,8 @@ router.get('/stocks/:symbol/latest', asyncHandler(async (req, res) => {
     if (symbolResult.error) {
         return res.status(400).json({ success: false, error: { message: symbolResult.error } });
     }
-    const periodType = normalizePeriod(req.query.periodType, 'HOURLY');
+    const periodType = getPeriodQuery(res, req.query.periodType, 'HOURLY');
+    if (periodType === null) return;
     const summary = await repository.getLatestStockSummary(symbolResult.value, periodType);
 
     if (!summary) {
@@ -100,7 +109,8 @@ router.get('/stocks/:symbol', asyncHandler(async (req, res) => {
     if (symbolResult.error) {
         return res.status(400).json({ success: false, error: { message: symbolResult.error } });
     }
-    const periodType = normalizePeriod(req.query.periodType, 'HOURLY');
+    const periodType = getPeriodQuery(res, req.query.periodType, 'HOURLY');
+    if (periodType === null) return;
     const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 168, defaultValue: 24, label: 'limit' });
     if (limit === null) return;
     const summaries = await repository.getStockSummaries(symbolResult.value, { periodType, limit });
@@ -113,7 +123,8 @@ router.get('/stocks/:symbol', asyncHandler(async (req, res) => {
 }));
 
 router.get('/market', asyncHandler(async (req, res) => {
-    const periodType = normalizePeriod(req.query.periodType, 'DAILY');
+    const periodType = getPeriodQuery(res, req.query.periodType, 'DAILY');
+    if (periodType === null) return;
     const limit = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 100, defaultValue: 20, label: 'limit' });
     if (limit === null) return;
     const summaries = await repository.getMarketSummaries({ periodType, limit });

@@ -1,4 +1,9 @@
-const { clampInt, parseBooleanQuery, parseBoundedIntQuery } = require('../../src/services/utils/queryValidation');
+const {
+    clampInt,
+    parseBooleanQuery,
+    parseBoundedIntQuery,
+    parseEnumQuery
+} = require('../../src/services/utils/queryValidation');
 
 describe('queryValidation', () => {
     it('accepts missing integers with the configured default', () => {
@@ -66,5 +71,36 @@ describe('queryValidation', () => {
         });
 
         expect(result.error).toBe('compact must be true or false');
+    });
+
+    it('accepts normalized enum query values', () => {
+        const result = parseEnumQuery('DESC', {
+            allowed: ['asc', 'desc'],
+            defaultValue: 'asc',
+            label: 'sortOrder',
+            normalize: value => value.toLowerCase()
+        });
+
+        expect(result).toEqual({ value: 'desc' });
+    });
+
+    it('rejects repeated enum query parameters', () => {
+        const result = parseEnumQuery(['asc', 'desc'], {
+            allowed: ['asc', 'desc'],
+            defaultValue: 'asc',
+            label: 'sortOrder'
+        });
+
+        expect(result.error).toBe('sortOrder must be a single value');
+    });
+
+    it('rejects invalid enum query values instead of silently falling back', () => {
+        const result = parseEnumQuery('createdAt', {
+            allowed: ['symbol', 'volume'],
+            defaultValue: 'symbol',
+            label: 'sortBy'
+        });
+
+        expect(result.error).toBe('sortBy must be one of: symbol, volume');
     });
 });

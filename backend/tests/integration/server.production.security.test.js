@@ -125,6 +125,26 @@ describe('Production routing hardening', () => {
         expect(res.headers.vary).toContain('Cookie');
     });
 
+    it('rejects duplicate API query parameters before route-specific parsing', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get('/api/stocks?limit=10&limit=20')
+            .expect(400);
+
+        expect(res.body.error.message).toBe('Duplicate query parameter: limit');
+    });
+
+    it('rejects bracketed query keys before they become nested objects', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get('/api/stocks?sortBy%5Bfield%5D=symbol')
+            .expect(400);
+
+        expect(res.body.error.message).toBe('Invalid query parameter: sortBy[field]');
+    });
+
     it('keeps anonymous public health responses cache-neutral', async () => {
         const app = require('../../src/server');
 

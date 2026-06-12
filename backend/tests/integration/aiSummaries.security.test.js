@@ -133,6 +133,15 @@ describe('AI summary route hardening', () => {
         expect(mockRepository.getStockSummaries).not.toHaveBeenCalled();
     });
 
+    it('rejects invalid stock summary period values instead of silently falling back', async () => {
+        const res = await request(app)
+            .get('/api/ai-summaries/stocks/NABIL?periodType=INTRADAY')
+            .expect(400);
+
+        expect(res.body.error.message).toBe('periodType must be one of: HOURLY, EOD, DAILY, WEEKLY, MONTHLY');
+        expect(mockRepository.getStockSummaries).not.toHaveBeenCalled();
+    });
+
     it('rejects malformed admin job values before dispatching workers', async () => {
         const res = await request(app)
             .post('/api/ai-summaries/admin/run')

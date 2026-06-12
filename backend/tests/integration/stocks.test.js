@@ -142,6 +142,20 @@ describe('Stock API Endpoints', () => {
             expect(res.body.error.message).toBe('compact must be true or false');
             expect(stockOperations.getAllStocks).not.toHaveBeenCalled();
         });
+
+        it('should reject unsupported sort fields before fetching stocks', async () => {
+            const res = await request(app).get('/api/stocks?sortBy=createdAt');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('sortBy must be one of: symbol, companyName, percentageChange, lastTradedPrice, turnover, volume');
+            expect(stockOperations.getAllStocks).not.toHaveBeenCalled();
+        });
+
+        it('should reject unsupported sort directions before fetching stocks', async () => {
+            const res = await request(app).get('/api/stocks?sortOrder=random');
+            expect(res.status).toBe(400);
+            expect(res.body.error.message).toBe('sortOrder must be one of: asc, desc');
+            expect(stockOperations.getAllStocks).not.toHaveBeenCalled();
+        });
     });
 
     describe('GET /api/stocks/:symbol', () => {

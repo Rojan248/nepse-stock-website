@@ -13,6 +13,7 @@ const { prisma } = require('../services/database/connection');
 const {
     getBooleanQuery,
     getBoundedIntQuery,
+    getEnumQuery,
     normalizeSymbolParam,
     normalizeTextQuery,
     sendQueryValidationError
@@ -37,6 +38,9 @@ const normalizeSectorParam = (value) => {
     return { value: sector };
 };
 
+const SORT_FIELDS = ['symbol', 'companyName', 'percentageChange', 'lastTradedPrice', 'turnover', 'volume'];
+const SORT_ORDERS = ['asc', 'desc'];
+
 /**
  * GET /api/stocks
  * Get all stocks with optional pagination
@@ -46,7 +50,19 @@ router.get('/', asyncHandler(async (req, res) => {
     if (skipVal === null) return;
     const limitVal = getBoundedIntQuery(res, req.query.limit, { min: 1, max: 500, defaultValue: 500, label: 'limit' });
     if (limitVal === null) return;
-    const { sortBy = 'symbol', sortOrder = 'asc' } = req.query;
+    const sortBy = getEnumQuery(res, req.query.sortBy, {
+        allowed: SORT_FIELDS,
+        defaultValue: 'symbol',
+        label: 'sortBy'
+    });
+    if (sortBy === null) return;
+    const sortOrder = getEnumQuery(res, req.query.sortOrder, {
+        allowed: SORT_ORDERS,
+        defaultValue: 'asc',
+        label: 'sortOrder',
+        normalize: (value) => value.toLowerCase()
+    });
+    if (sortOrder === null) return;
     const compactVal = getBooleanQuery(res, req.query.compact, { defaultValue: false, label: 'compact' });
     if (compactVal === null) return;
     const activeOnlyVal = getBooleanQuery(res, req.query.activeOnly, { defaultValue: true, label: 'activeOnly' });

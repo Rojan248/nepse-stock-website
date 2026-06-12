@@ -92,6 +92,41 @@ const parseBooleanQuery = (value, { defaultValue, label = 'value' } = {}) => {
     return { value: BOOLEAN_QUERY_VALUES.get(normalized) };
 };
 
+const parseEnumQuery = (value, {
+    allowed,
+    defaultValue,
+    label = 'value',
+    normalize = (input) => input
+}) => {
+    if (value === undefined || value === null || value === '') {
+        return { value: defaultValue };
+    }
+
+    if (Array.isArray(value)) {
+        return { error: `${label} must be a single value` };
+    }
+
+    if (typeof value !== 'string') {
+        return { error: `${label} must be a single value` };
+    }
+
+    const normalized = normalize(value.trim());
+    if (!allowed.includes(normalized)) {
+        return { error: `${label} must be one of: ${allowed.join(', ')}` };
+    }
+
+    return { value: normalized };
+};
+
+const getEnumQuery = (res, value, options) => {
+    const result = parseEnumQuery(value, options);
+    if (result.error) {
+        sendQueryValidationError(res, result.error);
+        return null;
+    }
+    return result.value;
+};
+
 const getBooleanQuery = (res, value, options) => {
     const result = parseBooleanQuery(value, options);
     if (result.error) {
@@ -134,8 +169,10 @@ module.exports = {
     clampInt,
     getBooleanQuery,
     getBoundedIntQuery,
+    getEnumQuery,
     parseBooleanQuery,
     parseBoundedIntQuery,
+    parseEnumQuery,
     normalizeSymbolParam,
     normalizeTextQuery,
     sendQueryValidationError
