@@ -51,9 +51,10 @@ The NEPSE Stock Website is designed with a defense-in-depth security model to pr
 
 ### 2.4 Account Lockout Mechanism (V17)
 To prevent distributed credential-stuffing attacks:
-- The user schema maintains `failedLoginAttempts` (Int) and `lockedUntil` (DateTime).
+- The user schema maintains `failedLoginAttempts` (Int), `lockedUntil` (DateTime), and `accessTokenVersion` (Int).
 - 10 consecutive password failures will lock the account for 30 minutes.
 - The lockout countdown resets completely upon successful login.
+- Logout and lockout increment `accessTokenVersion`, causing older access tokens to fail server-side validation before their JWT expiry.
 
 ---
 

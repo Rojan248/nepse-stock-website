@@ -114,6 +114,7 @@ model User {
 
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
+  accessTokenVersion  Int       @default(0)
 
   refreshTokens RefreshToken[]
   watchlists    Watchlist[]

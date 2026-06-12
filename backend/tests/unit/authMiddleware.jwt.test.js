@@ -40,15 +40,18 @@ describe('auth middleware JWT verification', () => {
             id: 1,
             email: 'person@example.com',
             role: 'user',
-            lockedUntil: null
+            lockedUntil: null,
+            accessTokenVersion: 0
         });
         const token = generateAccessToken({
             id: 1,
             email: 'person@example.com',
-            role: 'user'
+            role: 'user',
+            accessTokenVersion: 0
         });
 
         expect(jwt.decode(token, { complete: true }).header.alg).toBe('HS256');
+        expect(jwt.decode(token).accessTokenVersion).toBe(0);
 
         const req = { headers: { authorization: `Bearer ${token}` } };
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
@@ -65,7 +68,8 @@ describe('auth middleware JWT verification', () => {
                 id: true,
                 email: true,
                 role: true,
-                lockedUntil: true
+                lockedUntil: true,
+                accessTokenVersion: true
             }
         });
     });
@@ -101,7 +105,8 @@ describe('auth middleware JWT verification', () => {
         const token = generateAccessToken({
             id: 1,
             email: 'person@example.com',
-            role: 'user'
+            role: 'user',
+            accessTokenVersion: 0
         });
 
         const req = { headers: { authorization: `Bearer ${token}` } };
@@ -124,12 +129,44 @@ describe('auth middleware JWT verification', () => {
             id: 1,
             email: 'person@example.com',
             role: 'user',
-            lockedUntil: new Date(Date.now() + 30 * 60 * 1000)
+            lockedUntil: new Date(Date.now() + 30 * 60 * 1000),
+            accessTokenVersion: 0
         });
         const token = generateAccessToken({
             id: 1,
             email: 'person@example.com',
-            role: 'user'
+            role: 'user',
+            accessTokenVersion: 0
+        });
+
+        const req = { headers: { authorization: `Bearer ${token}` } };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        const next = jest.fn();
+
+        await requireAuth(req, res, next);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith({
+            success: false,
+            error: { message: 'Invalid token' }
+        });
+    });
+
+    it('rejects validly signed tokens after the user access-token version changes', async () => {
+        const { generateAccessToken, requireAuth } = loadAuthMiddleware();
+        mockPrisma.user.findUnique.mockResolvedValue({
+            id: 1,
+            email: 'person@example.com',
+            role: 'user',
+            lockedUntil: null,
+            accessTokenVersion: 2
+        });
+        const token = generateAccessToken({
+            id: 1,
+            email: 'person@example.com',
+            role: 'user',
+            accessTokenVersion: 1
         });
 
         const req = { headers: { authorization: `Bearer ${token}` } };

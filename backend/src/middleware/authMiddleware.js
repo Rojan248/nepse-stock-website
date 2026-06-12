@@ -34,10 +34,20 @@ const toTokenUser = (user) => ({
     role: user.role
 });
 
+const getAccessTokenVersion = (value) => (
+    Number.isSafeInteger(value) && value >= 0 ? value : 0
+);
+
 const verifyAccessToken = (token) => {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
     if (!Number.isSafeInteger(decoded.userId) || decoded.userId <= 0) {
         throw new Error('Invalid token subject');
+    }
+    if (
+        decoded.accessTokenVersion !== undefined
+        && (!Number.isSafeInteger(decoded.accessTokenVersion) || decoded.accessTokenVersion < 0)
+    ) {
+        throw new Error('Invalid token version');
     }
     return decoded;
 };
@@ -49,12 +59,16 @@ const findActiveTokenUser = async (decoded) => {
             id: true,
             email: true,
             role: true,
-            lockedUntil: true
+            lockedUntil: true,
+            accessTokenVersion: true
         }
     });
 
     if (!user) return null;
     if (user.lockedUntil && user.lockedUntil > new Date()) return null;
+    if (getAccessTokenVersion(decoded.accessTokenVersion) !== getAccessTokenVersion(user.accessTokenVersion)) {
+        return null;
+    }
     return user;
 };
 
@@ -63,7 +77,12 @@ const findActiveTokenUser = async (decoded) => {
  */
 const generateAccessToken = (user) => {
     return jwt.sign(
-        { userId: user.id, email: user.email, role: user.role },
+        {
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+            accessTokenVersion: getAccessTokenVersion(user.accessTokenVersion)
+        },
         JWT_SECRET,
         { algorithm: JWT_ALGORITHM, expiresIn: ACCESS_TOKEN_EXPIRY }
     );

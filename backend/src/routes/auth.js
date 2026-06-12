@@ -116,6 +116,14 @@ const cleanExpiredTokens = async (userId) => {
     });
 };
 
+const revokeAccessTokens = async (userId) => {
+    if (!Number.isSafeInteger(userId) || userId <= 0) return;
+    await prisma.user.update({
+        where: { id: userId },
+        data: { accessTokenVersion: { increment: 1 } }
+    });
+};
+
 const sendInvalidCredentials = (res) => {
     return res.status(401).json(INVALID_CREDENTIALS_RESPONSE);
 };
@@ -215,7 +223,8 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
             where: { id: user.id },
             data: {
                 failedLoginAttempts: newFailedAttempts,
-                lockedUntil
+                lockedUntil,
+                ...(lockedUntil ? { accessTokenVersion: { increment: 1 } } : {})
             }
         });
 
@@ -301,7 +310,14 @@ router.post('/logout', asyncHandler(async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
     if (refreshToken) {
         const hashedToken = hashToken(refreshToken);
+        const stored = await prisma.refreshToken.findUnique({
+            where: { token: hashedToken },
+            select: { userId: true }
+        });
         await prisma.refreshToken.deleteMany({ where: { token: hashedToken } });
+        if (stored?.userId) {
+            await revokeAccessTokens(stored.userId);
+        }
     }
     clearRefreshCookie(res);
     res.json({ success: true, data: { message: 'Logged out' } });

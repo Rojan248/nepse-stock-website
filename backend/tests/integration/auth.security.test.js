@@ -308,8 +308,36 @@ describe('auth route security hardening', () => {
             where: { id: 1 },
             data: {
                 failedLoginAttempts: 10,
-                lockedUntil: expect.any(Date)
+                lockedUntil: expect.any(Date),
+                accessTokenVersion: { increment: 1 }
             }
+        });
+    });
+
+    it('revokes the current access-token version on logout with a refresh cookie', async () => {
+        const rawRefreshToken = 'raw-refresh-token';
+        mockPrisma.refreshToken.findUnique.mockResolvedValue({
+            id: 10,
+            token: sha256(rawRefreshToken),
+            userId: 1,
+            expiresAt: new Date(Date.now() + 60_000)
+        });
+
+        await request(app)
+            .post('/api/auth/logout')
+            .set('Cookie', [`refreshToken=${rawRefreshToken}`])
+            .expect(200);
+
+        expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
+            where: { token: sha256(rawRefreshToken) },
+            select: { userId: true }
+        });
+        expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+            where: { token: sha256(rawRefreshToken) }
+        });
+        expect(mockPrisma.user.update).toHaveBeenCalledWith({
+            where: { id: 1 },
+            data: { accessTokenVersion: { increment: 1 } }
         });
     });
 

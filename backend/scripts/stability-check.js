@@ -446,6 +446,7 @@ async function checkTempMigration() {
             await assertSqliteObject(migrationClient, 'index', index, `fresh migration index ${index}`);
         }
         await assertColumn(migrationClient, 'Alert', 'triggeredAt', 'fresh migration Alert.triggeredAt');
+        await assertColumn(migrationClient, 'User', 'accessTokenVersion', 'fresh migration User.accessTokenVersion');
         pass('fresh migration replay', `${migrationDirs.length} migrations`);
     } finally {
         await migrationClient.$disconnect();
