@@ -95,6 +95,48 @@ describe('Production routing hardening', () => {
         expect(res.body.error.message).toContain('Cross-site');
     });
 
+    it('prevents browser and proxy caching for authenticated profile responses', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get('/api/auth/me')
+            .expect(401);
+
+        expect(res.headers['cache-control']).toContain('no-store');
+        expect(res.headers['cache-control']).toContain('private');
+        expect(res.headers.pragma).toBe('no-cache');
+        expect(res.headers.expires).toBe('0');
+        expect(res.headers['surrogate-control']).toBe('no-store');
+        expect(res.headers.vary).toContain('Authorization');
+        expect(res.headers.vary).toContain('Cookie');
+    });
+
+    it('prevents caching for admin API failures before admin details are checked', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/stocks/admin/cleanup')
+            .send({})
+            .expect(401);
+
+        expect(res.headers['cache-control']).toContain('no-store');
+        expect(res.headers['surrogate-control']).toBe('no-store');
+        expect(res.headers.vary).toContain('Authorization');
+        expect(res.headers.vary).toContain('Cookie');
+    });
+
+    it('keeps anonymous public health responses cache-neutral', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get('/api/health');
+
+        expect(res.status).toBeGreaterThanOrEqual(200);
+        expect(res.status).toBeLessThan(600);
+        expect(res.headers['cache-control']).toBeUndefined();
+        expect(res.headers['surrogate-control']).toBeUndefined();
+    });
+
     it('rejects form-encoded API bodies before they reach JSON routes', async () => {
         const app = require('../../src/server');
 

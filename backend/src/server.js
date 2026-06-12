@@ -9,6 +9,7 @@ const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
 const { hostHeaderGuard } = require('./middleware/hostHeaderGuard');
 const { browserStateChangeGuard, jsonApiBodyGuard } = require('./middleware/browserRequestGuards');
+const { sensitiveApiCacheGuard } = require('./middleware/cacheControl');
 const { frontendStaticSafetyGuard } = require('./middleware/staticAssetGuards');
 const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler, validationErrorHandler } = require('./middleware/errorHandler');
@@ -59,6 +60,7 @@ app.use(helmet({
 }));
 app.use(hostHeaderGuard);
 app.use(corsMiddleware);
+app.use(sensitiveApiCacheGuard);
 app.use(globalLimiter);
 app.use(browserStateChangeGuard);
 app.use(jsonApiBodyGuard);

@@ -90,6 +90,19 @@ describe('API middleware ordering', () => {
         expect(res.body.error.message).toBe('blocked before body parsing');
     });
 
+    it('applies sensitive cache headers before global limiter responses', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .set('Content-Type', 'application/json')
+            .send('{"email":')
+            .expect(429);
+
+        expect(res.headers['cache-control']).toContain('no-store');
+        expect(res.headers['surrogate-control']).toBe('no-store');
+    });
+
     it('applies the global limiter before API content-type rejection', async () => {
         const app = require('../../src/server');
 
