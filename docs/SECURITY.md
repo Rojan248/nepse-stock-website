@@ -35,6 +35,7 @@ The NEPSE Stock Website is designed with a defense-in-depth security model to pr
 - **No LocalStorage PII**: LocalStorage only stores minimal user data (`id` and `displayName`). Privileges (`role`) and PII (`email`) are retrieved in-memory via `/api/auth/me`.
 - **Database Refresh Hashing**: SQLite database stores a SHA-256 hash of the refresh token. If the SQLite database file is stolen, the attacker cannot regenerate sessions.
 - **Token Flooding Cap**: Active sessions are capped at 5 per user. Any login beyond 5 deletes the oldest active session.
+- **Host-Prefixed Production Cookie**: Production refresh cookies use `__Host-refreshToken` with `Secure`, `HttpOnly`, `SameSite=Strict`, and `Path=/`. Production refresh/logout handlers intentionally ignore the legacy unprefixed cookie name to prevent sibling-domain cookie tossing.
 
 ### 2.3 Rate Limiting & DoS Clamps (V4, V5, V10, V11)
 - **Global Limiter**: 100 requests/minute/IP.

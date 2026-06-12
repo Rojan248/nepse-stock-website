@@ -22,6 +22,13 @@ const JWT_SECRET = resolveJwtSecret();
 const JWT_ALGORITHM = 'HS256';
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const LEGACY_REFRESH_COOKIE_NAME = 'refreshToken';
+const HOST_REFRESH_COOKIE_NAME = '__Host-refreshToken';
+
+const isProduction = () => process.env.NODE_ENV === 'production';
+const getRefreshCookieName = () => (
+    isProduction() ? HOST_REFRESH_COOKIE_NAME : LEGACY_REFRESH_COOKIE_NAME
+);
 
 const sendAuthFailure = (res, message) => res.status(401).json({
     success: false,
@@ -133,15 +140,25 @@ const optionalAuth = async (req, res, next) => {
     next();
 };
 
+const getRefreshTokenFromRequest = (req) => {
+    if (!req.cookies) return null;
+    const currentToken = req.cookies[getRefreshCookieName()];
+    if (currentToken) return currentToken;
+
+    // Development/test keep the short cookie name so localhost HTTP remains easy.
+    // Production intentionally ignores the legacy name to prevent sibling-domain cookie tossing.
+    return isProduction() ? null : req.cookies[LEGACY_REFRESH_COOKIE_NAME] || null;
+};
+
 /**
  * Set refresh token as httpOnly cookie
  */
 const setRefreshCookie = (res, token) => {
-    res.cookie('refreshToken', token, {
+    res.cookie(getRefreshCookieName(), token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction(),
         sameSite: 'strict',
-        path: '/api/auth',
+        path: isProduction() ? '/' : '/api/auth',
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     });
 };
@@ -150,18 +167,29 @@ const setRefreshCookie = (res, token) => {
  * Clear refresh token cookie
  */
 const clearRefreshCookie = (res) => {
-    res.clearCookie('refreshToken', {
+    res.clearCookie(getRefreshCookieName(), {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction(),
         sameSite: 'strict',
-        path: '/api/auth'
+        path: isProduction() ? '/' : '/api/auth'
     });
+
+    if (isProduction()) {
+        res.clearCookie(LEGACY_REFRESH_COOKIE_NAME, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            path: '/api/auth'
+        });
+    }
 };
 
 module.exports = {
     ACCESS_TOKEN_EXPIRY,
     REFRESH_TOKEN_EXPIRY_DAYS,
     generateAccessToken,
+    getRefreshCookieName,
+    getRefreshTokenFromRequest,
     requireAuth,
     optionalAuth,
     setRefreshCookie,

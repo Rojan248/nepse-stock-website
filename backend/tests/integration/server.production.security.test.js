@@ -169,6 +169,17 @@ describe('Production routing hardening', () => {
         expect(res.body.error.message).toBe('JSON body must be an object');
     });
 
+    it('does not accept legacy unprefixed refresh cookies in production', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/auth/refresh')
+            .set('Cookie', ['refreshToken=legacy-token'])
+            .expect(401);
+
+        expect(res.body.error.message).toBe('No refresh token');
+    });
+
     it('keeps anonymous public health responses cache-neutral', async () => {
         const app = require('../../src/server');
 

@@ -41,6 +41,7 @@ jest.mock('../../src/middleware/authMiddleware', () => ({
     REFRESH_TOKEN_EXPIRY_DAYS: 7,
     clearRefreshCookie: jest.fn((res) => res.clearCookie('refreshToken')),
     generateAccessToken: jest.fn(() => 'access-token'),
+    getRefreshTokenFromRequest: jest.fn((req) => req.cookies?.refreshToken || req.cookies?.['__Host-refreshToken'] || null),
     requireAuth: (req, res, next) => {
         req.user = { userId: 1, email: 'user@example.com', role: 'user' };
         next();

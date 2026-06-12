@@ -4,7 +4,14 @@ const crypto = require('crypto');
 const router = express.Router();
 const { prisma } = require('../services/database/connection');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { generateAccessToken, REFRESH_TOKEN_EXPIRY_DAYS, requireAuth, setRefreshCookie, clearRefreshCookie } = require('../middleware/authMiddleware');
+const {
+    generateAccessToken,
+    getRefreshTokenFromRequest,
+    REFRESH_TOKEN_EXPIRY_DAYS,
+    requireAuth,
+    setRefreshCookie,
+    clearRefreshCookie
+} = require('../middleware/authMiddleware');
 const { loginLimiter, registrationLimiter, refreshLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 
@@ -263,7 +270,7 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
 
 // POST /api/auth/refresh — silent refresh via httpOnly cookie (rate limited)
 router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = getRefreshTokenFromRequest(req);
     if (!refreshToken) {
         return res.status(401).json({ success: false, error: { message: 'No refresh token' } });
     }
@@ -307,7 +314,7 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
 
 // POST /api/auth/logout — clear httpOnly cookie
 router.post('/logout', asyncHandler(async (req, res) => {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = getRefreshTokenFromRequest(req);
     if (refreshToken) {
         const hashedToken = hashToken(refreshToken);
         const stored = await prisma.refreshToken.findUnique({
