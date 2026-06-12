@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
+const { hostHeaderGuard } = require('./middleware/hostHeaderGuard');
 const { browserStateChangeGuard, jsonApiBodyGuard } = require('./middleware/browserRequestGuards');
 const { frontendStaticSafetyGuard } = require('./middleware/staticAssetGuards');
 const { globalLimiter } = require('./middleware/rateLimiter');
@@ -56,6 +57,7 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
+app.use(hostHeaderGuard);
 app.use(browserStateChangeGuard);
 app.use(corsMiddleware);
 app.use(jsonApiBodyGuard);

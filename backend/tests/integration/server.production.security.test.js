@@ -26,6 +26,7 @@ describe('Production routing hardening', () => {
     const originalJwtSecret = process.env.JWT_SECRET;
     const originalAdminApiKey = process.env.ADMIN_API_KEY;
     const originalCorsOrigin = process.env.CORS_ORIGIN;
+    const originalAllowedHosts = process.env.ALLOWED_HOSTS;
 
     beforeEach(() => {
         jest.resetModules();
@@ -34,6 +35,7 @@ describe('Production routing hardening', () => {
         process.env.JWT_SECRET = 'test-production-jwt-secret-32-characters';
         process.env.ADMIN_API_KEY = 'test-production-admin-key-32-characters';
         process.env.CORS_ORIGIN = 'https://app.example.com';
+        delete process.env.ALLOWED_HOSTS;
 
         jest.doMock('../../src/services/utils/logger', mockLogger);
         jest.doMock('../../src/services/database/connection', () => ({
@@ -63,6 +65,8 @@ describe('Production routing hardening', () => {
         else process.env.ADMIN_API_KEY = originalAdminApiKey;
         if (originalCorsOrigin === undefined) delete process.env.CORS_ORIGIN;
         else process.env.CORS_ORIGIN = originalCorsOrigin;
+        if (originalAllowedHosts === undefined) delete process.env.ALLOWED_HOSTS;
+        else process.env.ALLOWED_HOSTS = originalAllowedHosts;
         jest.restoreAllMocks();
         jest.resetModules();
         jest.clearAllMocks();
@@ -102,6 +106,31 @@ describe('Production routing hardening', () => {
 
         expect(res.body.success).toBe(false);
         expect(res.body.error.message).toContain('application/json');
+    });
+
+    it('rejects Host override headers before API routes run', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get('/api/health')
+            .set('X-Forwarded-Host', 'attacker.example')
+            .expect(400);
+
+        expect(res.body.success).toBe(false);
+        expect(res.body.error.message).toContain('Host override');
+    });
+
+    it('rejects unknown production hosts when ALLOWED_HOSTS is configured', async () => {
+        process.env.ALLOWED_HOSTS = 'app.example.com';
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .get('/api/health')
+            .set('Host', 'attacker.example')
+            .expect(400);
+
+        expect(res.body.success).toBe(false);
+        expect(res.body.error.message).toContain('Host is not allowed');
     });
 
     it.each([
