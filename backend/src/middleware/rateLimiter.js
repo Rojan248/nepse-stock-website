@@ -73,6 +73,25 @@ const searchLimiter = rateLimit({
     }
 });
 
+// Public share lookup limiter: keeps unauthenticated shared-link probing bounded.
+const shareLookupLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        error: {
+            message: 'Too many shared watchlist lookups. Please try again later.',
+            retryAfter: 900
+        }
+    },
+    handler: (req, res, next, options) => {
+        logger.warn(`[RateLimit] Shared watchlist lookup limit exceeded: ${req.ip}`);
+        res.status(429).json(options.message);
+    }
+});
+
 // Login brute-force protection: 5 attempts per 15 minutes per IP
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -134,6 +153,7 @@ module.exports = {
     globalLimiter,
     adminLimiter,
     searchLimiter,
+    shareLookupLimiter,
     loginLimiter,
     registrationLimiter,
     refreshLimiter

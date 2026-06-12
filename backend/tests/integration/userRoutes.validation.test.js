@@ -76,10 +76,13 @@ app.use('/api/watchlists', require('../../src/routes/watchlists'));
 app.use(errorHandler);
 
 const portfolioCalculator = require('../../src/services/portfolioCalculator');
+const { shareLookupLimiter } = require('../../src/middleware/rateLimiter');
 
 describe('authenticated user route validation', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        shareLookupLimiter.resetKey('::ffff:127.0.0.1');
+        shareLookupLimiter.resetKey('127.0.0.1');
         mockPrisma.alert.count.mockResolvedValue(0);
         mockPrisma.portfolio.count.mockResolvedValue(0);
         mockPrisma.trade.count.mockResolvedValue(0);
@@ -207,6 +210,40 @@ describe('authenticated user route validation', () => {
             { symbol: 'NABIL', addedAt: '2026-06-06T00:00:00.000Z' }
         ]);
         expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+    });
+
+    it('generates high-entropy public share slugs for new shared watchlists', async () => {
+        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1, publicSlug: null });
+        mockPrisma.watchlist.update.mockResolvedValue({});
+
+        const res = await request(app)
+            .post('/api/watchlists/1/share')
+            .send({})
+            .expect(200);
+
+        const slug = res.body.data.publicSlug;
+        expect(slug).toMatch(/^[A-Za-z0-9_-]{22}$/);
+        expect(res.body.data.shareUrl).toBe(`/w/${slug}`);
+        expect(mockPrisma.watchlist.update).toHaveBeenCalledWith({
+            where: { id: 1 },
+            data: { publicSlug: slug }
+        });
+    });
+
+    it('rate limits repeated unauthenticated public share lookups', async () => {
+        mockPrisma.watchlist.findUnique.mockResolvedValue(null);
+
+        for (let i = 0; i < 60; i++) {
+            await request(app)
+                .get(`/api/watchlists/shared/guess${String(i).padStart(3, '0')}`)
+                .expect(404);
+        }
+
+        const res = await request(app)
+            .get('/api/watchlists/shared/guess999')
+            .expect(429);
+
+        expect(res.body.error.message).toContain('Too many shared watchlist lookups');
     });
 
     it('rejects invalid portfolio trade numbers before database lookup', async () => {

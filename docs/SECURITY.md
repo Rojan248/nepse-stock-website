@@ -36,6 +36,7 @@ The NEPSE Stock Website is designed with a defense-in-depth security model to pr
 - **Database Refresh Hashing**: SQLite database stores a SHA-256 hash of the refresh token. If the SQLite database file is stolen, the attacker cannot regenerate sessions.
 - **Token Flooding Cap**: Active sessions are capped at 5 per user. Any login beyond 5 deletes the oldest active session.
 - **Host-Prefixed Production Cookie**: Production refresh cookies use `__Host-refreshToken` with `Secure`, `HttpOnly`, `SameSite=Strict`, and `Path=/`. Production refresh/logout handlers intentionally ignore the legacy unprefixed cookie name to prevent sibling-domain cookie tossing.
+- **Public Share Hardening**: New public watchlist share links use 128-bit random slugs, and unauthenticated shared-watchlist lookups have a dedicated throttle to reduce brute-force probing.
 
 ### 2.3 Rate Limiting & DoS Clamps (V4, V5, V10, V11)
 - **Global Limiter**: 100 requests/minute/IP.

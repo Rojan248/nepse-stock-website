@@ -59,6 +59,7 @@ describe('API middleware ordering', () => {
             }),
             adminLimiter: (req, res, next) => next(),
             searchLimiter: (req, res, next) => next(),
+            shareLookupLimiter: (req, res, next) => next(),
             loginLimiter: (req, res, next) => next(),
             registrationLimiter: (req, res, next) => next(),
             refreshLimiter: (req, res, next) => next()

@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { prisma } = require('../services/database/connection');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { shareLookupLimiter } = require('../middleware/rateLimiter');
 const {
     normalizeSymbol,
     normalizeSymbolList,
@@ -20,11 +22,14 @@ const {
 // ==================== Authenticated Watchlist CRUD ====================
 
 const SHARE_SLUG_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+const SHARE_SLUG_BYTES = 16;
 
 const mapPublicWatchlistItem = (item) => ({
     symbol: item.symbol,
     addedAt: item.addedAt
 });
+
+const generatePublicShareSlug = () => crypto.randomBytes(SHARE_SLUG_BYTES).toString('base64url');
 
 // GET /api/watchlists — list user's watchlists
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
@@ -256,7 +261,7 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
 // ==================== Shared/Public Watchlist ====================
 
 // GET /api/watchlists/shared/:slug — view a public watchlist (no auth required)
-router.get('/shared/:slug', asyncHandler(async (req, res) => {
+router.get('/shared/:slug', shareLookupLimiter, asyncHandler(async (req, res) => {
     const { slug } = req.params;
     if (!SHARE_SLUG_PATTERN.test(slug)) {
         return res.status(400).json({ success: false, error: { message: 'Invalid share slug' } });
@@ -299,8 +304,7 @@ router.post('/:id/share', requireAuth, asyncHandler(async (req, res) => {
     // Generate slug if not already shared
     let slug = watchlist.publicSlug;
     if (!slug) {
-        const crypto = require('crypto');
-        slug = crypto.randomBytes(6).toString('base64url');
+        slug = generatePublicShareSlug();
         await prisma.watchlist.update({ where: { id }, data: { publicSlug: slug } });
     }
 
