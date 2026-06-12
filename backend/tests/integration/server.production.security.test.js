@@ -145,6 +145,30 @@ describe('Production routing hardening', () => {
         expect(res.body.error.message).toBe('Invalid query parameter: sortBy[field]');
     });
 
+    it('rejects prototype pollution shaped JSON before auth routes run', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .set('Content-Type', 'application/json')
+            .send('{"__proto__":{"role":"admin"},"email":"person@example.com","password":"StrongPass123"}')
+            .expect(400);
+
+        expect(res.body.error.message).toBe('Invalid JSON body property: __proto__');
+    });
+
+    it('rejects top-level JSON arrays before API route handling', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/auth/logout')
+            .set('Content-Type', 'application/json')
+            .send('["unexpected"]')
+            .expect(400);
+
+        expect(res.body.error.message).toBe('JSON body must be an object');
+    });
+
     it('keeps anonymous public health responses cache-neutral', async () => {
         const app = require('../../src/server');
 

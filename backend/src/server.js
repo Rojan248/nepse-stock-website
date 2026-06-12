@@ -9,6 +9,7 @@ const { connectDB } = require('./services/database/connection');
 const { corsMiddleware } = require('./middleware/cors');
 const { hostHeaderGuard } = require('./middleware/hostHeaderGuard');
 const { browserStateChangeGuard, jsonApiBodyGuard } = require('./middleware/browserRequestGuards');
+const { jsonBodyShapeGuard } = require('./middleware/bodyShapeGuards');
 const { sensitiveApiCacheGuard } = require('./middleware/cacheControl');
 const { queryStringShapeGuard } = require('./middleware/queryStringGuards');
 const { frontendStaticSafetyGuard } = require('./middleware/staticAssetGuards');
@@ -67,6 +68,7 @@ app.use(queryStringShapeGuard);
 app.use(browserStateChangeGuard);
 app.use(jsonApiBodyGuard);
 app.use(express.json({ limit: '1mb' }));
+app.use(jsonBodyShapeGuard);
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
