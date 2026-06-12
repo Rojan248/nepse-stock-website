@@ -10,7 +10,12 @@ const {
     sendValidationError,
     validateName
 } = require('../services/utils/requestValidation');
-const { USER_RESOURCE_LIMITS, ensureResourceLimit, quotaExceeded } = require('../services/utils/resourceQuotas');
+const {
+    USER_RESOURCE_LIMITS,
+    assertResourceCapacity,
+    assertResourceLimit,
+    sendResourceQuotaError
+} = require('../services/utils/resourceQuotas');
 
 // ==================== Authenticated Watchlist CRUD ====================
 
@@ -38,19 +43,25 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
         return sendValidationError(res, nameResult.error);
     }
 
-    const watchlistCount = await prisma.watchlist.count({ where: { userId: req.user.userId } });
-    const withinLimit = await ensureResourceLimit({
-        count: watchlistCount,
-        limit: USER_RESOURCE_LIMITS.watchlists,
-        label: 'Watchlist',
-        res
-    });
-    if (!withinLimit) return;
+    let watchlist;
+    try {
+        watchlist = await prisma.$transaction(async (tx) => {
+            const watchlistCount = await tx.watchlist.count({ where: { userId: req.user.userId } });
+            assertResourceLimit({
+                count: watchlistCount,
+                limit: USER_RESOURCE_LIMITS.watchlists,
+                label: 'Watchlist'
+            });
 
-    const watchlist = await prisma.watchlist.create({
-        data: { name: nameResult.value, userId: req.user.userId },
-        include: { items: true }
-    });
+            return tx.watchlist.create({
+                data: { name: nameResult.value, userId: req.user.userId },
+                include: { items: true }
+            });
+        });
+    } catch (error) {
+        if (sendResourceQuotaError(res, error)) return;
+        throw error;
+    }
     res.status(201).json({ success: true, data: watchlist });
 }));
 
@@ -110,31 +121,42 @@ router.post('/:id/items', requireAuth, asyncHandler(async (req, res) => {
 
     const watchlistId = idResult.value;
     const symbol = symbolResult.value;
-    const watchlist = await prisma.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
-    if (!watchlist) {
+    let item;
+    try {
+        item = await prisma.$transaction(async (tx) => {
+            const watchlist = await tx.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
+            if (!watchlist) {
+                return null;
+            }
+
+            const existing = await tx.watchlistItem.findUnique({
+                where: { watchlistId_symbol: { watchlistId, symbol } }
+            });
+            if (existing) {
+                return { duplicate: true };
+            }
+
+            const itemCount = await tx.watchlistItem.count({ where: { watchlistId } });
+            assertResourceLimit({
+                count: itemCount,
+                limit: USER_RESOURCE_LIMITS.watchlistItems,
+                label: 'Watchlist item'
+            });
+
+            return tx.watchlistItem.create({
+                data: { watchlistId, symbol }
+            });
+        });
+    } catch (error) {
+        if (sendResourceQuotaError(res, error)) return;
+        throw error;
+    }
+    if (!item) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
-
-    // Check for duplicate
-    const existing = await prisma.watchlistItem.findUnique({
-        where: { watchlistId_symbol: { watchlistId, symbol } }
-    });
-    if (existing) {
+    if (item.duplicate) {
         return res.status(409).json({ success: false, error: { message: 'Symbol already in watchlist' } });
     }
-
-    const itemCount = await prisma.watchlistItem.count({ where: { watchlistId } });
-    const withinLimit = await ensureResourceLimit({
-        count: itemCount,
-        limit: USER_RESOURCE_LIMITS.watchlistItems,
-        label: 'Watchlist item',
-        res
-    });
-    if (!withinLimit) return;
-
-    const item = await prisma.watchlistItem.create({
-        data: { watchlistId, symbol }
-    });
     res.status(201).json({ success: true, data: item });
 }));
 
@@ -181,37 +203,54 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const watchlistId = idResult.value;
-    const watchlist = await prisma.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
-    if (!watchlist) {
+    let outcome;
+    try {
+        outcome = await prisma.$transaction(async (tx) => {
+            const watchlist = await tx.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
+            if (!watchlist) {
+                return null;
+            }
+
+            const existingItems = await tx.watchlistItem.findMany({
+                where: { watchlistId },
+                select: { symbol: true }
+            });
+            const existingSymbols = new Set(existingItems.map(item => item.symbol));
+            const newSymbols = symbolsResult.value.filter(symbol => !existingSymbols.has(symbol));
+            assertResourceCapacity({
+                currentCount: existingItems.length,
+                requestedCount: newSymbols.length,
+                limit: USER_RESOURCE_LIMITS.watchlistItems,
+                label: 'Watchlist item'
+            });
+
+            const results = { added: 0, skipped: 0 };
+            for (const symbol of symbolsResult.value) {
+                try {
+                    await tx.watchlistItem.create({ data: { watchlistId, symbol } });
+                    results.added++;
+                } catch {
+                    results.skipped++; // duplicate
+                }
+            }
+
+            const updated = await tx.watchlist.findUnique({
+                where: { id: watchlistId },
+                include: { items: { orderBy: { addedAt: 'desc' } } }
+            });
+
+            return { updated, results };
+        });
+    } catch (error) {
+        if (sendResourceQuotaError(res, error)) return;
+        throw error;
+    }
+
+    if (!outcome) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
 
-    const existingItems = await prisma.watchlistItem.findMany({
-        where: { watchlistId },
-        select: { symbol: true }
-    });
-    const existingSymbols = new Set(existingItems.map(item => item.symbol));
-    const newSymbols = symbolsResult.value.filter(symbol => !existingSymbols.has(symbol));
-    if (existingItems.length + newSymbols.length > USER_RESOURCE_LIMITS.watchlistItems) {
-        return quotaExceeded(res, 'Watchlist item', USER_RESOURCE_LIMITS.watchlistItems);
-    }
-
-    const results = { added: 0, skipped: 0 };
-    for (const symbol of symbolsResult.value) {
-        try {
-            await prisma.watchlistItem.create({ data: { watchlistId, symbol } });
-            results.added++;
-        } catch {
-            results.skipped++; // duplicate
-        }
-    }
-
-    const updated = await prisma.watchlist.findUnique({
-        where: { id: watchlistId },
-        include: { items: { orderBy: { addedAt: 'desc' } } }
-    });
-
-    res.json({ success: true, data: updated, meta: results });
+    res.json({ success: true, data: outcome.updated, meta: outcome.results });
 }));
 
 // ==================== Shared/Public Watchlist ====================

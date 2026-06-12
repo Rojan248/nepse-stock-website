@@ -11,7 +11,11 @@ const {
     parsePositiveNumber,
     sendValidationError
 } = require('../services/utils/requestValidation');
-const { USER_RESOURCE_LIMITS, ensureResourceLimit } = require('../services/utils/resourceQuotas');
+const {
+    USER_RESOURCE_LIMITS,
+    assertResourceLimit,
+    sendResourceQuotaError
+} = require('../services/utils/resourceQuotas');
 
 const VALID_CONDITIONS = ['above', 'below', 'pct_change'];
 
@@ -44,23 +48,29 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
         return sendValidationError(res, thresholdResult.error);
     }
 
-    const alertCount = await prisma.alert.count({ where: { userId: req.user.userId } });
-    const withinLimit = await ensureResourceLimit({
-        count: alertCount,
-        limit: USER_RESOURCE_LIMITS.alerts,
-        label: 'Alert',
-        res
-    });
-    if (!withinLimit) return;
+    let alert;
+    try {
+        alert = await prisma.$transaction(async (tx) => {
+            const alertCount = await tx.alert.count({ where: { userId: req.user.userId } });
+            assertResourceLimit({
+                count: alertCount,
+                limit: USER_RESOURCE_LIMITS.alerts,
+                label: 'Alert'
+            });
 
-    const alert = await prisma.alert.create({
-        data: {
-            userId: req.user.userId,
-            symbol: symbolResult.value,
-            condition,
-            threshold: thresholdResult.value
-        }
-    });
+            return tx.alert.create({
+                data: {
+                    userId: req.user.userId,
+                    symbol: symbolResult.value,
+                    condition,
+                    threshold: thresholdResult.value
+                }
+            });
+        });
+    } catch (error) {
+        if (sendResourceQuotaError(res, error)) return;
+        throw error;
+    }
     logger.info(`Alert created: ${alert.symbol} ${alert.condition} ${alert.threshold} for user ${req.user.userId}`);
     res.status(201).json({ success: true, data: alert });
 }));

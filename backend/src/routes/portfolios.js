@@ -13,7 +13,11 @@ const {
     validateName,
     validateOptionalNote
 } = require('../services/utils/requestValidation');
-const { USER_RESOURCE_LIMITS, ensureResourceLimit } = require('../services/utils/resourceQuotas');
+const {
+    USER_RESOURCE_LIMITS,
+    assertResourceLimit,
+    sendResourceQuotaError
+} = require('../services/utils/resourceQuotas');
 
 // ==================== Portfolio CRUD ====================
 
@@ -34,19 +38,25 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
         return sendValidationError(res, nameResult.error);
     }
 
-    const portfolioCount = await prisma.portfolio.count({ where: { userId: req.user.userId } });
-    const withinLimit = await ensureResourceLimit({
-        count: portfolioCount,
-        limit: USER_RESOURCE_LIMITS.portfolios,
-        label: 'Portfolio',
-        res
-    });
-    if (!withinLimit) return;
+    let portfolio;
+    try {
+        portfolio = await prisma.$transaction(async (tx) => {
+            const portfolioCount = await tx.portfolio.count({ where: { userId: req.user.userId } });
+            assertResourceLimit({
+                count: portfolioCount,
+                limit: USER_RESOURCE_LIMITS.portfolios,
+                label: 'Portfolio'
+            });
 
-    const portfolio = await prisma.portfolio.create({
-        data: { name: nameResult.value, userId: req.user.userId },
-        include: { trades: true }
-    });
+            return tx.portfolio.create({
+                data: { name: nameResult.value, userId: req.user.userId },
+                include: { trades: true }
+            });
+        });
+    } catch (error) {
+        if (sendResourceQuotaError(res, error)) return;
+        throw error;
+    }
     res.status(201).json({ success: true, data: portfolio });
 }));
 
@@ -105,31 +115,40 @@ router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const portfolioId = idResult.value;
-    const portfolio = await prisma.portfolio.findFirst({ where: { id: portfolioId, userId: req.user.userId } });
-    if (!portfolio) {
+    let trade;
+    try {
+        trade = await prisma.$transaction(async (tx) => {
+            const portfolio = await tx.portfolio.findFirst({ where: { id: portfolioId, userId: req.user.userId } });
+            if (!portfolio) {
+                return null;
+            }
+
+            const tradeCount = await tx.trade.count({ where: { portfolioId } });
+            assertResourceLimit({
+                count: tradeCount,
+                limit: USER_RESOURCE_LIMITS.tradesPerPortfolio,
+                label: 'Portfolio trade'
+            });
+
+            return tx.trade.create({
+                data: {
+                    portfolioId,
+                    symbol: symbolResult.value,
+                    type,
+                    quantity: quantityResult.value,
+                    price: priceResult.value,
+                    date: dateResult.value,
+                    note: noteResult.value
+                }
+            });
+        });
+    } catch (error) {
+        if (sendResourceQuotaError(res, error)) return;
+        throw error;
+    }
+    if (!trade) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
     }
-
-    const tradeCount = await prisma.trade.count({ where: { portfolioId } });
-    const withinLimit = await ensureResourceLimit({
-        count: tradeCount,
-        limit: USER_RESOURCE_LIMITS.tradesPerPortfolio,
-        label: 'Portfolio trade',
-        res
-    });
-    if (!withinLimit) return;
-
-    const trade = await prisma.trade.create({
-        data: {
-            portfolioId,
-            symbol: symbolResult.value,
-            type,
-            quantity: quantityResult.value,
-            price: priceResult.value,
-            date: dateResult.value,
-            note: noteResult.value
-        }
-    });
     res.status(201).json({ success: true, data: trade });
 }));
 

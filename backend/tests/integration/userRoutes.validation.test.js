@@ -42,7 +42,8 @@ const mockPrisma = {
         delete: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn()
-    }
+    },
+    $transaction: jest.fn()
 };
 
 jest.mock('../../src/services/database/connection', () => ({
@@ -85,6 +86,7 @@ describe('authenticated user route validation', () => {
         mockPrisma.watchlist.count.mockResolvedValue(0);
         mockPrisma.watchlistItem.count.mockResolvedValue(0);
         mockPrisma.watchlistItem.findMany.mockResolvedValue([]);
+        mockPrisma.$transaction.mockImplementation((operation) => operation(mockPrisma));
     });
 
     it('rejects malformed watchlist symbols before database lookup', async () => {
@@ -130,6 +132,7 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
             data: { watchlistId: 1, symbol: 'EBL' }
         });
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('rejects watchlist creation after the per-user quota is reached', async () => {
@@ -142,6 +145,7 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Watchlist limit');
         expect(mockPrisma.watchlist.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('rejects watchlist item creation after the per-list quota is reached', async () => {
@@ -156,6 +160,7 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Watchlist item limit');
         expect(mockPrisma.watchlistItem.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('rejects watchlist imports that would exceed the per-list quota', async () => {
@@ -171,6 +176,7 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Watchlist item limit');
         expect(mockPrisma.watchlistItem.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('rejects malformed public share slugs before database lookup', async () => {
@@ -275,6 +281,7 @@ describe('authenticated user route validation', () => {
                 note: 'test note'
             }
         });
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('rejects portfolio creation after the per-user quota is reached', async () => {
@@ -287,6 +294,7 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Portfolio limit');
         expect(mockPrisma.portfolio.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('rejects trade creation after the per-portfolio quota is reached', async () => {
@@ -306,6 +314,7 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Portfolio trade limit');
         expect(mockPrisma.trade.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('checks portfolio ownership before running summary calculations', async () => {
@@ -350,5 +359,6 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Alert limit');
         expect(mockPrisma.alert.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 });
