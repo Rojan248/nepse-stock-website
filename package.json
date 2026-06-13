@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "NEPSE Stock Market Website - Production Deployment",
   "scripts": {
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "install:all": "npm ci && cd backend && npm ci && cd ../frontend && npm ci",
     "build:frontend": "cd frontend && npm run build",
     "start:prod": "cd backend && pm2 start ecosystem.config.js --env production",
     "test": "cd backend && npm test && cd ../frontend && npm test",

@@ -5,15 +5,15 @@ WORKDIR /app
 
 # Install root dependencies (if any)
 COPY package*.json ./
-RUN npm install --include=dev
+RUN npm ci --include=dev
 
 # Copy backend and install dependencies
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install
+RUN cd backend && npm ci
 
 # Copy frontend and build
 COPY frontend/package*.json ./frontend/
-RUN cd frontend && npm install
+RUN cd frontend && npm ci
 COPY frontend/ ./frontend/
 RUN cd frontend && npm run build
 
@@ -31,9 +31,6 @@ WORKDIR /app
 # Set production environment
 ENV NODE_ENV=production
 ENV PORT=5000
-
-# Install PM2 globally
-RUN npm install -g pm2
 
 # Copy only runtime backend artifacts. Do not ship tests, local env files,
 # SQLite snapshots, logs, backups, or other development-only files.
@@ -62,4 +59,4 @@ RUN mkdir -p /app/backend/prisma
 # We run prisma generate again to ensure the client matches the environment
 # and prisma migrate deploy to ensure DB schema is up to date.
 WORKDIR /app/backend
-CMD ./node_modules/.bin/prisma generate && ./node_modules/.bin/prisma migrate deploy && pm2-runtime start ecosystem.config.js --env production
+CMD ./node_modules/.bin/prisma generate && ./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/pm2-runtime start ecosystem.config.js --env production
