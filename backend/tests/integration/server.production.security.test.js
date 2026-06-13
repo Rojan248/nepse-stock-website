@@ -219,6 +219,22 @@ describe('Production routing hardening', () => {
         expect(res.body.error.message).toContain('application/json');
     });
 
+    it.each([
+        ['HEAD', '/api/stocks/TEST'],
+        ['TRACE', '/api/health']
+    ])('rejects unsupported API method %s before route handling', async (method, path) => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            [method.toLowerCase()](path)
+            .expect(405);
+
+        expect(res.headers.allow).toBe('GET, POST, PUT, DELETE, OPTIONS');
+        if (method !== 'HEAD') {
+            expect(res.body.error.message).toBe('HTTP method not allowed for API routes');
+        }
+    });
+
     it('rejects Host override headers before API routes run', async () => {
         const app = require('../../src/server');
 
