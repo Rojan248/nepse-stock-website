@@ -19,16 +19,66 @@ const {
     sendResourceQuotaError
 } = require('../services/utils/resourceQuotas');
 
+const TRADE_RESPONSE_SELECT = {
+    id: true,
+    symbol: true,
+    type: true,
+    quantity: true,
+    price: true,
+    date: true,
+    note: true,
+    createdAt: true
+};
+
+const PORTFOLIO_RESPONSE_SELECT = {
+    id: true,
+    name: true,
+    createdAt: true,
+    updatedAt: true
+};
+
+const mapTradeResponse = (trade) => ({
+    id: trade.id,
+    symbol: trade.symbol,
+    type: trade.type,
+    quantity: trade.quantity,
+    price: trade.price,
+    date: trade.date,
+    note: trade.note,
+    createdAt: trade.createdAt
+});
+
+const mapPortfolioResponse = (portfolio) => {
+    const response = {
+        id: portfolio.id,
+        name: portfolio.name,
+        createdAt: portfolio.createdAt,
+        updatedAt: portfolio.updatedAt
+    };
+
+    if (Array.isArray(portfolio.trades)) {
+        response.trades = portfolio.trades.map(mapTradeResponse);
+    }
+
+    return response;
+};
+
 // ==================== Portfolio CRUD ====================
 
 // GET /api/portfolios — list user's portfolios
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
     const portfolios = await prisma.portfolio.findMany({
         where: { userId: req.user.userId },
-        include: { trades: { orderBy: { date: 'desc' } } },
+        select: {
+            ...PORTFOLIO_RESPONSE_SELECT,
+            trades: {
+                select: TRADE_RESPONSE_SELECT,
+                orderBy: { date: 'desc' }
+            }
+        },
         orderBy: { createdAt: 'asc' }
     });
-    res.json({ success: true, data: portfolios });
+    res.json({ success: true, data: portfolios.map(mapPortfolioResponse) });
 }));
 
 // POST /api/portfolios — create a portfolio
@@ -50,14 +100,17 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
 
             return tx.portfolio.create({
                 data: { name: nameResult.value, userId: req.user.userId },
-                include: { trades: true }
+                select: {
+                    ...PORTFOLIO_RESPONSE_SELECT,
+                    trades: { select: TRADE_RESPONSE_SELECT }
+                }
             });
         });
     } catch (error) {
         if (sendResourceQuotaError(res, error)) return;
         throw error;
     }
-    res.status(201).json({ success: true, data: portfolio });
+    res.status(201).json({ success: true, data: mapPortfolioResponse(portfolio) });
 }));
 
 // DELETE /api/portfolios/:id
@@ -138,7 +191,8 @@ router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
                     price: priceResult.value,
                     date: dateResult.value,
                     note: noteResult.value
-                }
+                },
+                select: TRADE_RESPONSE_SELECT
             });
         });
     } catch (error) {
@@ -148,7 +202,7 @@ router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
     if (!trade) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
     }
-    res.status(201).json({ success: true, data: trade });
+    res.status(201).json({ success: true, data: mapTradeResponse(trade) });
 }));
 
 // DELETE /api/portfolios/:id/trades/:tradeId — delete a trade

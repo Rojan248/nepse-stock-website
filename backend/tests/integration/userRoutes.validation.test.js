@@ -436,6 +436,58 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.trade.create).not.toHaveBeenCalled();
     });
 
+    it('redacts portfolio owner and trade linkage fields from list responses', async () => {
+        mockPrisma.portfolio.findMany.mockResolvedValue([
+            {
+                id: 3,
+                name: 'Long term',
+                userId: 1,
+                createdAt: new Date('2026-06-06T00:00:00Z'),
+                updatedAt: new Date('2026-06-07T00:00:00Z'),
+                trades: [
+                    {
+                        id: 9,
+                        portfolioId: 3,
+                        symbol: 'NABIL',
+                        type: 'buy',
+                        quantity: 10,
+                        price: 100,
+                        date: new Date('2026-06-06T00:00:00Z'),
+                        note: 'seed',
+                        createdAt: new Date('2026-06-06T01:00:00Z')
+                    }
+                ]
+            }
+        ]);
+
+        const res = await request(app)
+            .get('/api/portfolios')
+            .expect(200);
+
+        expect(res.body.data).toEqual([
+            {
+                id: 3,
+                name: 'Long term',
+                createdAt: '2026-06-06T00:00:00.000Z',
+                updatedAt: '2026-06-07T00:00:00.000Z',
+                trades: [
+                    {
+                        id: 9,
+                        symbol: 'NABIL',
+                        type: 'buy',
+                        quantity: 10,
+                        price: 100,
+                        date: '2026-06-06T00:00:00.000Z',
+                        note: 'seed',
+                        createdAt: '2026-06-06T01:00:00.000Z'
+                    }
+                ]
+            }
+        ]);
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expect(JSON.stringify(res.body)).not.toContain('portfolioId');
+    });
+
     it('rejects numeric type confusion before portfolio trade lookup', async () => {
         const res = await request(app)
             .post('/api/portfolios/1/trades')
@@ -497,6 +549,7 @@ describe('authenticated user route validation', () => {
             .expect(201);
 
         expect(res.body.data.symbol).toBe('NABIL');
+        expect(JSON.stringify(res.body)).not.toContain('portfolioId');
         expect(mockPrisma.trade.create).toHaveBeenCalledWith({
             data: {
                 portfolioId: 1,
@@ -506,7 +559,8 @@ describe('authenticated user route validation', () => {
                 price: 123.45,
                 date: expect.any(Date),
                 note: 'test note'
-            }
+            },
+            select: expect.objectContaining({ id: true, symbol: true })
         });
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
@@ -522,6 +576,31 @@ describe('authenticated user route validation', () => {
         expect(res.body.error.message).toContain('Portfolio limit');
         expect(mockPrisma.portfolio.create).not.toHaveBeenCalled();
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('redacts portfolio owner fields from create responses', async () => {
+        mockPrisma.portfolio.create.mockResolvedValue({
+            id: 4,
+            name: 'Income',
+            userId: 1,
+            createdAt: new Date('2026-06-06T00:00:00Z'),
+            updatedAt: new Date('2026-06-06T00:00:00Z'),
+            trades: []
+        });
+
+        const res = await request(app)
+            .post('/api/portfolios')
+            .send({ name: 'Income' })
+            .expect(201);
+
+        expect(res.body.data).toEqual({
+            id: 4,
+            name: 'Income',
+            createdAt: '2026-06-06T00:00:00.000Z',
+            updatedAt: '2026-06-06T00:00:00.000Z',
+            trades: []
+        });
+        expect(JSON.stringify(res.body)).not.toContain('userId');
     });
 
     it('rejects trade creation after the per-portfolio quota is reached', async () => {
