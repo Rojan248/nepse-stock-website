@@ -140,6 +140,32 @@ describe('IPO API Endpoints', () => {
             expect(res.body.data).toHaveProperty('companyName');
         });
 
+        it('should trim valid company names before lookup', async () => {
+            await request(app)
+                .get('/api/ipos/%20Test%20IPO%20Company%20')
+                .expect(200);
+
+            expect(ipoOperations.getIPOByCompanyName).toHaveBeenCalledWith('Test IPO Company');
+        });
+
+        it('should reject blank company names before database lookup', async () => {
+            const res = await request(app)
+                .get('/api/ipos/%20%20%20')
+                .expect(400);
+
+            expect(res.body.error.message).toBe('Invalid company name format');
+            expect(ipoOperations.getIPOByCompanyName).not.toHaveBeenCalled();
+        });
+
+        it('should reject control whitespace in company names before database lookup', async () => {
+            const res = await request(app)
+                .get('/api/ipos/Test%09IPO')
+                .expect(400);
+
+            expect(res.body.error.message).toBe('Invalid company name format');
+            expect(ipoOperations.getIPOByCompanyName).not.toHaveBeenCalled();
+        });
+
         it('should return 404 for non-existent company', async () => {
             const res = await request(app).get('/api/ipos/NonExistent%20Company');
             expect(res.status).toBe(404);

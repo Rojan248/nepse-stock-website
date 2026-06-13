@@ -16,6 +16,8 @@ const {
  */
 
 const VALID_STATUSES = ['upcoming', 'open', 'closed', 'completed'];
+const COMPANY_NAME_PATTERN = /^[a-zA-Z0-9 .\-()]+$/;
+const MAX_COMPANY_NAME_LENGTH = 100;
 
 const normalizeStatusQuery = (value) => {
     if (value === undefined || value === null || value === '') {
@@ -30,6 +32,23 @@ const normalizeStatusQuery = (value) => {
         return { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` };
     }
     return { value: status };
+};
+
+const normalizeCompanyNameParam = (value) => {
+    if (typeof value !== 'string') {
+        return { error: 'Invalid company name format' };
+    }
+
+    const companyName = value.trim();
+    if (
+        !companyName
+        || companyName.length > MAX_COMPANY_NAME_LENGTH
+        || !COMPANY_NAME_PATTERN.test(companyName)
+    ) {
+        return { error: 'Invalid company name format' };
+    }
+
+    return { value: companyName };
 };
 
 /**
@@ -137,16 +156,15 @@ router.get('/status/:status', asyncHandler(async (req, res) => {
  * Get specific IPO by company name
  */
 router.get('/:companyName', asyncHandler(async (req, res) => {
-    const { companyName } = req.params;
-    // Validate companyName format: alphanumeric, spaces, dots, dashes, parentheses only, max 100 chars
-    if (!/^[a-zA-Z0-9\s.\-()]+$/.test(companyName) || companyName.length > 100) {
+    const companyNameResult = normalizeCompanyNameParam(req.params.companyName);
+    if (companyNameResult.error) {
         return res.status(400).json({
             success: false,
-            error: { message: 'Invalid company name format' }
+            error: { message: companyNameResult.error }
         });
     }
 
-    const ipo = await ipoOperations.getIPOByCompanyName(companyName);
+    const ipo = await ipoOperations.getIPOByCompanyName(companyNameResult.value);
 
     if (!ipo) {
         return res.status(404).json({
