@@ -33,6 +33,13 @@ describe('Security Headers', () => {
         expect(res.headers['content-security-policy']).toBeDefined();
     });
 
+    it('should deny framing through CSP and legacy frame headers', async () => {
+        const res = await request(app).get('/api/stocks');
+
+        expect(res.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+        expect(res.headers['x-frame-options']).toBe('DENY');
+    });
+
     it('should have RateLimit headers', async () => {
         const res = await request(app).get('/api/stocks');
         // express-rate-limit sets X-RateLimit-* or RateLimit-* headers

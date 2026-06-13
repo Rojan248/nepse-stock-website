@@ -95,6 +95,20 @@ describe('Production routing hardening', () => {
         expect(res.body.error.message).toContain('Cross-site');
     });
 
+    it('rejects same-site state-changing browser requests without an allowed origin', async () => {
+        const app = require('../../src/server');
+
+        const res = await request(app)
+            .post('/api/auth/logout')
+            .set('Sec-Fetch-Site', 'same-site')
+            .expect(403);
+
+        expect(res.body.success).toBe(false);
+        expect(res.body.error.message).toContain('Same-site');
+        expect(res.headers.vary).toContain('Sec-Fetch-Site');
+        expect(res.headers.vary).toContain('Origin');
+    });
+
     it('prevents browser and proxy caching for authenticated profile responses', async () => {
         const app = require('../../src/server');
 

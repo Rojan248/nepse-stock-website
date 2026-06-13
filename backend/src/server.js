@@ -55,8 +55,10 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:"],
             connectSrc: ["'self'"],
+            frameAncestors: ["'none'"],
         },
     },
+    xFrameOptions: { action: 'deny' },
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));

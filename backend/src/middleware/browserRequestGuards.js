@@ -24,12 +24,20 @@ const reject = (res, status, message) => res.status(status).json({
 const browserStateChangeGuard = (req, res, next) => {
     if (!isApiRequest(req) || !isUnsafeMethod(req)) return next();
 
+    res.vary('Sec-Fetch-Site');
+    res.vary('Origin');
+
     const fetchSite = String(req.get('Sec-Fetch-Site') || '').toLowerCase();
+    const origin = req.get('Origin');
+
     if (fetchSite === 'cross-site') {
         return reject(res, 403, 'Cross-site state-changing requests are not allowed');
     }
 
-    const origin = req.get('Origin');
+    if (fetchSite === 'same-site' && !origin) {
+        return reject(res, 403, 'Same-site state-changing requests require an allowed Origin');
+    }
+
     if (origin && !isOriginAllowed(origin)) {
         return reject(res, 403, 'Request origin is not allowed');
     }
