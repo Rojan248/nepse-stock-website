@@ -3,6 +3,7 @@ const router = express.Router();
 const ipoOperations = require('../services/database/ipoOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../services/utils/logger');
+const { searchLimiter } = require('../middleware/rateLimiter');
 const {
     getBoundedIntQuery,
     normalizeTextQuery,
@@ -79,7 +80,7 @@ router.get('/active', asyncHandler(async (req, res) => {
  * GET /api/ipos/search
  * Search IPOs by name
  */
-router.get('/search', asyncHandler(async (req, res) => {
+router.get('/search', searchLimiter, asyncHandler(async (req, res) => {
     const queryResult = normalizeTextQuery(req.query.q, { maxLength: 80 });
     if (queryResult.error) {
         return res.status(400).json({

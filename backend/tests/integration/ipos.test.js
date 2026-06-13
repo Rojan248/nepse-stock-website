@@ -37,10 +37,13 @@ jest.mock('../../src/services/database/ipoOperations', () => ({
 }));
 
 const ipoOperations = require('../../src/services/database/ipoOperations');
+const { searchLimiter } = require('../../src/middleware/rateLimiter');
 
 describe('IPO API Endpoints', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        searchLimiter.resetKey('::ffff:127.0.0.1');
+        searchLimiter.resetKey('127.0.0.1');
     });
 
     describe('GET /api/ipos', () => {
@@ -92,6 +95,21 @@ describe('IPO API Endpoints', () => {
             const res = await request(app).get('/api/ipos/search?q=test&q=second');
             expect(res.status).toBe(400);
             expect(ipoOperations.searchIPOs).not.toHaveBeenCalled();
+        });
+
+        it('should rate limit repeated IPO search scans', async () => {
+            for (let i = 0; i < 30; i++) {
+                await request(app)
+                    .get(`/api/ipos/search?q=test${i}`)
+                    .expect(200);
+            }
+
+            const res = await request(app)
+                .get('/api/ipos/search?q=overflow')
+                .expect(429);
+
+            expect(res.body.error.message).toContain('Search rate limit exceeded');
+            expect(ipoOperations.searchIPOs).toHaveBeenCalledTimes(30);
         });
     });
 

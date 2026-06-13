@@ -43,6 +43,7 @@ The NEPSE Stock Website is designed with a defense-in-depth security model to pr
 - **Login Limiter**: 5 attempts per 15 minutes/IP.
 - **Registration Limiter**: 3 accounts per hour/IP.
 - **Refresh Limiter**: 10 refreshes per 15 minutes/IP.
+- **Search Limiters**: Stock and IPO search endpoints have route-specific throttles to bound unauthenticated database scan attempts.
 - **Proxy Trust**: `TRUST_PROXY` defaults to `false`. Enable it only behind a trusted reverse proxy so clients cannot spoof `X-Forwarded-For` and bypass IP limiters.
 - **Payload Clamping**: `express.json()` request body sizes are capped at 1MB (reduced from 10MB) to mitigate memory exhaustion.
 - **Query Parameter Clamping**: `clampInt` utility sanitizes and bounds query parameters:
