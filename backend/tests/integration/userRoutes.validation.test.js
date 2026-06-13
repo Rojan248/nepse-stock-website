@@ -183,6 +183,42 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledTimes(2);
     });
 
+    it('redacts watchlist internals from import responses', async () => {
+        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+        mockPrisma.watchlistItem.findMany.mockResolvedValue([]);
+        mockPrisma.watchlistItem.create.mockResolvedValue({});
+        mockPrisma.watchlist.findUnique.mockResolvedValue({
+            id: 1,
+            name: 'Default',
+            userId: 1,
+            publicSlug: 'shared-token',
+            createdAt: new Date('2026-06-06T00:00:00Z'),
+            updatedAt: new Date('2026-06-07T00:00:00Z'),
+            items: [
+                { id: 20, watchlistId: 1, symbol: 'NABIL', addedAt: new Date('2026-06-06T01:00:00Z') }
+            ]
+        });
+
+        const res = await request(app)
+            .post('/api/watchlists/1/import')
+            .send({ symbols: ['NABIL'] })
+            .expect(200);
+
+        expect(res.body.data).toEqual({
+            id: 1,
+            name: 'Default',
+            createdAt: '2026-06-06T00:00:00.000Z',
+            updatedAt: '2026-06-07T00:00:00.000Z',
+            items: [
+                { symbol: 'NABIL', addedAt: '2026-06-06T01:00:00.000Z' }
+            ]
+        });
+        expect(res.body.meta).toEqual({ added: 1, skipped: 0 });
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
+    });
+
     it('rejects watchlist creation after the per-user quota is reached', async () => {
         mockPrisma.watchlist.count.mockResolvedValue(25);
 
@@ -194,6 +230,33 @@ describe('authenticated user route validation', () => {
         expect(res.body.error.message).toContain('Watchlist limit');
         expect(mockPrisma.watchlist.create).not.toHaveBeenCalled();
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('redacts watchlist owner and share fields from create responses', async () => {
+        mockPrisma.watchlist.create.mockResolvedValue({
+            id: 2,
+            name: 'Income',
+            userId: 1,
+            publicSlug: 'shared-token',
+            createdAt: new Date('2026-06-06T00:00:00Z'),
+            updatedAt: new Date('2026-06-06T00:00:00Z'),
+            items: []
+        });
+
+        const res = await request(app)
+            .post('/api/watchlists')
+            .send({ name: 'Income' })
+            .expect(201);
+
+        expect(res.body.data).toEqual({
+            id: 2,
+            name: 'Income',
+            createdAt: '2026-06-06T00:00:00.000Z',
+            updatedAt: '2026-06-06T00:00:00.000Z',
+            items: []
+        });
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
     });
 
     it('rejects watchlist item creation after the per-list quota is reached', async () => {
@@ -209,6 +272,32 @@ describe('authenticated user route validation', () => {
         expect(res.body.error.message).toContain('Watchlist item limit');
         expect(mockPrisma.watchlistItem.create).not.toHaveBeenCalled();
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('redacts watchlist item linkage fields from create responses', async () => {
+        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+        mockPrisma.watchlistItem.findUnique.mockResolvedValue(null);
+        mockPrisma.watchlistItem.create.mockResolvedValue({
+            id: 7,
+            watchlistId: 1,
+            symbol: 'NABIL',
+            addedAt: new Date('2026-06-06T00:00:00Z')
+        });
+
+        const res = await request(app)
+            .post('/api/watchlists/1/items')
+            .send({ symbol: 'nabil' })
+            .expect(201);
+
+        expect(res.body.data).toEqual({
+            symbol: 'NABIL',
+            addedAt: '2026-06-06T00:00:00.000Z'
+        });
+        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+        expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
+            data: { watchlistId: 1, symbol: 'NABIL' },
+            select: expect.objectContaining({ symbol: true, addedAt: true })
+        });
     });
 
     it('rejects watchlist imports that would exceed the per-list quota', async () => {
@@ -293,14 +382,35 @@ describe('authenticated user route validation', () => {
 
     it('renames watchlists with an owner-bound write', async () => {
         mockPrisma.watchlist.updateMany.mockResolvedValue({ count: 1 });
-        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1, name: 'Renamed', items: [] });
+        mockPrisma.watchlist.findFirst.mockResolvedValue({
+            id: 1,
+            userId: 1,
+            publicSlug: 'shared-token',
+            name: 'Renamed',
+            createdAt: new Date('2026-06-06T00:00:00Z'),
+            updatedAt: new Date('2026-06-07T00:00:00Z'),
+            items: [
+                { id: 4, watchlistId: 1, symbol: 'NABIL', addedAt: new Date('2026-06-06T01:00:00Z') }
+            ]
+        });
 
         const res = await request(app)
             .put('/api/watchlists/1')
             .send({ name: 'Renamed' })
             .expect(200);
 
-        expect(res.body.data.name).toBe('Renamed');
+        expect(res.body.data).toEqual({
+            id: 1,
+            name: 'Renamed',
+            createdAt: '2026-06-06T00:00:00.000Z',
+            updatedAt: '2026-06-07T00:00:00.000Z',
+            items: [
+                { symbol: 'NABIL', addedAt: '2026-06-06T01:00:00.000Z' }
+            ]
+        });
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
         expect(mockPrisma.watchlist.updateMany).toHaveBeenCalledWith({
             where: { id: 1, userId: 1 },
             data: { name: 'Renamed' }
@@ -417,6 +527,41 @@ describe('authenticated user route validation', () => {
             .expect(429);
 
         expect(res.body.error.message).toContain('Too many shared watchlist lookups');
+    });
+
+    it('redacts watchlist owner and item linkage fields from list responses', async () => {
+        mockPrisma.watchlist.findMany.mockResolvedValue([
+            {
+                id: 2,
+                name: 'My picks',
+                userId: 1,
+                publicSlug: 'shared-token',
+                createdAt: new Date('2026-06-06T00:00:00Z'),
+                updatedAt: new Date('2026-06-07T00:00:00Z'),
+                items: [
+                    { id: 12, watchlistId: 2, symbol: 'NABIL', addedAt: new Date('2026-06-06T01:00:00Z') }
+                ]
+            }
+        ]);
+
+        const res = await request(app)
+            .get('/api/watchlists')
+            .expect(200);
+
+        expect(res.body.data).toEqual([
+            {
+                id: 2,
+                name: 'My picks',
+                createdAt: '2026-06-06T00:00:00.000Z',
+                updatedAt: '2026-06-07T00:00:00.000Z',
+                items: [
+                    { symbol: 'NABIL', addedAt: '2026-06-06T01:00:00.000Z' }
+                ]
+            }
+        ]);
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
     });
 
     it('rejects invalid portfolio trade numbers before database lookup', async () => {

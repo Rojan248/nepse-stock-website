@@ -25,10 +25,34 @@ const SHARE_SLUG_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 const SHARE_SLUG_BYTES = 16;
 const isUniqueConstraintError = (error) => error?.code === 'P2002';
 
-const mapPublicWatchlistItem = (item) => ({
+const WATCHLIST_ITEM_RESPONSE_SELECT = {
+    symbol: true,
+    addedAt: true
+};
+
+const WATCHLIST_RESPONSE_SELECT = {
+    id: true,
+    name: true,
+    createdAt: true,
+    updatedAt: true
+};
+
+const mapWatchlistItem = (item) => ({
     symbol: item.symbol,
     addedAt: item.addedAt
 });
+
+const mapWatchlist = (watchlist) => {
+    if (!watchlist) return watchlist;
+
+    return {
+        id: watchlist.id,
+        name: watchlist.name,
+        createdAt: watchlist.createdAt,
+        updatedAt: watchlist.updatedAt,
+        items: Array.isArray(watchlist.items) ? watchlist.items.map(mapWatchlistItem) : []
+    };
+};
 
 const generatePublicShareSlug = () => crypto.randomBytes(SHARE_SLUG_BYTES).toString('base64url');
 
@@ -36,10 +60,16 @@ const generatePublicShareSlug = () => crypto.randomBytes(SHARE_SLUG_BYTES).toStr
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
     const watchlists = await prisma.watchlist.findMany({
         where: { userId: req.user.userId },
-        include: { items: { orderBy: { addedAt: 'desc' } } },
+        select: {
+            ...WATCHLIST_RESPONSE_SELECT,
+            items: {
+                select: WATCHLIST_ITEM_RESPONSE_SELECT,
+                orderBy: { addedAt: 'desc' }
+            }
+        },
         orderBy: { createdAt: 'asc' }
     });
-    res.json({ success: true, data: watchlists });
+    res.json({ success: true, data: watchlists.map(mapWatchlist) });
 }));
 
 // POST /api/watchlists — create a new watchlist
@@ -61,14 +91,17 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
 
             return tx.watchlist.create({
                 data: { name: nameResult.value, userId: req.user.userId },
-                include: { items: true }
+                select: {
+                    ...WATCHLIST_RESPONSE_SELECT,
+                    items: { select: WATCHLIST_ITEM_RESPONSE_SELECT }
+                }
             });
         });
     } catch (error) {
         if (sendResourceQuotaError(res, error)) return;
         throw error;
     }
-    res.status(201).json({ success: true, data: watchlist });
+    res.status(201).json({ success: true, data: mapWatchlist(watchlist) });
 }));
 
 // PUT /api/watchlists/:id — rename a watchlist
@@ -93,9 +126,15 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
 
     const updated = await prisma.watchlist.findFirst({
         where: { id, userId: req.user.userId },
-        include: { items: true }
+        select: {
+            ...WATCHLIST_RESPONSE_SELECT,
+            items: {
+                select: WATCHLIST_ITEM_RESPONSE_SELECT,
+                orderBy: { addedAt: 'desc' }
+            }
+        }
     });
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: mapWatchlist(updated) });
 }));
 
 // DELETE /api/watchlists/:id — delete a watchlist
@@ -131,7 +170,10 @@ router.post('/:id/items', requireAuth, asyncHandler(async (req, res) => {
     let item;
     try {
         item = await prisma.$transaction(async (tx) => {
-            const watchlist = await tx.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
+            const watchlist = await tx.watchlist.findFirst({
+                where: { id: watchlistId, userId: req.user.userId },
+                select: { id: true }
+            });
             if (!watchlist) {
                 return null;
             }
@@ -151,7 +193,8 @@ router.post('/:id/items', requireAuth, asyncHandler(async (req, res) => {
             });
 
             return tx.watchlistItem.create({
-                data: { watchlistId, symbol }
+                data: { watchlistId, symbol },
+                select: WATCHLIST_ITEM_RESPONSE_SELECT
             });
         });
     } catch (error) {
@@ -164,7 +207,7 @@ router.post('/:id/items', requireAuth, asyncHandler(async (req, res) => {
     if (item.duplicate) {
         return res.status(409).json({ success: false, error: { message: 'Symbol already in watchlist' } });
     }
-    res.status(201).json({ success: true, data: item });
+    res.status(201).json({ success: true, data: mapWatchlistItem(item) });
 }));
 
 // DELETE /api/watchlists/:id/items/:symbol — remove a symbol
@@ -180,7 +223,10 @@ router.delete('/:id/items/:symbol', requireAuth, asyncHandler(async (req, res) =
 
     const watchlistId = idResult.value;
     const symbol = symbolResult.value;
-    const watchlist = await prisma.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
+    const watchlist = await prisma.watchlist.findFirst({
+        where: { id: watchlistId, userId: req.user.userId },
+        select: { id: true }
+    });
     if (!watchlist) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
@@ -222,7 +268,10 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
     let outcome;
     try {
         outcome = await prisma.$transaction(async (tx) => {
-            const watchlist = await tx.watchlist.findFirst({ where: { id: watchlistId, userId: req.user.userId } });
+            const watchlist = await tx.watchlist.findFirst({
+                where: { id: watchlistId, userId: req.user.userId },
+                select: { id: true }
+            });
             if (!watchlist) {
                 return null;
             }
@@ -255,7 +304,13 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
 
             const updated = await tx.watchlist.findUnique({
                 where: { id: watchlistId },
-                include: { items: { orderBy: { addedAt: 'desc' } } }
+                select: {
+                    ...WATCHLIST_RESPONSE_SELECT,
+                    items: {
+                        select: WATCHLIST_ITEM_RESPONSE_SELECT,
+                        orderBy: { addedAt: 'desc' }
+                    }
+                }
             });
 
             return { updated, results };
@@ -269,7 +324,7 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
 
-    res.json({ success: true, data: outcome.updated, meta: outcome.results });
+    res.json({ success: true, data: mapWatchlist(outcome.updated), meta: outcome.results });
 }));
 
 // ==================== Shared/Public Watchlist ====================
@@ -283,8 +338,13 @@ router.get('/shared/:slug', shareLookupLimiter, asyncHandler(async (req, res) =>
 
     const watchlist = await prisma.watchlist.findUnique({
         where: { publicSlug: slug },
-        include: {
-            items: { orderBy: { addedAt: 'desc' } },
+        select: {
+            name: true,
+            createdAt: true,
+            items: {
+                select: WATCHLIST_ITEM_RESPONSE_SELECT,
+                orderBy: { addedAt: 'desc' }
+            },
             user: { select: { displayName: true } }
         }
     });
@@ -296,7 +356,7 @@ router.get('/shared/:slug', shareLookupLimiter, asyncHandler(async (req, res) =>
         data: {
             name: watchlist.name,
             owner: watchlist.user?.displayName || 'Anonymous',
-            items: watchlist.items.map(mapPublicWatchlistItem),
+            items: watchlist.items.map(mapWatchlistItem),
             createdAt: watchlist.createdAt
         }
     });
@@ -310,7 +370,10 @@ router.post('/:id/share', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const id = idResult.value;
-    const watchlist = await prisma.watchlist.findFirst({ where: { id, userId: req.user.userId } });
+    const watchlist = await prisma.watchlist.findFirst({
+        where: { id, userId: req.user.userId },
+        select: { publicSlug: true }
+    });
     if (!watchlist) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
@@ -339,7 +402,10 @@ router.post('/:id/unshare', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const id = idResult.value;
-    const watchlist = await prisma.watchlist.findFirst({ where: { id, userId: req.user.userId } });
+    const watchlist = await prisma.watchlist.findFirst({
+        where: { id, userId: req.user.userId },
+        select: { id: true }
+    });
     if (!watchlist) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
