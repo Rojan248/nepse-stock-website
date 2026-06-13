@@ -453,6 +453,23 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.trade.create).not.toHaveBeenCalled();
     });
 
+    it('rejects impossible portfolio trade calendar dates before database lookup', async () => {
+        const res = await request(app)
+            .post('/api/portfolios/1/trades')
+            .send({
+                symbol: 'NABIL',
+                type: 'buy',
+                quantity: 10,
+                price: 100,
+                date: '2026-02-31'
+            })
+            .expect(400);
+
+        expect(res.body.error.message).toContain('Date');
+        expect(mockPrisma.portfolio.findFirst).not.toHaveBeenCalled();
+        expect(mockPrisma.trade.create).not.toHaveBeenCalled();
+    });
+
     it('rejects overlarge integer IDs before database lookup', async () => {
         const res = await request(app)
             .post('/api/watchlists/999999999999999999/items')

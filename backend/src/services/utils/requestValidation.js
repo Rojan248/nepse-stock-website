@@ -5,6 +5,7 @@ const MAX_SQLITE_INT = 2147483647;
 const MAX_MONEY_VALUE = 1000000000000;
 const SYMBOL_PATTERN = /^[A-Z0-9]{1,20}$/;
 const NUMERIC_STRING_PATTERN = /^(?:\d+|\d*\.\d+)$/;
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const sendValidationError = (res, message) => {
     return res.status(400).json({
@@ -101,12 +102,23 @@ const parsePositiveNumber = (value, label, { max = MAX_MONEY_VALUE } = {}) => {
 };
 
 const parseRequiredDate = (value, label) => {
-    if (typeof value !== 'string' && !(value instanceof Date)) {
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime())
+            ? { error: `${label} must be a valid date` }
+            : { value };
+    }
+
+    if (typeof value !== 'string') {
         return { error: `${label} must be a valid date` };
     }
 
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
+    const dateText = value.trim();
+    if (!DATE_ONLY_PATTERN.test(dateText)) {
+        return { error: `${label} must be a valid date in YYYY-MM-DD format` };
+    }
+
+    const date = new Date(`${dateText}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== dateText) {
         return { error: `${label} must be a valid date` };
     }
     return { value: date };
