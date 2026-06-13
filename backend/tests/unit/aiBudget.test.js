@@ -34,6 +34,21 @@ describe('AI daily budget guard', () => {
         expect(mockRepository.getEstimatedCostSince).toHaveBeenCalledWith(expect.any(Date));
     });
 
+    it('blocks work when pending provider cost would exceed the daily budget', async () => {
+        mockRepository.getEstimatedCostSince.mockResolvedValue(0.49);
+
+        const state = await enforceDailyBudget({
+            dailyBudgetUsd: 0.5
+        }, {
+            pendingCostUsd: 0.02,
+            now: new Date('2026-06-07T10:15:00.000Z')
+        });
+
+        expect(state.allowed).toBe(false);
+        expect(state.reason).toBe('budget-exceeded');
+        expect(state.projectedSpendUsd).toBe(0.51);
+    });
+
     it('normalizes invalid budget values safely', () => {
         expect(normalizeBudgetUsd('bad')).toBe(0);
         expect(normalizeBudgetUsd(-2)).toBe(0);

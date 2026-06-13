@@ -5,6 +5,7 @@ const { buildMarketSummaryPayload } = require('./summaryPayloadBuilder');
 const repository = require('./summaryRepository');
 const { acquireAiLock, releaseAiLock } = require('./aiSummaryLock');
 const { enforceDailyBudget, budgetSkippedResult } = require('./aiBudget');
+const { estimateMarketCallCostUsd } = require('./aiBudgetEstimator');
 const {
     sanitizeGeneratedText,
     normalizeSentiment,
@@ -111,6 +112,12 @@ async function runMarketSummary(options = {}) {
         if (!budgetState.allowed) return budgetSkippedResult(budgetState);
 
         const payload = await buildMarketSummaryPayload(context);
+        const estimatedCallCostUsd = estimateMarketCallCostUsd(context, payload);
+        const providerBudgetState = await enforceDailyBudget(context.config, {
+            pendingCostUsd: estimatedCallCostUsd
+        });
+        if (!providerBudgetState.allowed) return budgetSkippedResult(providerBudgetState);
+
         run = await createMarketRun(payload, context);
         const response = await context.provider.generateMarketSummary(payload);
         const usage = await persistMarketSummary(payload, response, context, run);

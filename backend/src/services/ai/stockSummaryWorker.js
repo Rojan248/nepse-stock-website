@@ -5,6 +5,7 @@ const { buildStockSummaryPayload } = require('./summaryPayloadBuilder');
 const repository = require('./summaryRepository');
 const { acquireAiLock, releaseAiLock } = require('./aiSummaryLock');
 const { enforceDailyBudget, budgetSkippedResult } = require('./aiBudget');
+const { estimateStockBatchCostUsd } = require('./aiBudgetEstimator');
 const {
     sanitizeGeneratedText,
     sanitizeGeneratedList,
@@ -136,8 +137,17 @@ async function persistGeneratedBatch({ batch, response, context, run }) {
 
 async function generateStockBatches(stocksToGenerate, context, payload, run) {
     const totals = emptyTotals();
+    let generatedStocks = 0;
 
     for (const batch of chunk(stocksToGenerate, context.config.stockBatchSize)) {
+        const estimatedBatchCostUsd = estimateStockBatchCostUsd(context, payload, batch);
+        const budgetState = await enforceDailyBudget(context.config, {
+            pendingCostUsd: totals.estimatedCostUsd + estimatedBatchCostUsd
+        });
+        if (!budgetState.allowed) {
+            return { totals, generatedStocks, budgetState };
+        }
+
         const response = await context.provider.generateStockSummaries({
             periodType: context.periodType,
             periodStart: context.periodStart,
@@ -148,23 +158,28 @@ async function generateStockBatches(stocksToGenerate, context, payload, run) {
 
         await persistGeneratedBatch({ batch, response, context, run });
         addUsageTotals(totals, response);
+        generatedStocks += batch.length;
     }
 
-    return totals;
+    return { totals, generatedStocks, budgetState: null };
 }
 
-async function finishSuccessfulRun({ run, payload, stocksToGenerate, reusedStocks, totals }) {
+async function finishStockRun({ run, payload, generatedStocks, reusedStocks, totals, budgetState }) {
     await repository.finishRun(run.id, {
-        status: 'COMPLETED',
-        generatedStocks: stocksToGenerate.length,
+        status: budgetState ? 'BUDGET_STOPPED' : 'COMPLETED',
+        generatedStocks,
         reusedStocks,
-        ...totals
+        ...totals,
+        ...(budgetState ? { error: 'AI daily budget reached before remaining provider calls' } : {})
     });
 
+    const result = budgetState ? budgetSkippedResult(budgetState) : { success: true };
     return {
-        success: true,
+        ...result,
+        success: !budgetState,
+        partial: Boolean(budgetState && (generatedStocks > 0 || reusedStocks > 0)),
         requestedStocks: payload.stocks.length,
-        generatedStocks: stocksToGenerate.length,
+        generatedStocks,
         reusedStocks,
         estimatedCostUsd: Number(totals.estimatedCostUsd.toFixed(8))
     };
@@ -193,8 +208,15 @@ async function runStockSummaries(options = {}) {
         const payload = await buildStockSummaryPayload(context);
         run = await createStockRun(payload, context);
         const { stocksToGenerate, reusedStocks } = await splitReusableStocks(payload, context, run);
-        const totals = await generateStockBatches(stocksToGenerate, context, payload, run);
-        return finishSuccessfulRun({ run, payload, stocksToGenerate, reusedStocks, totals });
+        const generation = await generateStockBatches(stocksToGenerate, context, payload, run);
+        return finishStockRun({
+            run,
+            payload,
+            reusedStocks,
+            totals: generation.totals,
+            generatedStocks: generation.generatedStocks,
+            budgetState: generation.budgetState
+        });
     } catch (error) {
         await markRunFailed(run, error);
         return { success: false, error: error.message };

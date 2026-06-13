@@ -1,7 +1,9 @@
 const mockRepository = {
     getEstimatedCostSince: jest.fn(),
     createRun: jest.fn(),
-    finishRun: jest.fn()
+    finishRun: jest.fn(),
+    findReusableStockSummary: jest.fn(),
+    upsertStockSummary: jest.fn()
 };
 
 const mockLock = {
@@ -40,6 +42,8 @@ describe('AI worker budget enforcement', () => {
         mockLock.acquireAiLock.mockResolvedValue(true);
         mockLock.releaseAiLock.mockResolvedValue(undefined);
         mockRepository.getEstimatedCostSince.mockResolvedValue(0.5);
+        mockRepository.createRun.mockResolvedValue({ id: 1 });
+        mockRepository.findReusableStockSummary.mockResolvedValue(null);
     });
 
     it('skips stock generation without building payloads or calling the provider when budget is spent', async () => {
@@ -72,5 +76,67 @@ describe('AI worker budget enforcement', () => {
         expect(provider.generateMarketSummary).not.toHaveBeenCalled();
         expect(mockRepository.createRun).not.toHaveBeenCalled();
         expect(mockLock.releaseAiLock).toHaveBeenCalledWith('market_DAILY');
+    });
+
+    it('stops stock generation before the next paid provider call would exceed budget', async () => {
+        mockRepository.getEstimatedCostSince.mockResolvedValue(0.49);
+        mockPayloadBuilder.buildStockSummaryPayload.mockResolvedValue({
+            market: null,
+            stocks: [{ symbol: 'NABIL', inputHash: 'hash', changePercent: 1 }],
+            periodType: 'HOURLY',
+            periodStart: new Date('2026-06-07T10:00:00.000Z'),
+            periodEnd: new Date('2026-06-07T11:00:00.000Z')
+        });
+        const provider = {
+            name: 'deepseek',
+            model: 'test-model',
+            generateStockSummaries: jest.fn()
+        };
+
+        const result = await runStockSummaries({
+            config: {
+                ...config,
+                dailyBudgetUsd: 0.5,
+                maxStockOutputTokens: 100000
+            },
+            provider
+        });
+
+        expect(result).toMatchObject({ reason: 'budget-exceeded', generatedStocks: 0 });
+        expect(provider.generateStockSummaries).not.toHaveBeenCalled();
+        expect(mockRepository.finishRun).toHaveBeenCalledWith(1, expect.objectContaining({
+            status: 'BUDGET_STOPPED',
+            generatedStocks: 0
+        }));
+    });
+
+    it('stops market generation before a paid provider call would exceed budget', async () => {
+        mockRepository.getEstimatedCostSince.mockResolvedValue(0.49);
+        mockPayloadBuilder.buildMarketSummaryPayload.mockResolvedValue({
+            market: { indexChangePercent: 1 },
+            topGainers: [],
+            topLosers: [],
+            mostTraded: [],
+            sectorBreadth: [],
+            inputHash: 'hash'
+        });
+        const provider = {
+            name: 'deepseek',
+            model: 'test-model',
+            generateMarketSummary: jest.fn()
+        };
+
+        const result = await runMarketSummary({
+            config: {
+                ...config,
+                dailyBudgetUsd: 0.5,
+                maxMarketOutputTokens: 100000
+            },
+            provider
+        });
+
+        expect(result).toMatchObject({ skipped: true, reason: 'budget-exceeded' });
+        expect(provider.generateMarketSummary).not.toHaveBeenCalled();
+        expect(mockRepository.createRun).not.toHaveBeenCalled();
     });
 });
