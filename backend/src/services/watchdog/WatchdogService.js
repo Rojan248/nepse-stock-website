@@ -1,13 +1,12 @@
-const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const { prisma } = require('../database/connection');
 const merolagani = require('./providers/MerolaganiProvider');
 const nepseAlpha = require('./providers/NepseAlphaProvider');
 const shareSansar = require('./providers/ShareSansarProvider');
 const dataFetcher = require('../dataFetcher');
 
-const prisma = new PrismaClient();
 const LOG_FILE = path.join(__dirname, '../../../logs/watchdog_verification.json');
 const updateLock = require('../utils/updateLock');
 
