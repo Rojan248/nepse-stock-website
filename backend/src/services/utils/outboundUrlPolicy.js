@@ -7,6 +7,16 @@ const LOCAL_HOSTNAMES = new Set([
     'localhost.localdomain'
 ]);
 
+const isInIPv4Range = (parts, [startA, startB, startC], [endA, endB, endC]) => {
+    const [a, b, c] = parts;
+    if (a < startA || a > endA) return false;
+    if (a === startA && b < startB) return false;
+    if (a === endA && b > endB) return false;
+    if (a === startA && b === startB && c < startC) return false;
+    if (a === endA && b === endB && c > endC) return false;
+    return true;
+};
+
 function normalizeHost(hostname) {
     return String(hostname || '')
         .trim()
@@ -31,7 +41,7 @@ function isPrivateIPv4(address) {
         return false;
     }
 
-    const [a, b] = parts;
+    const [a, b, c] = parts;
     return (
         a === 0 ||
         a === 10 ||
@@ -40,7 +50,10 @@ function isPrivateIPv4(address) {
         (a === 169 && b === 254) ||
         (a === 172 && b >= 16 && b <= 31) ||
         (a === 192 && (b === 0 || b === 168)) ||
+        (a === 192 && b === 88 && c === 99) ||
         (a === 198 && (b === 18 || b === 19)) ||
+        isInIPv4Range(parts, [198, 51, 100], [198, 51, 100]) ||
+        isInIPv4Range(parts, [203, 0, 113], [203, 0, 113]) ||
         a >= 224
     );
 }
@@ -118,6 +131,16 @@ function hasEmbeddedPrivateIPv4(hextets) {
     return isPrivateIPv4(hextetsToIPv4(hextets[6], hextets[7]));
 }
 
+function hasNat64EmbeddedPrivateIPv4(hextets) {
+    const isWellKnownNat64 = (
+        hextets[0] === 0x0064
+        && hextets[1] === 0xff9b
+        && hextets.slice(2, 6).every(part => part === 0)
+    );
+
+    return isWellKnownNat64 && isPrivateIPv4(hextetsToIPv4(hextets[6], hextets[7]));
+}
+
 function isPrivateIPv6(address) {
     const value = normalizeHost(address).split('%')[0];
     const hextets = parseIpv6Hextets(value);
@@ -131,10 +154,16 @@ function isPrivateIPv6(address) {
         isUnspecified ||
         isLoopback ||
         hasEmbeddedPrivateIPv4(hextets) ||
+        hasNat64EmbeddedPrivateIPv4(hextets) ||
         (firstHextet & 0xfe00) === 0xfc00 ||
         (firstHextet & 0xffc0) === 0xfe80 ||
         (firstHextet & 0xff00) === 0xff00 ||
-        (hextets[0] === 0x2001 && hextets[1] === 0x0db8)
+        (hextets[0] === 0x0064 && hextets[1] === 0xff9b && hextets[2] === 0x0001) ||
+        (hextets[0] === 0x0100 && hextets[1] === 0x0000 && hextets[2] === 0x0000 && hextets[3] === 0x0000) ||
+        (hextets[0] === 0x2001 && hextets[1] === 0x0000) ||
+        (hextets[0] === 0x2001 && hextets[1] === 0x0002 && hextets[2] === 0x0000) ||
+        (hextets[0] === 0x2001 && hextets[1] === 0x0db8) ||
+        (hextets[0] === 0x2002)
     );
 }
 

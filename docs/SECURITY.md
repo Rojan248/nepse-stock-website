@@ -84,6 +84,8 @@ The application automatically halts in production if `ADMIN_API_KEY` or `JWT_SEC
 
 Always run the node server behind a secure reverse proxy (e.g., Nginx, Cloudflare) that enforces TLS 1.3, HSTS headers, and drops overly large HTTP payloads.
 
+Outbound webhook and AI-provider URLs must use HTTPS, reject redirects, and are checked against private, reserved, documentation, and transition-address ranges both before request creation and during DNS lookup.
+
 ---
 
-*Security documentation updated: June 6, 2026*
+*Security documentation updated: June 13, 2026*
