@@ -152,6 +152,37 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
+    it('does not hide unexpected watchlist import write failures as duplicate skips', async () => {
+        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+        mockPrisma.watchlistItem.findMany.mockResolvedValue([]);
+        mockPrisma.watchlistItem.create.mockRejectedValue(new Error('database unavailable'));
+
+        const res = await request(app)
+            .post('/api/watchlists/1/import')
+            .send({ symbols: ['NABIL'] })
+            .expect(500);
+
+        expect(res.body.error.message).toBe('Internal Server Error');
+        expect(mockPrisma.watchlist.findUnique).not.toHaveBeenCalled();
+        expect(mockPrisma.watchlistItem.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts watchlist import unique collisions as duplicate skips', async () => {
+        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+        mockPrisma.watchlist.findUnique.mockResolvedValue({ id: 1, items: [] });
+        mockPrisma.watchlistItem.findMany.mockResolvedValue([]);
+        mockPrisma.watchlistItem.create.mockRejectedValueOnce({ code: 'P2002' });
+        mockPrisma.watchlistItem.create.mockResolvedValueOnce({});
+
+        const res = await request(app)
+            .post('/api/watchlists/1/import')
+            .send({ symbols: ['NABIL', 'EBL'] })
+            .expect(200);
+
+        expect(res.body.meta).toEqual({ added: 1, skipped: 1 });
+        expect(mockPrisma.watchlistItem.create).toHaveBeenCalledTimes(2);
+    });
+
     it('rejects watchlist creation after the per-user quota is reached', async () => {
         mockPrisma.watchlist.count.mockResolvedValue(25);
 

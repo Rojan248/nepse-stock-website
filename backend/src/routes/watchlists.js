@@ -23,6 +23,7 @@ const {
 
 const SHARE_SLUG_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 const SHARE_SLUG_BYTES = 16;
+const isUniqueConstraintError = (error) => error?.code === 'P2002';
 
 const mapPublicWatchlistItem = (item) => ({
     symbol: item.symbol,
@@ -244,8 +245,11 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
                 try {
                     await tx.watchlistItem.create({ data: { watchlistId, symbol } });
                     results.added++;
-                } catch {
-                    results.skipped++; // duplicate
+                } catch (error) {
+                    if (!isUniqueConstraintError(error)) {
+                        throw error;
+                    }
+                    results.skipped++;
                 }
             }
 
