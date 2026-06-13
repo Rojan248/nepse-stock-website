@@ -139,10 +139,15 @@ class AnalyticsService {
      * @param {string} symbol - Stock symbol
      * @param {string} interactionType - 'views' or 'searches'
      */
-    recordInteraction(symbol, interactionType) {
-        if (!this.isValidInput(symbol)) return;
-
+    normalizeTrackedSymbol(symbol) {
+        if (!this.isValidInput(symbol)) return null;
         const upperSymbol = symbol.toUpperCase();
+        return /^[A-Z0-9]{1,20}$/.test(upperSymbol) ? upperSymbol : null;
+    }
+
+    recordInteraction(symbol, interactionType) {
+        const upperSymbol = this.normalizeTrackedSymbol(symbol);
+        if (!upperSymbol) return;
 
         // Prevent map explosion: If full and new key, ignore
         if (!this.scores.has(upperSymbol) && this.scores.size >= this.MAX_ENTRIES) {
@@ -170,18 +175,25 @@ class AnalyticsService {
     /**
      * Record a stock search
      */
-    recordSearch(query) {
-        this.recordInteraction(query, 'searches');
+    recordSearch(query, matchedStocks = []) {
+        const upperQuery = this.normalizeTrackedSymbol(query);
+        if (!upperQuery || !Array.isArray(matchedStocks)) return;
+
+        const hasExactSymbolMatch = matchedStocks.some((stock) =>
+            this.normalizeTrackedSymbol(stock?.symbol) === upperQuery
+        );
+        if (!hasExactSymbolMatch) return;
+
+        this.recordInteraction(upperQuery, 'searches');
     }
 
     /**
-     * Validate input to prevent spam/garbage (DoS protection)
+     * Validate stock-symbol input to prevent spam/garbage (DoS protection)
      */
     isValidInput(text) {
         if (!text || typeof text !== 'string') return false;
         if (text.length < 2 || text.length > 20) return false; // Stock symbols are usually 3-4 chars
-        // Allow only alphanumeric and common separators (dot/dash)
-        return /^[a-zA-Z0-9\-\.]+$/.test(text);
+        return /^[a-zA-Z0-9]+$/.test(text);
     }
 
     /**

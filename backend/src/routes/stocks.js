@@ -107,8 +107,8 @@ router.get('/search', searchLimiter, asyncHandler(async (req, res) => {
 
     const stocks = await stockOperations.searchStocks(queryResult.value);
 
-    // Record search for analytics
-    analytics.recordSearch(queryResult.value);
+    // Record exact stock-symbol hits only; broad or empty searches should not pollute trending.
+    analytics.recordSearch(queryResult.value, stocks);
 
     res.json({
         success: true,
