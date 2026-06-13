@@ -8,6 +8,7 @@ const logger = require('./utils/logger');
 // TTL Cache - 60 seconds
 const CACHE_TTL_MS = 60 * 1000;
 const depthCache = new Map();
+const pendingDepthFetches = new Map();
 
 /**
  * Generate mock market depth data for development/weekend testing
@@ -196,20 +197,7 @@ function isEmptyMarketData(data) {
     return !data.marketDepth.buy.length && !data.marketDepth.sell.length && !data.floorsheet.length;
 }
 
-/**
- * Get market depth for a symbol (with caching)
- */
-async function getDepth(symbol) {
-    const upperSymbol = symbol.toUpperCase();
-    const now = Date.now();
-
-    // Check cache
-    const cached = depthCache.get(upperSymbol);
-    if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) {
-        logger.debug(`Depth cache HIT for ${upperSymbol}`);
-        return cached.data;
-    }
-
+async function fetchDepthAndCache(upperSymbol, fetchedAt) {
     logger.info(`Depth cache MISS for ${upperSymbol}, fetching...`);
 
     let data;
@@ -233,10 +221,37 @@ async function getDepth(symbol) {
     // Save to cache
     depthCache.set(upperSymbol, {
         data,
-        fetchedAt: now
+        fetchedAt
     });
 
     return data;
+}
+
+/**
+ * Get market depth for a symbol (with caching and cache-miss coalescing)
+ */
+async function getDepth(symbol) {
+    const upperSymbol = symbol.toUpperCase();
+    const now = Date.now();
+
+    const cached = depthCache.get(upperSymbol);
+    if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) {
+        logger.debug(`Depth cache HIT for ${upperSymbol}`);
+        return cached.data;
+    }
+
+    const pending = pendingDepthFetches.get(upperSymbol);
+    if (pending) {
+        logger.debug(`Depth cache WAIT for ${upperSymbol}`);
+        return pending;
+    }
+
+    const fetchPromise = fetchDepthAndCache(upperSymbol, now)
+        .finally(() => {
+            pendingDepthFetches.delete(upperSymbol);
+        });
+    pendingDepthFetches.set(upperSymbol, fetchPromise);
+    return fetchPromise;
 }
 
 /**
@@ -244,6 +259,7 @@ async function getDepth(symbol) {
  */
 function clearCache() {
     depthCache.clear();
+    pendingDepthFetches.clear();
     logger.info('Depth cache cleared');
 }
 

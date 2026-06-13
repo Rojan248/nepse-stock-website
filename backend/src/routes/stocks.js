@@ -4,7 +4,7 @@ const { performance } = require('perf_hooks');
 const stockOperations = require('../services/database/stockOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
-const { searchLimiter, adminLimiter } = require('../middleware/rateLimiter');
+const { searchLimiter, adminLimiter, depthLookupLimiter } = require('../middleware/rateLimiter');
 const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
@@ -362,7 +362,7 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
  * GET /api/stocks/:symbol/depth
  * Get market depth (Level 2 data) and floorsheet for a stock
  */
-router.get('/:symbol/depth', asyncHandler(async (req, res) => {
+router.get('/:symbol/depth', depthLookupLimiter, asyncHandler(async (req, res) => {
     const symbolResult = normalizeSymbolParam(req.params.symbol);
     if (symbolResult.error) {
         return res.status(400).json({

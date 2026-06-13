@@ -81,10 +81,13 @@ jest.mock('../../src/services/database/connection', () => ({
 const stockOperations = require('../../src/services/database/stockOperations');
 const depthFetcher = require('../../src/services/depthFetcher');
 const { prisma } = require('../../src/services/database/connection');
+const { depthLookupLimiter } = require('../../src/middleware/rateLimiter');
 
 describe('Stock API Endpoints', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        depthLookupLimiter.resetKey('::ffff:127.0.0.1');
+        depthLookupLimiter.resetKey('127.0.0.1');
         mockNepseAxiosGet.mockResolvedValue({ data: [{ symbol: 'NABIL' }] });
         prisma.marketHistory.findMany.mockResolvedValue([]);
         prisma.stockMetrics.findMany.mockResolvedValue([]);
@@ -299,6 +302,18 @@ describe('Stock API Endpoints', () => {
             const res = await request(app).get('/api/stocks/NABIL/depth');
             expect(res.status).toBe(200);
             expect(depthFetcher.getDepth).toHaveBeenCalledWith('NABIL');
+        });
+
+        it('should rate limit repeated depth lookups before external helper calls', async () => {
+            for (let i = 0; i < 20; i++) {
+                await request(app).get('/api/stocks/NABIL/depth').expect(200);
+            }
+            depthFetcher.getDepth.mockClear();
+
+            const res = await request(app).get('/api/stocks/NABIL/depth').expect(429);
+
+            expect(res.body.error.message).toContain('Too many market depth lookups');
+            expect(depthFetcher.getDepth).not.toHaveBeenCalled();
         });
     });
 

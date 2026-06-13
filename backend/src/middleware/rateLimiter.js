@@ -92,6 +92,26 @@ const shareLookupLimiter = rateLimit({
     }
 });
 
+// Market depth can fan out to multiple upstream NEPSE calls on cache misses.
+// Keep it stricter than ordinary market-data reads to avoid upstream flagging.
+const depthLookupLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        error: {
+            message: 'Too many market depth lookups. Please slow down.',
+            retryAfter: 60
+        }
+    },
+    handler: (req, res, next, options) => {
+        logger.warn(`[RateLimit] Market depth lookup limit exceeded: ${req.ip}`);
+        res.status(429).json(options.message);
+    }
+});
+
 // Login brute-force protection: 5 attempts per 15 minutes per IP
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -154,6 +174,7 @@ module.exports = {
     adminLimiter,
     searchLimiter,
     shareLookupLimiter,
+    depthLookupLimiter,
     loginLimiter,
     registrationLimiter,
     refreshLimiter

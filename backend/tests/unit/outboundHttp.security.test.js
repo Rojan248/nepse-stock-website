@@ -272,6 +272,35 @@ describe('outbound HTTP security controls', () => {
         );
     });
 
+    it('coalesces concurrent market depth cache misses for one symbol', async () => {
+        const depthFetcher = rewire(modulePath('services/depthFetcher'));
+        const liveDepth = {
+            marketDepth: { buy: [{ orders: 1, quantity: 10, rate: 500 }], sell: [] },
+            floorsheet: [],
+            source: 'live',
+            timestamp: '2026-06-13T00:00:00.000Z'
+        };
+        let resolveFetch;
+        const fetchRealDepth = jest.fn(() => new Promise((resolve) => {
+            resolveFetch = () => resolve(liveDepth);
+        }));
+
+        depthFetcher.__set__('logger', mockLogger);
+        depthFetcher.__set__('fetchRealDepth', fetchRealDepth);
+
+        const first = depthFetcher.getDepth('NABIL');
+        const second = depthFetcher.getDepth('nabil');
+        const third = depthFetcher.getDepth('NABIL');
+        await Promise.resolve();
+
+        expect(fetchRealDepth).toHaveBeenCalledTimes(1);
+        resolveFetch();
+        await expect(Promise.all([first, second, third])).resolves.toEqual([liveDepth, liveDepth, liveDepth]);
+
+        await expect(depthFetcher.getDepth('NABIL')).resolves.toBe(liveDepth);
+        expect(fetchRealDepth).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps the disabled ShareSansar watchdog provider safe and non-throwing', async () => {
         jest.doMock('../../src/services/utils/logger', () => mockLogger);
         const provider = require('../../src/services/watchdog/providers/ShareSansarProvider');
