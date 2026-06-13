@@ -622,6 +622,17 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.alert.update).not.toHaveBeenCalled();
     });
 
+    it('rejects no-op alert updates before database lookup', async () => {
+        const res = await request(app)
+            .put('/api/alerts/1')
+            .send({ symbol: 'NABIL' })
+            .expect(400);
+
+        expect(res.body.error.message).toContain('At least one');
+        expect(mockPrisma.alert.updateMany).not.toHaveBeenCalled();
+        expect(mockPrisma.alert.findFirst).not.toHaveBeenCalled();
+    });
+
     it('rejects array thresholds before alert lookup', async () => {
         const res = await request(app)
             .post('/api/alerts')

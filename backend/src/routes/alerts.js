@@ -103,6 +103,9 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
         }
         updateData.condition = req.body.condition;
     }
+    if (Object.keys(updateData).length === 0) {
+        return sendValidationError(res, 'At least one of enabled, threshold, or condition is required');
+    }
 
     const id = idResult.value;
     const result = await prisma.alert.updateMany({
