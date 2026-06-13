@@ -18,15 +18,60 @@ const {
 } = require('../services/utils/resourceQuotas');
 
 const VALID_CONDITIONS = ['above', 'below', 'pct_change'];
+const ALERT_SELECT = {
+    id: true,
+    symbol: true,
+    condition: true,
+    threshold: true,
+    enabled: true,
+    createdAt: true,
+    triggeredAt: true
+};
+const ALERT_DELIVERY_SELECT = {
+    triggeredAt: true,
+    priceAtTrigger: true,
+    channel: true
+};
+
+const mapAlertDelivery = (delivery) => ({
+    triggeredAt: delivery.triggeredAt,
+    priceAtTrigger: delivery.priceAtTrigger,
+    channel: delivery.channel
+});
+
+const mapAlert = (alert) => {
+    if (!alert) return alert;
+
+    const mapped = {
+        id: alert.id,
+        symbol: alert.symbol,
+        condition: alert.condition,
+        threshold: alert.threshold,
+        enabled: alert.enabled,
+        createdAt: alert.createdAt,
+        triggeredAt: alert.triggeredAt
+    };
+    if (Array.isArray(alert.deliveries)) {
+        mapped.deliveries = alert.deliveries.map(mapAlertDelivery);
+    }
+    return mapped;
+};
 
 // GET /api/alerts — list user's alerts
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
     const alerts = await prisma.alert.findMany({
         where: { userId: req.user.userId },
-        include: { deliveries: { orderBy: { triggeredAt: 'desc' }, take: 5 } },
+        select: {
+            ...ALERT_SELECT,
+            deliveries: {
+                select: ALERT_DELIVERY_SELECT,
+                orderBy: { triggeredAt: 'desc' },
+                take: 5
+            }
+        },
         orderBy: { createdAt: 'desc' }
     });
-    res.json({ success: true, data: alerts });
+    res.json({ success: true, data: alerts.map(mapAlert) });
 }));
 
 // POST /api/alerts — create an alert
@@ -64,7 +109,8 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
                     symbol: symbolResult.value,
                     condition,
                     threshold: thresholdResult.value
-                }
+                },
+                select: ALERT_SELECT
             });
         });
     } catch (error) {
@@ -72,7 +118,7 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
         throw error;
     }
     logger.info(`Alert created: ${alert.symbol} ${alert.condition} ${alert.threshold} for user ${req.user.userId}`);
-    res.status(201).json({ success: true, data: alert });
+    res.status(201).json({ success: true, data: mapAlert(alert) });
 }));
 
 // PUT /api/alerts/:id — update (toggle enabled, change threshold)
@@ -116,8 +162,11 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, error: { message: 'Alert not found' } });
     }
 
-    const updated = await prisma.alert.findFirst({ where: { id, userId: req.user.userId } });
-    res.json({ success: true, data: updated });
+    const updated = await prisma.alert.findFirst({
+        where: { id, userId: req.user.userId },
+        select: ALERT_SELECT
+    });
+    res.json({ success: true, data: mapAlert(updated) });
 }));
 
 // DELETE /api/alerts/:id

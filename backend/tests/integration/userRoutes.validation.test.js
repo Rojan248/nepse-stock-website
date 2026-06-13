@@ -622,6 +622,55 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.alert.update).not.toHaveBeenCalled();
     });
 
+    it('redacts alert owner and delivery linkage fields from list responses', async () => {
+        mockPrisma.alert.findMany.mockResolvedValue([
+            {
+                id: 10,
+                userId: 1,
+                symbol: 'NABIL',
+                condition: 'above',
+                threshold: 100,
+                enabled: true,
+                createdAt: new Date('2026-06-06T00:00:00Z'),
+                triggeredAt: null,
+                deliveries: [
+                    {
+                        id: 55,
+                        alertId: 10,
+                        triggeredAt: new Date('2026-06-07T00:00:00Z'),
+                        priceAtTrigger: 101,
+                        channel: 'in-app'
+                    }
+                ]
+            }
+        ]);
+
+        const res = await request(app)
+            .get('/api/alerts')
+            .expect(200);
+
+        expect(res.body.data).toEqual([
+            {
+                id: 10,
+                symbol: 'NABIL',
+                condition: 'above',
+                threshold: 100,
+                enabled: true,
+                createdAt: '2026-06-06T00:00:00.000Z',
+                triggeredAt: null,
+                deliveries: [
+                    {
+                        triggeredAt: '2026-06-07T00:00:00.000Z',
+                        priceAtTrigger: 101,
+                        channel: 'in-app'
+                    }
+                ]
+            }
+        ]);
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expect(JSON.stringify(res.body)).not.toContain('alertId');
+    });
+
     it('rejects no-op alert updates before database lookup', async () => {
         const res = await request(app)
             .put('/api/alerts/1')
@@ -656,6 +705,35 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
+    it('redacts alert owner fields from create responses', async () => {
+        mockPrisma.alert.create.mockResolvedValue({
+            id: 2,
+            userId: 1,
+            symbol: 'NABIL',
+            condition: 'above',
+            threshold: 100,
+            enabled: true,
+            createdAt: new Date('2026-06-06T00:00:00Z'),
+            triggeredAt: null
+        });
+
+        const res = await request(app)
+            .post('/api/alerts')
+            .send({ symbol: 'NABIL', condition: 'above', threshold: 100 })
+            .expect(201);
+
+        expect(res.body.data).toEqual({
+            id: 2,
+            symbol: 'NABIL',
+            condition: 'above',
+            threshold: 100,
+            enabled: true,
+            createdAt: '2026-06-06T00:00:00.000Z',
+            triggeredAt: null
+        });
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+    });
+
     it('updates alerts with an owner-bound write', async () => {
         mockPrisma.alert.updateMany.mockResolvedValue({ count: 1 });
         mockPrisma.alert.findFirst.mockResolvedValue({ id: 1, userId: 1, enabled: false });
@@ -666,6 +744,7 @@ describe('authenticated user route validation', () => {
             .expect(200);
 
         expect(res.body.data.enabled).toBe(false);
+        expect(JSON.stringify(res.body)).not.toContain('userId');
         expect(mockPrisma.alert.updateMany).toHaveBeenCalledWith({
             where: { id: 1, userId: 1 },
             data: { enabled: false }
