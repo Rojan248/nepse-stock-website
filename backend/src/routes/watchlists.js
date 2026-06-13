@@ -82,14 +82,16 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const id = idResult.value;
-    const watchlist = await prisma.watchlist.findFirst({ where: { id, userId: req.user.userId } });
-    if (!watchlist) {
+    const result = await prisma.watchlist.updateMany({
+        where: { id, userId: req.user.userId },
+        data: { name: nameResult.value }
+    });
+    if (result.count !== 1) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
 
-    const updated = await prisma.watchlist.update({
-        where: { id },
-        data: { name: nameResult.value },
+    const updated = await prisma.watchlist.findFirst({
+        where: { id, userId: req.user.userId },
         include: { items: true }
     });
     res.json({ success: true, data: updated });
@@ -103,11 +105,10 @@ router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const id = idResult.value;
-    const watchlist = await prisma.watchlist.findFirst({ where: { id, userId: req.user.userId } });
-    if (!watchlist) {
+    const result = await prisma.watchlist.deleteMany({ where: { id, userId: req.user.userId } });
+    if (result.count !== 1) {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
-    await prisma.watchlist.delete({ where: { id } });
     res.json({ success: true, data: { message: 'Watchlist deleted' } });
 }));
 
@@ -190,7 +191,16 @@ router.delete('/:id/items/:symbol', requireAuth, asyncHandler(async (req, res) =
         return res.status(404).json({ success: false, error: { message: 'Symbol not in watchlist' } });
     }
 
-    await prisma.watchlistItem.delete({ where: { id: item.id } });
+    const result = await prisma.watchlistItem.deleteMany({
+        where: {
+            id: item.id,
+            watchlistId,
+            watchlist: { is: { userId: req.user.userId } }
+        }
+    });
+    if (result.count !== 1) {
+        return res.status(404).json({ success: false, error: { message: 'Symbol not in watchlist' } });
+    }
     res.json({ success: true, data: { message: `${symbol} removed from watchlist` } });
 }));
 
@@ -305,7 +315,13 @@ router.post('/:id/share', requireAuth, asyncHandler(async (req, res) => {
     let slug = watchlist.publicSlug;
     if (!slug) {
         slug = generatePublicShareSlug();
-        await prisma.watchlist.update({ where: { id }, data: { publicSlug: slug } });
+        const result = await prisma.watchlist.updateMany({
+            where: { id, userId: req.user.userId },
+            data: { publicSlug: slug }
+        });
+        if (result.count !== 1) {
+            return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
+        }
     }
 
     res.json({ success: true, data: { publicSlug: slug, shareUrl: `/w/${slug}` } });
@@ -324,7 +340,13 @@ router.post('/:id/unshare', requireAuth, asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
     }
 
-    await prisma.watchlist.update({ where: { id }, data: { publicSlug: null } });
+    const result = await prisma.watchlist.updateMany({
+        where: { id, userId: req.user.userId },
+        data: { publicSlug: null }
+    });
+    if (result.count !== 1) {
+        return res.status(404).json({ success: false, error: { message: 'Watchlist not found' } });
+    }
     res.json({ success: true, data: { message: 'Watchlist is now private' } });
 }));
 

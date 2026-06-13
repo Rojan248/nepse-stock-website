@@ -105,12 +105,15 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const id = idResult.value;
-    const alert = await prisma.alert.findFirst({ where: { id, userId: req.user.userId } });
-    if (!alert) {
+    const result = await prisma.alert.updateMany({
+        where: { id, userId: req.user.userId },
+        data: updateData
+    });
+    if (result.count !== 1) {
         return res.status(404).json({ success: false, error: { message: 'Alert not found' } });
     }
 
-    const updated = await prisma.alert.update({ where: { id }, data: updateData });
+    const updated = await prisma.alert.findFirst({ where: { id, userId: req.user.userId } });
     res.json({ success: true, data: updated });
 }));
 
@@ -122,11 +125,10 @@ router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const id = idResult.value;
-    const alert = await prisma.alert.findFirst({ where: { id, userId: req.user.userId } });
-    if (!alert) {
+    const result = await prisma.alert.deleteMany({ where: { id, userId: req.user.userId } });
+    if (result.count !== 1) {
         return res.status(404).json({ success: false, error: { message: 'Alert not found' } });
     }
-    await prisma.alert.delete({ where: { id } });
     res.json({ success: true, data: { message: 'Alert deleted' } });
 }));
 

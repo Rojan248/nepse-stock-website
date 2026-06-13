@@ -68,11 +68,10 @@ router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
     }
 
     const id = idResult.value;
-    const portfolio = await prisma.portfolio.findFirst({ where: { id, userId: req.user.userId } });
-    if (!portfolio) {
+    const result = await prisma.portfolio.deleteMany({ where: { id, userId: req.user.userId } });
+    if (result.count !== 1) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
     }
-    await prisma.portfolio.delete({ where: { id } });
     res.json({ success: true, data: { message: 'Portfolio deleted' } });
 }));
 
@@ -175,7 +174,16 @@ router.delete('/:id/trades/:tradeId', requireAuth, asyncHandler(async (req, res)
         return res.status(404).json({ success: false, error: { message: 'Trade not found' } });
     }
 
-    await prisma.trade.delete({ where: { id: tradeId } });
+    const result = await prisma.trade.deleteMany({
+        where: {
+            id: tradeId,
+            portfolioId,
+            portfolio: { is: { userId: req.user.userId } }
+        }
+    });
+    if (result.count !== 1) {
+        return res.status(404).json({ success: false, error: { message: 'Trade not found' } });
+    }
     res.json({ success: true, data: { message: 'Trade deleted' } });
 }));
 
