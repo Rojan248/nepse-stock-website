@@ -35,6 +35,25 @@ const MAX_EMAIL_LENGTH = 254;
 const MIN_PASSWORD_LENGTH = 12;
 const MAX_PASSWORD_BYTES = 72;
 const MAX_DISPLAY_NAME_LENGTH = 80;
+const REGISTRATION_USER_SELECT = { id: true };
+const LOGIN_USER_SELECT = {
+    id: true,
+    email: true,
+    displayName: true,
+    role: true,
+    passwordHash: true,
+    failedLoginAttempts: true,
+    lockedUntil: true,
+    accessTokenVersion: true
+};
+const REFRESH_USER_SELECT = {
+    id: true,
+    email: true,
+    displayName: true,
+    role: true,
+    lockedUntil: true,
+    accessTokenVersion: true
+};
 
 const normalizeEmail = (email) => {
     if (typeof email !== 'string') return null;
@@ -99,7 +118,8 @@ const createRefreshToken = async (userId) => {
     // Enforce limit of 5 refresh tokens per user
     const tokens = await prisma.refreshToken.findMany({
         where: { userId },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' },
+        select: { id: true }
     });
 
     if (tokens.length >= 5) {
@@ -165,7 +185,10 @@ router.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
         return sendRegistrationProcessed(res);
     }
 
-    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const existing = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: REGISTRATION_USER_SELECT
+    });
     if (existing) {
         await bcrypt.hash(password, SALT_ROUNDS);
         logger.info(`Registration request processed for existing account: ${normalizedEmail}`);
@@ -204,7 +227,10 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, error: { message: 'Email and password required' } });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: LOGIN_USER_SELECT
+    });
     const valid = await bcrypt.compare(password, user?.passwordHash || DUMMY_PASSWORD_HASH);
 
     if (!user) {
@@ -283,7 +309,10 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
         return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: stored.userId } });
+    const user = await prisma.user.findUnique({
+        where: { id: stored.userId },
+        select: REFRESH_USER_SELECT
+    });
     if (!user) {
         await prisma.refreshToken.delete({ where: { id: stored.id } });
         clearRefreshCookie(res);

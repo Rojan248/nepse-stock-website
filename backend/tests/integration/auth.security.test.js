@@ -126,7 +126,8 @@ describe('auth route security hardening', () => {
         });
         expect(res.headers['set-cookie']).toBeUndefined();
         expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-            where: { email: 'person@example.com' }
+            where: { email: 'person@example.com' },
+            select: { id: true }
         });
         expect(mockPrisma.user.create).toHaveBeenCalledWith({
             data: {
@@ -164,6 +165,10 @@ describe('auth route security hardening', () => {
             data: { message: 'Registration processed. Sign in to continue.' }
         });
         expect(res.headers['set-cookie']).toBeUndefined();
+        expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+            where: { email: 'person@example.com' },
+            select: { id: true }
+        });
         expect(bcrypt.hash).toHaveBeenCalledWith('StrongPass123', 12);
         expect(mockPrisma.user.create).not.toHaveBeenCalled();
         expect(mockPrisma.watchlist.create).not.toHaveBeenCalled();
@@ -263,6 +268,19 @@ describe('auth route security hardening', () => {
             .expect(401);
 
         expect(res.body.error.message).toBe('Invalid credentials');
+        expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+            where: { email: 'missing@example.com' },
+            select: {
+                id: true,
+                email: true,
+                displayName: true,
+                role: true,
+                passwordHash: true,
+                failedLoginAttempts: true,
+                lockedUntil: true,
+                accessTokenVersion: true
+            }
+        });
         expect(bcrypt.compare).toHaveBeenCalledWith(
             'WrongPassword123',
             expect.stringMatching(/^\$2b\$12\$/)
@@ -364,6 +382,22 @@ describe('auth route security hardening', () => {
 
         expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
             where: { token: sha256(rawRefreshToken) }
+        });
+        expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+            where: { id: 1 },
+            select: {
+                id: true,
+                email: true,
+                displayName: true,
+                role: true,
+                lockedUntil: true,
+                accessTokenVersion: true
+            }
+        });
+        expect(mockPrisma.refreshToken.findMany).toHaveBeenCalledWith({
+            where: { userId: 1 },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true }
         });
         expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({ where: { id: 7 } });
         expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith({
