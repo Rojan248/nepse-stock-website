@@ -381,7 +381,8 @@ describe('auth route security hardening', () => {
             .expect(200);
 
         expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
-            where: { token: sha256(rawRefreshToken) }
+            where: { token: sha256(rawRefreshToken) },
+            select: { id: true, userId: true, expiresAt: true }
         });
         expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
             where: { id: 1 },
@@ -404,7 +405,8 @@ describe('auth route security hardening', () => {
             data: expect.objectContaining({
                 token: expect.stringMatching(/^[a-f0-9]{64}$/),
                 userId: 1
-            })
+            }),
+            select: { id: true }
         });
     });
 

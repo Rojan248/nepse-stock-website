@@ -54,6 +54,12 @@ const REFRESH_USER_SELECT = {
     lockedUntil: true,
     accessTokenVersion: true
 };
+const REFRESH_TOKEN_LOOKUP_SELECT = {
+    id: true,
+    userId: true,
+    expiresAt: true
+};
+const REFRESH_TOKEN_CREATE_SELECT = { id: true };
 
 const normalizeEmail = (email) => {
     if (typeof email !== 'string') return null;
@@ -133,7 +139,10 @@ const createRefreshToken = async (userId) => {
     const token = crypto.randomBytes(40).toString('hex');
     const hashedToken = hashToken(token);
     const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-    await prisma.refreshToken.create({ data: { token: hashedToken, userId, expiresAt } });
+    await prisma.refreshToken.create({
+        data: { token: hashedToken, userId, expiresAt },
+        select: REFRESH_TOKEN_CREATE_SELECT
+    });
     return token;
 };
 
@@ -302,7 +311,10 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
     }
 
     const hashedToken = hashToken(refreshToken);
-    const stored = await prisma.refreshToken.findUnique({ where: { token: hashedToken } });
+    const stored = await prisma.refreshToken.findUnique({
+        where: { token: hashedToken },
+        select: REFRESH_TOKEN_LOOKUP_SELECT
+    });
     if (!stored || stored.expiresAt < new Date()) {
         if (stored) await prisma.refreshToken.delete({ where: { id: stored.id } });
         clearRefreshCookie(res);
