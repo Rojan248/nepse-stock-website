@@ -295,7 +295,10 @@ router.post('/:id/import', requireAuth, asyncHandler(async (req, res) => {
             const results = { added: 0, skipped: 0 };
             for (const symbol of symbolsResult.value) {
                 try {
-                    await tx.watchlistItem.create({ data: { watchlistId, symbol } });
+                    await tx.watchlistItem.create({
+                        data: { watchlistId, symbol },
+                        select: WATCHLIST_ITEM_OWNERSHIP_SELECT
+                    });
                     results.added++;
                 } catch (error) {
                     if (!isUniqueConstraintError(error)) {

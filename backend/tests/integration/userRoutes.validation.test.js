@@ -144,10 +144,12 @@ describe('authenticated user route validation', () => {
         expect(res.body.success).toBe(true);
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledTimes(2);
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
-            data: { watchlistId: 1, symbol: 'NABIL' }
+            data: { watchlistId: 1, symbol: 'NABIL' },
+            select: { id: true }
         });
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
-            data: { watchlistId: 1, symbol: 'EBL' }
+            data: { watchlistId: 1, symbol: 'EBL' },
+            select: { id: true }
         });
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
@@ -165,6 +167,10 @@ describe('authenticated user route validation', () => {
         expect(res.body.error.message).toBe('Internal Server Error');
         expect(mockPrisma.watchlist.findUnique).not.toHaveBeenCalled();
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
+            data: { watchlistId: 1, symbol: 'NABIL' },
+            select: { id: true }
+        });
     });
 
     it('counts watchlist import unique collisions as duplicate skips', async () => {
@@ -181,6 +187,14 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.meta).toEqual({ added: 1, skipped: 1 });
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledTimes(2);
+        expect(mockPrisma.watchlistItem.create).toHaveBeenNthCalledWith(1, {
+            data: { watchlistId: 1, symbol: 'NABIL' },
+            select: { id: true }
+        });
+        expect(mockPrisma.watchlistItem.create).toHaveBeenNthCalledWith(2, {
+            data: { watchlistId: 1, symbol: 'EBL' },
+            select: { id: true }
+        });
     });
 
     it('redacts watchlist internals from import responses', async () => {
