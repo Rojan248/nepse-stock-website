@@ -159,7 +159,7 @@ const cleanExpiredTokens = async (userId) => {
 
 const revokeAccessTokens = async (userId) => {
     if (!Number.isSafeInteger(userId) || userId <= 0) return;
-    await prisma.user.update({
+    await prisma.user.updateMany({
         where: { id: userId },
         data: { accessTokenVersion: { increment: 1 } }
     });

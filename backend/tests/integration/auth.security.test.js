@@ -15,7 +15,8 @@ const mockPrisma = {
     user: {
         create: jest.fn(),
         findUnique: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        updateMany: jest.fn()
     },
     watchlist: {
         create: jest.fn()
@@ -77,6 +78,7 @@ describe('auth route security hardening', () => {
         mockPrisma.refreshToken.findMany.mockResolvedValue([]);
         mockPrisma.refreshToken.deleteMany.mockResolvedValue({ count: 0 });
         mockPrisma.refreshToken.create.mockResolvedValue({ id: 1 });
+        mockPrisma.user.updateMany.mockResolvedValue({ count: 1 });
         mockPrisma.watchlist.create.mockResolvedValue({ id: 1 });
     });
 
@@ -356,10 +358,38 @@ describe('auth route security hardening', () => {
         expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
             where: { token: sha256(rawRefreshToken) }
         });
-        expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
             where: { id: 1 },
             data: { accessTokenVersion: { increment: 1 } }
         });
+        expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps logout idempotent when a refresh token references a deleted user', async () => {
+        const rawRefreshToken = 'stale-refresh-token';
+        mockPrisma.refreshToken.findUnique.mockResolvedValue({
+            userId: 99
+        });
+        mockPrisma.user.updateMany.mockResolvedValue({ count: 0 });
+
+        const res = await request(app)
+            .post('/api/auth/logout')
+            .set('Cookie', [`refreshToken=${rawRefreshToken}`])
+            .expect(200);
+
+        expect(res.body.data.message).toBe('Logged out');
+        expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
+            where: { token: sha256(rawRefreshToken) },
+            select: { userId: true }
+        });
+        expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+            where: { token: sha256(rawRefreshToken) }
+        });
+        expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
+            where: { id: 99 },
+            data: { accessTokenVersion: { increment: 1 } }
+        });
+        expect(mockPrisma.user.update).not.toHaveBeenCalled();
     });
 
     it('looks up refresh tokens by hash and rotates them', async () => {
