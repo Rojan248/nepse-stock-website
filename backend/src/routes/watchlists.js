@@ -29,6 +29,7 @@ const WATCHLIST_ITEM_RESPONSE_SELECT = {
     symbol: true,
     addedAt: true
 };
+const WATCHLIST_ITEM_OWNERSHIP_SELECT = { id: true };
 
 const WATCHLIST_RESPONSE_SELECT = {
     id: true,
@@ -179,7 +180,8 @@ router.post('/:id/items', requireAuth, asyncHandler(async (req, res) => {
             }
 
             const existing = await tx.watchlistItem.findUnique({
-                where: { watchlistId_symbol: { watchlistId, symbol } }
+                where: { watchlistId_symbol: { watchlistId, symbol } },
+                select: WATCHLIST_ITEM_OWNERSHIP_SELECT
             });
             if (existing) {
                 return { duplicate: true };
@@ -232,7 +234,8 @@ router.delete('/:id/items/:symbol', requireAuth, asyncHandler(async (req, res) =
     }
 
     const item = await prisma.watchlistItem.findUnique({
-        where: { watchlistId_symbol: { watchlistId, symbol } }
+        where: { watchlistId_symbol: { watchlistId, symbol } },
+        select: WATCHLIST_ITEM_OWNERSHIP_SELECT
     });
     if (!item) {
         return res.status(404).json({ success: false, error: { message: 'Symbol not in watchlist' } });

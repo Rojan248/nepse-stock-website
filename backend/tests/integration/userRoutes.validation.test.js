@@ -271,6 +271,10 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Watchlist item limit');
         expect(mockPrisma.watchlistItem.create).not.toHaveBeenCalled();
+        expect(mockPrisma.watchlistItem.findUnique).toHaveBeenCalledWith({
+            where: { watchlistId_symbol: { watchlistId: 1, symbol: 'NABIL' } },
+            select: { id: true }
+        });
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
@@ -297,6 +301,10 @@ describe('authenticated user route validation', () => {
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
             data: { watchlistId: 1, symbol: 'NABIL' },
             select: expect.objectContaining({ symbol: true, addedAt: true })
+        });
+        expect(mockPrisma.watchlistItem.findUnique).toHaveBeenCalledWith({
+            where: { watchlistId_symbol: { watchlistId: 1, symbol: 'NABIL' } },
+            select: { id: true }
         });
     });
 
@@ -470,6 +478,10 @@ describe('authenticated user route validation', () => {
                 watchlist: { is: { userId: 1 } }
             }
         });
+        expect(mockPrisma.watchlistItem.findUnique).toHaveBeenCalledWith({
+            where: { watchlistId_symbol: { watchlistId: 1, symbol: 'NABIL' } },
+            select: { id: true }
+        });
         expect(mockPrisma.watchlistItem.delete).not.toHaveBeenCalled();
     });
 
@@ -483,6 +495,10 @@ describe('authenticated user route validation', () => {
             .expect(404);
 
         expect(res.body.error.message).toBe('Symbol not in watchlist');
+        expect(mockPrisma.watchlistItem.findUnique).toHaveBeenCalledWith({
+            where: { watchlistId_symbol: { watchlistId: 1, symbol: 'NABIL' } },
+            select: { id: true }
+        });
         expect(mockPrisma.watchlistItem.delete).not.toHaveBeenCalled();
     });
 
