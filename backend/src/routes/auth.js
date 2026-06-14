@@ -36,6 +36,11 @@ const MIN_PASSWORD_LENGTH = 12;
 const MAX_PASSWORD_BYTES = 72;
 const MAX_DISPLAY_NAME_LENGTH = 80;
 const REGISTRATION_USER_SELECT = { id: true };
+const REGISTRATION_CREATED_USER_SELECT = {
+    id: true,
+    email: true
+};
+const REGISTRATION_WATCHLIST_SELECT = { id: true };
 const LOGIN_USER_SELECT = {
     id: true,
     email: true,
@@ -210,12 +215,14 @@ router.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
             email: normalizedEmail,
             passwordHash,
             displayName: displayNameResult.value
-        }
+        },
+        select: REGISTRATION_CREATED_USER_SELECT
     });
 
     // Auto-create a default watchlist
     await prisma.watchlist.create({
-        data: { name: 'My Watchlist', userId: user.id }
+        data: { name: 'My Watchlist', userId: user.id },
+        select: REGISTRATION_WATCHLIST_SELECT
     });
 
     logger.info(`New user registered: ${user.email}`);

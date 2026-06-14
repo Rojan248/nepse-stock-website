@@ -134,10 +134,12 @@ describe('auth route security hardening', () => {
                 email: 'person@example.com',
                 passwordHash: 'bcrypt-hash',
                 displayName: 'Person'
-            }
+            },
+            select: { id: true, email: true }
         });
         expect(mockPrisma.watchlist.create).toHaveBeenCalledWith({
-            data: { name: 'My Watchlist', userId: 1 }
+            data: { name: 'My Watchlist', userId: 1 },
+            select: { id: true }
         });
         expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
         expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
