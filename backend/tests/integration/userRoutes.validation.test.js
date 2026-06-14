@@ -707,6 +707,10 @@ describe('authenticated user route validation', () => {
             },
             select: expect.objectContaining({ id: true, symbol: true })
         });
+        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
+            where: { id: 1, userId: 1 },
+            select: { id: true }
+        });
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
@@ -765,6 +769,10 @@ describe('authenticated user route validation', () => {
 
         expect(res.body.error.message).toContain('Portfolio trade limit');
         expect(mockPrisma.trade.create).not.toHaveBeenCalled();
+        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
+            where: { id: 1, userId: 1 },
+            select: { id: true }
+        });
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
@@ -776,7 +784,82 @@ describe('authenticated user route validation', () => {
             .expect(404);
 
         expect(res.body.error.message).toBe('Portfolio not found');
+        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
+            where: { id: 99, userId: 1 },
+            select: { id: true, name: true }
+        });
         expect(portfolioCalculator.calculatePortfolioPnL).not.toHaveBeenCalled();
+    });
+
+    it('uses minimal portfolio, trade, and stock fields for holdings calculations', async () => {
+        mockPrisma.portfolio.findFirst.mockResolvedValue({
+            id: 1,
+            name: 'Growth',
+            userId: 1,
+            trades: [
+                {
+                    id: 20,
+                    portfolioId: 1,
+                    symbol: 'NABIL',
+                    type: 'buy',
+                    quantity: 10,
+                    price: 100,
+                    note: 'seed'
+                }
+            ]
+        });
+        mockPrisma.stock.findMany.mockResolvedValue([
+            { id: 5, symbol: 'NABIL', lastTradedPrice: 150, companyName: 'Nabil Bank' }
+        ]);
+
+        const res = await request(app)
+            .get('/api/portfolios/1/holdings')
+            .expect(200);
+
+        expect(res.body.data).toEqual({
+            portfolio: { id: 1, name: 'Growth' },
+            holdings: [
+                {
+                    symbol: 'NABIL',
+                    quantity: 10,
+                    avgCost: 100,
+                    currentPrice: 150,
+                    marketValue: 1500,
+                    totalCost: 1000,
+                    unrealizedPL: 500,
+                    unrealizedPLPercent: 50
+                }
+            ],
+            summary: {
+                totalCost: 1000,
+                totalValue: 1500,
+                totalPL: 500,
+                totalPLPercent: 50
+            }
+        });
+        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
+            where: { id: 1, userId: 1 },
+            select: {
+                id: true,
+                name: true,
+                trades: {
+                    select: {
+                        symbol: true,
+                        type: true,
+                        quantity: true,
+                        price: true
+                    },
+                    orderBy: { date: 'asc' }
+                }
+            }
+        });
+        expect(mockPrisma.stock.findMany).toHaveBeenCalledWith({
+            where: { symbol: { in: ['NABIL'] } },
+            select: { symbol: true, lastTradedPrice: true }
+        });
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expect(JSON.stringify(res.body)).not.toContain('portfolioId');
+        expect(JSON.stringify(res.body)).not.toContain('note');
     });
 
     it('deletes portfolios with an owner-bound delete', async () => {
@@ -819,6 +902,14 @@ describe('authenticated user route validation', () => {
                 portfolio: { is: { userId: 1 } }
             }
         });
+        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
+            where: { id: 1, userId: 1 },
+            select: { id: true }
+        });
+        expect(mockPrisma.trade.findFirst).toHaveBeenCalledWith({
+            where: { id: 5, portfolioId: 1 },
+            select: { id: true }
+        });
         expect(mockPrisma.trade.delete).not.toHaveBeenCalled();
     });
 
@@ -832,6 +923,14 @@ describe('authenticated user route validation', () => {
             .expect(404);
 
         expect(res.body.error.message).toBe('Trade not found');
+        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
+            where: { id: 1, userId: 1 },
+            select: { id: true }
+        });
+        expect(mockPrisma.trade.findFirst).toHaveBeenCalledWith({
+            where: { id: 5, portfolioId: 1 },
+            select: { id: true }
+        });
         expect(mockPrisma.trade.delete).not.toHaveBeenCalled();
     });
 

@@ -36,6 +36,18 @@ const PORTFOLIO_RESPONSE_SELECT = {
     createdAt: true,
     updatedAt: true
 };
+const PORTFOLIO_OWNERSHIP_SELECT = { id: true };
+const TRADE_OWNERSHIP_SELECT = { id: true };
+const HOLDINGS_TRADE_SELECT = {
+    symbol: true,
+    type: true,
+    quantity: true,
+    price: true
+};
+const STOCK_PRICE_SELECT = {
+    symbol: true,
+    lastTradedPrice: true
+};
 
 const mapTradeResponse = (trade) => ({
     id: trade.id,
@@ -170,7 +182,10 @@ router.post('/:id/trades', requireAuth, asyncHandler(async (req, res) => {
     let trade;
     try {
         trade = await prisma.$transaction(async (tx) => {
-            const portfolio = await tx.portfolio.findFirst({ where: { id: portfolioId, userId: req.user.userId } });
+            const portfolio = await tx.portfolio.findFirst({
+                where: { id: portfolioId, userId: req.user.userId },
+                select: PORTFOLIO_OWNERSHIP_SELECT
+            });
             if (!portfolio) {
                 return null;
             }
@@ -218,12 +233,18 @@ router.delete('/:id/trades/:tradeId', requireAuth, asyncHandler(async (req, res)
 
     const portfolioId = portfolioIdResult.value;
     const tradeId = tradeIdResult.value;
-    const portfolio = await prisma.portfolio.findFirst({ where: { id: portfolioId, userId: req.user.userId } });
+    const portfolio = await prisma.portfolio.findFirst({
+        where: { id: portfolioId, userId: req.user.userId },
+        select: PORTFOLIO_OWNERSHIP_SELECT
+    });
     if (!portfolio) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
     }
 
-    const trade = await prisma.trade.findFirst({ where: { id: tradeId, portfolioId } });
+    const trade = await prisma.trade.findFirst({
+        where: { id: tradeId, portfolioId },
+        select: TRADE_OWNERSHIP_SELECT
+    });
     if (!trade) {
         return res.status(404).json({ success: false, error: { message: 'Trade not found' } });
     }
@@ -292,7 +313,14 @@ router.get('/:id/holdings', requireAuth, asyncHandler(async (req, res) => {
     const portfolioId = portfolioIdResult.value;
     const portfolio = await prisma.portfolio.findFirst({
         where: { id: portfolioId, userId: req.user.userId },
-        include: { trades: { orderBy: { date: 'asc' } } }
+        select: {
+            id: true,
+            name: true,
+            trades: {
+                select: HOLDINGS_TRADE_SELECT,
+                orderBy: { date: 'asc' }
+            }
+        }
     });
     if (!portfolio) {
         return res.status(404).json({ success: false, error: { message: 'Portfolio not found' } });
@@ -320,7 +348,10 @@ router.get('/:id/holdings', requireAuth, asyncHandler(async (req, res) => {
     // Fetch current prices for each held symbol
     const symbols = Object.keys(holdingsMap).filter(s => holdingsMap[s].quantity > 0);
     const stocks = symbols.length > 0
-        ? await prisma.stock.findMany({ where: { symbol: { in: symbols } } })
+        ? await prisma.stock.findMany({
+            where: { symbol: { in: symbols } },
+            select: STOCK_PRICE_SELECT
+        })
         : [];
 
     const priceMap = {};
