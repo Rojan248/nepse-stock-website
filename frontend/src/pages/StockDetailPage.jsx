@@ -10,7 +10,7 @@ import { MarketDepth, Floorsheet } from '../components/depth';
 import MetricsPanel from '../components/MetricsPanel';
 import StockChart from '../components/StockChart';
 import { getStockHistory } from '../services/api';
-import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass } from '../utils/formatting';
+import { formatPrice, formatNumber, formatPercent, formatTurnover, formatTimestamp, getChangeClass, isBlankValue, toNumber } from '../utils/formatting';
 import './StockDetailPage.css';
 
 // ==================== Shared Helpers ====================
@@ -33,14 +33,6 @@ const OHLC_FIELDS = [
 
 /** Resolve a value with a chain of fallbacks */
 const fallback = (...values) => values.find(v => v != null) ?? 0;
-
-const isBlankValue = (value) => value == null || value === '';
-
-const toNumber = (value, fallbackValue = 0) => {
-    if (isBlankValue(value)) return fallbackValue;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallbackValue;
-};
 
 /** Resolve the last traded price from various API shapes */
 function resolveLtp(stock, prices, trading) {

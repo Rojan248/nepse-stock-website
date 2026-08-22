@@ -1,0 +1,94 @@
+/* =========================================
+   CARAFE CONTROLS SYSTEM
+   ========================================= */
+
+/* The Control Container */
+.filter-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Shared Base Styles for Buttons & Selects */
+.control-base {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-family: var(--font-main);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Watchlist Toggle - Inactive (Ghost) */
+.btn-watchlist {
+    background: #FFFFFF;
+    border: 1px solid var(--border-main);
+    color: var(--text-secondary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-watchlist:hover {
+    background: #FAFAF9;
+    border-color: #D6D3D1;
+    color: var(--text-primary);
+}
+
+/* Watchlist Toggle - Active (Solid Carafe/Slate) */
+.btn-watchlist.active {
+    background: var(--color-carafe);
+    border-color: var(--color-carafe);
+    color: #FAFAFA;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);
+}
+
+/* Sector Select - Matching Style */
+.sector-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.sector-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: #FFFFFF;
+    border: 1px solid var(--border-main);
+    color: var(--text-primary);
+    padding-right: 36px !important;
+    min-width: 180px;
+}
+
+.sector-select:hover {
+    border-color: #D6D3D1;
+    background: #FAFAF9;
+}
+
+.sector-select:focus {
+    border-color: var(--primary-accent);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+
+input,
+select {
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    transition: var(--transition-fast);
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
