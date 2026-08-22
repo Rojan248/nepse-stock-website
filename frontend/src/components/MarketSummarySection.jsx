@@ -1,31 +1,23 @@
 import React, { useState } from 'react';
 import SummaryCard from './SummaryCard';
 import MarketBreadthCard from './MarketBreadthCard';
-import { formatNumber } from '../utils/formatting';
+import { formatNumber, toNumberOrNull } from '../utils/formatting';
 
 /** Format raw turnover into { value, unit } */
 function formatTurnoverDisplay(raw) {
-    const value = toFiniteNumber(raw) ?? 0;
+    const value = toNumberOrNull(raw) ?? 0;
     if (value >= 10000000) {
         return { value: (value / 10000000).toFixed(2), unit: 'Cr' };
     }
     return { value: (value / 100000).toFixed(2), unit: 'L' };
 }
 
-const isBlankValue = (value) => value == null || value === '';
-
-function toFiniteNumber(value) {
-    if (isBlankValue(value)) return undefined;
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : undefined;
-}
-
 /** Resolve the index change percent for the selected timeframe */
 function resolveIndexChange(marketSummary, timeframe) {
     if (timeframe === '1D') {
-        return toFiniteNumber(marketSummary?.indexChangePercent);
+        return toNumberOrNull(marketSummary?.indexChangePercent);
     }
-    return toFiniteNumber(marketSummary?.cumulative?.[timeframe]);
+    return toNumberOrNull(marketSummary?.cumulative?.[timeframe]);
 }
 
 /** Market summary cards section */
@@ -35,8 +27,8 @@ export default function MarketSummarySection({ marketSummary, marketStats, statu
     const turnoverRaw = marketSummary?.totalTurnover ?? 0;
     const turnover = formatTurnoverDisplay(turnoverRaw);
 
-    const indexValue = toFiniteNumber(marketSummary?.indexValue);
-    const indexValueDisplay = indexValue !== undefined
+    const indexValue = toNumberOrNull(marketSummary?.indexValue);
+    const indexValueDisplay = indexValue !== null
         ? indexValue.toFixed(2)
         : '--';
 

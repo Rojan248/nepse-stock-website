@@ -45,7 +45,7 @@ const formatChange = (change) => {
 
 /** Change badge sub-component */
 function ChangeBadge({ change }) {
-    if (change === undefined) return null;
+    if (change == null) return null;
     const changeClass = getChangeClass(change);
     return (
         <div className={`summary-badge ${changeClass}`}>

@@ -3,6 +3,36 @@
  */
 
 /**
+ * Check whether a value is null, undefined, or an empty string
+ * @param {*} value - Value to check
+ * @returns {boolean} True if blank
+ */
+export const isBlankValue = (value) => value == null || value === '';
+
+/**
+ * Coerce a value to a finite number, or null when blank/invalid
+ * @param {*} value - Value to coerce
+ * @returns {number|null} Finite number or null
+ */
+export const toNumberOrNull = (value) => {
+    if (isBlankValue(value)) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+/**
+ * Coerce a value to a finite number with a fallback
+ * @param {*} value - Value to coerce
+ * @param {number} [fallbackValue=0] - Value returned when blank/invalid
+ * @returns {number} Finite number or fallback
+ */
+export const toNumber = (value, fallbackValue = 0) => {
+    if (isBlankValue(value)) return fallbackValue;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallbackValue;
+};
+
+/**
  * Format price with Nepali Rupee symbol
  * @param {number} number - Price to format
  * @returns {string} Formatted price

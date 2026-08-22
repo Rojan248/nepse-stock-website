@@ -1,0 +1,89 @@
+/* =========================================
+   Design Tokens - Pure Stark Financial Dashboard
+   Palette: Stark Minimalism (Black, White, Green, Red)
+   ========================================= */
+
+:root {
+    /* ===== VIBRANT FINTECH PALETTE (Clean White/Black Dominant) ===== */
+    /* Backgrounds */
+    --bg-app: #f8fafc;
+    --bg-card: #FFFFFF;
+
+    /* Text */
+    --text-primary: #0f172a;
+    /* Deep Slate/Almost Black */
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+
+    /* Borders */
+    --border-subtle: #f1f5f9;
+    --border-main: #e2e8f0;
+
+    /* Accents */
+    --primary-accent: #2563eb;
+    /* Vibrant Electric Blue */
+
+    /* Semantics (Neon/Highly Alive) */
+    --success: #00e676;
+    /* Vibrant Mint/Emerald */
+    --danger: #ff1744;
+    /* Electric Crimson/Red */
+    --color-unchanged: #64748b;
+
+    /* Subtle Semantic Backgrounds */
+    --bg-positive-subtle: #ecfdf5;
+    --bg-negative-subtle: #fef2f2;
+
+    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Spacing System */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+
+    /* Typography Scale */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 2.25rem;
+
+    /* Radii */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-full: 9999px;
+
+    /* Shadows - Premium Layered System */
+    --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-blur: blur(12px);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.3);
+
+    /* Transitions */
+    --transition-base: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    --container-max: 1400px;
+
+    /* Carafe System (Re-mapped to Slate) */
+    --color-carafe: #0f172a;
+
+    /* Scroll Reveal Timing Functions */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}

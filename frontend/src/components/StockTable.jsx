@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronDown, Star } from 'lucide-react';
-import { formatPrice, formatPercent, formatNumber, getChangeClass } from '../utils/formatting';
+import { formatPrice, formatPercent, formatNumber, getChangeClass, isBlankValue, toNumberOrNull } from '../utils/formatting';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useSortedStocks } from '../hooks/useSortedStocks';
 import { usePreviousStockValues } from '../hooks/usePreviousStockValues';
@@ -39,14 +39,6 @@ const FIELD_MAP = [
 ];
 
 const NUMERIC_FIELDS = new Set(['ltp', 'change', 'changePercent', 'volume']);
-
-const isBlankValue = (value) => value == null || value === '';
-
-const toNumberOrNull = (value) => {
-    if (isBlankValue(value)) return null;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-};
 
 /** Map timeframe to its source field on the stock object */
 const TIMEFRAME_FIELD = {
