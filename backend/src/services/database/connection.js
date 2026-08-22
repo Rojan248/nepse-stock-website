@@ -3,16 +3,17 @@ const logger = require('../utils/logger');
 
 let isInitialized = false;
 
-const enableWalMode = async () => {
+const applySqlitePragmas = async () => {
     try {
         const result = await prisma.$queryRawUnsafe('PRAGMA journal_mode=WAL;');
         const mode = result?.[0]?.journal_mode || 'unknown';
         if (mode.toLowerCase() !== 'wal') {
             logger.warn(`Requested WAL mode, SQLite returned journal_mode=${mode}`);
         }
-        logger.info('Database connected (Prisma) - WAL mode enabled');
+        await prisma.$queryRawUnsafe('PRAGMA busy_timeout=5000;');
+        logger.info('Database connected (Prisma) - WAL mode and busy timeout enabled');
     } catch (walError) {
-        logger.warn(`Failed to enable WAL mode: ${walError.message}`);
+        logger.warn(`Failed to apply SQLite pragmas: ${walError.message}`);
     }
 };
 
@@ -22,7 +23,7 @@ const connectDB = async () => {
         if (isInitialized) return true;
 
         await prisma.$connect();
-        await enableWalMode();
+        await applySqlitePragmas();
         isInitialized = true;
         return true;
     } catch (error) {

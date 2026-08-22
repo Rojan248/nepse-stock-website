@@ -26,4 +26,20 @@ describe('securityConfig', () => {
             ADMIN_API_KEY: 'fedcba9876543210fedcba9876543210'
         })).not.toThrow();
     });
+
+    it('rejects mock data mode in production', () => {
+        expect(() => validateRuntimeSecrets({
+            NODE_ENV: 'production',
+            JWT_SECRET: '0123456789abcdef0123456789abcdef',
+            ADMIN_API_KEY: 'fedcba9876543210fedcba9876543210',
+            USE_MOCK_DATA: 'true'
+        })).toThrow(/USE_MOCK_DATA/);
+    });
+
+    it('allows mock data mode outside production', () => {
+        expect(() => validateRuntimeSecrets({
+            NODE_ENV: 'development',
+            USE_MOCK_DATA: 'true'
+        })).not.toThrow();
+    });
 });

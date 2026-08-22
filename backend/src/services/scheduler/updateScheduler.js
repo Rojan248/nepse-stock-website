@@ -1,5 +1,6 @@
 const schedule = require('node-schedule');
 const logger = require('../utils/logger');
+const { describeError } = require('../utils/errorFormatter');
 const dataFetcher = require('../dataFetcher');
 const stockOperations = require('../database/stockOperations');
 const ipoOperations = require('../database/ipoOperations');
@@ -187,8 +188,9 @@ const performUpdate = async () => {
         logger.info(`Update cycle completed in ${duration}ms (Source: ${data.source})`);
         return true;
     } catch (error) {
-        logger.error(`Update cycle failed: ${error.message}`);
-        lastError = error.message;
+        const described = describeError(error);
+        logger.error(`Update cycle failed: ${described}`);
+        lastError = described;
         return false;
     } finally {
         // Phase 3: Release Distributed Lock

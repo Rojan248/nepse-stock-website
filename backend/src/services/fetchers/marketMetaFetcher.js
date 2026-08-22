@@ -1,11 +1,20 @@
 const axios = require('axios');
 const https = require('https');
 const logger = require('../utils/logger');
+const { getMarketState } = require('../utils/marketTime');
 const {
     hasValidMarketMeta,
     parseMarketMetaResponse,
-    extractTransactionFromHTML
+    extractTransactionFromHTML,
+    MIN_PLAUSIBLE_TRANSACTIONS
 } = require('../utils/marketDataHelpers');
+
+/**
+ * Pre-open matching legitimately produces tiny transaction counts,
+ * so the plausibility floor is relaxed only for that state.
+ */
+const getMinPlausibleTransactions = () =>
+    getMarketState() === 'PRE_OPEN' ? 10 : MIN_PLAUSIBLE_TRANSACTIONS;
 
 // Live market meta endpoint (contains totalTransaction)
 const MARKET_OPEN_URL = 'https://nepalstock.com.np/api/nots/nepse-data/market-open';
@@ -45,12 +54,12 @@ const MARKET_META_SOURCES = [
     {
         name: 'merolagani',
         fetch: () => axios.get('https://merolagani.com/MarketSummary.aspx', { timeout: 5000, maxRedirects: 0, headers: SCRAPE_HEADERS }),
-        parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`Merolagani: ${msg}`))
+        parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`Merolagani: ${msg}`), getMinPlausibleTransactions())
     },
     {
         name: 'nepsealpha',
         fetch: () => axios.get('https://nepsealpha.com/trading-menu', { timeout: 5000, maxRedirects: 0, headers: SCRAPE_HEADERS }),
-        parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`NepseAlpha: ${msg}`))
+        parse: (resp) => extractTransactionFromHTML(resp.data, (msg) => logger.info(`NepseAlpha: ${msg}`), getMinPlausibleTransactions())
     }
 ];
 

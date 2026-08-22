@@ -31,6 +31,14 @@ describe('marketDataHelpers', () => {
 
             expect(extractTransactionFromHTML(html)).toBeNull();
         });
+
+        it('accepts small counts when the caller lowers the floor for pre-open', () => {
+            const html = '<tr><th>Total Transactions</th><td>42</td></tr>';
+
+            const result = extractTransactionFromHTML(html, () => { }, 10);
+
+            expect(result).toEqual({ totalTransactions: 42, totalTurnover: null, totalVolume: null });
+        });
     });
 
     describe('hasValidMarketMeta', () => {

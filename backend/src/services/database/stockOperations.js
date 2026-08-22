@@ -6,6 +6,7 @@
 
 const { prisma } = require('./connection');
 const logger = require('../utils/logger');
+const { describeError } = require('../utils/errorFormatter');
 const { isKnownSymbol } = require('../../services/dataEnricher');
 const { normalizeStockInput, mapStockOutput } = require('../utils/dataNormalizer');
 
@@ -236,7 +237,7 @@ const saveStocks = async (stocks) => {
         await prisma.$transaction(ops);
         return { success: true, count: validStocks.length };
     } catch (error) {
-        logger.error(`Error saving stocks: ${error.message}`);
+        logger.error(`Error saving stocks: ${describeError(error)}`);
         throw error;
     }
 };
