@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { performance } = require('perf_hooks');
 const stockOperations = require('../services/database/stockOperations');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireAdminKey } = require('../middleware/auth');
@@ -9,12 +8,13 @@ const logger = require('../services/utils/logger');
 const analytics = require('../services/analytics');
 const metricsOrchestrator = require('../services/metrics/metricsOrchestrator');
 const { isKnownSymbol } = require('../services/dataEnricher');
-const { prisma } = require('../services/database/connection');
+const { getStockHistoryWithMetrics } = require('../services/historyService');
 const {
     getBooleanQuery,
     getBoundedIntQuery,
     getEnumQuery,
     normalizeSymbolParam,
+    normalizeSectorParam,
     normalizeTextQuery,
     sendQueryValidationError
 } = require('../services/utils/queryValidation');
@@ -23,20 +23,6 @@ const {
  * Stock API Routes
  * Endpoints for accessing stock data
  */
-
-const normalizeSectorParam = (value) => {
-    if (typeof value !== 'string') {
-        return { error: 'Invalid sector format' };
-    }
-    const sector = value.trim();
-    if (sector.length > 80) {
-        return { error: 'Sector must be 80 characters or less' };
-    }
-    if (!/^[a-zA-Z0-9\s-]+$/.test(sector)) {
-        return { error: 'Invalid sector format' };
-    }
-    return { value: sector };
-};
 
 const SORT_FIELDS = ['symbol', 'companyName', 'percentageChange', 'lastTradedPrice', 'turnover', 'volume'];
 const SORT_ORDERS = ['asc', 'desc'];
@@ -303,52 +289,10 @@ router.get('/:symbol/history', asyncHandler(async (req, res) => {
         });
     }
 
-    const startTime = performance.now();
-
     const daysVal = getBoundedIntQuery(res, req.query.days, { min: 1, max: 365, defaultValue: 180, label: 'days' });
     if (daysVal === null) return;
-    const historyDesc = await prisma.marketHistory.findMany({
-        where: { symbol: symbolResult.value },
-        orderBy: { date: 'desc' },
-        take: daysVal
-    });
-    const history = historyDesc.reverse();
 
-    if (history.length === 0) {
-        return res.json({ success: true, symbol: symbolResult.value, data: [] });
-    }
-
-    const historyDates = history.map((entry) => entry.date);
-    const metrics = await prisma.stockMetrics.findMany({
-        where: {
-            symbol: symbolResult.value,
-            date: { in: historyDates }
-        },
-        orderBy: { date: 'asc' }
-    });
-
-    // Create a map for O(1) metrics lookup
-    const metricsMap = new Map(metrics.map(m => [m.date.toISOString().split('T')[0], m]));
-
-    const combinedData = history.map(h => {
-        const dateStr = h.date.toISOString().split('T')[0];
-        const m = metricsMap.get(dateStr);
-        const trend = m ? JSON.parse(m.trendMetrics || '{}') : {};
-
-        return {
-            date: dateStr, // lightweight-charts accepts "YYYY-MM-DD"
-            open: parseFloat(h.openPrice),
-            high: parseFloat(h.highPrice),
-            low: parseFloat(h.lowPrice),
-            close: parseFloat(h.closePrice),
-            volume: parseFloat(h.volume || 0),
-            ma20: trend.ma20 || null,
-            ma50: trend.ma50 || null
-        };
-    });
-
-    const endTime = performance.now();
-    logger.info(`GET /api/stocks/${symbolResult.value}/history execution time: ${(endTime - startTime).toFixed(2)}ms`);
+    const combinedData = await getStockHistoryWithMetrics(symbolResult.value, daysVal);
 
     res.json({
         success: true,
