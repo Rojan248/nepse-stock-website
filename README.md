@@ -102,6 +102,7 @@ Sources are tried in priority order, normalized into a common shape, enriched wi
 | [START_GUIDE.md](START_GUIDE.md) | Local + production runbook, Cloudflare tunnel setup |
 | [docs/SECURITY.md](docs/SECURITY.md) | Security posture and hardening notes |
 | [docs/WATCHDOG.md](docs/WATCHDOG.md) | How the data integrity service works |
+| [docs/BUGFIXES.md](docs/BUGFIXES.md) | Bugs found in live testing, root causes, and fixes |
 | [spec.md](spec.md) | Original MVP specification |
 
 ## License
