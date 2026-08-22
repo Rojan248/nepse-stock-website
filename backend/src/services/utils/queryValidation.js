@@ -165,6 +165,20 @@ const normalizeSymbolParam = (value) => {
     return { value: symbol };
 };
 
+const normalizeSectorParam = (value) => {
+    if (typeof value !== 'string') {
+        return { error: 'Invalid sector format' };
+    }
+    const sector = value.trim();
+    if (sector.length > 80) {
+        return { error: 'Sector must be 80 characters or less' };
+    }
+    if (!/^[a-zA-Z0-9\s-]+$/.test(sector)) {
+        return { error: 'Invalid sector format' };
+    }
+    return { value: sector };
+};
+
 module.exports = {
     clampInt,
     getBooleanQuery,
@@ -174,6 +188,7 @@ module.exports = {
     parseBoundedIntQuery,
     parseEnumQuery,
     normalizeSymbolParam,
+    normalizeSectorParam,
     normalizeTextQuery,
     sendQueryValidationError
 };
