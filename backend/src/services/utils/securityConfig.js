@@ -39,6 +39,10 @@ const validateRuntimeSecrets = (env = process.env) => {
         if (issue) issues.push(issue);
     }
 
+    if (nodeEnv === 'production' && env.USE_MOCK_DATA === 'true') {
+        issues.push('USE_MOCK_DATA is enabled in production; it would write simulated prices into the live database');
+    }
+
     if (issues.length > 0) {
         throw new Error(`Security configuration error: ${issues.join('; ')}`);
     }

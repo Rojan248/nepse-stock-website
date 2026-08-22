@@ -13,6 +13,7 @@
     "migrate:json": "node scripts/migrate-json-to-sqlite.js",
     "ops": "node scripts/ops.js",
     "verify": "node scripts/ops.js verify",
+    "check:migrations": "node scripts/check-migrations.js",
     "stable": "node scripts/stability-check.js",
     "test": "jest --config jest.config.js",
     "test:watch": "jest --watch",

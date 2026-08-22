@@ -115,7 +115,8 @@ const parseMarketMetaResponse = (resp) => {
 
 /**
  * NEPSE sessions always clear far above this count; smaller matches are
- * unrelated page markup, not real transaction totals.
+ * unrelated page markup, not real transaction totals. Callers may lower
+ * the floor during pre-open, where genuinely tiny counts are expected.
  */
 const MIN_PLAUSIBLE_TRANSACTIONS = 1000;
 
@@ -124,14 +125,15 @@ const MIN_PLAUSIBLE_TRANSACTIONS = 1000;
  * Handles both Merolagani and NepseAlpha formats
  * @param {string} html - HTML content to parse
  * @param {Function} logFn - Logger function for debugging
+ * @param {number} [minPlausible] - Minimum plausible transaction count
  * @returns {Object|null} { totalTransactions, totalTurnover, totalVolume } or null
  */
-const extractTransactionFromHTML = (html, logFn = () => { }) => {
+const extractTransactionFromHTML = (html, logFn = () => { }, minPlausible = MIN_PLAUSIBLE_TRANSACTIONS) => {
     const match = html.match(/Total\s+Transactions[^0-9]*([0-9,]+)/i);
     if (match && match[1]) {
         const raw = match[1].replace(/,/g, '');
         const count = parseInt(raw, 10);
-        if (!Number.isNaN(count) && count >= MIN_PLAUSIBLE_TRANSACTIONS) {
+        if (!Number.isNaN(count) && count >= minPlausible) {
             logFn(`Transaction Match Found: ${count}`);
             return { totalTransactions: count, totalTurnover: null, totalVolume: null };
         }
@@ -146,5 +148,6 @@ module.exports = {
     applyBreadthFallback,
     hasValidMarketMeta,
     parseMarketMetaResponse,
-    extractTransactionFromHTML
+    extractTransactionFromHTML,
+    MIN_PLAUSIBLE_TRANSACTIONS
 };
