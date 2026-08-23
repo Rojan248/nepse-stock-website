@@ -11,22 +11,31 @@
 const fs = require('fs');
 const path = require('path');
 
-const args = process.argv.slice(2);
-const schemaFlagIdx = args.indexOf('--schema');
-const backendRoot = path.join(__dirname, '..');
-const schemaPath = schemaFlagIdx !== -1
-    ? path.resolve(args[schemaFlagIdx + 1])
-    : path.join(backendRoot, 'prisma', 'schema.prisma');
-const migrationsDir = path.join(backendRoot, 'prisma', 'migrations');
-
 const SCALAR_TYPES = new Set([
     'String', 'Int', 'BigInt', 'Float', 'Decimal', 'Boolean', 'DateTime', 'Json', 'Bytes'
 ]);
 
+const parseArgs = (args) => {
+    const options = {};
+    const schemaFlagIdx = args.indexOf('--schema');
+    if (schemaFlagIdx !== -1) {
+        const value = args[schemaFlagIdx + 1];
+        if (!value || value.startsWith('--')) {
+            console.error('Usage: node scripts/check-migrations.js [--schema <path>]');
+            process.exit(1);
+        }
+        options.schema = path.resolve(value);
+    }
+    return options;
+};
+
 const parseModels = (schemaText) => {
     const models = {};
+    // Strip // comments before matching: comments may contain braces
+    // (e.g. "/security/{id}"), which would truncate the model body.
+    const cleaned = schemaText.replace(/^[ \t]*\/\/.*$/gm, '');
     const modelRegex = /^model\s+(\w+)\s*\{([^}]*)\}/gm;
-    for (const [, modelName, body] of schemaText.matchAll(modelRegex)) {
+    for (const [, modelName, body] of cleaned.matchAll(modelRegex)) {
         const columns = [];
         for (const line of body.split('\n')) {
             const trimmed = line.trim();
@@ -56,25 +65,48 @@ const loadMigrationSql = (dir) => {
     return sqls.join('\n');
 };
 
+/** Columns declared inside the exact `CREATE TABLE "<table>" (...)` block */
+const getCreateTableColumns = (sql, table) => {
+    const blockRegex = new RegExp(`CREATE TABLE\\s+"${table}"\\s*\\(([\\s\\S]*?)\\n\\);`, 'i');
+    const block = sql.match(blockRegex);
+    if (!block) return [];
+    const columns = [];
+    for (const line of block[1].split('\n')) {
+        const columnMatch = line.trim().match(/^"([^"]+)"/);
+        if (columnMatch) columns.push(columnMatch[1]);
+    }
+    return columns;
+};
+
+/** Columns added later via `ALTER TABLE "<table>" ... ADD COLUMN "<name>"` */
+const getAlteredColumns = (sql, table) => {
+    const alterRegex = new RegExp(`ALTER TABLE\\s+"${table}"\\s+[^;]*?ADD COLUMN\\s+"([^"]+)"`, 'gi');
+    const columns = [];
+    let match;
+    while ((match = alterRegex.exec(sql)) !== null) {
+        columns.push(match[1]);
+    }
+    return columns;
+};
+
 const main = () => {
+    const options = parseArgs(process.argv.slice(2));
+    const backendRoot = path.join(__dirname, '..');
+    const schemaPath = options.schema || path.join(backendRoot, 'prisma', 'schema.prisma');
+    const migrationsDir = path.join(backendRoot, 'prisma', 'migrations');
+
     const schemaText = fs.readFileSync(schemaPath, 'utf8');
     const models = parseModels(schemaText);
     const migrationSql = loadMigrationSql(migrationsDir);
 
     const missing = [];
     for (const [modelName, { table, columns }] of Object.entries(models)) {
+        const migratedColumns = new Set([
+            ...getCreateTableColumns(migrationSql, table),
+            ...getAlteredColumns(migrationSql, table)
+        ]);
         for (const column of columns) {
-            const quoted = `"${column}"`;
-            const quotedTable = `"${table}"`;
-            const appearsInTable = new RegExp(
-                `CREATE TABLE\\s+${quotedTable}[\\s\\S]*?${quoted}`, 'i'
-            ).test(migrationSql) || new RegExp(
-                `ALTER TABLE\\s+${quotedTable}[\\s\\S]*?ADD COLUMN\\s+${quoted}`, 'i'
-            ).test(migrationSql);
-
-            // Fall back to a global check: SQLite migrations may reference the
-            // column while recreating a differently-named artifact.
-            if (!appearsInTable && !migrationSql.includes(quoted)) {
+            if (!migratedColumns.has(column)) {
                 missing.push(`${modelName}.${column} (table ${table})`);
             }
         }

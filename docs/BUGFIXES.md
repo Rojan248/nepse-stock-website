@@ -40,7 +40,7 @@ Regression tests for both scenarios live in `backend/tests/unit/marketDataHelper
 |---|---|
 | Pre-open sessions legitimately report tiny transaction counts, which the plausibility floor would reject | `extractTransactionFromHTML` accepts a caller-supplied floor; `marketMetaFetcher` lowers it to 10 during `PRE_OPEN` market state only |
 | Mock data could silently pollute a production database (`USE_MOCK_DATA=true`) | Boot-time validation now refuses to start in production with mock mode enabled (same fail-fast path as weak secrets) |
-| Schema drift (Bug 1's root cause class) is invisible to CI because tests mock Prisma | CI runs `npm run check:migrations` (`prisma migrate diff --exit-code`) so any schema change without a migration fails the build |
+| Schema drift (Bug 1's root cause class) is invisible to CI because tests mock Prisma | CI runs `npm run check:migrations` ([`backend/scripts/check-migrations.js`](../backend/scripts/check-migrations.js)) so any schema field without a migration column fails the build. `prisma migrate diff --exit-code` was evaluated and rejected: on SQLite it reports cosmetic "redefined table" noise even on a clean tree |
 | SQLite writer contention between scheduler, watchdog, and user writes can raise `SQLITE_BUSY` | Connection now sets `PRAGMA busy_timeout=5000` alongside WAL mode |
 | Prisma failures logged with effectively empty messages made Bug 1 hard to diagnose from logs alone | Scheduler and stock-save error paths log through a shared `describeError` formatter that includes the Prisma error code and a compact single-line message |
 
