@@ -27,6 +27,9 @@ const REGISTRATION_PROCESSED_RESPONSE = {
         message: 'Registration processed. Sign in to continue.'
     }
 };
+const MAX_FAILED_LOGIN_ATTEMPTS = 10;
+const ACCOUNT_LOCKOUT_MINUTES = 30;
+const MAX_REFRESH_TOKENS_PER_USER = 5;
 
 // ==================== Validation Helpers ====================
 
@@ -126,15 +129,15 @@ const createRefreshToken = async (userId) => {
     // Clean expired ones first
     await cleanExpiredTokens(userId);
 
-    // Enforce limit of 5 refresh tokens per user
+    // Enforce a per-user limit on stored refresh tokens
     const tokens = await prisma.refreshToken.findMany({
         where: { userId },
         orderBy: { createdAt: 'asc' },
         select: { id: true }
     });
 
-    if (tokens.length >= 5) {
-        const deleteCount = tokens.length - 4; // leave room for the new one (total 5)
+    if (tokens.length >= MAX_REFRESH_TOKENS_PER_USER) {
+        const deleteCount = tokens.length - (MAX_REFRESH_TOKENS_PER_USER - 1); // leave room for the new one
         const deleteIds = tokens.slice(0, deleteCount).map(t => t.id);
         await prisma.refreshToken.deleteMany({
             where: { id: { in: deleteIds } }
@@ -177,6 +180,71 @@ const isPublicRegistrationEnabled = () => (
     process.env.NODE_ENV !== 'production'
     || process.env.PUBLIC_REGISTRATION_ENABLED === 'true'
 );
+
+const isAccountLocked = (user) => (
+    Boolean(user?.lockedUntil) && user.lockedUntil > new Date()
+);
+
+/** Validate login input; returns the normalized email or null */
+const validateLoginRequest = (email, password) => {
+    const normalizedEmail = normalizeEmail(email);
+    if (
+        !normalizedEmail
+        || typeof password !== 'string'
+        || password.length === 0
+        || Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES
+    ) {
+        return null;
+    }
+    return normalizedEmail;
+};
+
+/** Record a failed attempt and lock the account once the threshold is hit */
+const handleFailedLogin = async (user) => {
+    const newFailedAttempts = (user.failedLoginAttempts || 0) + 1;
+    const shouldLock = newFailedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS;
+    const lockedUntil = shouldLock
+        ? new Date(Date.now() + ACCOUNT_LOCKOUT_MINUTES * 60 * 1000)
+        : null;
+
+    if (shouldLock) {
+        logger.warn(`Account locked due to ${MAX_FAILED_LOGIN_ATTEMPTS}+ failed attempts: ${user.email}`);
+    }
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            failedLoginAttempts: newFailedAttempts,
+            lockedUntil,
+            ...(shouldLock ? { accessTokenVersion: { increment: 1 } } : {})
+        }
+    });
+};
+
+/** Reset failed-attempt bookkeeping after a successful login */
+const resetFailedLoginState = async (user) => {
+    if ((user.failedLoginAttempts || 0) > 0 || user.lockedUntil) {
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                failedLoginAttempts: 0,
+                lockedUntil: null
+            }
+        });
+    }
+};
+
+/** Delete a rejected refresh token, clear the cookie, and answer 401 */
+const rejectRefreshToken = async (res, stored, warnMessage) => {
+    if (stored) {
+        await prisma.refreshToken.delete({ where: { id: stored.id } });
+    }
+    clearRefreshCookie(res);
+    if (warnMessage) {
+        logger.warn(warnMessage);
+    }
+    return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
+};
 
 // ==================== Routes ====================
 
@@ -232,14 +300,9 @@ router.post('/register', registrationLimiter, asyncHandler(async (req, res) => {
 // POST /api/auth/login (rate limited: 5 attempts per 15 min per IP)
 router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail = validateLoginRequest(email, password);
 
-    if (
-        !normalizedEmail
-        || typeof password !== 'string'
-        || password.length === 0
-        || Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES
-    ) {
+    if (!normalizedEmail) {
         return res.status(400).json({ success: false, error: { message: 'Email and password required' } });
     }
 
@@ -253,47 +316,17 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
         return sendInvalidCredentials(res);
     }
 
-    // Check if account is temporarily locked
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
+    if (isAccountLocked(user)) {
         logger.warn(`Locked account login attempt: ${user.email}`);
         return sendInvalidCredentials(res);
     }
 
     if (!valid) {
-        const newFailedAttempts = (user.failedLoginAttempts || 0) + 1;
-        let lockedUntil = null;
-
-        if (newFailedAttempts >= 10) {
-            lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes lockout
-            logger.warn(`Account locked due to 10+ failed attempts: ${user.email}`);
-        }
-
-        await prisma.user.update({
-            where: { id: user.id },
-            data: {
-                failedLoginAttempts: newFailedAttempts,
-                lockedUntil,
-                ...(lockedUntil ? { accessTokenVersion: { increment: 1 } } : {})
-            }
-        });
-
-        if (newFailedAttempts >= 10) {
-            return sendInvalidCredentials(res);
-        }
-
+        await handleFailedLogin(user);
         return sendInvalidCredentials(res);
     }
 
-    // Reset failed login attempts on success
-    if ((user.failedLoginAttempts || 0) > 0 || user.lockedUntil) {
-        await prisma.user.update({
-            where: { id: user.id },
-            data: {
-                failedLoginAttempts: 0,
-                lockedUntil: null
-            }
-        });
-    }
+    await resetFailedLoginState(user);
 
     await cleanExpiredTokens(user.id);
     const accessToken = generateAccessToken(user);
@@ -323,9 +356,7 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
         select: REFRESH_TOKEN_LOOKUP_SELECT
     });
     if (!stored || stored.expiresAt < new Date()) {
-        if (stored) await prisma.refreshToken.delete({ where: { id: stored.id } });
-        clearRefreshCookie(res);
-        return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
+        return rejectRefreshToken(res, stored);
     }
 
     const user = await prisma.user.findUnique({
@@ -333,16 +364,11 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
         select: REFRESH_USER_SELECT
     });
     if (!user) {
-        await prisma.refreshToken.delete({ where: { id: stored.id } });
-        clearRefreshCookie(res);
-        return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
+        return rejectRefreshToken(res, stored);
     }
 
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-        await prisma.refreshToken.delete({ where: { id: stored.id } });
-        clearRefreshCookie(res);
-        logger.warn(`Refresh blocked for locked account: ${user.email}`);
-        return res.status(401).json({ success: false, error: { message: 'Invalid or expired refresh token' } });
+    if (isAccountLocked(user)) {
+        return rejectRefreshToken(res, stored, `Refresh blocked for locked account: ${user.email}`);
     }
 
     // Rotate: delete old, create new
