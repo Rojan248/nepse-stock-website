@@ -1,3 +1,4 @@
+const { performance } = require('perf_hooks');
 const logger = require('./utils/logger');
 const { prisma } = require('./database/connection');
 
@@ -51,7 +52,7 @@ async function getStockHistoryWithMetrics(symbol, days) {
     });
 
     const endTime = performance.now();
-    logger.info(`GET /api/stocks/${symbol}/history execution time: ${(endTime - startTime).toFixed(2)}ms`);
+    logger.info(`Stock history query for ${symbol} (${days}d) completed in ${(endTime - startTime).toFixed(2)}ms`);
 
     return combinedData;
 }
