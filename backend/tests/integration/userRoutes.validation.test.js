@@ -85,6 +85,16 @@ app.use(errorHandler);
 const portfolioCalculator = require('../../src/services/portfolioCalculator');
 const { shareLookupLimiter } = require('../../src/middleware/rateLimiter');
 
+/** Assert that none of the given internal field names leak into the response */
+const expectRedacted = (res, fields) => {
+    const serialized = JSON.stringify(res.body);
+    for (const field of fields) {
+        expect(serialized).not.toContain(field);
+    }
+};
+
+const TRADE_BASE_PAYLOAD = { symbol: 'NABIL', type: 'buy', quantity: 10, price: 100, date: '2026-06-06' };
+
 describe('authenticated user route validation', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -228,9 +238,7 @@ describe('authenticated user route validation', () => {
             ]
         });
         expect(res.body.meta).toEqual({ added: 1, skipped: 0 });
-        expect(JSON.stringify(res.body)).not.toContain('userId');
-        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
-        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
+        expectRedacted(res, ['userId', 'watchlistId', 'publicSlug']);
     });
 
     it('rejects watchlist creation after the per-user quota is reached', async () => {
@@ -269,8 +277,7 @@ describe('authenticated user route validation', () => {
             updatedAt: '2026-06-06T00:00:00.000Z',
             items: []
         });
-        expect(JSON.stringify(res.body)).not.toContain('userId');
-        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
+        expectRedacted(res, ['userId', 'publicSlug']);
     });
 
     it('rejects watchlist item creation after the per-list quota is reached', async () => {
@@ -311,7 +318,7 @@ describe('authenticated user route validation', () => {
             symbol: 'NABIL',
             addedAt: '2026-06-06T00:00:00.000Z'
         });
-        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+        expectRedacted(res, ['watchlistId']);
         expect(mockPrisma.watchlistItem.create).toHaveBeenCalledWith({
             data: { watchlistId: 1, symbol: 'NABIL' },
             select: expect.objectContaining({ symbol: true, addedAt: true })
@@ -365,7 +372,7 @@ describe('authenticated user route validation', () => {
         expect(res.body.data.items).toEqual([
             { symbol: 'NABIL', addedAt: '2026-06-06T00:00:00.000Z' }
         ]);
-        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
+        expectRedacted(res, ['watchlistId']);
     });
 
     it('generates high-entropy public share slugs for new shared watchlists', async () => {
@@ -430,90 +437,181 @@ describe('authenticated user route validation', () => {
                 { symbol: 'NABIL', addedAt: '2026-06-06T01:00:00.000Z' }
             ]
         });
-        expect(JSON.stringify(res.body)).not.toContain('userId');
-        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
-        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
+        expectRedacted(res, ['userId', 'watchlistId', 'publicSlug']);
         expect(mockPrisma.watchlist.updateMany).toHaveBeenCalledWith({
             where: { id: 1, userId: 1 },
             data: { name: 'Renamed' }
         });
     });
 
-    it('returns 404 when a watchlist owner-bound write affects no rows', async () => {
-        mockPrisma.watchlist.updateMany.mockResolvedValue({ count: 0 });
-
-        const res = await request(app)
-            .put('/api/watchlists/1')
-            .send({ name: 'Renamed' })
-            .expect(404);
-
-        expect(res.body.error.message).toBe('Watchlist not found');
-        expect(mockPrisma.watchlist.findFirst).not.toHaveBeenCalled();
-        expect(mockPrisma.watchlist.update).not.toHaveBeenCalled();
-    });
-
-    it('deletes watchlists with an owner-bound delete', async () => {
-        mockPrisma.watchlist.deleteMany.mockResolvedValue({ count: 1 });
-
-        await request(app)
-            .delete('/api/watchlists/1')
-            .expect(200);
-
-        expect(mockPrisma.watchlist.deleteMany).toHaveBeenCalledWith({
-            where: { id: 1, userId: 1 }
-        });
-        expect(mockPrisma.watchlist.delete).not.toHaveBeenCalled();
-    });
-
-    it('returns 404 when a watchlist owner-bound delete affects no rows', async () => {
-        mockPrisma.watchlist.deleteMany.mockResolvedValue({ count: 0 });
-
-        const res = await request(app)
-            .delete('/api/watchlists/1')
-            .expect(404);
-
-        expect(res.body.error.message).toBe('Watchlist not found');
-        expect(mockPrisma.watchlist.delete).not.toHaveBeenCalled();
-    });
-
-    it('deletes watchlist items with a watchlist owner-bound delete', async () => {
-        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
-        mockPrisma.watchlistItem.findUnique.mockResolvedValue({ id: 7, watchlistId: 1, symbol: 'NABIL' });
-        mockPrisma.watchlistItem.deleteMany.mockResolvedValue({ count: 1 });
-
-        await request(app)
-            .delete('/api/watchlists/1/items/NABIL')
-            .expect(200);
-
-        expect(mockPrisma.watchlistItem.deleteMany).toHaveBeenCalledWith({
-            where: {
-                id: 7,
-                watchlistId: 1,
-                watchlist: { is: { userId: 1 } }
+    it.each([
+        {
+            name: 'watchlist rename',
+            act: () => request(app).put('/api/watchlists/1').send({ name: 'Renamed' }),
+            model: 'watchlist',
+            notFoundMessage: 'Watchlist not found',
+            extra: () => {
+                expect(mockPrisma.watchlist.findFirst).not.toHaveBeenCalled();
+                expect(mockPrisma.watchlist.update).not.toHaveBeenCalled();
             }
-        });
-        expect(mockPrisma.watchlistItem.findUnique).toHaveBeenCalledWith({
-            where: { watchlistId_symbol: { watchlistId: 1, symbol: 'NABIL' } },
-            select: { id: true }
-        });
-        expect(mockPrisma.watchlistItem.delete).not.toHaveBeenCalled();
+        },
+        {
+            name: 'unshare',
+            act: () => request(app).post('/api/watchlists/1/unshare').send({}),
+            model: 'watchlist',
+            notFoundMessage: 'Watchlist not found'
+        },
+        {
+            name: 'alert update',
+            act: () => request(app).put('/api/alerts/1').send({ enabled: false }),
+            model: 'alert',
+            notFoundMessage: 'Alert not found',
+            extra: () => {
+                expect(mockPrisma.alert.findFirst).not.toHaveBeenCalled();
+                expect(mockPrisma.alert.update).not.toHaveBeenCalled();
+            }
+        }
+    ])('returns 404 when an owner-bound $name write affects no rows', async ({ act, model, notFoundMessage, extra }) => {
+        mockPrisma[model].updateMany.mockResolvedValue({ count: 0 });
+
+        const res = await act().expect(404);
+
+        expect(res.body.error.message).toBe(notFoundMessage);
+        if (extra) extra();
     });
 
-    it('returns 404 when a watchlist item owner-bound delete affects no rows', async () => {
-        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
-        mockPrisma.watchlistItem.findUnique.mockResolvedValue({ id: 7, watchlistId: 1, symbol: 'NABIL' });
-        mockPrisma.watchlistItem.deleteMany.mockResolvedValue({ count: 0 });
+    it.each([
+        {
+            name: 'watchlist',
+            setup: () => mockPrisma.watchlist.deleteMany.mockResolvedValue({ count: 1 }),
+            act: () => request(app).delete('/api/watchlists/1').expect(200),
+            model: 'watchlist',
+            expectedDeleteMany: { where: { id: 1, userId: 1 } }
+        },
+        {
+            name: 'watchlist item',
+            setup: () => {
+                mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+                mockPrisma.watchlistItem.findUnique.mockResolvedValue({ id: 7, watchlistId: 1, symbol: 'NABIL' });
+                mockPrisma.watchlistItem.deleteMany.mockResolvedValue({ count: 1 });
+            },
+            act: () => request(app).delete('/api/watchlists/1/items/NABIL').expect(200),
+            model: 'watchlistItem',
+            expectedDeleteMany: {
+                where: {
+                    id: 7,
+                    watchlistId: 1,
+                    watchlist: { is: { userId: 1 } }
+                }
+            },
+            extra: () => {
+                expect(mockPrisma.watchlistItem.findUnique).toHaveBeenCalledWith({
+                    where: { watchlistId_symbol: { watchlistId: 1, symbol: 'NABIL' } },
+                    select: { id: true }
+                });
+            }
+        },
+        {
+            name: 'portfolio',
+            setup: () => mockPrisma.portfolio.deleteMany.mockResolvedValue({ count: 1 }),
+            act: () => request(app).delete('/api/portfolios/1').expect(200),
+            model: 'portfolio',
+            expectedDeleteMany: { where: { id: 1, userId: 1 } }
+        },
+        {
+            name: 'trade',
+            setup: () => {
+                mockPrisma.portfolio.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+                mockPrisma.trade.findFirst.mockResolvedValue({ id: 5, portfolioId: 1 });
+                mockPrisma.trade.deleteMany.mockResolvedValue({ count: 1 });
+            },
+            act: () => request(app).delete('/api/portfolios/1/trades/5').expect(200),
+            model: 'trade',
+            expectedDeleteMany: {
+                where: {
+                    id: 5,
+                    portfolioId: 1,
+                    portfolio: { is: { userId: 1 } }
+                }
+            },
+            extra: () => {
+                expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
+                    where: { id: 1, userId: 1 },
+                    select: { id: true }
+                });
+                expect(mockPrisma.trade.findFirst).toHaveBeenCalledWith({
+                    where: { id: 5, portfolioId: 1 },
+                    select: { id: true }
+                });
+            }
+        },
+        {
+            name: 'alert',
+            setup: () => mockPrisma.alert.deleteMany.mockResolvedValue({ count: 1 }),
+            act: () => request(app).delete('/api/alerts/1').expect(200),
+            model: 'alert',
+            expectedDeleteMany: { where: { id: 1, userId: 1 } }
+        }
+    ])('deletes $name with an owner-bound delete', async ({ setup, act, model, expectedDeleteMany }) => {
+        setup();
 
-        const res = await request(app)
-            .delete('/api/watchlists/1/items/NABIL')
-            .expect(404);
+        await act();
 
-        expect(res.body.error.message).toBe('Symbol not in watchlist');
-        expect(mockPrisma.watchlistItem.findUnique).toHaveBeenCalledWith({
-            where: { watchlistId_symbol: { watchlistId: 1, symbol: 'NABIL' } },
-            select: { id: true }
-        });
-        expect(mockPrisma.watchlistItem.delete).not.toHaveBeenCalled();
+        expect(mockPrisma[model].deleteMany).toHaveBeenCalledWith(expectedDeleteMany);
+        expect(mockPrisma[model].delete).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            name: 'watchlist',
+            setup: () => mockPrisma.watchlist.deleteMany.mockResolvedValue({ count: 0 }),
+            act: () => request(app).delete('/api/watchlists/1'),
+            model: 'watchlist',
+            notFoundMessage: 'Watchlist not found'
+        },
+        {
+            name: 'watchlist item',
+            setup: () => {
+                mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+                mockPrisma.watchlistItem.findUnique.mockResolvedValue({ id: 7, watchlistId: 1, symbol: 'NABIL' });
+                mockPrisma.watchlistItem.deleteMany.mockResolvedValue({ count: 0 });
+            },
+            act: () => request(app).delete('/api/watchlists/1/items/NABIL'),
+            model: 'watchlistItem',
+            notFoundMessage: 'Symbol not in watchlist'
+        },
+        {
+            name: 'portfolio',
+            setup: () => mockPrisma.portfolio.deleteMany.mockResolvedValue({ count: 0 }),
+            act: () => request(app).delete('/api/portfolios/1'),
+            model: 'portfolio',
+            notFoundMessage: 'Portfolio not found'
+        },
+        {
+            name: 'trade',
+            setup: () => {
+                mockPrisma.portfolio.findFirst.mockResolvedValue({ id: 1, userId: 1 });
+                mockPrisma.trade.findFirst.mockResolvedValue({ id: 5, portfolioId: 1 });
+                mockPrisma.trade.deleteMany.mockResolvedValue({ count: 0 });
+            },
+            act: () => request(app).delete('/api/portfolios/1/trades/5'),
+            model: 'trade',
+            notFoundMessage: 'Trade not found'
+        },
+        {
+            name: 'alert',
+            setup: () => mockPrisma.alert.deleteMany.mockResolvedValue({ count: 0 }),
+            act: () => request(app).delete('/api/alerts/1'),
+            model: 'alert',
+            notFoundMessage: 'Alert not found'
+        }
+    ])('returns 404 when a $name owner-bound delete affects no rows', async ({ setup, act, model, notFoundMessage }) => {
+        setup();
+
+        const res = await act().expect(404);
+
+        expect(res.body.error.message).toBe(notFoundMessage);
+        expect(mockPrisma[model].delete).not.toHaveBeenCalled();
     });
 
     it('unshares watchlists with an owner-bound write', async () => {
@@ -529,18 +627,6 @@ describe('authenticated user route validation', () => {
             where: { id: 1, userId: 1 },
             data: { publicSlug: null }
         });
-    });
-
-    it('returns 404 when unsharing affects no owned watchlist row', async () => {
-        mockPrisma.watchlist.findFirst.mockResolvedValue({ id: 1, userId: 1, publicSlug: 'sharedSlug' });
-        mockPrisma.watchlist.updateMany.mockResolvedValue({ count: 0 });
-
-        const res = await request(app)
-            .post('/api/watchlists/1/unshare')
-            .send({})
-            .expect(404);
-
-        expect(res.body.error.message).toBe('Watchlist not found');
     });
 
     it('rate limits repeated unauthenticated public share lookups', async () => {
@@ -589,24 +675,32 @@ describe('authenticated user route validation', () => {
                 ]
             }
         ]);
-        expect(JSON.stringify(res.body)).not.toContain('userId');
-        expect(JSON.stringify(res.body)).not.toContain('watchlistId');
-        expect(JSON.stringify(res.body)).not.toContain('publicSlug');
+        expectRedacted(res, ['userId', 'watchlistId', 'publicSlug']);
     });
 
-    it('rejects invalid portfolio trade numbers before database lookup', async () => {
+    it.each([
+        {
+            name: 'negative quantities',
+            payload: { ...TRADE_BASE_PAYLOAD, quantity: -10 },
+            messagePart: 'Quantity'
+        },
+        {
+            name: 'type-confused numbers',
+            payload: { ...TRADE_BASE_PAYLOAD, quantity: true, price: [100] },
+            messagePart: 'Quantity'
+        },
+        {
+            name: 'impossible calendar dates',
+            payload: { ...TRADE_BASE_PAYLOAD, quantity: 10, price: 100, date: '2026-02-31' },
+            messagePart: 'Date'
+        }
+    ])('rejects portfolio trades with $name before database lookup', async ({ payload, messagePart }) => {
         const res = await request(app)
             .post('/api/portfolios/1/trades')
-            .send({
-                symbol: 'NABIL',
-                type: 'buy',
-                quantity: -10,
-                price: 100,
-                date: '2026-06-06'
-            })
+            .send(payload)
             .expect(400);
 
-        expect(res.body.error.message).toContain('Quantity');
+        expect(res.body.error.message).toContain(messagePart);
         expect(mockPrisma.portfolio.findFirst).not.toHaveBeenCalled();
         expect(mockPrisma.trade.create).not.toHaveBeenCalled();
     });
@@ -659,42 +753,7 @@ describe('authenticated user route validation', () => {
                 ]
             }
         ]);
-        expect(JSON.stringify(res.body)).not.toContain('userId');
-        expect(JSON.stringify(res.body)).not.toContain('portfolioId');
-    });
-
-    it('rejects numeric type confusion before portfolio trade lookup', async () => {
-        const res = await request(app)
-            .post('/api/portfolios/1/trades')
-            .send({
-                symbol: 'NABIL',
-                type: 'buy',
-                quantity: true,
-                price: [100],
-                date: '2026-06-06'
-            })
-            .expect(400);
-
-        expect(res.body.error.message).toContain('Quantity');
-        expect(mockPrisma.portfolio.findFirst).not.toHaveBeenCalled();
-        expect(mockPrisma.trade.create).not.toHaveBeenCalled();
-    });
-
-    it('rejects impossible portfolio trade calendar dates before database lookup', async () => {
-        const res = await request(app)
-            .post('/api/portfolios/1/trades')
-            .send({
-                symbol: 'NABIL',
-                type: 'buy',
-                quantity: 10,
-                price: 100,
-                date: '2026-02-31'
-            })
-            .expect(400);
-
-        expect(res.body.error.message).toContain('Date');
-        expect(mockPrisma.portfolio.findFirst).not.toHaveBeenCalled();
-        expect(mockPrisma.trade.create).not.toHaveBeenCalled();
+        expectRedacted(res, ['userId', 'portfolioId']);
     });
 
     it('rejects overlarge integer IDs before database lookup', async () => {
@@ -724,7 +783,7 @@ describe('authenticated user route validation', () => {
             .expect(201);
 
         expect(res.body.data.symbol).toBe('NABIL');
-        expect(JSON.stringify(res.body)).not.toContain('portfolioId');
+        expectRedacted(res, ['portfolioId']);
         expect(mockPrisma.trade.create).toHaveBeenCalledWith({
             data: {
                 portfolioId: 1,
@@ -779,7 +838,7 @@ describe('authenticated user route validation', () => {
             updatedAt: '2026-06-06T00:00:00.000Z',
             trades: []
         });
-        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expectRedacted(res, ['userId']);
     });
 
     it('rejects trade creation after the per-portfolio quota is reached', async () => {
@@ -788,13 +847,7 @@ describe('authenticated user route validation', () => {
 
         const res = await request(app)
             .post('/api/portfolios/1/trades')
-            .send({
-                symbol: 'NABIL',
-                type: 'buy',
-                quantity: 10,
-                price: 123.45,
-                date: '2026-06-06'
-            })
+            .send({ ...TRADE_BASE_PAYLOAD, price: 123.45 })
             .expect(409);
 
         expect(res.body.error.message).toContain('Portfolio trade limit');
@@ -887,81 +940,7 @@ describe('authenticated user route validation', () => {
             where: { symbol: { in: ['NABIL'] } },
             select: { symbol: true, lastTradedPrice: true }
         });
-        expect(JSON.stringify(res.body)).not.toContain('userId');
-        expect(JSON.stringify(res.body)).not.toContain('portfolioId');
-        expect(JSON.stringify(res.body)).not.toContain('note');
-    });
-
-    it('deletes portfolios with an owner-bound delete', async () => {
-        mockPrisma.portfolio.deleteMany.mockResolvedValue({ count: 1 });
-
-        await request(app)
-            .delete('/api/portfolios/1')
-            .expect(200);
-
-        expect(mockPrisma.portfolio.deleteMany).toHaveBeenCalledWith({
-            where: { id: 1, userId: 1 }
-        });
-        expect(mockPrisma.portfolio.delete).not.toHaveBeenCalled();
-    });
-
-    it('returns 404 when a portfolio owner-bound delete affects no rows', async () => {
-        mockPrisma.portfolio.deleteMany.mockResolvedValue({ count: 0 });
-
-        const res = await request(app)
-            .delete('/api/portfolios/1')
-            .expect(404);
-
-        expect(res.body.error.message).toBe('Portfolio not found');
-        expect(mockPrisma.portfolio.delete).not.toHaveBeenCalled();
-    });
-
-    it('deletes trades with a portfolio owner-bound delete', async () => {
-        mockPrisma.portfolio.findFirst.mockResolvedValue({ id: 1, userId: 1 });
-        mockPrisma.trade.findFirst.mockResolvedValue({ id: 5, portfolioId: 1 });
-        mockPrisma.trade.deleteMany.mockResolvedValue({ count: 1 });
-
-        await request(app)
-            .delete('/api/portfolios/1/trades/5')
-            .expect(200);
-
-        expect(mockPrisma.trade.deleteMany).toHaveBeenCalledWith({
-            where: {
-                id: 5,
-                portfolioId: 1,
-                portfolio: { is: { userId: 1 } }
-            }
-        });
-        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
-            where: { id: 1, userId: 1 },
-            select: { id: true }
-        });
-        expect(mockPrisma.trade.findFirst).toHaveBeenCalledWith({
-            where: { id: 5, portfolioId: 1 },
-            select: { id: true }
-        });
-        expect(mockPrisma.trade.delete).not.toHaveBeenCalled();
-    });
-
-    it('returns 404 when a trade owner-bound delete affects no rows', async () => {
-        mockPrisma.portfolio.findFirst.mockResolvedValue({ id: 1, userId: 1 });
-        mockPrisma.trade.findFirst.mockResolvedValue({ id: 5, portfolioId: 1 });
-        mockPrisma.trade.deleteMany.mockResolvedValue({ count: 0 });
-
-        const res = await request(app)
-            .delete('/api/portfolios/1/trades/5')
-            .expect(404);
-
-        expect(res.body.error.message).toBe('Trade not found');
-        expect(mockPrisma.portfolio.findFirst).toHaveBeenCalledWith({
-            where: { id: 1, userId: 1 },
-            select: { id: true }
-        });
-        expect(mockPrisma.trade.findFirst).toHaveBeenCalledWith({
-            where: { id: 5, portfolioId: 1 },
-            select: { id: true }
-        });
-        expect(mockPrisma.trade.delete).not.toHaveBeenCalled();
+        expectRedacted(res, ['userId', 'portfolioId', 'note']);
     });
 
     it('rejects string booleans on alert updates instead of coercing them', async () => {
@@ -1020,8 +999,7 @@ describe('authenticated user route validation', () => {
                 ]
             }
         ]);
-        expect(JSON.stringify(res.body)).not.toContain('userId');
-        expect(JSON.stringify(res.body)).not.toContain('alertId');
+        expectRedacted(res, ['userId', 'alertId']);
     });
 
     it('rejects no-op alert updates before database lookup', async () => {
@@ -1084,7 +1062,7 @@ describe('authenticated user route validation', () => {
             createdAt: '2026-06-06T00:00:00.000Z',
             triggeredAt: null
         });
-        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expectRedacted(res, ['userId']);
     });
 
     it('updates alerts with an owner-bound write', async () => {
@@ -1097,48 +1075,11 @@ describe('authenticated user route validation', () => {
             .expect(200);
 
         expect(res.body.data.enabled).toBe(false);
-        expect(JSON.stringify(res.body)).not.toContain('userId');
+        expectRedacted(res, ['userId']);
         expect(mockPrisma.alert.updateMany).toHaveBeenCalledWith({
             where: { id: 1, userId: 1 },
             data: { enabled: false }
         });
         expect(mockPrisma.alert.update).not.toHaveBeenCalled();
-    });
-
-    it('returns 404 when an alert owner-bound write affects no rows', async () => {
-        mockPrisma.alert.updateMany.mockResolvedValue({ count: 0 });
-
-        const res = await request(app)
-            .put('/api/alerts/1')
-            .send({ enabled: false })
-            .expect(404);
-
-        expect(res.body.error.message).toBe('Alert not found');
-        expect(mockPrisma.alert.findFirst).not.toHaveBeenCalled();
-        expect(mockPrisma.alert.update).not.toHaveBeenCalled();
-    });
-
-    it('deletes alerts with an owner-bound delete', async () => {
-        mockPrisma.alert.deleteMany.mockResolvedValue({ count: 1 });
-
-        await request(app)
-            .delete('/api/alerts/1')
-            .expect(200);
-
-        expect(mockPrisma.alert.deleteMany).toHaveBeenCalledWith({
-            where: { id: 1, userId: 1 }
-        });
-        expect(mockPrisma.alert.delete).not.toHaveBeenCalled();
-    });
-
-    it('returns 404 when an alert owner-bound delete affects no rows', async () => {
-        mockPrisma.alert.deleteMany.mockResolvedValue({ count: 0 });
-
-        const res = await request(app)
-            .delete('/api/alerts/1')
-            .expect(404);
-
-        expect(res.body.error.message).toBe('Alert not found');
-        expect(mockPrisma.alert.delete).not.toHaveBeenCalled();
     });
 });

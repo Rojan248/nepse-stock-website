@@ -68,6 +68,46 @@ app.use(errorHandler);
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 
+const REGISTRATION_PROCESSED_BODY = {
+    success: true,
+    data: { message: 'Registration processed. Sign in to continue.' }
+};
+
+/** Assert the generic registration response with no session side effects */
+const expectRegistrationProcessedWithoutSession = (res) => {
+    expect(res.body).toEqual(REGISTRATION_PROCESSED_BODY);
+    expect(res.headers['set-cookie']).toBeUndefined();
+    expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
+    expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
+    expect(authMiddleware.setRefreshCookie).not.toHaveBeenCalled();
+};
+
+/** Assert a refresh attempt was rejected without minting any new session */
+const expectRefreshRejectedWithoutSession = (res, storedId) => {
+    expect(res.body.error.message).toBe('Invalid or expired refresh token');
+    expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({ where: { id: storedId } });
+    expect(authMiddleware.clearRefreshCookie).toHaveBeenCalled();
+    expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
+    expect(authMiddleware.setRefreshCookie).not.toHaveBeenCalled();
+    expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
+};
+
+/** Assert a logout revoked the hashed refresh token and bumped the token version */
+const expectLogoutRevocation = (rawRefreshToken, userId) => {
+    expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
+        where: { token: sha256(rawRefreshToken) },
+        select: { userId: true }
+    });
+    expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+        where: { token: sha256(rawRefreshToken) }
+    });
+    expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: { accessTokenVersion: { increment: 1 } }
+    });
+    expect(mockPrisma.user.update).not.toHaveBeenCalled();
+};
+
 describe('auth route security hardening', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     const originalPublicRegistrationEnabled = process.env.PUBLIC_REGISTRATION_ENABLED;
@@ -122,11 +162,7 @@ describe('auth route security hardening', () => {
             })
             .expect(202);
 
-        expect(res.body).toEqual({
-            success: true,
-            data: { message: 'Registration processed. Sign in to continue.' }
-        });
-        expect(res.headers['set-cookie']).toBeUndefined();
+        expectRegistrationProcessedWithoutSession(res);
         expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
             where: { email: 'person@example.com' },
             select: { id: true }
@@ -143,9 +179,6 @@ describe('auth route security hardening', () => {
             data: { name: 'My Watchlist', userId: 1 },
             select: { id: true }
         });
-        expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
-        expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
-        expect(authMiddleware.setRefreshCookie).not.toHaveBeenCalled();
     });
 
     it('returns the same generic registration response for existing accounts', async () => {
@@ -164,11 +197,7 @@ describe('auth route security hardening', () => {
             })
             .expect(202);
 
-        expect(res.body).toEqual({
-            success: true,
-            data: { message: 'Registration processed. Sign in to continue.' }
-        });
-        expect(res.headers['set-cookie']).toBeUndefined();
+        expectRegistrationProcessedWithoutSession(res);
         expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
             where: { email: 'person@example.com' },
             select: { id: true }
@@ -176,9 +205,6 @@ describe('auth route security hardening', () => {
         expect(bcrypt.hash).toHaveBeenCalledWith('StrongPass123', 12);
         expect(mockPrisma.user.create).not.toHaveBeenCalled();
         expect(mockPrisma.watchlist.create).not.toHaveBeenCalled();
-        expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
-        expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
-        expect(authMiddleware.setRefreshCookie).not.toHaveBeenCalled();
     });
 
     it('ignores public registration in production unless explicitly enabled', async () => {
@@ -194,18 +220,11 @@ describe('auth route security hardening', () => {
             })
             .expect(202);
 
-        expect(res.body).toEqual({
-            success: true,
-            data: { message: 'Registration processed. Sign in to continue.' }
-        });
-        expect(res.headers['set-cookie']).toBeUndefined();
+        expectRegistrationProcessedWithoutSession(res);
         expect(bcrypt.hash).toHaveBeenCalledWith('StrongPass123', 12);
         expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
         expect(mockPrisma.user.create).not.toHaveBeenCalled();
         expect(mockPrisma.watchlist.create).not.toHaveBeenCalled();
-        expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
-        expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
-        expect(authMiddleware.setRefreshCookie).not.toHaveBeenCalled();
     });
 
     it('rejects overlong bcrypt passwords before hashing', async () => {
@@ -351,18 +370,7 @@ describe('auth route security hardening', () => {
             .set('Cookie', [`refreshToken=${rawRefreshToken}`])
             .expect(200);
 
-        expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
-            where: { token: sha256(rawRefreshToken) },
-            select: { userId: true }
-        });
-        expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
-            where: { token: sha256(rawRefreshToken) }
-        });
-        expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
-            where: { id: 1 },
-            data: { accessTokenVersion: { increment: 1 } }
-        });
-        expect(mockPrisma.user.update).not.toHaveBeenCalled();
+        expectLogoutRevocation(rawRefreshToken, 1);
     });
 
     it('keeps logout idempotent when a refresh token references a deleted user', async () => {
@@ -378,18 +386,7 @@ describe('auth route security hardening', () => {
             .expect(200);
 
         expect(res.body.data.message).toBe('Logged out');
-        expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
-            where: { token: sha256(rawRefreshToken) },
-            select: { userId: true }
-        });
-        expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
-            where: { token: sha256(rawRefreshToken) }
-        });
-        expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
-            where: { id: 99 },
-            data: { accessTokenVersion: { increment: 1 } }
-        });
-        expect(mockPrisma.user.update).not.toHaveBeenCalled();
+        expectLogoutRevocation(rawRefreshToken, 99);
     });
 
     it('looks up refresh tokens by hash and rotates them', async () => {
@@ -442,56 +439,39 @@ describe('auth route security hardening', () => {
         });
     });
 
-    it('revokes refresh tokens for locked accounts instead of minting a new access token', async () => {
+    it.each([
+        {
+            name: 'locked accounts',
+            storedId: 8,
+            user: {
+                id: 1,
+                email: 'person@example.com',
+                displayName: 'Person',
+                role: 'user',
+                lockedUntil: new Date(Date.now() + 30 * 60 * 1000)
+            }
+        },
+        {
+            name: 'deleted users',
+            storedId: 9,
+            user: null
+        }
+    ])('revokes refresh tokens for $name without minting a new access token', async ({ storedId, user }) => {
         const rawRefreshToken = 'raw-refresh-token';
         mockPrisma.refreshToken.findUnique.mockResolvedValue({
-            id: 8,
+            id: storedId,
             token: sha256(rawRefreshToken),
             userId: 1,
             expiresAt: new Date(Date.now() + 60_000)
         });
-        mockPrisma.user.findUnique.mockResolvedValue({
-            id: 1,
-            email: 'person@example.com',
-            displayName: 'Person',
-            role: 'user',
-            lockedUntil: new Date(Date.now() + 30 * 60 * 1000)
-        });
+        mockPrisma.user.findUnique.mockResolvedValue(user);
 
         const res = await request(app)
             .post('/api/auth/refresh')
             .set('Cookie', [`refreshToken=${rawRefreshToken}`])
             .expect(401);
 
-        expect(res.body.error.message).toBe('Invalid or expired refresh token');
-        expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({ where: { id: 8 } });
-        expect(authMiddleware.clearRefreshCookie).toHaveBeenCalled();
-        expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
-        expect(authMiddleware.setRefreshCookie).not.toHaveBeenCalled();
-        expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
-    });
-
-    it('revokes stale refresh tokens for deleted users without revealing account state', async () => {
-        const rawRefreshToken = 'raw-refresh-token';
-        mockPrisma.refreshToken.findUnique.mockResolvedValue({
-            id: 9,
-            token: sha256(rawRefreshToken),
-            userId: 1,
-            expiresAt: new Date(Date.now() + 60_000)
-        });
-        mockPrisma.user.findUnique.mockResolvedValue(null);
-
-        const res = await request(app)
-            .post('/api/auth/refresh')
-            .set('Cookie', [`refreshToken=${rawRefreshToken}`])
-            .expect(401);
-
-        expect(res.body.error.message).toBe('Invalid or expired refresh token');
-        expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({ where: { id: 9 } });
-        expect(authMiddleware.clearRefreshCookie).toHaveBeenCalled();
-        expect(authMiddleware.generateAccessToken).not.toHaveBeenCalled();
-        expect(authMiddleware.setRefreshCookie).not.toHaveBeenCalled();
-        expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
+        expectRefreshRejectedWithoutSession(res, storedId);
     });
 
     it('keeps auth/me generic if the authenticated user disappears mid-request', async () => {
